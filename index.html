@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HKL Standards</title>
+<style>
+  /* ============================================================
+     HKL Standards – Frontend-Gerüst
+     Subjekt: Herzkatheterlabor. Gestaltungsprinzip: klinische
+     Präzision. Ruhige Flächen, hoher Kontrast, große Tippziele
+     für die Bedienung durch den Springer. Farbe kodiert Funktion
+     (Material grün, Geräte gelb, Sonstiges neutral), nicht Dekor.
+     Eine Datei, keine externen Abhängigkeiten.
+     ============================================================ */
+
+  :root {
+    /* Dunkler Modus – Standard */
+    --bg:          #0d141b;
+    --surface:     #172230;
+    --surface-2:   #1f2d3d;
+    --surface-3:   #263548;
+    --line:        #31435a;
+    --text:        #eaf1f8;
+    --text-dim:    #8ba0b6;
+    --text-faint:  #5f7387;
+    --accent:      #3ba9f0;
+    --accent-deep: #1878c4;
+    --material:    #35c98b;
+    --geraete:     #f0b53a;
+    --sonstige:    #8aa0b6;
+    --warn:        #f08a3a;
+    --danger:      #ec5b5b;
+    --ok:          #35c98b;
+    --radius:      14px;
+    --tap:         54px;
+    --maxw:        460px;
+  }
+
+  html[data-theme="light"] {
+    --bg:          #eef2f6;
+    --surface:     #ffffff;
+    --surface-2:   #f3f6fa;
+    --surface-3:   #e8eef4;
+    --line:        #d3dde8;
+    --text:        #16222f;
+    --text-dim:    #566577;
+    --text-faint:  #8496a8;
+    --accent:      #1878c4;
+    --accent-deep: #12609e;
+    --material:    #1c9b66;
+    --geraete:     #c88710;
+    --sonstige:    #566577;
+    --warn:        #c96a15;
+    --danger:      #cc3b3b;
+    --ok:          #1c9b66;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 17px; line-height: 1.45;
+    overscroll-behavior-y: none;
+    transition: background .25s, color .25s;
+  }
+
+  .app {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+
+  /* ---------- Kopfzeile ---------- */
+  header.bar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .icon-btn {
+    width: 44px; height: 44px; flex: 0 0 44px;
+    border: 1px solid var(--line); border-radius: 11px;
+    background: var(--surface-2); color: var(--text);
+    font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, opacity .15s;
+  }
+  .icon-btn:active { background: var(--surface-3); }
+  .icon-btn[hidden] { display: none; }
+  .bar-title { flex: 1; min-width: 0; }
+  .bar-title h1 {
+    margin: 0; font-size: 17.5px; font-weight: 650; letter-spacing: -.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bar-title .crumb {
+    font-size: 12px; color: var(--text-dim); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- Modus-Umschalter ---------- */
+  .modes { display: flex; gap: 4px; padding: 0 14px 12px; }
+  .modes button {
+    flex: 1; border: none; background: var(--surface-2);
+    color: var(--text-dim); font-size: 13.5px; font-weight: 600;
+    padding: 11px 8px; border-radius: 10px; cursor: pointer;
+    transition: all .15s; border: 1px solid transparent;
+  }
+  .modes button.on {
+    background: var(--accent-deep); color: #fff;
+    box-shadow: 0 2px 10px rgba(24,120,196,.35);
+  }
+
+  /* ---------- Suchfeld ---------- */
+  .search-wrap { padding: 0 14px 12px; }
+  .search {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 11px; padding: 0 12px; height: 46px;
+  }
+  .search:focus-within { border-color: var(--accent); }
+  .search svg { flex: 0 0 18px; opacity: .6; }
+  .search input {
+    flex: 1; border: none; background: transparent; color: var(--text);
+    font-size: 15.5px; outline: none; height: 100%;
+  }
+  .search input::placeholder { color: var(--text-faint); }
+  .search .clear {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 20px; cursor: pointer; padding: 4px; display: none;
+  }
+  .search .clear.show { display: block; }
+
+  /* ---------- Scrollbereich ---------- */
+  main { flex: 1; overflow-y: auto; padding: 14px; padding-bottom: 40px; -webkit-overflow-scrolling: touch; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(5px);} to { opacity: 1; transform: none; } }
+
+  /* ---------- Gruppen-Label ---------- */
+  .grp-head {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-faint);
+    margin: 18px 4px 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .grp-head:first-child { margin-top: 2px; }
+  .grp-head .ln { flex: 1; height: 1px; background: var(--line); }
+
+  /* ---------- Standard-Karte ---------- */
+  .std-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 15px 16px; margin-bottom: 9px;
+    display: flex; align-items: center; gap: 13px; cursor: pointer;
+    min-height: var(--tap); transition: border-color .15s, transform .05s;
+  }
+  .std-card:active { border-color: var(--accent); transform: scale(.995); }
+  .std-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    padding: 4px 9px; border-radius: 7px; flex: 0 0 auto;
+    background: var(--surface-3); color: var(--text-dim);
+  }
+  .std-main { flex: 1; min-width: 0; }
+  .std-title { font-weight: 620; font-size: 16px; letter-spacing: -.01em; }
+  .std-file { font-size: 12px; color: var(--text-faint); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .std-card .chev { color: var(--text-faint); font-size: 22px; flex: 0 0 auto; }
+
+  /* ---------- Rubrik-Kachel ---------- */
+  .rub {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--sonstige);
+    border-radius: 12px; padding: 16px; margin-bottom: 9px; cursor: pointer;
+    display: flex; align-items: center; gap: 13px; min-height: var(--tap);
+    transition: border-color .15s, transform .05s;
+  }
+  .rub:active { transform: scale(.995); }
+  .rub.material { border-left-color: var(--material); }
+  .rub.geraete  { border-left-color: var(--geraete); }
+  .rub.sonstige { border-left-color: var(--sonstige); }
+  .rub-ico {
+    width: 40px; height: 40px; flex: 0 0 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+    background: var(--surface-2);
+  }
+  .rub-main { flex: 1; min-width: 0; }
+  .rub-name { font-weight: 620; font-size: 15.5px; }
+  .rub-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .rub-pill {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    padding: 3px 7px; border-radius: 5px; flex: 0 0 auto;
+  }
+  .pill-material { background: rgba(53,201,139,.16); color: var(--material); }
+  .pill-geraete  { background: rgba(240,181,58,.16); color: var(--geraete); }
+  .pill-sonstige { background: rgba(138,160,182,.16); color: var(--sonstige); }
+
+  /* ---------- Detail: Sub-Bereich + Einträge ---------- */
+  .sub-head {
+    font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--accent); margin: 20px 2px 9px;
+  }
+  .entry {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 11px; margin-bottom: 7px; overflow: hidden;
+  }
+  .entry-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; cursor: pointer; min-height: var(--tap); }
+  .entry-row:active { background: var(--surface-2); }
+  .chk {
+    width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px; margin-top: 1px;
+    border: 2px solid var(--line); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; color: transparent; transition: all .12s;
+  }
+  .entry.done .chk { background: var(--ok); border-color: var(--ok); color: #06210f; }
+  .entry.done .e-text { color: var(--text-faint); text-decoration: line-through; }
+  .e-main { flex: 1; min-width: 0; }
+  .e-text { font-size: 15.5px; font-weight: 500; line-height: 1.35; }
+  .e-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .tag-menge { color: var(--geraete); background: rgba(240,181,58,.13); }
+  .tag-spec  { color: var(--accent); background: rgba(59,169,240,.12); }
+  .tag-loc   { color: var(--material); background: rgba(53,201,139,.13); }
+  .tag-loc.missing { color: var(--text-faint); background: var(--surface-2); }
+  .tag-zusatz { color: var(--warn); background: rgba(240,138,58,.13); }
+  .e-thumb {
+    width: 38px; height: 38px; flex: 0 0 38px; border-radius: 8px; margin-top: 1px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 17px; overflow: hidden;
+  }
+  .e-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .entry.fliess { border-style: dashed; background: transparent; }
+  .entry.fliess .e-fl { display: flex; gap: 11px; padding: 12px 14px; align-items: flex-start; }
+  .entry.fliess .e-fl .fi { color: var(--accent); flex: 0 0 auto; margin-top: 1px; }
+  .entry.fliess .e-fl .e-text { font-weight: 500; }
+
+  /* ---------- Pflege-Modus ---------- */
+  .banner {
+    background: linear-gradient(135deg, var(--surface), var(--surface-2));
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 14px;
+  }
+  .banner h2 { margin: 0 0 5px; font-size: 17px; }
+  .banner p { margin: 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.5; }
+  .prog { margin-top: 13px; }
+  .prog-bar { height: 7px; background: var(--surface-3); border-radius: 5px; overflow: hidden; }
+  .prog-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--material), var(--accent)); transition: width .4s; }
+  .prog-txt { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+  .filter-row { display: flex; gap: 7px; margin-bottom: 13px; }
+  .filter-row button {
+    flex: 1; padding: 10px 6px; font-size: 12.5px; font-weight: 600;
+    border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text-dim); cursor: pointer;
+  }
+  .filter-row button.on { background: var(--accent-deep); color: #fff; border-color: var(--accent); }
+
+  .mat-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 11px 13px; margin-bottom: 7px;
+    cursor: pointer; min-height: var(--tap);
+  }
+  .mat-row:active { background: var(--surface-2); }
+  .mat-thumb {
+    width: 44px; height: 44px; flex: 0 0 44px; border-radius: 9px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 19px; overflow: hidden;
+  }
+  .mat-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .mat-main { flex: 1; min-width: 0; }
+  .mat-name { font-weight: 600; font-size: 15px; line-height: 1.3; }
+  .mat-status { font-size: 11.5px; margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 7px; }
+  .dot-ok { background: var(--ok); } .dot-open { background: var(--warn); }
+  .mat-status.ok { color: var(--ok); } .mat-status.open { color: var(--warn); }
+  .mat-attn { color: var(--warn); font-size: 18px; flex: 0 0 auto; }
+  .mat-count { font-size: 11px; color: var(--text-faint); }
+
+  /* ---------- Pflege-Einzelansicht ---------- */
+  .pcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 17px; margin-bottom: 13px; }
+  .pcard.attn { border-color: var(--warn); box-shadow: 0 0 0 1px rgba(240,138,58,.28); }
+  .pc-name { font-size: 17px; font-weight: 650; }
+  .pc-ctx { font-size: 12px; color: var(--text-dim); margin: 3px 0 15px; }
+  .flabel { font-size: 12px; font-weight: 650; color: var(--text-dim); margin-bottom: 6px; letter-spacing: .02em; }
+  .photo-zone {
+    border: 2px dashed var(--line); border-radius: 12px; height: 140px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 7px; color: var(--text-dim); cursor: pointer; margin-bottom: 15px;
+    background: var(--surface-2); overflow: hidden; position: relative;
+  }
+  .photo-zone:active { border-color: var(--accent); }
+  .photo-zone .ph-ico { font-size: 30px; }
+  .photo-zone .ph-sub { font-size: 12.5px; }
+  .loc-input {
+    width: 100%; padding: 13px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font-size: 15.5px; margin-bottom: 13px;
+  }
+  .loc-input:focus { outline: none; border-color: var(--accent); }
+  .spec-field { background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-bottom: 14px; }
+  .spec-field .sf-l { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .spec-field .sf-v { color: var(--material); font-weight: 600; font-size: 14px; }
+  .zbox { background: rgba(240,138,58,.08); border: 1px solid rgba(240,138,58,.32); border-radius: 11px; padding: 13px; margin-bottom: 15px; }
+  .zbox-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .zbox-h .zt { font-size: 12px; font-weight: 700; color: var(--warn); letter-spacing: .03em; }
+  .zbox-q { font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; margin-bottom: 10px; }
+  .zbox-q b { color: var(--warn); }
+  .zopts { display: flex; flex-direction: column; gap: 7px; }
+  .zopt { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--surface); font-size: 14px; }
+  .zopt:active { background: var(--surface-2); }
+  .zopt.sel { border-color: var(--accent); background: rgba(59,169,240,.1); }
+  .zradio { width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; }
+  .zopt.sel .zradio { border-color: var(--accent); }
+  .zopt.sel .zradio::after { content:''; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .zopt .zl b { display: block; } .zopt .zl span { font-size: 12px; color: var(--text-dim); }
+  .p-actions { display: flex; gap: 9px; }
+  .btn { flex: 1; padding: 14px; border-radius: 11px; border: none; font-size: 15px; font-weight: 650; cursor: pointer; min-height: var(--tap); }
+  .btn-sec { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--line); }
+  .btn-pri { background: var(--material); color: #06210f; }
+  .btn-pri:active { filter: brightness(.93); }
+
+  /* ---------- Leerzustand ---------- */
+  .empty { text-align: center; padding: 50px 24px; color: var(--text-dim); }
+  .empty .ei { font-size: 40px; margin-bottom: 12px; opacity: .5; }
+  .empty h3 { margin: 0 0 6px; font-size: 16px; color: var(--text); font-weight: 600; }
+  .empty p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+
+  /* ---------- QR-Vorbereitung (Deep-Link Ziel) ---------- */
+  .qr-hint { font-size: 11.5px; color: var(--text-faint); text-align: center; padding: 16px 14px; border-top: 1px solid var(--line); margin-top: 8px; line-height: 1.5; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px);
+    background: var(--material); color: #06210f; font-weight: 650; padding: 12px 22px;
+    border-radius: 30px; font-size: 14px; opacity: 0; pointer-events: none;
+    transition: all .3s; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,.35); max-width: 90%;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.err { background: var(--danger); color: #fff; }
+
+  .foot { text-align: center; font-size: 11px; color: var(--text-faint); padding: 18px 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="bar">
+    <div class="bar-row">
+      <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
+      <div class="bar-title">
+        <h1 id="barTitle">HKL Standards</h1>
+        <div class="crumb" id="barCrumb">Lädt…</div>
+      </div>
+      <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
+    </div>
+    <div class="modes">
+      <button id="mUse" class="on">Nutzung</button>
+      <button id="mCare">Material pflegen</button>
+    </div>
+    <div class="search-wrap" id="searchWrap">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" type="search" placeholder="Standard suchen…" autocomplete="off">
+        <button class="clear" id="searchClear" aria-label="Suche löschen">×</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="screen active" id="scr-standards"></div>
+    <div class="screen" id="scr-rubriken"></div>
+    <div class="screen" id="scr-detail"></div>
+    <div class="screen" id="scr-care"></div>
+    <div class="screen" id="scr-care-item"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   HKL Standards – Anwendungslogik
+   Datenquelle: data/hkl_standards_export.json (5-Feld-Struktur).
+   Beim Fehlen der Datei greift eine kleine, klar markierte
+   Demo-Struktur, damit das Gerüst überall lauffähig ist.
+   ============================================================ */
+
+const DATA_URL = 'data/hkl_standards_export.json';
+
+/* --- Rubrik-Ikonografie: bildet echte HKL-Rubriknamen ab --- */
+function rubrikIcon(name, typ) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('saal') || n.includes('gerät') || n.includes('gerae')) return '🖥';
+  if (n.includes('notfall')) return '🧰';
+  if (n.includes('material')) return '📦';
+  if (n.includes('patient')) return '🫀';
+  if (n.includes('tisch')) return '🩺';
+  if (n.includes('ablauf') || n.includes('prozedur')) return '📋';
+  if (n.includes('bettenwarte')) return '🛏';
+  if (n.includes('abschließend') || n.includes('abschliess')) return '✔';
+  if (typ === 'material') return '📦';
+  if (typ === 'geraete')  return '🖥';
+  return '📄';
+}
+function typLabel(typ) { return typ === 'material' ? 'Material' : typ === 'geraete' ? 'Geräte' : 'Ablauf'; }
+
+/* --- Demo-Fallback (nur falls JSON nicht ladbar) --- */
+const DEMO = {
+  export_datum: null, anzahl_standards: 1,
+  standards: [{
+    id: 'demo', dateiname: 'DEMO.docx', titel: 'Demodaten (keine JSON gefunden)', gruppe: 'DEMO',
+    rubriken: [
+      { name: 'Saal und Geräte', typ: 'geraete', sub_bereiche: [{ name: null, eintraege: [
+        { anzeige_text: 'Defi-Patches (orange)', menge: null, material_key: 'defi-patches', spezifikation: 'orange', zusatz_markierung: null },
+        { anzeige_text: 'Perfusor(en) für Sedierung', menge: null, material_key: 'perfusor für sedierung', spezifikation: 'en', zusatz_markierung: { typ: 'für', fundstelle: 'für Sedierung' } },
+      ]}]},
+      { name: 'Materialien', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+        { anzeige_text: '2x kleiner Tisch', menge: '2x', material_key: 'kleiner tisch', spezifikation: null, zusatz_markierung: null },
+        { anzeige_text: '1x Coro-Set', menge: '1x', material_key: 'coro-set', spezifikation: null, zusatz_markierung: null },
+      ]}]},
+    ]
+  }]
+};
+
+/* --- Zustand --- */
+let DB = null;
+let careStore = {};   // material_key -> { photo, loc } (nur Sitzung, ohne Backend)
+let checkStore = {};  // eintrag-id -> bool (nur Sitzung)
+let nav = [];         // Navigationskeller Nutzungsansicht
+let mode = 'use';
+let curStd = null, curRub = null, careFilter = 'alle';
+
+const $  = (id) => document.getElementById(id);
+const esc = (s) => (s == null ? '' : String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
+
+/* ============ Laden ============ */
+async function load() {
+  try {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    DB = await res.json();
+    if (!DB || !Array.isArray(DB.standards)) throw new Error('Struktur ungültig');
+  } catch (e) {
+    DB = DEMO;
+    setTimeout(() => toast('Keine Standards-Datei gefunden – Demodaten aktiv', true), 400);
+  }
+  buildMaterialIndex();
+  applyDeepLink();
+  renderStandards();
+  updateBar();
+}
+
+/* ============ Material-Index (dedupliziert über material_key) ============ */
+let MAT_INDEX = [];
+function buildMaterialIndex() {
+  const map = new Map();
+  DB.standards.forEach(std => {
+    (std.rubriken || []).forEach(rub => {
+      if (rub.typ !== 'material' && rub.typ !== 'geraete') return;
+      (rub.sub_bereiche || []).forEach(sb => {
+        (sb.eintraege || []).forEach(e => {
+          if (e.ist_fliesstext) return;
+          const key = e.material_key;
+          if (!key) return;
+          if (!map.has(key)) {
+            map.set(key, { key, name: displayName(e), typ: rub.typ, vorkommen: 0,
+                           spezifikation: e.spezifikation || null, zusatz: e.zusatz_markierung || null });
+          }
+          map.get(key).vorkommen++;
+        });
+      });
+    });
+  });
+  MAT_INDEX = [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+/* Anzeigename fürs Pflegen: anzeige_text ohne führende Menge, ohne Klammerinhalt */
+function displayName(e) {
+  let t = e.anzeige_text || e.material_key || '';
+  if (e.menge) t = t.replace(new RegExp('^' + e.menge.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s*', 'i'), '');
+  return t.trim();
+}
+
+/* ============ Kopfzeile / Navigation ============ */
+function updateBar() {
+  const total = DB.standards.length;
+  if (mode === 'use') {
+    if (nav.length === 0) { $('barTitle').textContent = 'HKL Standards'; $('barCrumb').textContent = total + ' Standards'; $('backBtn').hidden = true; }
+  } else {
+    if (!$('scr-care-item').classList.contains('active')) {
+      $('barTitle').textContent = 'Material pflegen';
+      const done = MAT_INDEX.filter(m => careStore[m.key]).length;
+      $('barCrumb').textContent = MAT_INDEX.length + ' Materialien · ' + done + ' gepflegt';
+      $('backBtn').hidden = true;
+    }
+  }
+}
+function show(scr) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(scr).classList.add('active');
+  $('main').scrollTop = 0;
+}
+function setBar(title, crumb, back) {
+  $('barTitle').textContent = title;
+  $('barCrumb').textContent = crumb;
+  $('backBtn').hidden = !back;
+}
+
+/* ============ Modus ============ */
+function setMode(m) {
+  mode = m;
+  $('mUse').classList.toggle('on', m === 'use');
+  $('mCare').classList.toggle('on', m === 'care');
+  $('searchWrap').style.display = (m === 'use' && nav.length === 0) ? 'block' : 'none';
+  if (m === 'use') { nav = []; renderStandards(); show('scr-standards'); updateBar(); }
+  else { renderCare(); show('scr-care'); updateBar(); }
+}
+
+/* ============ Ebene 1: Standards (gruppiert, durchsuchbar) ============ */
+function renderStandards(query) {
+  const box = $('scr-standards');
+  const q = (query || '').trim().toLowerCase();
+  const groups = {};
+  DB.standards.forEach(s => {
+    if (q && !(s.titel || '').toLowerCase().includes(q) && !(s.gruppe || '').toLowerCase().includes(q)) return;
+    (groups[s.gruppe] = groups[s.gruppe] || []).push(s);
+  });
+  const keys = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'de'));
+  if (keys.length === 0) {
+    box.innerHTML = `<div class="empty"><div class="ei">🔍</div><h3>Kein Standard gefunden</h3><p>Für „${esc(query)}" gibt es keinen Treffer. Prüfe die Schreibweise oder lösche die Suche.</p></div>`;
+    return;
+  }
+  let html = '';
+  keys.forEach(g => {
+    html += `<div class="grp-head">${esc(g)}<span class="ln"></span></div>`;
+    groups[g].forEach(s => {
+      html += `<div class="std-card" onclick="openStandard('${esc(s.id)}')">
+        <span class="std-badge">${esc(s.gruppe)}</span>
+        <div class="std-main"><div class="std-title">${esc(s.titel)}</div><div class="std-file">${esc(s.dateiname)}</div></div>
+        <span class="chev">›</span></div>`;
+    });
+  });
+  html += `<div class="qr-hint">Jeder Standard ist per Direktlink erreichbar: <br>…/hkl-app.html#/std/<b>id</b> — Grundlage für den späteren QR-Code-Zugang.</div>`;
+  box.innerHTML = html;
+}
+
+/* ============ Ebene 2: Rubriken ============ */
+function openStandard(id, replace) {
+  const s = DB.standards.find(x => x.id === id);
+  if (!s) { toast('Standard nicht gefunden', true); return; }
+  curStd = s;
+  if (!replace) nav.push({ lvl: 'std', id });
+  location.hash = '#/std/' + id;
+  let html = '';
+  (s.rubriken || []).forEach((r, i) => {
+    const count = (r.sub_bereiche || []).reduce((n, sb) => n + (sb.eintraege ? sb.eintraege.length : 0), 0);
+    html += `<div class="rub ${r.typ}" onclick="openRubrik(${i})">
+      <div class="rub-ico">${rubrikIcon(r.name, r.typ)}</div>
+      <div class="rub-main"><div class="rub-name">${esc(r.name)}</div><div class="rub-meta">${count} Einträge</div></div>
+      <span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`;
+  });
+  $('scr-rubriken').innerHTML = html;
+  show('scr-rubriken');
+  setBar(s.titel, s.gruppe + ' · ' + (s.rubriken || []).length + ' Rubriken', true);
+  $('searchWrap').style.display = 'none';
+}
+
+/* ============ Ebene 3: Detail ============ */
+function openRubrik(idx) {
+  const r = curStd.rubriken[idx];
+  curRub = r;
+  nav.push({ lvl: 'rub', idx });
+  let html = '';
+  (r.sub_bereiche || []).forEach((sb, si) => {
+    if (sb.name) html += `<div class="sub-head">${esc(sb.name)}</div>`;
+    (sb.eintraege || []).forEach((e, ei) => {
+      const cid = curStd.id + '|' + idx + '|' + si + '|' + ei;
+      if (e.ist_fliesstext) {
+        html += `<div class="entry fliess"><div class="e-fl"><span class="fi">▸</span><span class="e-text">${esc(e.anzeige_text)}</span></div></div>`;
+        return;
+      }
+      const done = checkStore[cid] ? 'done' : '';
+      const care = (r.typ === 'material' || r.typ === 'geraete') ? careStore[e.material_key] : null;
+      const thumb = care && care.photo ? `<div class="e-thumb"><img src="${care.photo}" alt=""></div>` : `<div class="e-thumb">📷</div>`;
+      let meta = '';
+      if (e.menge) meta += `<span class="tag tag-menge">${esc(e.menge)}</span>`;
+      if (e.spezifikation) meta += `<span class="tag tag-spec">${esc(Array.isArray(e.spezifikation) ? e.spezifikation.join(', ') : e.spezifikation)}</span>`;
+      if (r.typ === 'material' || r.typ === 'geraete') {
+        meta += care && care.loc ? `<span class="tag tag-loc">📍 ${esc(care.loc)}</span>` : `<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
+      }
+      if (e.zusatz_markierung) meta += `<span class="tag tag-zusatz">⚠ ${esc(e.zusatz_markierung.typ)}</span>`;
+      const showThumb = (r.typ === 'material' || r.typ === 'geraete');
+      html += `<div class="entry ${done}" id="e-${esc(cid)}">
+        <div class="entry-row" onclick="toggleCheck('${esc(cid)}')">
+          <div class="chk">✓</div>
+          ${showThumb ? thumb : ''}
+          <div class="e-main"><div class="e-text">${esc(e.anzeige_text)}</div>${meta ? `<div class="e-meta">${meta}</div>` : ''}</div>
+        </div></div>`;
+    });
+  });
+  $('scr-detail').innerHTML = html || `<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine aufgeführten Positionen.</p></div>`;
+  show('scr-detail');
+  setBar(r.name, curStd.titel + ' · ' + curStd.gruppe, true);
+}
+function toggleCheck(cid) {
+  checkStore[cid] = !checkStore[cid];
+  const el = $('e-' + cid);
+  if (el) el.classList.toggle('done', checkStore[cid]);
+}
+
+/* ============ Zurück ============ */
+function goBack() {
+  if (mode === 'care') {
+    if ($('scr-care-item').classList.contains('active')) { renderCare(); show('scr-care'); updateBar(); }
+    return;
+  }
+  nav.pop();
+  if (nav.length === 0) { location.hash = ''; setMode('use'); }
+  else {
+    const top = nav[nav.length - 1];
+    if (top.lvl === 'std') { const s = curStd; nav.pop(); openStandard(s.id); }
+    else openStandard(curStd.id, true);
+  }
+}
+
+/* ============ Pflege-Modus: Materialliste ============ */
+function renderCare() {
+  const box = $('scr-care');
+  let list = MAT_INDEX;
+  if (careFilter === 'offen') list = MAT_INDEX.filter(m => !careStore[m.key]);
+  if (careFilter === 'zusatz') list = MAT_INDEX.filter(m => m.zusatz);
+  const done = MAT_INDEX.filter(m => careStore[m.key]).length;
+  const pct = MAT_INDEX.length ? Math.round(done / MAT_INDEX.length * 100) : 0;
+  let html = `<div class="banner"><h2>Materialwirtschaft</h2>
+    <p>Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten dann in allen Standards mit diesem Material.
+    <br><b>Hinweis:</b> Dieses Gerüst speichert noch nicht dauerhaft – das übernimmt später die zentrale Datenablage.</p>
+    <div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+    <div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
+    <div class="filter-row">
+      <button class="${careFilter==='alle'?'on':''}" onclick="setFilter('alle')">Alle</button>
+      <button class="${careFilter==='offen'?'on':''}" onclick="setFilter('offen')">Offen</button>
+      <button class="${careFilter==='zusatz'?'on':''}" onclick="setFilter('zusatz')">Zu prüfen</button>
+    </div>`;
+  if (list.length === 0) { html += `<div class="empty"><div class="ei">✓</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter, um weitere Materialien zu sehen.</p></div>`; }
+  list.forEach(m => {
+    const c = careStore[m.key];
+    const thumb = c && c.photo ? `<div class="mat-thumb"><img src="${c.photo}" alt=""></div>` : `<div class="mat-thumb">📷</div>`;
+    const st = c ? `<div class="mat-status ok"><span class="dot dot-ok"></span>Gepflegt${c.loc ? ' · ' + esc(c.loc) : ''}</div>`
+                 : `<div class="mat-status open"><span class="dot dot-open"></span>Offen – Foto & Lagerort fehlen</div>`;
+    const attn = m.zusatz ? `<span class="mat-attn">⚠</span>` : `<span class="mat-count">${m.vorkommen}×</span>`;
+    html += `<div class="mat-row" onclick="openCare('${esc(m.key)}')">
+      ${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div>${st}</div>${attn}</div>`;
+  });
+  box.innerHTML = html;
+}
+function setFilter(f) { careFilter = f; renderCare(); }
+
+/* ============ Pflege-Einzelansicht ============ */
+function openCare(key) {
+  const m = MAT_INDEX.find(x => x.key === key);
+  if (!m) return;
+  const c = careStore[key] || {};
+  let zbox = '';
+  if (m.zusatz) {
+    zbox = `<div class="zbox"><div class="zbox-h"><span>⚠</span><span class="zt">ZUSATZ PRÜFEN · „${esc(m.zusatz.typ)}"</span></div>
+      <div class="zbox-q">${esc(m.zusatz.fundstelle || '')}</div>
+      <p style="font-size:13px;color:var(--text-dim);margin:0 0 11px">Kennzeichnet dieser Zusatz ein eigenständiges Produkt (Materialvarianz) oder ist er nur eine Erklärung?</p>
+      <div class="zopts">
+        <div class="zopt" onclick="pickZ(this)"><div class="zradio"></div><div class="zl"><b>Eigene Materialvarianz</b><span>Zusatz behalten</span></div></div>
+        <div class="zopt" onclick="pickZ(this)"><div class="zradio"></div><div class="zl"><b>Nur Erklärung</b><span>Zusatz entfernen (umkehrbar)</span></div></div>
+      </div></div>`;
+  }
+  let spec = m.spezifikation ? `<div class="spec-field"><div class="sf-l">Spezifikation (aus Klammer)</div><div class="sf-v">${esc(Array.isArray(m.spezifikation)?m.spezifikation.join(', '):m.spezifikation)}</div></div>` : '';
+  const photoInner = c.photo
+    ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" alt="">`
+    : `<div class="ph-ico">📷</div><div class="ph-sub">Foto aufnehmen oder wählen</div>`;
+  $('scr-care-item').innerHTML = `
+    <div class="pcard ${m.zusatz?'attn':''}">
+      <div class="pc-name">${esc(m.name)}</div>
+      <div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${typLabel(m.typ)}</div>
+      ${zbox}
+      <div class="flabel">FOTO</div>
+      <div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
+      <input type="file" id="fileInp" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
+      ${spec}
+      <div class="flabel">LAGERORT</div>
+      <input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
+      <div class="p-actions">
+        <button class="btn btn-sec" onclick="goBack()">Zurück</button>
+        <button class="btn btn-pri" onclick="saveCare('${esc(key)}')">Speichern</button>
+      </div>
+    </div>
+    <div class="foot">Dieses Gerüst hält Daten nur für die aktuelle Sitzung. Dauerhafte, geräteübergreifende Speicherung folgt mit der zentralen Datenablage.</div>`;
+  show('scr-care-item');
+  setBar(m.name, 'Material pflegen', true);
+}
+function pickZ(el) { el.parentElement.querySelectorAll('.zopt').forEach(o => o.classList.remove('sel')); el.classList.add('sel'); }
+function onPhoto(ev, key) {
+  const f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { const z = $('photoZone'); if (z) z.innerHTML = `<img src="${reader.result}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo = reader.result; };
+  reader.readAsDataURL(f);
+}
+function saveCare(key) {
+  const loc = $('locInp').value.trim();
+  const z = $('photoZone');
+  const photo = (z && z.dataset.photo) || (careStore[key] && careStore[key].photo) || null;
+  careStore[key] = { loc, photo };
+  toast('Gespeichert (nur diese Sitzung)');
+  setTimeout(() => { renderCare(); show('scr-care'); updateBar(); }, 650);
+}
+
+/* ============ Deep-Link (QR-Vorbereitung) ============ */
+function applyDeepLink() {
+  const h = location.hash || '';
+  const m = h.match(/^#\/std\/(.+)$/);
+  if (m) { const id = decodeURIComponent(m[1]); if (DB.standards.find(s => s.id === id)) { setMode('use'); openStandard(id); return; } }
+}
+
+/* ============ Suche ============ */
+$('searchInput').addEventListener('input', (e) => {
+  const v = e.target.value;
+  $('searchClear').classList.toggle('show', v.length > 0);
+  renderStandards(v);
+});
+$('searchClear').addEventListener('click', () => { $('searchInput').value = ''; $('searchClear').classList.remove('show'); renderStandards(''); $('searchInput').focus(); });
+
+/* ============ Theme ============ */
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  $('themeBtn').textContent = next === 'light' ? '☀' : '◐';
+}
+
+/* ============ Toast ============ */
+let tTimer;
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(tTimer); tTimer = setTimeout(() => t.className = 'toast', 2000);
+}
+
+/* ============ Verdrahtung ============ */
+$('mUse').onclick = () => setMode('use');
+$('mCare').onclick = () => setMode('care');
+$('backBtn').onclick = goBack;
+$('themeBtn').onclick = toggleTheme;
+window.addEventListener('hashchange', () => { if ((location.hash||'') === '' && mode==='use') { nav=[]; renderStandards(); show('scr-standards'); updateBar(); $('searchWrap').style.display='block'; } });
+
+load();
+</script>
+</body>
+</html>
