@@ -7,16 +7,21 @@
 <title>HKL Standards</title>
 <style>
   /* ============================================================
-     HKL Standards — Frontend v3 (Phase-3-Daten)
-     Subjekt: Herzkatheterlabor. Klinische Präzision.
-     Neu: mengenzuerst-Layout · Unterkategorien als Farbabschnitte
-     · Verwaltung (Unterkategorien + Prüf-Workflow + Anzeige).
+     HKL Standards — Frontend v4
+     NEU ggü. v3: Kategorien (Naturen) sind KONFIGURIERBAR.
+     Prinzip "Trennung von Konfiguration und Code":
+       - DEFAULT_NAT  = Voreinstellungen im Code (Standardwerte)
+       - Verwaltung   = Editor (ändert die Konfiguration ohne Code)
+       - localStorage = Persistenz (Änderungen bleiben erhalten)
+       - applyNatConfig() schreibt die Farben als CSS-Variablen,
+         die App liest sie überall. Eine Änderung wirkt sofort überall.
      ============================================================ */
   :root {
     --bg:#0c1116; --surface:#141d26; --surface-2:#1c2733; --surface-3:#243140;
     --line:#2b3a4c; --line-soft:#212e3d; --text:#e8eef5; --text-dim:#93a4b8; --text-faint:#5f7387;
     --accent:#3d9be0; --accent-deep:#1b73b8;
-    --n-material:#34c98a; --n-geraet:#e8b34a; --n-medikament:#bd8ce8; --n-hinweis:#7f95ab;
+    /* Natur-Farben: nur Erst-Anzeige. Zur Laufzeit von applyNatConfig() überschrieben. */
+    --n-material:#34c98a; --n-geraet:#e8b34a; --n-medikament:#bd8ce8; --n-hinweis:#7f95ab; --n-ueberschrift:#3d9be0;
     --size:#21c1d6; --size-bg:rgba(33,193,214,.12); --size-bd:rgba(33,193,214,.34);
     --warn:#ef8f42; --danger:#e85d5d; --ok:#34c98a;
     --radius:15px; --tap:52px; --maxw:468px; --mono:"SF Mono","JetBrains Mono","Consolas",ui-monospace,monospace;
@@ -25,7 +30,6 @@
     --bg:#eceff3; --surface:#fff; --surface-2:#f2f5f9; --surface-3:#e7edf3;
     --line:#d2dce6; --line-soft:#e2e9f0; --text:#14212e; --text-dim:#526274; --text-faint:#8193a6;
     --accent:#1b73b8; --accent-deep:#145a96;
-    --n-material:#199467; --n-geraet:#bd831a; --n-medikament:#8a52c9; --n-hinweis:#5b6f85;
     --size:#0f97aa; --size-bg:rgba(15,151,170,.11); --size-bd:rgba(15,151,170,.30);
     --warn:#c56a15; --danger:#cc3b3b; --ok:#199467;
   }
@@ -88,7 +92,6 @@
 
   .sub-head { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); margin:20px 2px 9px; }
 
-  /* Unterkategorie-Abschnitt (zusammenklappbar, farbig) */
   .uksec { margin:14px 0 4px; border-radius:12px; overflow:hidden; border:1px solid var(--line-soft); }
   .uksec-head { display:flex; align-items:center; gap:10px; padding:11px 13px; cursor:pointer; background:var(--surface-2); border-left:4px solid var(--uk,#7f95ab); }
   .uksec-head:active { background:var(--surface-3); }
@@ -100,19 +103,13 @@
   .uksec-body { padding:8px; }
   .uksec.collapsed .uksec-body { display:none; }
 
-  /* Eintrag */
   .entry { background:var(--surface); border:1px solid var(--line-soft); border-left:3px solid var(--n-hinweis); border-radius:11px; margin-bottom:7px; }
-  .entry.material { border-left-color:var(--n-material); }
-  .entry.geraet { border-left-color:var(--n-geraet); }
-  .entry.medikament { border-left-color:var(--n-medikament); }
-  .entry.hinweis { border-left-color:var(--n-hinweis); }
   .entry-row { display:flex; align-items:flex-start; gap:10px; padding:11px 12px; cursor:pointer; min-height:var(--tap); }
   .entry-row:active { background:var(--surface-2); }
   .chk { width:26px; height:26px; flex:0 0 26px; border-radius:8px; margin-top:2px; border:2px solid var(--line); background:transparent; display:flex; align-items:center; justify-content:center; font-size:16px; color:transparent; transition:all .12s; }
   .entry.done .chk { background:var(--ok); border-color:var(--ok); color:#06210f; }
   .entry.done .e-text { color:var(--text-faint); text-decoration:line-through; }
 
-  /* Signatur: Mengen-Kästchen (mengenzuerst, bildet Spalte) */
   .mbox { min-width:40px; height:33px; flex:0 0 40px; border-radius:9px; margin-top:1px; background:var(--surface-3); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:800; font-size:15.5px; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
   .mbox.empty { background:transparent; border-color:transparent; }
 
@@ -156,7 +153,6 @@
   .filter-row button.on { background:var(--accent-deep); color:#fff; border-color:var(--accent); }
 
   .mat-row { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--n-material); border-radius:12px; padding:10px 12px; margin-bottom:7px; cursor:pointer; min-height:var(--tap); }
-  .mat-row.geraet { border-left-color:var(--n-geraet); }
   .mat-row:active { background:var(--surface-2); }
   .mat-thumb { width:44px; height:44px; flex:0 0 44px; border-radius:9px; background:var(--surface-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:18px; overflow:hidden; }
   .mat-thumb img { width:100%; height:100%; object-fit:cover; }
@@ -187,13 +183,13 @@
   .btn-pri { background:var(--n-material); color:#06210f; }
   .btn-pri:active { filter:brightness(.93); }
 
-  /* Verwaltung: Panels */
   .vpanel { background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
   .vpanel summary { padding:13px 14px; font-size:13.5px; font-weight:650; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:center; gap:9px; }
   .vpanel summary::-webkit-details-marker { display:none; }
   .vpanel summary .vp-hint { font-size:11px; color:var(--text-faint); font-weight:400; margin-left:auto; }
   .vpanel[open] summary { border-bottom:1px solid var(--line-soft); }
   .vpanel-body { padding:13px 14px; }
+  .hint { color:var(--text-faint); font-size:11px; line-height:1.5; margin:8px 2px 0; }
 
   .tgl { display:flex; align-items:center; justify-content:space-between; padding:9px 0; font-size:14px; border-bottom:1px solid var(--line-soft); }
   .tgl:last-child { border-bottom:none; }
@@ -201,6 +197,23 @@
   .tgl input:checked { background:var(--accent-deep); border-color:var(--accent); }
   .tgl input::after { content:''; position:absolute; width:20px; height:20px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left .15s; }
   .tgl input:checked::after { left:20px; }
+
+  /* Kategorien-Editor (NEU) */
+  .natrow { border:1px solid var(--line-soft); border-radius:10px; padding:11px; margin-bottom:8px; border-left:4px solid #7f95ab; }
+  .natrow-head { display:flex; align-items:center; gap:9px; }
+  .natrow-head .nat-ico { font-size:19px; flex:0 0 auto; }
+  .txtinp { flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:14px; font-weight:600; }
+  .txtinp:focus { outline:none; border-color:var(--accent); }
+  .colinp { width:40px; height:34px; flex:0 0 40px; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); cursor:pointer; }
+  .colinp::-webkit-color-swatch-wrapper { padding:3px; }
+  .colinp::-webkit-color-swatch { border:none; border-radius:5px; }
+  .nat-actions { display:flex; gap:6px; margin-top:9px; }
+  .nat-actions button { font-size:11.5px; font-weight:600; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim); cursor:pointer; }
+  .nat-actions button.danger-btn { color:var(--danger); border-color:rgba(232,93,93,.35); }
+  .nat-foot { display:flex; gap:8px; margin-top:4px; }
+  .nat-foot button { flex:1; padding:11px; border-radius:9px; border:1px solid var(--line); font-size:13px; font-weight:650; cursor:pointer; }
+  .nat-foot .add-btn { background:var(--accent-deep); color:#fff; border-color:var(--accent); }
+  .nat-foot .reset-btn { background:var(--surface-2); color:var(--text-dim); }
 
   .ukrow { border:1px solid var(--line-soft); border-radius:10px; padding:11px; margin-bottom:8px; border-left:4px solid var(--uk,#7f95ab); }
   .ukrow-head { display:flex; align-items:center; gap:9px; }
@@ -220,23 +233,13 @@
   .vw-ctx { font-size:11px; color:var(--text-faint); margin-top:4px; }
   .vw-lbl { font-size:11px; color:var(--text-dim); margin:11px 0 6px; font-weight:600; }
   .vw-set { display:flex; flex-wrap:wrap; gap:6px; }
-  .vw-set button { font-size:11.5px; font-weight:600; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim); cursor:pointer; }
+  .vw-set button { font-size:11.5px; font-weight:600; padding:7px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface-2); cursor:pointer; }
   .vw-set button.sel { border-color:currentColor; }
-  .vw-set button.b-material { color:var(--n-material); }
-  .vw-set button.b-geraet { color:var(--n-geraet); }
-  .vw-set button.b-medikament { color:var(--n-medikament); }
-  .vw-set button.b-hinweis { color:var(--n-hinweis); }
-  .vw-set button.b-ueberschrift { color:var(--accent); }
   .vw-sel { width:100%; padding:10px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:13.5px; }
   .vw-foot { display:flex; gap:8px; margin-top:11px; }
   .vw-foot button { flex:1; padding:10px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim); font-size:12.5px; font-weight:650; cursor:pointer; }
   .vw-foot button.done-btn { background:rgba(52,201,138,.14); color:var(--ok); border-color:rgba(52,201,138,.3); }
   .nat-chip { font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; }
-  .nat-material { background:rgba(52,201,138,.15); color:var(--n-material); }
-  .nat-geraet { background:rgba(232,179,74,.15); color:var(--n-geraet); }
-  .nat-medikament { background:rgba(189,140,232,.15); color:var(--n-medikament); }
-  .nat-hinweis { background:rgba(127,149,171,.15); color:var(--n-hinweis); }
-  .nat-ueberschrift { background:rgba(61,155,224,.13); color:var(--accent); }
   .vw-badge { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 7px; border-radius:5px; margin-left:7px; }
   .vw-badge.override { background:rgba(61,155,224,.16); color:var(--accent); }
   .vw-badge.reviewed { background:rgba(52,201,138,.16); color:var(--ok); }
@@ -251,6 +254,33 @@
   .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px); background:var(--n-material); color:#06210f; font-weight:650; padding:11px 20px; border-radius:30px; font-size:13.5px; opacity:0; pointer-events:none; transition:all .3s; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,.35); max-width:90%; }
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   .toast.err { background:var(--danger); color:#fff; }
+  /* Wichtig-Markierung & Mengen-Hervorhebung (Schnellaktionen) */
+  .entry.important { border-left-width:5px; }
+  .entry.important .e-text { font-weight:650; }
+  .imp-star { margin-right:3px; }
+  .mbox.hi { background:var(--warn); border-color:var(--warn); color:#241205; }
+
+  /* Bottom Sheet (Schnellmenü) */
+  .sheet-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .2s; z-index:200; }
+  .sheet-overlay.show { opacity:1; pointer-events:auto; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; max-width:var(--maxw); margin:0 auto; background:var(--surface); border-top-left-radius:20px; border-top-right-radius:20px; border:1px solid var(--line); border-bottom:none; transform:translateY(115%); transition:transform .26s cubic-bezier(.2,.8,.2,1); z-index:201; padding:8px 14px calc(16px + env(safe-area-inset-bottom)); max-height:82vh; overflow-y:auto; }
+  .sheet.show { transform:translateY(0); }
+  .sheet-grip { width:38px; height:4px; border-radius:2px; background:var(--line); margin:6px auto 12px; }
+  .sheet-title { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); margin:0 2px 4px; }
+  .sheet-name { font-size:16px; font-weight:650; margin:0 2px 13px; line-height:1.3; }
+  .sheet-act { display:flex; align-items:center; gap:12px; width:100%; padding:13px 12px; border:none; border-radius:12px; background:var(--surface-2); color:var(--text); font-size:15px; font-weight:550; cursor:pointer; margin-bottom:8px; text-align:left; }
+  .sheet-act:active { background:var(--surface-3); }
+  .sheet-act .sa-ico { font-size:19px; flex:0 0 24px; text-align:center; }
+  .sheet-act .sa-sub { display:block; font-size:11.5px; color:var(--text-dim); font-weight:400; margin-top:2px; }
+  .sheet-pick { display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+  .sheet-pick-btn { padding:13px; border-radius:11px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:14.5px; font-weight:600; cursor:pointer; text-align:left; display:flex; align-items:center; gap:10px; }
+  .sheet-pick-btn:active { background:var(--surface-3); }
+  .sheet-pick-btn .ps-sub { font-size:11.5px; color:var(--text-dim); font-weight:400; }
+  .sheet-colorrow { display:flex; flex-wrap:wrap; gap:9px; align-items:center; margin-bottom:10px; }
+  .sheet-sw { width:34px; height:34px; border-radius:9px; cursor:pointer; border:2px solid var(--line-soft); }
+  .sheet-colorinp { width:46px; height:38px; border:1px solid var(--line); border-radius:9px; background:var(--surface-2); cursor:pointer; padding:2px; }
+  .sheet-close { width:100%; padding:13px; border-radius:12px; background:transparent; color:var(--text-dim); border:1px solid var(--line); font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; }
+
   @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
 </style>
 </head>
@@ -285,10 +315,12 @@
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<div class="sheet-overlay" id="sheetOv"></div>
+<div class="sheet" id="sheet"></div>
 
 <script>
 /* ============================================================
-   HKL Standards v3 — Logik
+   HKL Standards v4 — Logik
    ============================================================ */
 const DATA_URL='data/hkl_standards_export.json';
 const store=(()=>{ let mem={},ok=false; try{localStorage.setItem('__t','1');localStorage.removeItem('__t');ok=true;}catch(e){ok=false;}
@@ -296,11 +328,39 @@ const store=(()=>{ let mem={},ok=false; try{localStorage.setItem('__t','1');loca
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 const today=()=>new Date().toISOString().slice(0,10);
+function loadJSON(k,def){ try{ const r=store.get(k); return r?JSON.parse(r):def; }catch(e){ return def; } }
+function saveJSON(k,v){ store.set(k,JSON.stringify(v)); }
 
-const NAT={ material:{ico:'📦',label:'Material'}, geraet:{ico:'🖥',label:'Gerät'}, medikament:{ico:'💊',label:'Medikament'}, hinweis:{ico:'ℹ️',label:'Hinweis'}, ueberschrift:{ico:'▸',label:'Überschrift'} };
-const NAT_ORDER=['material','geraet','medikament','hinweis','ueberschrift'];
+/* ─────────────────────────────────────────────────────────────
+   BAUSTEIN 1 — KONFIGURATION (die einzige Quelle der Wahrheit)
+   DEFAULT_NAT sind die Voreinstellungen im Code. Sie werden von
+   deinen über die Oberfläche gemachten Änderungen überschrieben.
+   ───────────────────────────────────────────────────────────── */
+const DEFAULT_NAT=[
+  {key:'material',    label:'Material',    color:'#34c98a', icon:'📦',  builtin:true, beschaffbar:true },
+  {key:'geraet',      label:'Gerät',       color:'#e8b34a', icon:'🖥',  builtin:true, beschaffbar:true },
+  {key:'medikament',  label:'Medikament',  color:'#bd8ce8', icon:'💊',  builtin:true, beschaffbar:false},
+  {key:'hinweis',     label:'Hinweis',     color:'#7f95ab', icon:'ℹ️',  builtin:true, beschaffbar:false},
+  {key:'ueberschrift',label:'Überschrift', color:'#3d9be0', icon:'▸',   builtin:true, beschaffbar:false},
+];
+function loadNatCfg(){
+  const saved=loadJSON('hkl_natcfg',null);
+  const items={}, order=[];
+  DEFAULT_NAT.forEach(n=>{ items[n.key]={...n}; order.push(n.key); });
+  if(saved&&saved.items){
+    Object.keys(saved.items).forEach(k=>{ if(items[k]) items[k]={...items[k],...saved.items[k]}; else items[k]={beschaffbar:false,builtin:false,...saved.items[k],key:k}; });
+    if(Array.isArray(saved.order)&&saved.order.length){ const o=saved.order.filter(k=>items[k]); order.length=0; o.forEach(k=>order.push(k)); Object.keys(items).forEach(k=>{ if(!order.includes(k)) order.push(k); }); }
+  }
+  return {items,order};
+}
+function saveNatCfg(){ store.set('hkl_natcfg',JSON.stringify({order:NATCFG.order,items:NATCFG.items})); }
+function natList(){ return NATCFG.order.map(k=>({key:k,...NATCFG.items[k]})); }
+function natOf(key){ return NATCFG.items[key]||{key,label:key,color:'#7f95ab',icon:'•',beschaffbar:false,builtin:false}; }
+/* schreibt die Konfigurationsfarben als CSS-Variablen — die App liest sie überall */
+function applyNatConfig(){ const root=document.documentElement; natList().forEach(n=>{ root.style.setProperty('--n-'+n.key, n.color); }); }
+function natSlug(s){ let base=(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'kat'; let k=base,i=2; while(NATCFG.items[k]){k=base+'_'+i;i++;} return k; }
+
 const UK_PALETTE=['#34c98a','#e8b34a','#bd8ce8','#5fb0e0','#e0795f','#5fd0c0','#c9a24a','#d47fb0'];
-
 function sizeLabel(t){ return ({french:'Fr',laenge:'Länge',durchmesser:'Ø',volumen:'Vol',dimension:'Maß',naht:'Stärke',groesse_kuerzel:'Größe',typcode:'Typ','durchmesser+french':'Ø·Fr'})[t]||t||''; }
 function rubrikIcon(name,typ){ const n=(name||'').toLowerCase();
   if(n.includes('saal')||n.includes('gerät')||n.includes('gerae'))return '🖥'; if(n.includes('notfall'))return '🧰';
@@ -313,7 +373,6 @@ function ukKeywordIcon(name){ const n=(name||'').toLowerCase();
   if(n.includes('ansage'))return '📢'; if(n.includes('weitere'))return '➕'; if(n.includes('notfall'))return '🚨';
   if(n.includes('bettenwarte'))return '🛏'; if(n.includes('zugang'))return '🩸'; if(n.includes('aggregat'))return '🔋'; return '🗂'; }
 
-/* ---- Demo-Rückfall ---- */
 const DEMO={ export_datum:null, anzahl_standards:1, standards:[{ id:'demo', dateiname:'DEMO.docx', titel:'Demodaten (keine JSON gefunden)', gruppe:'DEMO', rubriken:[
   { name:'Saal und Geräte', typ:'geraete', sub_bereiche:[{name:null, eintraege:[
     { roh_text:'Programmer', anzeige_text:'Programmer', menge:null, menge_zahl:null, natur:'geraet', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:null, spalte:0, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:'programmer', ist_fliesstext:false } ]}]},
@@ -324,16 +383,21 @@ const DEMO={ export_datum:null, anzahl_standards:1, standards:[{ id:'demo', date
     { roh_text:'1x Amp. Heparin', anzeige_text:'Amp. Heparin', menge:'1x', menge_zahl:1, natur:'medikament', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:'Material aus dem Vorbereitungsraum', spalte:0, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:'amp. heparin', ist_fliesstext:false },
     { roh_text:'Material auf Ansage', anzeige_text:'Material auf Ansage', menge:null, menge_zahl:null, natur:'ueberschrift', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:null, spalte:1, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false },
     { roh_text:'8.5F transseptale Schleuse', anzeige_text:'transseptale Schleuse', menge:null, menge_zahl:null, natur:'material', natur_konfidenz:'mittel', natur_merkmale:[], natur_manuell:null, unterkategorie:'Material auf Ansage', spalte:1, groessen:[{typ:'french',wert:'8.5F',roh:'8.5F'}], spezifikation:null, zusatz_markierung:null, material_key:'transseptale schleuse', ist_fliesstext:false },
-    { roh_text:'Zugänge mit Untersucher besprechen', anzeige_text:'Zugänge mit Untersucher besprechen', menge:null, menge_zahl:null, natur:'hinweis', natur_konfidenz:'niedrig', natur_merkmale:[], natur_manuell:null, unterkategorie:'Material auf Ansage', spalte:1, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false },
   ]}]},
 ]}]};
 
-/* ---- Zustand + Persistenz ---- */
+/* ---- Zustand ---- */
+let NATCFG=loadNatCfg();
 let DB=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
 let admNat='alle', admState='offen';
 let careMem={};
 let checks=loadChecks();
 let overrides=loadJSON('hkl_overrides',{});
+/* QE = Schnellmenü-Änderungen. cid = nur dieser Eintrag; mat = dieses Material überall. */
+let QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)QE.mat={};
+function saveQE(){ saveJSON('hkl_qedits',QE); }
+function qeGet(e,cid,prop){ const c=QE.cid[cid]; if(c&&c[prop]!==undefined) return c[prop]; const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; } return undefined; }
+function qeSet(scope,e,cid,prop,val){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{})[prop]=val; } else { (QE.cid[cid]=QE.cid[cid]||{})[prop]=val; } saveQE(); }
 let reviewed=loadJSON('hkl_reviewed',{});
 let reassign=loadJSON('hkl_reassign',{});
 let ukMap=loadJSON('hkl_ukmap',{});
@@ -342,15 +406,13 @@ let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,kon
 let collapsed={};
 let UK_LIST=[];
 
-function loadJSON(k,def){ try{ const r=store.get(k); return r?JSON.parse(r):def; }catch(e){ return def; } }
-function saveJSON(k,v){ store.set(k,JSON.stringify(v)); }
 function loadChecks(){ try{ const raw=store.get('hkl_checks'); if(!raw) return {}; const o=JSON.parse(raw); if(o.date!==today()){ store.set('hkl_checks',JSON.stringify({date:today(),checks:{}})); return {}; } return o.checks||{}; }catch(e){ return {}; } }
 function saveChecks(){ store.set('hkl_checks',JSON.stringify({date:today(),checks:checks})); }
 
 const cidOf=(sid,ri,si,ei)=>sid+'|'+ri+'|'+si+'|'+ei;
-const effNatur=(e,cid)=>overrides[cid]||e.natur_manuell||e.natur;
+const effNatur=(e,cid)=>overrides[cid]||(e.material_key&&QE.mat[e.material_key]&&QE.mat[e.material_key].natur)||e.natur_manuell||e.natur;
 const isHandled=(cid)=>!!reviewed[cid]||!!overrides[cid];
-function rawUk(e,cid){ return (cid in reassign)?reassign[cid]:e.unterkategorie; }
+function rawUk(e,cid){ if(cid in reassign) return reassign[cid]; if(e.material_key&&QE.mat[e.material_key]&&('uk' in QE.mat[e.material_key])) return QE.mat[e.material_key].uk; return e.unterkategorie; }
 function canonUk(e,cid){ const r=rawUk(e,cid); if(r==null||r==='') return null; return ukMap[r]||r; }
 function ukMetaOf(name){ return ukMeta[name]||{}; }
 function ukColorOf(name,idx){ const m=ukMetaOf(name); if(m.color) return m.color; return UK_PALETTE[(idx>=0?idx:0)%UK_PALETTE.length]; }
@@ -358,6 +420,7 @@ function ukIconOf(name){ const m=ukMetaOf(name); return m.icon||ukKeywordIcon(na
 
 /* ============ Laden ============ */
 async function load(){
+  applyNatConfig();
   try{ const res=await fetch(DATA_URL,{cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); DB=await res.json(); if(!DB||!Array.isArray(DB.standards)) throw new Error('Struktur ungültig'); }
   catch(e){ DB=DEMO; setTimeout(()=>toast('Keine Standards-Datei gefunden – Demodaten aktiv',true),400); }
   buildMaterialIndex(); applyDeepLink(); renderStandards(); updateBar();
@@ -368,7 +431,7 @@ function buildMaterialIndex(){
   const map=new Map();
   DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((rub,ri)=>{ (rub.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
     if(e.ist_fliesstext) return; const cid=cidOf(std.id,ri,si,ei); const nat=effNatur(e,cid);
-    if(nat!=='material'&&nat!=='geraet') return; const key=e.material_key; if(!key) return;
+    if(!natOf(nat).beschaffbar) return; const key=e.material_key; if(!key) return;
     if(!map.has(key)) map.set(key,{key,name:e.anzeige_text||key,typ:nat,vorkommen:0,groessen:e.groessen||[]}); map.get(key).vorkommen++;
   }); }); }); });
   MAT_INDEX=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'de'));
@@ -379,7 +442,7 @@ function setBar(t,c,b){ $('barTitle').textContent=t; $('barCrumb').textContent=c
 function updateBar(){ const total=DB.standards.length;
   if(mode==='use'&&nav.length===0) setBar('HKL Standards',total+' Standards',false);
   else if(mode==='care'&&!$('scr-care-item').classList.contains('active')){ const d=MAT_INDEX.filter(m=>careMem[m.key]).length; setBar('Material pflegen',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
-  else if(mode==='admin') setBar('Verwaltung','Einstellungen · Unterkategorien · Prüfen',false);
+  else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }
 function show(scr){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(scr).classList.add('active'); $('main').scrollTop=0; }
 function setMode(m){ mode=m;
@@ -413,41 +476,43 @@ function openStandard(id,replace){ const s=DB.standards.find(x=>x.id===id); if(!
 function sizeBadges(g){ if(!settings.groessen||!g||!g.length) return ''; return g.map(x=>`<span class="size-badge"><span class="st">${esc(sizeLabel(x.typ))}</span>${esc(x.wert)}</span>`).join(''); }
 function specTags(spez){ if(!settings.spez||!spez) return ''; const arr=Array.isArray(spez)?spez:[spez]; return arr.map(s=>{ const loc=/^Standort:/i.test(s); return `<span class="tag ${loc?'tag-loc':'tag-spec'}">${loc?'📍 '+esc(s.replace(/^Standort:\s*/i,'')):esc(s)}</span>`; }).join(''); }
 
+/* Eintrag-Karte. NEU: Farbe und Symbol kommen aus der Kategorien-Konfiguration (natOf). */
 function entryCardHTML(e,cid,isMatGer){
-  const nat=effNatur(e,cid); const done=checks[cid]?'done':'';
-  const care=(nat==='material'||nat==='geraet')?careMem[e.material_key]:null;
-  const showThumb=(nat==='material'||nat==='geraet');
+  const nat=effNatur(e,cid); const info=natOf(nat); const done=checks[cid]?'done':'';
+  const showThumb=!!info.beschaffbar;
+  const care=showThumb?careMem[e.material_key]:null;
   const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
+  const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
+  const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
   let meta=''; meta+=sizeBadges(e.groessen); meta+=specTags(e.spezifikation);
   if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
-  const mbox = settings.menge ? (e.menge?`<div class="mbox">${esc(e.menge)}</div>`:`<div class="mbox empty"></div>`) : '';
-  const ico = isMatGer?`<div class="e-ico">${NAT[nat]?NAT[nat].ico:'•'}</div>`:'';
-  const cls = isMatGer?nat:'step';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}"><div class="entry-row" onclick="toggleCheck('${esc(cid)}')"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${esc(e.anzeige_text)}</div>${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  const mbox = settings.menge ? (e.menge?`<div class="mbox${mHi?' hi':''}">${esc(e.menge)}</div>`:`<div class="mbox empty"></div>`) : '';
+  const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
+  const cls = (isMatGer?'':'step')+(important?' important':'');
+  const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
+  const star = important?`<span class="imp-star">⭐</span>`:'';
+  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}</div>${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
 }
 
 function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx});
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
-  if(isMatGer){ html+=`<details class="legend"><summary>◐ Farb-Legende</summary><div class="legend-body">
-    <div class="lg-row"><span class="lg-mbox">2×</span>Menge (Stückzahl, links)</div>
-    <div class="lg-row"><span class="lg-swatch" style="background:var(--n-material)"></span>Material</div>
-    <div class="lg-row"><span class="lg-swatch" style="background:var(--n-geraet)"></span>Gerät</div>
-    <div class="lg-row"><span class="lg-swatch" style="background:var(--n-medikament)"></span>Medikament</div>
-    <div class="lg-row"><span class="lg-swatch" style="background:var(--n-hinweis)"></span>Hinweis / Anforderung</div>
-    <div class="lg-row"><span class="lg-size">6F</span>Größe (French, Länge, Ø, Volumen …)</div>
-    <div class="lg-row"><span style="color:var(--warn)">⚠</span>Automatik unsicher – in Verwaltung prüfbar</div></div></details>`; }
-
   if(isMatGer){
-    // Nach Unterkategorie gruppieren (facettiert), Reihenfolge nach erstem Auftreten bzw. ukMeta.order
+    let lg=''; natList().forEach(n=>{ lg+=`<div class="lg-row"><span class="lg-swatch" style="background:${n.color}"></span>${esc(n.label)}</div>`; });
+    html+=`<details class="legend"><summary>◐ Farb-Legende</summary><div class="legend-body">
+      <div class="lg-row"><span class="lg-mbox">2×</span>Menge (Stückzahl, links)</div>${lg}
+      <div class="lg-row"><span class="lg-size">6F</span>Größe (French, Länge, Ø, Volumen …)</div>
+      <div class="lg-row"><span style="color:var(--warn)">⚠</span>Automatik unsicher – in Verwaltung prüfbar</div></div></details>`;
+  }
+  if(isMatGer){
     const groupsMap=new Map(); let appear=0;
     (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
       if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return;
       const cid=cidOf(curStd.id,idx,si,ei); const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
-      groupsMap.get(gkey).entries.push({e,cid,isMatGer});
+      groupsMap.get(gkey).entries.push({e,cid});
     }); });
     let groups=[...groupsMap.values()];
     groups.sort((a,b)=>{ const oa=(a.uk&&ukMetaOf(a.uk).order!=null)?ukMetaOf(a.uk).order:a.first; const ob=(b.uk&&ukMetaOf(b.uk).order!=null)?ukMetaOf(b.uk).order:b.first; return oa-ob; });
@@ -469,11 +534,9 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
   $('scr-detail').innerHTML=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
-function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub') openRubrikPreserve(top.idx); }
-function openRubrikPreserve(idx){ nav.pop(); openRubrik(idx); }
+function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
-/* ============ Zurück ============ */
 function goBack(){ if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
   nav.pop(); if(nav.length===0){ location.hash=''; setMode('use'); }
   else { const top=nav[nav.length-1]; if(top.lvl==='std'){ const s=curStd; nav.pop(); openStandard(s.id); } else openStandard(curStd.id,true); } }
@@ -487,17 +550,17 @@ function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
   let html=`<div class="banner"><h2>Materialwirtschaft</h2><p>Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.<br><b>Hinweis:</b> Fotos werden nur für diese Sitzung gehalten – dauerhaft folgt mit der zentralen Datenablage.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
   <div class="filter-row"><button class="${careFilter==='alle'?'on':''}" onclick="setCareFilter('alle')">Alle</button><button class="${careFilter==='offen'?'on':''}" onclick="setCareFilter('offen')">Offen</button><button class="${careFilter==='material'?'on':''}" onclick="setCareFilter('material')">Material</button><button class="${careFilter==='geraet'?'on':''}" onclick="setCareFilter('geraet')">Gerät</button></div>`;
   if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter.</p></div>`;
-  list.forEach(m=>{ const c=careMem[m.key]; const thumb=c&&c.photo?`<div class="mat-thumb"><img src="${c.photo}" alt=""></div>`:`<div class="mat-thumb">${m.typ==='geraet'?'🖥':'📷'}</div>`;
+  list.forEach(m=>{ const c=careMem[m.key]; const thumb=c&&c.photo?`<div class="mat-thumb"><img src="${c.photo}" alt=""></div>`:`<div class="mat-thumb">${natOf(m.typ).icon||'📷'}</div>`;
     const st=c?`<span class="mat-sub ok"><span class="dot dot-ok"></span>Gepflegt${c.loc?' · '+esc(c.loc):''}</span>`:`<span class="mat-sub open"><span class="dot dot-open"></span>Offen</span>`;
     const sizes=m.groessen&&m.groessen.length?' '+sizeBadges(m.groessen):'';
-    html+=`<div class="mat-row ${m.typ}" onclick="openCare('${esc(m.key)}')">${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div><div class="mat-sub">${st}${sizes}</div></div><span class="mat-count">${m.vorkommen}×</span></div>`; });
+    html+=`<div class="mat-row" style="border-left-color:var(--n-${esc(m.typ)})" onclick="openCare('${esc(m.key)}')">${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div><div class="mat-sub">${st}${sizes}</div></div><span class="mat-count">${m.vorkommen}×</span></div>`; });
   box.innerHTML=html;
 }
 function setCareFilter(f){ careFilter=f; renderCare(); }
 function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; const c=careMem[key]||{};
   const sizes=m.groessen&&m.groessen.length?`<div class="info-field"><div class="if-l">Größen (automatisch erkannt)</div><div class="if-v">${sizeBadges(m.groessen)}</div></div>`:'';
   const photoInner=c.photo?`<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Foto aufnehmen oder wählen</div>`;
-  $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${NAT[m.typ]?NAT[m.typ].label:m.typ}</div>${sizes}
+  $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
     <input type="file" id="fileInp" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
     <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
@@ -517,38 +580,51 @@ function computeUkList(){ const cnt=new Map(); const first=new Map(); let i=0;
 function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||overrides[x.cid]) out.push(x); }); return out; }
 
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
-  // Panel 1: Anzeige-Einstellungen
+
+  /* Panel: Anzeige-Einstellungen */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
   let html=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
 
-  // Panel 2: Unterkategorien verwalten
+  /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
+  html+=`<details class="vpanel"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
+  natList().forEach(n=>{
+    html+=`<div class="natrow" style="border-left-color:${n.color}">
+      <div class="natrow-head"><span class="nat-ico">${n.icon}</span><input class="txtinp" value="${esc(n.label)}" onchange="setNatLabel('${esc(n.key)}',this.value)"><input type="color" class="colinp" value="${n.color}" onchange="setNatColor('${esc(n.key)}',this.value)"></div>
+      <div class="nat-actions"><button onclick="editNatIcon('${esc(n.key)}')">Symbol: ${n.icon}</button>${n.builtin?'':`<button class="danger-btn" onclick="deleteNat('${esc(n.key)}')">Löschen</button>`}</div>
+    </div>`;
+  });
+  html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
+    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und bleiben auf diesem Gerät gespeichert.</p></div></details>`;
+
+  /* Panel: Unterkategorien verwalten */
   html+=`<details class="vpanel"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
-  if(names.length===0) html+=`<p style="color:var(--text-dim);font-size:13px;margin:0">Keine Unterkategorien erkannt.</p>`;
+  if(names.length===0) html+=`<p class="hint">Keine Unterkategorien erkannt.</p>`;
   names.forEach((name,i)=>{ const col=ukColorOf(name,i); const ico=ukIconOf(name);
     const sw=UK_PALETTE.map(c=>`<span class="uk-sw ${c===col?'sel':''}" style="background:${c}" onclick="setUkColor(${i},'${c}')"></span>`).join('');
     html+=`<div class="ukrow" style="--uk:${col}"><div class="ukrow-head"><span class="uk-ico">${ico}</span><span class="uk-name">${esc(name)}</span><span class="uk-count">${cnt.get(name)||0}×</span></div>
       <div class="uk-swatches">${sw}</div>
       <div class="uk-actions"><button onclick="renameUk(${i})">Umbenennen / Zusammenführen</button><button class="icon" onclick="moveUk(${i},-1)">▲</button><button class="icon" onclick="moveUk(${i},1)">▼</button></div></div>`; });
-  html+=`<p style="color:var(--text-faint);font-size:11px;margin:6px 2px 0">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen" je Eintrag.</p></div></details>`;
+  html+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
 
-  // Panel 3: Einstufung prüfen (Prüf-Workflow)
+  /* Panel-los: Einstufung prüfen (Prüf-Workflow) */
   const all=collectUncertain(); const done=all.filter(x=>isHandled(x.cid)).length; const pct=all.length?Math.round(done/all.length*100):0;
   let list=all;
   if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  html+=`<div class="banner"><h2>Einstufung prüfen</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Natur korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen gelten lokal auf diesem Gerät (bis das Backend steht).</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
-  <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>
-  <div class="filter-row"><button class="${admNat==='alle'?'on':''}" onclick="setAdmNat('alle')">Alle</button><button class="${admNat==='material'?'on':''}" onclick="setAdmNat('material')">Material</button><button class="${admNat==='geraet'?'on':''}" onclick="setAdmNat('geraet')">Gerät</button><button class="${admNat==='medikament'?'on':''}" onclick="setAdmNat('medikament')">Medik.</button><button class="${admNat==='hinweis'?'on':''}" onclick="setAdmNat('hinweis')">Hinweis</button></div>`;
+  html+=`<div class="banner"><h2>Einstufung prüfen</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen gelten lokal auf diesem Gerät (bis das Backend steht).</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
+  <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
+  const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
+  html+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
   if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
-  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=!!overrides[x.cid]; const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid);
-    const setBtns=NAT_ORDER.map(n=>`<button class="b-${n} ${nat===n?'sel':''}" onclick="setNatur('${esc(x.cid)}','${n}')">${NAT[n].label}</button>`).join('');
+  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=!!overrides[x.cid]; const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
+    const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
     const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).join('');
     html+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
       ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
-      <div class="vw-lbl">Natur: <span class="nat-chip nat-${nat}">${NAT[nat]?NAT[nat].label:nat}</span></div><div class="vw-set">${setBtns}</div>
+      <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
       <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" onchange="reassignEntry('${esc(x.cid)}',this.value)">${opts}</select>
       <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button></div></div>`; });
   if(list.length>300) html+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
@@ -562,36 +638,116 @@ function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else revie
 function reassignEntry(cid,val){ if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
 function findEntry(cid){ const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
 
+/* ─── Kategorien-Editor: schreibt in die Konfiguration + speichert ─── */
+function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); renderAdmin(); }
+function setNatColor(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].color=val; saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); }
+function editNatIcon(key){ if(!NATCFG.items[key]) return; const cur=NATCFG.items[key].icon||''; const v=prompt('Symbol (Emoji) für diese Kategorie:',cur); if(v==null) return; NATCFG.items[key].icon=(v.trim()||cur); saveNatCfg(); renderAdmin(); }
+function addNat(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
+  NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); renderAdmin(); toast('Kategorie angelegt'); }
+function deleteNat(key){ if(!NATCFG.items[key]||NATCFG.items[key].builtin) return; if(!confirm('Kategorie „'+NATCFG.items[key].label+'" löschen? Einträge, die du ihr manuell zugewiesen hast, fallen auf ihre ursprüngliche Kategorie zurück.')) return;
+  delete NATCFG.items[key]; NATCFG.order=NATCFG.order.filter(k=>k!==key);
+  Object.keys(overrides).forEach(cid=>{ if(overrides[cid]===key) delete overrides[cid]; }); saveJSON('hkl_overrides',overrides);
+  saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); toast('Kategorie gelöscht'); }
+function resetNatCfg(){ if(!confirm('Alle Kategorie-Anpassungen (Namen, Farben, Symbole, eigene Kategorien) auf die Voreinstellung zurücksetzen?')) return;
+  store.set('hkl_natcfg',JSON.stringify({})); NATCFG=loadNatCfg(); saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); toast('Zurückgesetzt'); }
+
 /* Unterkategorie-Operationen */
 function renameUk(i){ const oldName=UK_LIST[i]; if(oldName==null) return;
   const nn=prompt('Unterkategorie umbenennen (vorhandenen Namen eingeben = zusammenführen):',oldName); if(nn==null) return; const newName=nn.trim(); if(!newName||newName===oldName) return;
-  // ukMap: alle Rohnamen, die auf oldName zeigen, auf newName umbiegen
-  Object.keys(ukMap).forEach(raw=>{ if(ukMap[raw]===oldName) ukMap[raw]=newName; });
-  ukMap[oldName]=newName;
+  Object.keys(ukMap).forEach(raw=>{ if(ukMap[raw]===oldName) ukMap[raw]=newName; }); ukMap[oldName]=newName;
   Object.keys(reassign).forEach(cid=>{ if(reassign[cid]===oldName) reassign[cid]=newName; });
   const metaOld=ukMeta[oldName]; if(metaOld){ if(!ukMeta[newName]) ukMeta[newName]=metaOld; delete ukMeta[oldName]; }
   saveJSON('hkl_ukmap',ukMap); saveJSON('hkl_reassign',reassign); saveJSON('hkl_ukmeta',ukMeta);
-  computeUkList(); renderAdmin(); toast('Unterkategorie aktualisiert');
-}
+  computeUkList(); renderAdmin(); toast('Unterkategorie aktualisiert'); }
 function setUkColor(i,color){ const name=UK_LIST[i]; if(name==null) return; ukMeta[name]=Object.assign({},ukMeta[name],{color}); saveJSON('hkl_ukmeta',ukMeta); renderAdmin(); }
 function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+dir; if(j<0||j>=names.length) return;
-  // explizite Reihenfolge vergeben
   names.forEach((n,k)=>{ ukMeta[n]=Object.assign({},ukMeta[n],{order:k}); });
   const a=names[i], b=names[j]; const oa=ukMeta[a].order; ukMeta[a].order=ukMeta[b].order; ukMeta[b].order=oa;
-  saveJSON('hkl_ukmeta',ukMeta); computeUkList(); renderAdmin();
-}
+  saveJSON('hkl_ukmeta',ukMeta); computeUkList(); renderAdmin(); }
 
 /* ============ Deep-Link / Suche / Theme / Toast ============ */
 function applyDeepLink(){ const h=location.hash||''; const m=h.match(/^#\/std\/(.+)$/); if(m){ const id=decodeURIComponent(m[1]); if(DB.standards.find(s=>s.id===id)){ setMode('use'); openStandard(id); } } }
 $('searchInput').addEventListener('input',e=>{ const v=e.target.value; $('searchClear').classList.toggle('show',v.length>0); renderStandards(v); });
 $('searchClear').addEventListener('click',()=>{ $('searchInput').value=''; $('searchClear').classList.remove('show'); renderStandards(''); $('searchInput').focus(); });
-function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); $('themeBtn').textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); }
+function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); $('themeBtn').textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); applyNatConfig(); }
 (function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); $('themeBtn').textContent=t==='light'?'☀':'◐'; } })();
 let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='toast',2000); }
 
 $('mUse').onclick=()=>setMode('use'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
 $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme;
 window.addEventListener('hashchange',()=>{ if((location.hash||'')===''&&mode==='use'){ nav=[]; renderStandards(); show('scr-standards'); updateBar(); $('searchWrap').style.display='block'; } });
+
+/* ============ Schnellmenü (Long-Press) ============ */
+let sheetCid=null, sheetEntry=null, sheetPending=null;
+function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; } }
+function openSheet(cid){ const e=findEntry(cid); if(!e) return; sheetCid=cid; sheetEntry=e; sheetPending=null; renderSheetMain(); showSheet(true); }
+function sAct(ico,label,sub,fn){ return `<button class="sheet-act" onclick="${fn}"><span class="sa-ico">${ico}</span><span>${esc(label)}<span class="sa-sub">${esc(sub)}</span></span></button>`; }
+function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
+  const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
+  const imp=qeGet(e,cid,'important')===true; const mHi=qeGet(e,cid,'mengeHi')===true; const cur=natOf(effNatur(e,cid));
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Schnellaktion · ${esc(cur.label)}</div><div class="sheet-name">${esc(name)}</div>`;
+  h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
+  h+=sAct('✏️','Umbenennen','Anzeigename ändern','sheetRename()');
+  h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
+  h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
+  h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
+  h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')");
+  h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
+  h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+  $('sheet').innerHTML=h;
+}
+function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); }
+function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
+  natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
+  h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  $('sheet').innerHTML=h; }
+function sheetSetNatur(key){ sheetPending={kind:'natur',value:key}; askScope(); }
+function sheetNewNatur(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length]; NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); sheetPending={kind:'natur',value:key}; askScope(); }
+function renderSheetUk(){ computeUkList(); let h=`<div class="sheet-grip"></div><div class="sheet-title">Unterkategorie wählen</div><div class="sheet-pick">`;
+  h+=`<button class="sheet-pick-btn" onclick="sheetSetUk('')">— ohne —</button>`;
+  UK_LIST.forEach(u=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetUk('${esc(u)}')">${ukIconOf(u)} ${esc(u)}</button>`; });
+  h+=`<button class="sheet-pick-btn" onclick="sheetNewUk()">＋ Neue Unterkategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  $('sheet').innerHTML=h; }
+function sheetSetUk(val){ sheetPending={kind:'uk',value:val}; askScope(); }
+function sheetNewUk(){ const nm=prompt('Name der neuen Unterkategorie:',''); if(nm==null||!nm.trim()) return; sheetPending={kind:'uk',value:nm.trim()}; askScope(); }
+function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Farbe wählen</div><div class="sheet-colorrow">`;
+  UK_PALETTE.forEach(c=>{ h+=`<span class="sheet-sw" style="background:${c}" onclick="sheetSetColor('${c}')"></span>`; });
+  h+=`<input type="color" class="sheet-colorinp" value="#e8b34a" onchange="sheetSetColor(this.value)"></div>`;
+  h+=`<button class="sheet-pick-btn" onclick="sheetSetColor(null)">Farbe entfernen</button><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  $('sheet').innerHTML=h; }
+function sheetSetColor(val){ sheetPending={kind:'color',value:val}; askScope(); }
+function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text); const nn=prompt('Neuer Anzeigename:',cur); if(nn==null||!nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }
+function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid; const cur=qeGet(e,cid,prop)===true; sheetPending={kind:prop,value:!cur}; askScope(); }
+function askScope(){ const e=sheetEntry; if(!e.material_key){ applyPending('cid'); return; }
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div><div class="sheet-pick">`;
+  h+=`<button class="sheet-pick-btn" onclick="applyPending('cid')">📍 Nur hier <span class="ps-sub">· an dieser Stelle</span></button>`;
+  h+=`<button class="sheet-pick-btn" onclick="applyPending('mat')">🌐 Überall <span class="ps-sub">· jedes Vorkommen dieses Materials</span></button>`;
+  h+=`</div><button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
+  $('sheet').innerHTML=h; }
+function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
+  if(p.kind==='natur'){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).natur=p.value; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); } saveQE(); buildMaterialIndex(); }
+  else if(p.kind==='uk'){ const val=(p.value===''?'':p.value); if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).uk=val; if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } } else { reassign[cid]=(val===''?null:val); saveJSON('hkl_reassign',reassign); } saveQE(); computeUkList(); }
+  else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'){ buildMaterialIndex(); } }
+  sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
+function sheetResetEntry(){ const cid=sheetCid; if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } saveQE(); buildMaterialIndex(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
+function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
+$('sheetOv').addEventListener('click',()=>showSheet(false));
+
+/* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
+(function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false,lastTouch=0;
+  function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
+  function down(x,y,t){ const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} openSheet(curCid); },500); }
+  function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
+  function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
+  el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
+  el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
+  el.addEventListener('touchend',()=>{ lastTouch=Date.now(); up(); });
+  el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
+  el.addEventListener('mousedown',e=>{ if(Date.now()-lastTouch<700) return; down(e.clientX,e.clientY,e.target); });
+  el.addEventListener('mousemove',e=>{ if(Date.now()-lastTouch<700) return; move(e.clientX,e.clientY); });
+  el.addEventListener('mouseup',()=>{ if(Date.now()-lastTouch<700) return; up(); });
+  el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
+})();
 
 load();
 </script>
