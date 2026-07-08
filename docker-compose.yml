@@ -1,0 +1,17 @@
+# Deployment compose file for the host 162.19.250.88.
+# The CI pipeline copies this file to ~/hkl-sop-kks on the server and runs
+#   docker compose pull && docker compose up -d
+services:
+  hkl-sop-kks:
+    image: ghcr.io/bosock/hkl-sop-kks:latest
+    container_name: hkl-sop-kks
+    restart: unless-stopped
+    ports:
+      # Host port is configurable via .env (HOST_PORT); defaults to 8080.
+      - "${HOST_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

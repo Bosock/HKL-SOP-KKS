@@ -1,0 +1,11 @@
+.git
+.github
+.serena
+README.md
+DEPLOYMENT.md
+docker-compose.yml
+.dockerignore
+Dockerfile
+.env
+.env.example
+*.md

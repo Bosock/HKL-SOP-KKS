@@ -1,0 +1,5 @@
+# Tooling / local caches
+.serena/
+
+# Local deployment overrides
+.env
