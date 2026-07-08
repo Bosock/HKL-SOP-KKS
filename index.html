@@ -270,6 +270,7 @@
   .sheet-name { font-size:16px; font-weight:650; margin:0 2px 13px; line-height:1.3; }
   .sheet-act { display:flex; align-items:center; gap:12px; width:100%; padding:13px 12px; border:none; border-radius:12px; background:var(--surface-2); color:var(--text); font-size:15px; font-weight:550; cursor:pointer; margin-bottom:8px; text-align:left; }
   .sheet-act:active { background:var(--surface-3); }
+  .sheet-act.danger { color:var(--danger); }
   .sheet-act .sa-ico { font-size:19px; flex:0 0 24px; text-align:center; }
   .sheet-act .sa-sub { display:block; font-size:11.5px; color:var(--text-dim); font-weight:400; margin-top:2px; }
   .sheet-pick { display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
@@ -430,7 +431,7 @@ async function load(){
 function buildMaterialIndex(){
   const map=new Map();
   DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((rub,ri)=>{ (rub.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
-    if(e.ist_fliesstext) return; const cid=cidOf(std.id,ri,si,ei); const nat=effNatur(e,cid);
+    if(e.ist_fliesstext) return; const cid=cidOf(std.id,ri,si,ei); if(qeGet(e,cid,'hidden')===true) return; const nat=effNatur(e,cid);
     if(!natOf(nat).beschaffbar) return; const key=e.material_key; if(!key) return;
     if(!map.has(key)) map.set(key,{key,name:e.anzeige_text||key,typ:nat,vorkommen:0,groessen:e.groessen||[]}); map.get(key).vorkommen++;
   }); }); }); });
@@ -510,7 +511,7 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
     const groupsMap=new Map(); let appear=0;
     (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
       if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return;
-      const cid=cidOf(curStd.id,idx,si,ei); const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
+      const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     }); });
@@ -529,7 +530,7 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
     }
   } else {
     (r.sub_bereiche||[]).forEach((sb,si)=>{ if(sb.name) html+=`<div class="sub-head">${esc(sb.name)}</div>`;
-      (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return; const cid=cidOf(curStd.id,idx,si,ei); html+=entryCardHTML(e,cid,false); }); });
+      (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return; const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; html+=entryCardHTML(e,cid,false); }); });
   }
   $('scr-detail').innerHTML=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
@@ -577,7 +578,14 @@ function computeUkList(){ const cnt=new Map(); const first=new Map(); let i=0;
   allMatGerEntries().forEach(x=>{ const uk=canonUk(x.e,x.cid); if(!uk) return; cnt.set(uk,(cnt.get(uk)||0)+1); if(!first.has(uk)) first.set(uk,i++); });
   let names=[...cnt.keys()]; names.sort((a,b)=>{ const oa=ukMetaOf(a).order!=null?ukMetaOf(a).order:first.get(a); const ob=ukMetaOf(b).order!=null?ukMetaOf(b).order:first.get(b); return oa-ob; });
   UK_LIST=names; return {names,cnt}; }
-function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||overrides[x.cid]) out.push(x); }); return out; }
+function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ if(qeGet(x.e,x.cid,'hidden')===true) return; const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||overrides[x.cid]) out.push(x); }); return out; }
+function collectHidden(){ const byCid=[]; const byMat=[];
+  DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ const cid=cidOf(std.id,ri,si,ei); if(QE.cid[cid]&&QE.cid[cid].hidden){ byCid.push({cid,e,std,rubrik:r.name}); } }); }); }); });
+  Object.keys(QE.mat).forEach(mk=>{ if(QE.mat[mk]&&QE.mat[mk].hidden) byMat.push(mk); });
+  return {byCid,byMat}; }
+function restoreCid(cid){ if(QE.cid[cid]){ delete QE.cid[cid].hidden; if(Object.keys(QE.cid[cid]).length===0) delete QE.cid[cid]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
+function hideCid(cid){ (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); buildMaterialIndex(); renderAdmin(); toast('Ausgeblendet'); }
+function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
@@ -608,6 +616,14 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
       <div class="uk-actions"><button onclick="renameUk(${i})">Umbenennen / Zusammenführen</button><button class="icon" onclick="moveUk(${i},-1)">▲</button><button class="icon" onclick="moveUk(${i},1)">▼</button></div></div>`; });
   html+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
 
+  /* Panel: Ausgeblendete Einträge (Wiederherstellung) */
+  const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length;
+  html+=`<details class="vpanel"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
+  if(hidTotal===0) html+=`<p class="hint">Nichts ausgeblendet.</p>`;
+  hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button onclick="restoreMat('${esc(mk)}')">Wiederherstellen</button></div></div>`; });
+  hid.byCid.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
+  html+=`</div></details>`;
+
   /* Panel-los: Einstufung prüfen (Prüf-Workflow) */
   const all=collectUncertain(); const done=all.filter(x=>isHandled(x.cid)).length; const pct=all.length?Math.round(done/all.length*100):0;
   let list=all;
@@ -626,7 +642,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
       ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
       <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
       <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" onchange="reassignEntry('${esc(x.cid)}',this.value)">${opts}</select>
-      <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button></div></div>`; });
+      <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button><button onclick="hideCid('${esc(x.cid)}')">🗑 Ausblenden</button></div></div>`; });
   if(list.length>300) html+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
   box.innerHTML=html;
 }
@@ -681,7 +697,7 @@ window.addEventListener('hashchange',()=>{ if((location.hash||'')===''&&mode==='
 let sheetCid=null, sheetEntry=null, sheetPending=null;
 function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; } }
 function openSheet(cid){ const e=findEntry(cid); if(!e) return; sheetCid=cid; sheetEntry=e; sheetPending=null; renderSheetMain(); showSheet(true); }
-function sAct(ico,label,sub,fn){ return `<button class="sheet-act" onclick="${fn}"><span class="sa-ico">${ico}</span><span>${esc(label)}<span class="sa-sub">${esc(sub)}</span></span></button>`; }
+function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}" onclick="${fn}"><span class="sa-ico">${ico}</span><span>${esc(label)}<span class="sa-sub">${esc(sub)}</span></span></button>`; }
 function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const imp=qeGet(e,cid,'important')===true; const mHi=qeGet(e,cid,'mengeHi')===true; const cur=natOf(effNatur(e,cid));
@@ -692,6 +708,7 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
   h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
   h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')");
+  h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger');
   h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h;
@@ -727,8 +744,9 @@ function askScope(){ const e=sheetEntry; if(!e.material_key){ applyPending('cid'
 function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
   if(p.kind==='natur'){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).natur=p.value; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); } saveQE(); buildMaterialIndex(); }
   else if(p.kind==='uk'){ const val=(p.value===''?'':p.value); if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).uk=val; if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } } else { reassign[cid]=(val===''?null:val); saveJSON('hkl_reassign',reassign); } saveQE(); computeUkList(); }
-  else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'){ buildMaterialIndex(); } }
+  else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
   sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
+function sheetDelete(){ if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
 function sheetResetEntry(){ const cid=sheetCid; if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } saveQE(); buildMaterialIndex(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
 function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));
