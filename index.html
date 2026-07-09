@@ -192,6 +192,20 @@
   .btn-pri { background:var(--n-material); color:#06210f; }
   .btn-pri:active { filter:brightness(.93); }
 
+  /* Formulare: Eintrag / Standard hinzufügen & bearbeiten (NEU) */
+  .form-grp { margin-bottom:14px; }
+  .form-grp:last-of-type { margin-bottom:6px; }
+  .form-sel { width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:15px; }
+  .form-sel:focus { outline:none; border-color:var(--accent); }
+  .form-row { display:flex; gap:9px; }
+  .form-row > .form-sel, .form-row > .loc-input { flex:1; margin-bottom:0; }
+  .natpick { display:flex; flex-wrap:wrap; gap:6px; }
+  .natpick button { padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); font-size:13px; font-weight:650; cursor:pointer; }
+  .natpick button.sel { border-color:currentColor; box-shadow:inset 0 0 0 1px currentColor; }
+  .add-entry-btn { width:100%; padding:13px; border-radius:11px; border:1px dashed var(--accent); background:var(--surface-2); color:var(--accent); font-size:14px; font-weight:650; cursor:pointer; margin:10px 0 4px; }
+  .add-entry-btn:active { background:var(--surface-3); }
+  .added-tag { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 6px; border-radius:5px; background:rgba(61,155,224,.16); color:var(--accent); margin-left:6px; }
+
   .vpanel { background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
   .vpanel summary { padding:13px 14px; font-size:13.5px; font-weight:650; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:center; gap:9px; }
   .vpanel summary::-webkit-details-marker { display:none; }
@@ -323,6 +337,7 @@
     <div class="screen" id="scr-care"></div>
     <div class="screen" id="scr-care-item"></div>
     <div class="screen" id="scr-admin"></div>
+    <div class="screen" id="scr-form"></div>
   </main>
 </div>
 <div class="toast" id="toast"></div>
@@ -377,6 +392,49 @@ function natOf(key){ return NATCFG.items[key]||{key,label:key,color:'#7f95ab',ic
 function applyNatConfig(){ const root=document.documentElement; natList().forEach(n=>{ root.style.setProperty('--n-'+n.key, n.color); }); }
 function natSlug(s){ let base=(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'kat'; let k=base,i=2; while(NATCFG.items[k]){k=base+'_'+i;i++;} return k; }
 
+/* ─────────────────────────────────────────────────────────────
+   BAUSTEIN — EIGENE INHALTE (Hinzufügen / Bearbeiten)
+   Neue Standards und neue Material-/Geräte-Einträge werden in einer
+   eigenen Ebene `hkl_additions` gespeichert und beim Laden über die
+   (unveränderte) JSON-Basis gelegt. So bleiben die Quelldaten intakt,
+   die Ergänzungen werden aber wie normale Inhalte angezeigt und – wie
+   alle Änderungen – zentral auf dem Server geteilt.
+     { standards:[ …vollständige Standard-Objekte… ],
+       entries:{ "<stdId>|<rubrikIndex>": [ …neue Einträge… ] } }
+   ───────────────────────────────────────────────────────────── */
+function loadAdditions(){ const a=loadJSON('hkl_additions',{standards:[],entries:{}}); if(!Array.isArray(a.standards)) a.standards=[]; if(!a.entries||typeof a.entries!=='object') a.entries={}; return a; }
+function saveAdditions(){ saveJSON('hkl_additions',ADDITIONS); }
+/* Eindeutige, für onclick-Interpolation ungefährliche IDs ([a-z0-9] only). */
+function newAid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+/* Wie natSlug, aber gegen eine beliebige Menge belegter IDs. `taken` ist ein
+   Set oder ein Objekt; Ergebnis ist immer [a-z0-9_]+ (onclick-sicher). */
+function addSlug(title,taken){ let base=(title||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'std';
+  const has=k=>taken&&(taken.has?taken.has(k):(k in taken)); let k=base,i=2; while(has(k)){k=base+'_'+i;i++;} return k; }
+/* Baut aus den Formularfeldern ein normalisiertes Eintrags-Objekt. Rein
+   (kein DOM/Store) – daher testbar. `f.aid` muss übergeben werden. */
+function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim();
+  const mz=menge?parseInt(menge,10):null;
+  const val=(f.sizeVal||'').trim();
+  const groessen=val?[{typ:(f.sizeTyp||'dimension'),wert:val,roh:val}]:[];
+  const uk=(f.uk||'').trim()||null; const spez=(f.spez||'').trim()||null;
+  return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
+    natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
+    spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
+    ist_fliesstext:false, _added:true, _aid:f.aid }; }
+/* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
+function mergeAdditions(base,add){
+  const inject=(std)=>{ const rubs=std.rubriken||[]; let cloned=false;
+    const newRubs=rubs.map((r,ri)=>{ const extra=add.entries[std.id+'|'+ri]; if(!extra||!extra.length) return r; cloned=true;
+      return Object.assign({},r,{sub_bereiche:(r.sub_bereiche||[]).concat([{name:null,_added:true,eintraege:extra}])}); });
+    return cloned?Object.assign({},std,{rubriken:newRubs}):std; };
+  const baseStds=(base.standards||[]).map(inject);
+  const addStds=(add.standards||[]).map(inject);
+  return Object.assign({},base,{standards:baseStds.concat(addStds)}); }
+/* Baut das sichtbare DB neu aus Basis + Ergänzungen und hält curStd frisch. */
+function rebuildDB(){ if(!DB_BASE){ return; } DB=mergeAdditions(DB_BASE,ADDITIONS);
+  if(curStd){ const c=DB.standards.find(s=>s.id===curStd.id); if(c) curStd=c; } }
+function findAddEntry(sid,ri,aid){ const arr=ADDITIONS.entries[sid+'|'+ri]||[]; return arr.find(x=>x._aid===aid)||null; }
+
 const UK_PALETTE=['#34c98a','#e8b34a','#bd8ce8','#5fb0e0','#e0795f','#5fd0c0','#c9a24a','#d47fb0'];
 function sizeLabel(t){ return ({french:'Fr',laenge:'Länge',durchmesser:'Ø',volumen:'Vol',dimension:'Maß',naht:'Stärke',groesse_kuerzel:'Größe',typcode:'Typ','durchmesser+french':'Ø·Fr'})[t]||t||''; }
 function rubrikIcon(name,typ){ const n=(name||'').toLowerCase();
@@ -405,7 +463,9 @@ const DEMO={ export_datum:null, anzahl_standards:1, standards:[{ id:'demo', date
 
 /* ---- Zustand ---- */
 let NATCFG=loadNatCfg();
-let DB=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
+let DB=null, DB_BASE=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
+let formCtx=null; /* aktuell offenes Hinzufügen-/Bearbeiten-Formular (Rücksprung) */
+let ADDITIONS=loadAdditions();
 let admNat='alle', admState='offen';
 let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
@@ -440,6 +500,7 @@ async function load(){
   applyNatConfig();
   try{ const res=await fetch(DATA_URL,{cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); DB=await res.json(); if(!DB||!Array.isArray(DB.standards)) throw new Error('Struktur ungültig'); }
   catch(e){ DB=DEMO; setTimeout(()=>toast('Keine Standards-Datei gefunden – Demodaten aktiv',true),400); }
+  DB_BASE=DB; rebuildDB(); /* eigene Standards/Einträge über die Basis legen */
   buildMaterialIndex(); applyDeepLink(); renderStandards(); updateBar();
 }
 
@@ -462,7 +523,7 @@ function updateBar(){ const total=DB.standards.length;
   else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }
 function show(scr){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(scr).classList.add('active'); $('main').scrollTop=0; }
-function setMode(m){ mode=m;
+function setMode(m){ mode=m; formCtx=null; /* offenes Formular verwerfen beim Moduswechsel */
   $('mUse').classList.toggle('on',m==='use'); $('mCare').classList.toggle('on',m==='care'); $('mAdmin').classList.toggle('on',m==='admin');
   $('searchWrap').style.display=(m==='use'&&nav.length===0)?'block':'none';
   if(m==='use'){ nav=[]; renderStandards(); show('scr-standards'); }
@@ -501,17 +562,22 @@ function entryCardHTML(e,cid,isMatGer){
   const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
-  let meta=''; meta+=sizeBadges(e.groessen); meta+=specTags(e.spezifikation);
+  /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular überschreibbar. */
+  const mv=qeGet(e,cid,'menge'); const menge=(mv!==undefined?mv:e.menge);
+  const grr=qeGet(e,cid,'groessen'); const groessen=(grr!==undefined?grr:e.groessen);
+  const spv=qeGet(e,cid,'spez'); const spez=(spv!==undefined?spv:e.spezifikation);
+  let meta=''; meta+=sizeBadges(groessen); meta+=specTags(spez);
   if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
-  const mbox = settings.menge ? (e.menge?`<div class="mbox${mHi?' hi':''}">${esc(e.menge)}</div>`:`<div class="mbox empty"></div>`) : '';
+  const mbox = settings.menge ? (menge?`<div class="mbox${mHi?' hi':''}">${esc(menge)}</div>`:`<div class="mbox empty"></div>`) : '';
   const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
   const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
   const star = important?`<span class="imp-star">⭐</span>`:'';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}</div>${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
+  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
 }
 
 function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx});
@@ -548,13 +614,20 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
     (r.sub_bereiche||[]).forEach((sb,si)=>{ if(sb.name) html+=`<div class="sub-head">${esc(sb.name)}</div>`;
       (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return; const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; html+=entryCardHTML(e,cid,false); }); });
   }
-  $('scr-detail').innerHTML=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
+  const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
+  $('scr-detail').innerHTML=body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
+/* Startet das Hinzufügen eines Eintrags in der aktuell offenen Rubrik.
+   Liest Standard/Rubrik aus dem Navigationszustand (keine Nutzertexte im onclick). */
+function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
+  const r=curStd.rubriken[top.idx]; const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
+  openEntryForm({kind:'add',sid:curStd.id,ri:top.idx,defaultNat}); }
 function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
-function goBack(){ if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
+function goBack(){ if(formCtx){ closeForm(); return; }
+  if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
   nav.pop(); if(nav.length===0){ location.hash=''; setMode('use'); }
   else { const top=nav[nav.length-1]; if(top.lvl==='std'){ const s=curStd; nav.pop(); openStandard(s.id); } else openStandard(curStd.id,true); } }
 
@@ -612,6 +685,14 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   let html=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
+
+  /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
+  html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
+  if(!ADDITIONS.standards.length) html+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
+  ADDITIONS.standards.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
+    <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
+  html+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
+    <p class="hint">Neue Standards und eigene Einträge werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div></details>`;
 
   /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
   html+=`<details class="vpanel"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
@@ -699,6 +780,81 @@ function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+
   const a=names[i], b=names[j]; const oa=ukMeta[a].order; ukMeta[a].order=ukMeta[b].order; ukMeta[b].order=oa;
   saveJSON('hkl_ukmeta',ukMeta); computeUkList(); renderAdmin(); }
 
+/* ============ Formulare: Hinzufügen / Bearbeiten ============ */
+const SIZE_TYPES=['french','laenge','durchmesser','volumen','dimension','naht','groesse_kuerzel','typcode','durchmesser+french'];
+function closeForm(){ if(!formCtx) return; const b=formCtx.back; formCtx=null; if(b) b(); }
+function natPickHTML(sel){ return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+natList().map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+`</div>`; }
+function pickNat(btn){ const p=btn.parentElement; p.querySelectorAll('button').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); p.dataset.nat=btn.dataset.nat; }
+function sizeTypOptionsHTML(sel){ return `<option value="">— keine Größe —</option>`+SIZE_TYPES.map(t=>`<option value="${esc(t)}" ${t===sel?'selected':''}>${esc(sizeLabel(t))}</option>`).join(''); }
+
+/* Liest die effektiven (ggf. per Overlay bearbeiteten) Feldwerte eines
+   Eintrags in ein Formular-Objekt. Bei Basis-Einträgen `cid` mitgeben. */
+function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
+  const gv=hasCid?qeGet(e,cid,'groessen'):undefined; const groessen=(gv!==undefined?gv:e.groessen)||[]; const g=groessen[0]||null;
+  const nv=hasCid?qeGet(e,cid,'name'):undefined; const name=(nv!==undefined?nv:e.anzeige_text)||'';
+  const mvv=hasCid?qeGet(e,cid,'menge'):undefined; const menge=(mvv!==undefined?mvv:e.menge)||'';
+  const nat=hasCid?effNatur(e,cid):(e.natur||'material');
+  const uk=hasCid?(canonUk(e,cid)||''):(e.unterkategorie||'');
+  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk}; }
+
+/* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
+   optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
+function openEntryForm(desc){
+  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:''}; let title='Eintrag hinzufügen';
+  if(desc.kind==='editAdd'){ const e=findAddEntry(desc.sid,desc.ri,desc.aid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e); title='Eintrag bearbeiten'; }
+  else if(desc.kind==='editBase'){ const e=findEntry(desc.cid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e,desc.cid); title='Eintrag bearbeiten'; }
+  computeUkList(); const ukOpts=UK_LIST.map(u=>`<option value="${esc(u)}"></option>`).join('');
+  const h=`<div class="pcard">
+    <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
+    <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
+    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat)}</div>
+    <div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>
+    <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
+    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveEntryForm()">Speichern</button></div>
+  </div>`;
+  formCtx={desc, back: desc.back||(()=>reRenderDetail())};
+  $('scr-form').innerHTML=h; show('scr-form'); setBar(title, curStd?curStd.titel:'', true); }
+
+function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value }; }
+function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
+  const d=formCtx&&formCtx.desc; if(!d) return;
+  if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid()}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
+  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
+  else if(d.kind==='editBase'){ applyBaseEntryEdit(d.cid,f); toast('Gespeichert'); }
+  closeForm(); }
+
+/* Schreibt Formularwerte als Overlay auf einen Basis-Eintrag (nur an dieser Stelle). */
+function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
+  qeSet('cid',e,cid,'name',f.name.trim());
+  const menge=f.menge.trim(); qeSet('cid',e,cid,'menge',menge||null);
+  const val=f.sizeVal.trim(); qeSet('cid',e,cid,'groessen', val?[{typ:f.sizeTyp||'dimension',wert:val,roh:val}]:[]);
+  if(f.nat===e.natur){ if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=f.nat; saveJSON('hkl_overrides',overrides); }
+  const uk=f.uk.trim(); reassign[cid]=(uk||null); saveJSON('hkl_reassign',reassign);
+  saveQE(); buildMaterialIndex(); computeUkList(); }
+
+function deleteAddEntry(sid,ri,aid){ const key=sid+'|'+ri; const arr=ADDITIONS.entries[key]; if(!arr) return; ADDITIONS.entries[key]=arr.filter(x=>x._aid!==aid); if(!ADDITIONS.entries[key].length) delete ADDITIONS.entries[key]; saveAdditions(); rebuildDB(); buildMaterialIndex(); }
+
+/* ---- Eigene Standards ---- */
+function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id):null; const title=s?'Standard bearbeiten':'Neuer Standard';
+  const h=`<div class="pcard">
+    <div class="form-grp"><div class="flabel">Titel</div><input class="loc-input" id="sTitel" placeholder="z. B. Koronarangiografie" value="${esc(s?s.titel:'')}"></div>
+    <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" placeholder="z. B. HKL" value="${esc(s?s.gruppe:'Eigene')}"></div>
+    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik über „＋ Eintrag hinzufügen" hinzu.</p>
+    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStandardForm(${s?`'${esc(s.id)}'`:'null'})">Speichern</button></div>
+  </div>`;
+  formCtx={desc:{kind:'std'}, back:()=>{ renderAdmin(); show('scr-admin'); updateBar(); }};
+  $('scr-form').innerHTML=h; show('scr-form'); setBar(title,'Verwaltung',true); }
+function saveStandardForm(id){ const titel=$('sTitel').value.trim(); const gruppe=$('sGruppe').value.trim(); if(!titel){ toast('Bitte einen Titel eingeben',true); return; }
+  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); } else { addStandard(titel,gruppe); toast('Standard angelegt'); } closeForm(); }
+function addStandard(titel,gruppe){ const taken={}; (DB?DB.standards:[]).forEach(s=>taken[s.id]=1); ADDITIONS.standards.forEach(s=>taken[s.id]=1); const id=addSlug(titel,taken);
+  ADDITIONS.standards.push({ id, titel:titel.trim(), gruppe:(gruppe||'').trim()||'Eigene', dateiname:'(manuell angelegt)', _added:true, rubriken:[
+    {name:'Saal und Geräte', typ:'geraete', sub_bereiche:[]}, {name:'Material', typ:'material', sub_bereiche:[]}, {name:'Ablauf', typ:'ablauf', sub_bereiche:[]} ] });
+  saveAdditions(); rebuildDB(); buildMaterialIndex(); return id; }
+function updateStandard(id,titel,gruppe){ const s=ADDITIONS.standards.find(x=>x.id===id); if(!s) return; if(titel&&titel.trim())s.titel=titel.trim(); if(gruppe&&gruppe.trim())s.gruppe=gruppe.trim(); saveAdditions(); rebuildDB(); }
+function deleteStandard(id){ ADDITIONS.standards=ADDITIONS.standards.filter(x=>x.id!==id); Object.keys(ADDITIONS.entries).forEach(k=>{ if(k.split('|')[0]===id) delete ADDITIONS.entries[k]; }); saveAdditions(); rebuildDB(); buildMaterialIndex(); }
+function confirmDeleteStandard(id){ const s=ADDITIONS.standards.find(x=>x.id===id); if(!s) return; if(!confirm('Standard „'+s.titel+'" mitsamt eigenen Einträgen löschen? Das kann nicht rückgängig gemacht werden.')) return; deleteStandard(id); if(curStd&&curStd.id===id) curStd=null; renderAdmin(); toast('Standard gelöscht'); }
+function openStandardById(id){ setMode('use'); openStandard(id); }
+
 /* ============ Deep-Link / Suche / Theme / Toast ============ */
 function applyDeepLink(){ const h=location.hash||''; const m=h.match(/^#\/std\/(.+)$/); if(m){ const id=decodeURIComponent(m[1]); if(DB.standards.find(s=>s.id===id)){ setMode('use'); openStandard(id); } } }
 $('searchInput').addEventListener('input',e=>{ const v=e.target.value; $('searchClear').classList.toggle('show',v.length>0); renderStandards(v); });
@@ -719,18 +875,25 @@ function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}
 function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const imp=qeGet(e,cid,'important')===true; const mHi=qeGet(e,cid,'mengeHi')===true; const cur=natOf(effNatur(e,cid));
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Schnellaktion · ${esc(cur.label)}</div><div class="sheet-name">${esc(name)}</div>`;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Schnellaktion · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
+  h+=sAct('✏️','Details bearbeiten','Name, Menge, Größe, Kategorie …','sheetEditDetails()');
   h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
-  h+=sAct('✏️','Umbenennen','Anzeigename ändern','sheetRename()');
+  h+=sAct('✏️','Schnell umbenennen','nur Anzeigename','sheetRename()');
   h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
   h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
   h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')");
-  h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger');
+  if(e._added){ h+=sAct('🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
+  else { h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
   h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h;
 }
+function sheetEditDetails(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
+  if(e._added){ const p=cid.split('|'); openEntryForm({kind:'editAdd',sid:p[0],ri:+p[1],aid:e._aid,back:()=>reRenderDetail()}); }
+  else { openEntryForm({kind:'editBase',cid,back:()=>reRenderDetail()}); } }
+function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
 function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
@@ -801,7 +964,7 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
      - Regelmäßiges Polling übernimmt Fremdänderungen, solange man
        selbst nichts Ungespeichertes offen hat.
    ───────────────────────────────────────────────────────────── */
-const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care'];
+const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_additions'];
 
 /* Übernimmt die (ggf. vom Server aktualisierten) Store-Werte in die
    laufenden Zustandsvariablen. */
@@ -815,6 +978,8 @@ function hydrateVars(){
   ukMeta=loadJSON('hkl_ukmeta',{});
   settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
   careMem=loadJSON('hkl_care',{});
+  ADDITIONS=loadAdditions();
+  rebuildDB(); /* eingehende eigene Standards/Einträge übernehmen */
   applyNatConfig();
 }
 

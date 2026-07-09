@@ -3,7 +3,8 @@
 HKL Standards — a self-contained single-page web app for browsing **and editing** HKL /
 SOP / KKS standards on mobile. The frontend (`index.html`) loads its content from
 `data/hkl_standards_export.json`. Edits made in the web interface (categories, corrections,
-renames, sub-categories, display settings, material care) are kept in the browser's
+renames, sub-categories, display settings, material care, **plus adding/editing your own
+material & device entries and creating whole new standards**) are kept in the browser's
 `localStorage` **and** persisted **server-side** so they survive redeploys and are shared
 across all devices (see [Server-side state](#server-side-state)). Per-device state
 (checklists, theme) stays local.
@@ -59,8 +60,23 @@ Previously all edits lived only in one browser's `localStorage`. Now the app is
   retried with exponential backoff and flushed once the server is reachable again.
 
 Shared keys: `hkl_natcfg`, `hkl_overrides`, `hkl_qedits`, `hkl_reviewed`, `hkl_reassign`,
-`hkl_ukmap`, `hkl_ukmeta`, `hkl_settings`, `hkl_care`. Per-device keys that stay local:
-`hkl_checks` (daily checklist), `hkl_theme`.
+`hkl_ukmap`, `hkl_ukmeta`, `hkl_settings`, `hkl_care`, `hkl_additions`. Per-device keys that
+stay local: `hkl_checks` (daily checklist), `hkl_theme`.
+
+### Adding & editing content
+
+The JSON data file stays **read-only**; user-created content lives in a separate overlay
+key, `hkl_additions` (`{ standards: [...], entries: { "<stdId>|<rubrikIndex>": [...] } }`),
+which the client merges over the loaded JSON at runtime. This keeps the source data intact
+while making additions behave like normal content (and shared across devices):
+
+- **New material / device entries** — inside any rubrik of a standard, tap *„＋ Eintrag
+  hinzufügen"* to add an item (name, quantity, category, size, sub-category). Long-press an
+  entry → *„Details bearbeiten"* to edit any field (works for base entries too, via a
+  per-entry overlay), or *„Endgültig löschen"* to remove your own added entries.
+- **New standards** — *Verwaltung → „➕ Eigene Standards" → „＋ Neuer Standard"* creates a
+  standard (title + group) pre-seeded with *Saal und Geräte*, *Material* and *Ablauf*
+  rubrics; it then appears in the normal *Nutzung* list.
 
 ### API
 

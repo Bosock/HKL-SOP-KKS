@@ -58,8 +58,11 @@ function loadHelpers() {
     extractFn('natSlug'),
     extractFn('natOf'),
     extractFn('natList'),
+    extractFn('addSlug'),
+    extractFn('makeAddEntry'),
+    extractFn('mergeAdditions'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -183,4 +186,94 @@ test('natList: returns items in order with keys merged in', () => {
   assert.equal(list.length, 2);
   assert.deepEqual(list.map(x => x.key), ['blut', 'geraet']);
   assert.equal(list[0].label, 'Blut');
+});
+
+// --- addSlug ----------------------------------------------------------------
+test('addSlug: slugifies to lowercase underscore form', () => {
+  assert.equal(fns.addSlug('Koronarangiografie', {}), 'koronarangiografie');
+  assert.equal(fns.addSlug('  My Std!!  ', {}), 'my_std');
+});
+test('addSlug: numeric suffix on collision (object of taken ids)', () => {
+  assert.equal(fns.addSlug('foo', { foo: 1 }), 'foo_2');
+  assert.equal(fns.addSlug('foo', { foo: 1, foo_2: 1 }), 'foo_3');
+});
+test('addSlug: accepts a Set of taken ids', () => {
+  assert.equal(fns.addSlug('foo', new Set(['foo'])), 'foo_2');
+});
+test('addSlug: empty / non-alphanumeric falls back to "std"', () => {
+  assert.equal(fns.addSlug('', {}), 'std');
+  assert.equal(fns.addSlug('!!!', {}), 'std');
+  assert.equal(fns.addSlug(null, {}), 'std');
+});
+
+// --- makeAddEntry -----------------------------------------------------------
+test('makeAddEntry: builds a normalized entry with trimmed fields', () => {
+  const e = fns.makeAddEntry({
+    name: '  Radialschleuse ', menge: '2x', nat: 'material',
+    sizeTyp: 'french', sizeVal: '6F', uk: 'Material auf Ansage', aid: 'a1',
+  });
+  assert.equal(e.roh_text, 'Radialschleuse');
+  assert.equal(e.anzeige_text, 'Radialschleuse');
+  assert.equal(e.menge, '2x');
+  assert.equal(e.menge_zahl, 2);
+  assert.equal(e.natur, 'material');
+  assert.equal(e.unterkategorie, 'Material auf Ansage');
+  // Cross-realm (vm sandbox) objects: compare by JSON, not reference-strict deepEqual.
+  assert.equal(JSON.stringify(e.groessen), JSON.stringify([{ typ: 'french', wert: '6F', roh: '6F' }]));
+  assert.equal(e.material_key, 'radialschleuse');
+  assert.equal(e._added, true);
+  assert.equal(e._aid, 'a1');
+  assert.equal(e.ist_fliesstext, false);
+});
+test('makeAddEntry: no menge / no size yields nulls and empty groessen', () => {
+  const e = fns.makeAddEntry({ name: 'Coro-J-Draht', nat: 'geraet', aid: 'a2' });
+  assert.equal(e.menge, null);
+  assert.equal(e.menge_zahl, null);
+  assert.equal(e.groessen.length, 0);
+  assert.equal(e.unterkategorie, null);
+  assert.equal(e.spezifikation, null);
+});
+test('makeAddEntry: defaults natur to material and size typ to dimension', () => {
+  const e = fns.makeAddEntry({ name: 'Ding', sizeVal: '10', aid: 'a3' });
+  assert.equal(e.natur, 'material');
+  assert.equal(JSON.stringify(e.groessen), JSON.stringify([{ typ: 'dimension', wert: '10', roh: '10' }]));
+});
+test('makeAddEntry: empty name gives null material_key', () => {
+  const e = fns.makeAddEntry({ name: '   ', aid: 'a4' });
+  assert.equal(e.material_key, null);
+});
+
+// --- mergeAdditions ---------------------------------------------------------
+test('mergeAdditions: appends added standards after base standards', () => {
+  const base = { export_datum: null, standards: [{ id: 's1', titel: 'Base', rubriken: [] }] };
+  const add = { standards: [{ id: 'x1', titel: 'Mine', rubriken: [] }], entries: {} };
+  const out = fns.mergeAdditions(base, add);
+  assert.equal(out.standards.length, 2);
+  assert.deepEqual(out.standards.map(s => s.id), ['s1', 'x1']);
+  assert.equal(out.export_datum, null); // base top-level fields preserved
+});
+test('mergeAdditions: injects entries into the target rubrik as an extra sub_bereich', () => {
+  const base = { standards: [{ id: 's1', titel: 'B', rubriken: [
+    { name: 'Material', typ: 'material', sub_bereiche: [{ name: null, eintraege: [{ roh_text: 'orig' }] }] },
+  ] }] };
+  const add = { standards: [], entries: { 's1|0': [{ roh_text: 'neu', _added: true, _aid: 'a1' }] } };
+  const out = fns.mergeAdditions(base, add);
+  const rub = out.standards[0].rubriken[0];
+  assert.equal(rub.sub_bereiche.length, 2);
+  assert.equal(rub.sub_bereiche[1]._added, true);
+  assert.equal(JSON.stringify(rub.sub_bereiche[1].eintraege), JSON.stringify([{ roh_text: 'neu', _added: true, _aid: 'a1' }]));
+  // Original sub_bereich untouched.
+  assert.equal(JSON.stringify(rub.sub_bereiche[0].eintraege), JSON.stringify([{ roh_text: 'orig' }]));
+});
+test('mergeAdditions: standards without additions are passed through by reference', () => {
+  const std = { id: 's1', titel: 'B', rubriken: [] };
+  const base = { standards: [std] };
+  const out = fns.mergeAdditions(base, { standards: [], entries: {} });
+  assert.equal(out.standards[0], std); // no needless clone
+});
+test('mergeAdditions: does not mutate base or add', () => {
+  const base = { standards: [{ id: 's1', rubriken: [{ name: 'M', sub_bereiche: [] }] }] };
+  const add = { standards: [], entries: { 's1|0': [{ roh_text: 'neu' }] } };
+  fns.mergeAdditions(base, add);
+  assert.equal(base.standards[0].rubriken[0].sub_bereiche.length, 0);
 });
