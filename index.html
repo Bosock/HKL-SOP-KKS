@@ -12,7 +12,10 @@
      Prinzip "Trennung von Konfiguration und Code":
        - DEFAULT_NAT  = Voreinstellungen im Code (Standardwerte)
        - Verwaltung   = Editor (ändert die Konfiguration ohne Code)
-       - localStorage = Persistenz (Änderungen bleiben erhalten)
+       - localStorage = lokaler Zwischenspeicher (offline-first)
+       - Server-State = zentrale Persistenz (siehe sync-Baustein unten):
+         Änderungen werden zusätzlich server-seitig unter /api/state
+         gespeichert und über alle Geräte hinweg geteilt.
        - applyNatConfig() schreibt die Farben als CSS-Variablen,
          die App liest sie überall. Eine Änderung wirkt sofort überall.
      ============================================================ */
@@ -44,6 +47,12 @@
   .icon-btn[hidden] { display:none; }
   .bar-title { flex:1; min-width:0; }
   .bar-title h1 { margin:0; font-size:17px; font-weight:650; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Server-Sync-Status: kleiner Punkt im Kopf. */
+  .sync-dot { width:9px; height:9px; border-radius:50%; flex:0 0 9px; background:var(--text-faint); transition:background .2s; cursor:default; }
+  .sync-dot.ok { background:var(--ok); }
+  .sync-dot.saving { background:var(--accent); }
+  .sync-dot.local { background:var(--warn); }
+  .sync-dot.err { background:var(--danger); }
   .bar-title .crumb { font-size:11.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   .modes { display:flex; gap:4px; padding:0 13px 11px; }
@@ -291,6 +300,7 @@
     <div class="bar-row">
       <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
       <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
+      <span id="syncDot" class="sync-dot" title="Server-Status"></span>
       <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
     </div>
     <div class="modes">
@@ -324,8 +334,14 @@
    HKL Standards v4 — Logik
    ============================================================ */
 const DATA_URL='data/hkl_standards_export.json';
+/* Hook: wird nach jedem store.set(key) aufgerufen. Der Server-Sync-Baustein
+   hängt sich hier ein, um geänderte Schlüssel an /api/state zu schicken. */
+let onStoreSet=null;
 const store=(()=>{ let mem={},ok=false; try{localStorage.setItem('__t','1');localStorage.removeItem('__t');ok=true;}catch(e){ok=false;}
-  return { get(k){try{return ok?localStorage.getItem(k):(k in mem?mem[k]:null);}catch(e){return (k in mem)?mem[k]:null;}}, set(k,v){try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;}} }; })();
+  return { get(k){try{return ok?localStorage.getItem(k):(k in mem?mem[k]:null);}catch(e){return (k in mem)?mem[k]:null;}}, set(k,v){try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;} if(onStoreSet){try{onStoreSet(k);}catch(_){}} } }; })();
+/* schreibt in den Store OHNE den Sync-Hook auszulösen (für eingehende
+   Server-Daten – sonst würden wir Fremdänderungen sofort zurückspielen). */
+function storeSetQuiet(k,v){ const h=onStoreSet; onStoreSet=null; try{ store.set(k,v); } finally { onStoreSet=h; } }
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 const today=()=>new Date().toISOString().slice(0,10);
@@ -391,7 +407,7 @@ const DEMO={ export_datum:null, anzahl_standards:1, standards:[{ id:'demo', date
 let NATCFG=loadNatCfg();
 let DB=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
 let admNat='alle', admState='offen';
-let careMem={};
+let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
 let overrides=loadJSON('hkl_overrides',{});
 /* QE = Schnellmenü-Änderungen. cid = nur dieser Eintrag; mat = dieses Material überall. */
@@ -548,7 +564,7 @@ function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
   if(careFilter==='material') list=MAT_INDEX.filter(m=>m.typ==='material');
   if(careFilter==='geraet') list=MAT_INDEX.filter(m=>m.typ==='geraet');
   const done=MAT_INDEX.filter(m=>careMem[m.key]).length; const pct=MAT_INDEX.length?Math.round(done/MAT_INDEX.length*100):0;
-  let html=`<div class="banner"><h2>Materialwirtschaft</h2><p>Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.<br><b>Hinweis:</b> Fotos werden nur für diese Sitzung gehalten – dauerhaft folgt mit der zentralen Datenablage.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
+  let html=`<div class="banner"><h2>Materialwirtschaft</h2><p>Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.<br><b>Hinweis:</b> Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
   <div class="filter-row"><button class="${careFilter==='alle'?'on':''}" onclick="setCareFilter('alle')">Alle</button><button class="${careFilter==='offen'?'on':''}" onclick="setCareFilter('offen')">Offen</button><button class="${careFilter==='material'?'on':''}" onclick="setCareFilter('material')">Material</button><button class="${careFilter==='geraet'?'on':''}" onclick="setCareFilter('geraet')">Gerät</button></div>`;
   if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter.</p></div>`;
   list.forEach(m=>{ const c=careMem[m.key]; const thumb=c&&c.photo?`<div class="mat-thumb"><img src="${c.photo}" alt=""></div>`:`<div class="mat-thumb">${natOf(m.typ).icon||'📷'}</div>`;
@@ -566,11 +582,13 @@ function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; c
     <input type="file" id="fileInp" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
     <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="goBack()">Zurück</button><button class="btn btn-pri" onclick="saveCare('${esc(key)}')">Speichern</button></div></div>
-    <div class="foot">Fotos werden nur für diese Sitzung gehalten. Dauerhafte Speicherung folgt mit der zentralen Datenablage.</div>`;
+    <div class="foot">Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</div>`;
   show('scr-care-item'); setBar(m.name,'Material pflegen',true);
 }
 function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${r.result}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=r.result; } }; r.readAsDataURL(f); }
-function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null; careMem[key]={loc,photo}; toast('Gespeichert (nur diese Sitzung)'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
+function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null;
+  if(!loc&&!photo){ delete careMem[key]; } else { careMem[key]={loc,photo}; }
+  saveJSON('hkl_care',careMem); toast('Gespeichert'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
 
 /* ============ Verwaltung ============ */
 function allMatGerEntries(){ const out=[]; DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ if(r.typ!=='material'&&r.typ!=='geraete') return; (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push({e,cid:cidOf(std.id,ri,si,ei),std,rubrik:r.name}); }); }); }); }); return out; }
@@ -604,7 +622,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     </div>`;
   });
   html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
-    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und bleiben auf diesem Gerät gespeichert.</p></div></details>`;
+    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
 
   /* Panel: Unterkategorien verwalten */
   html+=`<details class="vpanel"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
@@ -630,7 +648,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  html+=`<div class="banner"><h2>Einstufung prüfen</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen gelten lokal auf diesem Gerät (bis das Backend steht).</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
+  html+=`<div class="banner"><h2>Einstufung prüfen</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
   <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
   html+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
@@ -767,7 +785,124 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
 })();
 
-load();
+/* ─────────────────────────────────────────────────────────────
+   BAUSTEIN — SERVER-STATE / SYNC
+   Änderungen werden zusätzlich zum localStorage server-seitig unter
+   /api/state gespeichert und über alle Geräte hinweg geteilt.
+
+   Modell:
+     - Offline-first: localStorage bleibt die sofortige Quelle. Ist der
+       Server nicht erreichbar, funktioniert alles wie bisher lokal.
+     - Beim Start: Server-Stand laden und übernehmen; rein lokale
+       Schlüssel zusätzlich hochspielen (Erstbefüllung).
+     - Bei jeder Änderung: nur die geänderten Schlüssel werden an den
+       Server geschickt (Top-Level-Merge – zwei Personen können
+       *verschiedene* Schlüssel bearbeiten, ohne sich zu überschreiben).
+     - Regelmäßiges Polling übernimmt Fremdänderungen, solange man
+       selbst nichts Ungespeichertes offen hat.
+   ───────────────────────────────────────────────────────────── */
+const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care'];
+
+/* Übernimmt die (ggf. vom Server aktualisierten) Store-Werte in die
+   laufenden Zustandsvariablen. */
+function hydrateVars(){
+  NATCFG=loadNatCfg();
+  overrides=loadJSON('hkl_overrides',{});
+  QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)QE.mat={};
+  reviewed=loadJSON('hkl_reviewed',{});
+  reassign=loadJSON('hkl_reassign',{});
+  ukMap=loadJSON('hkl_ukmap',{});
+  ukMeta=loadJSON('hkl_ukmeta',{});
+  settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
+  careMem=loadJSON('hkl_care',{});
+  applyNatConfig();
+}
+
+/* Rendert die aktuell sichtbare Ansicht neu (nach eingehenden Server-Daten).
+   Stört keine offenen Eingaben (Schnellmenü, Material-Detail). */
+function refreshView(){
+  try{
+    if(!DB) return;
+    if($('sheet').classList.contains('show')) return;
+    buildMaterialIndex();
+    if(mode==='admin'){ renderAdmin(); updateBar(); return; }
+    if(mode==='care'){ if(!$('scr-care-item').classList.contains('active')){ renderCare(); updateBar(); } return; }
+    if($('scr-detail').classList.contains('active')){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ const i=top.idx; nav.pop(); openRubrik(i); } }
+    else if($('scr-rubriken').classList.contains('active')&&curStd){ openStandard(curStd.id,true); }
+    else { renderStandards($('searchInput')?$('searchInput').value:''); }
+    updateBar();
+  }catch(e){ /* best effort */ }
+}
+
+const sync=(()=>{
+  const URL='/api/state';
+  let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0;
+  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status'; } }
+  function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
+  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return; storeSetQuiet(k, JSON.stringify(st[k])); changed=true; }); return changed; }
+
+  async function pull(){
+    const r=await fetch(URL,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+    rev=j.rev||0; const st=j.state||{}; adopt(st,false);
+    // rein lokale Schlüssel, die der Server noch nicht kennt → Erstbefüllung
+    const seed=SHARED_KEYS.filter(k=>store.get(k)!=null && !(k in st));
+    return seed;
+  }
+  async function putKeys(keys){
+    if(!keys.length) return false;
+    const body=JSON.stringify({baseRev:rev, state:payloadFor(keys)});
+    const r=await fetch(URL,{method:'PUT',headers:{'Content-Type':'application/json'},body});
+    if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+    rev=j.rev||rev; return adopt(j.state,true); /* fremde Schlüssel übernehmen (eigene dirty nicht) */
+  }
+  async function flush(){
+    if(!enabled) return;
+    if(inflight){ pending=true; return; }
+    const keys=[...dirty]; if(!keys.length) return;
+    dirty.clear(); inflight=true; setDot('saving','Speichere…');
+    try{
+      const changed=await putKeys(keys); offline=false; fails=0; setDot('ok','Auf dem Server gespeichert');
+      if(changed && dirty.size===0){ hydrateVars(); refreshView(); }
+    }catch(e){
+      keys.forEach(k=>dirty.add(k)); offline=true; fails++; setDot('local','Nur lokal – Server nicht erreichbar');
+    }finally{
+      inflight=false;
+      if(pending||dirty.size){ pending=false; clearTimeout(timer);
+        const delay=fails>0?Math.min(30000,2000*Math.pow(2,fails-1)):1500; timer=setTimeout(flush,delay); }
+    }
+  }
+  function mark(k){ if(!enabled||!SHARED_KEYS.includes(k)) return; dirty.add(k); if(!offline) setDot('saving','Speichere…'); clearTimeout(timer); timer=setTimeout(flush,800); }
+  async function poll(){
+    if(!enabled||inflight||dirty.size) return;
+    try{
+      const r=await fetch(URL+'?since='+rev,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+      offline=false;
+      if(j.unchanged){ setDot('ok','Auf dem Server gespeichert'); return; }
+      rev=j.rev||rev; const changed=adopt(j.state,true);
+      if(changed && !dirty.size){ hydrateVars(); refreshView(); }
+      setDot('ok','Auf dem Server gespeichert');
+    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
+  }
+  async function init(){
+    setDot('saving','Verbinde…');
+    try{
+      const seed=await pull(); hydrateVars(); offline=false; setDot('ok','Auf dem Server gespeichert');
+      if(seed.length) await putKeys(seed);
+    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
+  }
+  function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
+    window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
+  }
+  return {init,start};
+})();
+
+/* Bootstrap: erst Server-Stand holen, dann App rendern, dann Sync aktiv. */
+(async function boot(){
+  await sync.init();
+  await load();
+  sync.start();
+})();
 </script>
 </body>
 </html>
