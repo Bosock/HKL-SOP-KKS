@@ -77,6 +77,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Fail fast with a clear message if the SSH deploy secrets are missing.
+      # Without this, appleboy/scp-action dies with the opaque
+      # "can't connect without a private SSH key or password" after already
+      # spinning up its container — hard to trace back to an unset secret.
+      - name: Verify deploy secrets are configured
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          missing=()
+          [ -n "$DEPLOY_USER" ] || missing+=("DEPLOY_USER")
+          [ -n "$DEPLOY_SSH_KEY" ] || missing+=("DEPLOY_SSH_KEY")
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::Deploy secret(s) not configured: ${missing[*]}. Add them under repo Settings → Secrets and variables → Actions before deploying."
+            exit 1
+          fi
+          echo "Deploy secrets present."
+
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
         with:
