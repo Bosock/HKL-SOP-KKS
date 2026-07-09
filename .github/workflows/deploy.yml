@@ -13,8 +13,25 @@ env:
   IMAGE: ghcr.io/bosock/hkl-sop-kks
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Zero npm dependencies, so nothing to install — just run the suite.
+      - name: Run tests
+        run: npm test
+
   build:
     name: Build & push image
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
