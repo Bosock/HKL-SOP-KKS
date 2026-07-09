@@ -1,4 +1,12 @@
 # Deployment compose file for the host 162.19.250.88.
+#
+# The app runs behind the host's shared jwilder/nginx-proxy +
+# letsencrypt-nginx-proxy-companion. The proxy discovers this container via the
+# VIRTUAL_HOST env var and terminates TLS for it; the companion auto-issues and
+# renews a Let's Encrypt certificate for LETSENCRYPT_HOST (HTTP-01). The
+# container therefore only needs to be reachable on the shared external `proxy`
+# network — it does NOT publish a host port itself.
+#
 # The CI pipeline copies this file to ~/hkl-sop-kks on the server and runs
 #   docker compose pull && docker compose up -d
 services:
@@ -6,13 +14,21 @@ services:
     image: ghcr.io/bosock/hkl-sop-kks:latest
     container_name: hkl-sop-kks
     restart: unless-stopped
-    ports:
-      # Host port is configurable via .env (HOST_PORT); defaults to 8080.
-      - "${HOST_PORT:-8080}:80"
+    expose:
+      - "80"
+    environment:
+      # nginx-proxy: which hostname routes to this container and on which port.
+      VIRTUAL_HOST: "${VIRTUAL_HOST:-sops.kardio.wiki}"
+      VIRTUAL_PORT: "80"
+      # letsencrypt companion: hostname + contact e-mail for the ACME cert.
+      LETSENCRYPT_HOST: "${LETSENCRYPT_HOST:-sops.kardio.wiki}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-mail@severinfink.de}"
     volumes:
       # Server-side state (edits made in the web interface) persists here and
       # survives `docker compose pull && up -d` redeploys.
       - hkl-state:/app/state
+    networks:
+      - proxy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 30s
@@ -22,3 +38,8 @@ services:
 
 volumes:
   hkl-state:
+
+networks:
+  # Shared network created by the host's nginx-proxy stack.
+  proxy:
+    external: true

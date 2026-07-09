@@ -22,10 +22,16 @@ GitHub Actions ──build──▶ ghcr.io/bosock/hkl-sop-kks:latest   (GHCR)
       │
       └──deploy (SSH)──▶ 162.19.250.88
                              docker compose pull && up -d
-                             node server.js :80  ◀── host :${HOST_PORT:-8080}
+                                   │
+        https://sops.kardio.wiki ──▶ nginx-proxy + letsencrypt companion (TLS)
+                                   │   (routes VIRTUAL_HOST over the `proxy` net)
+                                   ▼
+                             node server.js :80
                                    │
                                    └── /api/state ⇄ state.json  (Docker volume: hkl-state)
 ```
+
+Public URL: **https://sops.kardio.wiki** (TLS via Let's Encrypt).
 
 - **Image**: `node:22-alpine` running [`server.js`](server.js) — serves the static app with
   gzip + cache + security headers and a `/healthz` endpoint (everything the old `nginx.conf`
@@ -109,10 +115,16 @@ sudo usermod -aG docker "$USER"                 # allow non-root docker (re-logi
 The pipeline creates `~/hkl-sop-kks/` and drops `docker-compose.yml` there on first run;
 no manual checkout on the server is required.
 
-> **Port**: the container listens on `80`; the host publishes `${HOST_PORT:-8080}`.
-> To serve on port 80 directly, create `~/hkl-sop-kks/.env` with `HOST_PORT=80`
-> (see [`.env.example`](.env.example)), or put a reverse proxy (nginx/Caddy/Traefik)
-> in front for TLS.
+> **Reverse proxy & TLS**: `162.19.250.88` already runs a shared
+> [`jwilder/nginx-proxy`](https://github.com/nginx-proxy/nginx-proxy) +
+> [`letsencrypt-nginx-proxy-companion`](https://github.com/nginx-proxy/acme-companion)
+> stack on the external `proxy` Docker network. This container does **not** publish a
+> host port; instead it advertises `VIRTUAL_HOST=sops.kardio.wiki` (see
+> [`docker-compose.yml`](docker-compose.yml)) and the proxy routes
+> **https://sops.kardio.wiki** to it, while the companion auto-issues and renews the
+> Let's Encrypt certificate (HTTP-01). DNS for `sops.kardio.wiki` must point at the host
+> (it does). Override the hostname/e-mail via `~/hkl-sop-kks/.env` (see
+> [`.env.example`](.env.example)) if needed.
 
 ### Required GitHub Actions secrets
 
@@ -153,5 +165,5 @@ from other machines, either add a read token there or set the package to **Publi
 | `data/hkl_standards_export.json`  | Standards content loaded at runtime.                |
 | `Dockerfile`                      | Builds the `node:22-alpine` app image.              |
 | `docker-compose.yml`              | Host deployment definition (with the `hkl-state` volume). |
-| `.env.example`                    | Sample host config (`HOST_PORT`).                   |
+| `.env.example`                    | Sample host config (`VIRTUAL_HOST` / `LETSENCRYPT_*`). |
 | `.github/workflows/deploy.yml`    | CI/CD: build → push → SSH deploy.                   |
