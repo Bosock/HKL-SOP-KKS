@@ -225,10 +225,29 @@ async function main() {
   server.listen(PORT, () => console.log(`[server] listening on :${PORT} (public=${PUBLIC_DIR}, state=${STATE_FILE})`));
 }
 
-['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => {
-  console.log(`[server] ${sig} — flushing state and exiting`);
-  writeChain.finally(() => process.exit(0));
-  setTimeout(() => process.exit(0), 2000).unref();
-}));
+// Only wire up signals and auto-start when run directly (`node server.js`).
+// When required from a test, the caller controls listen()/loadState() itself.
+if (require.main === module) {
+  ['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => {
+    console.log(`[server] ${sig} — flushing state and exiting`);
+    writeChain.finally(() => process.exit(0));
+    setTimeout(() => process.exit(0), 2000).unref();
+  }));
 
-main().catch(err => { console.error('[server] fatal:', err); process.exit(1); });
+  main().catch(err => { console.error('[server] fatal:', err); process.exit(1); });
+}
+
+module.exports = {
+  server,
+  main,
+  loadState,
+  persist,
+  safeJoin,
+  maybeGzip,
+  sendJSON,
+  handleState,
+  // State accessors for tests (STATE is module-private).
+  getState: () => STATE,
+  resetState: () => { STATE = { rev: 0, updatedAt: null, state: {} }; },
+  config: { PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, MIME, SECURITY_HEADERS, COMPRESSIBLE },
+};
