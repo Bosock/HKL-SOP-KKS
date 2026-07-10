@@ -65,8 +65,9 @@ function loadHelpers() {
     extractFn('catalogToForm'),
     extractFn('upsertCatalogItem'),
     extractFn('removeCatalogItem'),
+    extractFn('buildCatalogFromStandards'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -371,4 +372,98 @@ test('removeCatalogItem: no match leaves the list unchanged (new array)', () => 
 });
 test('removeCatalogItem: tolerates null/undefined items list', () => {
   assert.deepEqual(Array.from(fns.removeCatalogItem(null, 'a')), []);
+});
+
+// --- buildCatalogFromStandards ---------------------------------------------
+const isBeschaffbar = nat => nat === 'material' || nat === 'geraet';
+// Deterministic id generator so assertions are stable.
+function seqId() { let n = 0; return () => 'g' + (++n); }
+
+test('buildCatalogFromStandards: extracts procurable geraete/material entries', () => {
+  const std = { id: 's1', rubriken: [
+    { name: 'Saal und Geräte', typ: 'geraete', sub_bereiche: [{ name: null, eintraege: [
+      { anzeige_text: 'Programmer', natur: 'geraet', material_key: 'programmer', groessen: [] },
+    ] }] },
+    { name: 'Materialien', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+      { anzeige_text: 'Radialschleuse', natur: 'material', material_key: 'radialschleuse',
+        groessen: [{ typ: 'french', wert: '6F', roh: '6F' }] },
+    ] }] },
+  ] };
+  const out = fns.buildCatalogFromStandards([std], [], seqId(), isBeschaffbar);
+  assert.equal(out.length, 2);
+  assert.equal(JSON.stringify(out.map(x => x.name).sort()), JSON.stringify(['Programmer', 'Radialschleuse']));
+  const rs = out.find(x => x.name === 'Radialschleuse');
+  assert.equal(rs.nat, 'material');
+  assert.equal(rs.sizeTyp, 'french');
+  assert.equal(rs.sizeVal, '6F');
+  assert.equal(rs.menge, null);
+  assert.equal(rs.uk, null);
+  const pr = out.find(x => x.name === 'Programmer');
+  assert.equal(pr.sizeTyp, null);
+  assert.equal(pr.sizeVal, null);
+});
+
+test('buildCatalogFromStandards: dedupes across standards by nat|material_key', () => {
+  const mk = (id, size) => ({ id, rubriken: [{ name: 'M', typ: 'material', sub_bereiche: [{ name: null,
+    eintraege: [{ anzeige_text: 'Radialschleuse', natur: 'material', material_key: 'radialschleuse',
+      groessen: size ? [{ typ: 'french', wert: size, roh: size }] : [] }] }] }] });
+  const out = fns.buildCatalogFromStandards([mk('s1', '6F'), mk('s2', '5F')], [], seqId(), isBeschaffbar);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].sizeVal, '6F'); // first-seen size wins
+});
+
+test('buildCatalogFromStandards: skips headings, fliesstext and non-procurable natures', () => {
+  const std = { id: 's1', rubriken: [{ name: 'M', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+    { anzeige_text: 'Material auf Ansage', natur: 'ueberschrift', material_key: null },
+    { anzeige_text: 'Hinweistext', natur: 'material', material_key: 'hinweistext', ist_fliesstext: true },
+    { anzeige_text: 'Amp. Heparin', natur: 'medikament', material_key: 'amp. heparin' },
+    { anzeige_text: 'Schleuse', natur: 'material', material_key: 'schleuse', groessen: [] },
+  ] }] }] };
+  const out = fns.buildCatalogFromStandards([std], [], seqId(), isBeschaffbar);
+  assert.equal(JSON.stringify(out.map(x => x.name)), JSON.stringify(['Schleuse']));
+});
+
+test('buildCatalogFromStandards: ignores non material/geraete rubriken', () => {
+  const std = { id: 's1', rubriken: [{ name: 'Ablauf', typ: 'ablauf', sub_bereiche: [{ name: null,
+    eintraege: [{ anzeige_text: 'Schritt 1', natur: 'material', material_key: 'schritt-1' }] }] }] };
+  const out = fns.buildCatalogFromStandards([std], [], seqId(), isBeschaffbar);
+  assert.equal(out.length, 0);
+});
+
+test('buildCatalogFromStandards: skips entries already in the catalog (same nat+name)', () => {
+  const std = { id: 's1', rubriken: [{ name: 'M', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+    { anzeige_text: 'Radialschleuse', natur: 'material', material_key: 'radialschleuse', groessen: [] },
+    { anzeige_text: 'Neuer Draht', natur: 'material', material_key: 'neuer-draht', groessen: [] },
+  ] }] }] };
+  const existing = [{ id: 'c1', name: 'radialschleuse', nat: 'material' }]; // case-insensitive match
+  const out = fns.buildCatalogFromStandards([std], existing, seqId(), isBeschaffbar);
+  assert.equal(JSON.stringify(out.map(x => x.name)), JSON.stringify(['Neuer Draht']));
+});
+
+test('buildCatalogFromStandards: same name under different nat are distinct', () => {
+  const std = { id: 's1', rubriken: [
+    { name: 'G', typ: 'geraete', sub_bereiche: [{ name: null, eintraege: [
+      { anzeige_text: 'Ultraschall', natur: 'geraet', material_key: 'ultraschall', groessen: [] }] }] },
+    { name: 'M', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+      { anzeige_text: 'Ultraschall', natur: 'material', material_key: 'ultraschall', groessen: [] }] }] },
+  ] };
+  const out = fns.buildCatalogFromStandards([std], [], seqId(), isBeschaffbar);
+  assert.equal(out.length, 2);
+  assert.equal(JSON.stringify(out.map(x => x.nat).sort()), JSON.stringify(['geraet', 'material']));
+});
+
+test('buildCatalogFromStandards: output feeds catalogToForm without loss', () => {
+  const std = { id: 's1', rubriken: [{ name: 'M', typ: 'material', sub_bereiche: [{ name: null, eintraege: [
+    { anzeige_text: 'Radialschleuse', natur: 'material', material_key: 'radialschleuse',
+      groessen: [{ typ: 'french', wert: '6F', roh: '6F' }] }] }] }] };
+  const [it] = fns.buildCatalogFromStandards([std], [], seqId(), isBeschaffbar);
+  const f = fns.catalogToForm(it);
+  assert.equal(f.name, 'Radialschleuse');
+  assert.equal(f.sizeVal, '6F');
+  assert.equal(f.nat, 'material');
+});
+
+test('buildCatalogFromStandards: tolerates empty / missing input', () => {
+  assert.equal(JSON.stringify(fns.buildCatalogFromStandards(null, null, seqId(), isBeschaffbar)), '[]');
+  assert.equal(JSON.stringify(fns.buildCatalogFromStandards([], [], seqId(), isBeschaffbar)), '[]');
 });

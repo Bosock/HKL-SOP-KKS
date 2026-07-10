@@ -461,6 +461,34 @@ function catalogToForm(item){ return { name:item.name||'', menge:item.menge||'',
 function upsertCatalogItem(items,item){ const arr=(items||[]).slice(); const i=arr.findIndex(x=>x.id===item.id); if(i>=0) arr[i]=item; else arr.push(item); return arr; }
 /* Entfernt das Katalog-Objekt mit dieser id. Gibt ein NEUES Array zurück. Rein/testbar. */
 function removeCatalogItem(items,id){ return (items||[]).filter(x=>x.id!==id); }
+/* Erzeugt aus allen Standards eine Liste wiederverwendbarer Katalog-Objekte,
+   damit ein Gerät/Material nur EINMAL zentral im Katalog gepflegt werden muss.
+   Es werden nur beschaffbare Naturen (Geräte/Material) aus den Rubriken
+   „geraete"/„material" berücksichtigt und über `nat|material_key` (bzw. Name)
+   dedupliziert; die erste gefundene Größe dient als Vorgabe. Einträge, die es
+   dem Namen nach (gleiche nat) schon im Katalog gibt, werden übersprungen.
+   Rein/testbar: `newId` liefert eindeutige IDs, `isBeschaffbar(nat)` entscheidet
+   über die Aufnahme. Rückgabe: neue Katalog-Objekte (Form wie makeCatalogItem). */
+function buildCatalogFromStandards(standards,existing,newId,isBeschaffbar){
+  const norm=s=>(s||'').trim().toLowerCase();
+  const have=new Set((existing||[]).map(it=>(it.nat||'material')+'|'+norm(it.name)));
+  const seen=new Set(); const out=[];
+  (standards||[]).forEach(std=>{ (std.rubriken||[]).forEach(r=>{
+    if(r.typ!=='material'&&r.typ!=='geraete') return;
+    (r.sub_bereiche||[]).forEach(sb=>{ (sb.eintraege||[]).forEach(e=>{
+      if(e.ist_fliesstext||e.natur==='ueberschrift') return;
+      const nat=e.natur||'material'; if(!isBeschaffbar(nat)) return;
+      const name=(e.anzeige_text||e.material_key||'').trim(); if(!name) return;
+      const dedup=nat+'|'+(e.material_key?norm(e.material_key):norm(name));
+      if(seen.has(dedup)) return; seen.add(dedup);
+      if(have.has(nat+'|'+norm(name))) return; /* schon im Katalog gepflegt */
+      const g=(e.groessen&&e.groessen[0])||null;
+      out.push({ id:newId(), name, nat, menge:null,
+        sizeTyp:g?(g.typ||'dimension'):null, sizeVal:g?(g.wert||g.roh||null):null, uk:null });
+    }); });
+  }); });
+  return out;
+}
 function findCatalogItem(id){ return CATALOG.items.find(x=>x.id===id)||null; }
 
 const UK_PALETTE=['#34c98a','#e8b34a','#bd8ce8','#5fb0e0','#e0795f','#5fd0c0','#c9a24a','#d47fb0'];
@@ -721,7 +749,8 @@ function renderCatalog(){ const box=$('scr-catalog');
   if(catalogFilter!=='alle') list=list.filter(it=>(it.nat||'material')===catalogFilter);
   const procNats=natList().filter(n=>n.beschaffbar);
   let html=`<div class="banner"><h2>Katalog</h2><p>Alle Geräte und Materialien an einem Ort – unabhängig von den Standards. Hier anlegen und pflegen; in den Standards über „Aus Katalog übernehmen" einfügen.<br><b>Hinweis:</b> Der Katalog wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div>
-    <button class="add-entry-btn" onclick="openCatalogForm(null)">＋ Neuer Katalog-Eintrag</button>`;
+    <button class="add-entry-btn" onclick="openCatalogForm(null)">＋ Neuer Katalog-Eintrag</button>
+    <button class="add-entry-btn" onclick="generateCatalogFromStandards()">⟳ Aus Standards generieren</button>`;
   const filters=[{k:'alle',l:'Alle'}].concat(procNats.map(n=>({k:n.key,l:n.label})));
   if(procNats.length){ html+=`<div class="filter-row">`+filters.map(f=>`<button class="${catalogFilter===f.k?'on':''}" onclick="setCatalogFilter('${esc(f.k)}')">${esc(f.l)}</button>`).join('')+`</div>`; }
   if(!CATALOG.items.length){ html+=`<div class="empty"><div class="ei">📦</div><h3>Katalog ist leer</h3><p>Lege oben Geräte oder Materialien an. Sie stehen dann in jedem Standard zur Übernahme bereit.</p></div>`; }
@@ -734,6 +763,16 @@ function renderCatalog(){ const box=$('scr-catalog');
       <div class="mat-main"><div class="mat-name">${esc(it.name)}</div><div class="mat-sub"><span class="mat-sub">${esc(info.label)}${ukTag}${sizes}</span></div></div>
       <button class="icon-btn" style="width:38px;height:38px;flex:0 0 38px;font-size:16px" onclick="event.stopPropagation();deleteCatalogItem('${esc(it.id)}')" aria-label="Löschen">🗑</button></div>`; });
   box.innerHTML=html;
+}
+/* Übernimmt alle wiederverwendbaren Geräte/Materialien aus den vorhandenen
+   Standards in den Katalog – so pflegt man sie danach nur an EINER Stelle. */
+function generateCatalogFromStandards(){
+  const isB=nat=>natOf(nat).beschaffbar;
+  const neu=buildCatalogFromStandards(DB.standards,CATALOG.items,newAid,isB);
+  if(!neu.length){ toast('Katalog ist bereits vollständig'); return; }
+  if(!confirm(neu.length+' neue Geräte/Materialien aus den Standards in den Katalog übernehmen?')) return;
+  neu.forEach(it=>{ CATALOG.items=upsertCatalogItem(CATALOG.items,it); });
+  saveCatalog(); renderCatalog(); updateBar(); toast(neu.length+' übernommen');
 }
 function setCatalogFilter(f){ catalogFilter=f; renderCatalog(); }
 function deleteCatalogItem(id){ const it=findCatalogItem(id); if(!it) return; if(!confirm('Katalog-Eintrag „'+it.name+'" löschen? Bereits in Standards übernommene Einträge bleiben erhalten.')) return;
