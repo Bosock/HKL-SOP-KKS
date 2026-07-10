@@ -652,7 +652,7 @@ function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; c
   const photoInner=c.photo?`<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Foto aufnehmen oder wählen</div>`;
   $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
-    <input type="file" id="fileInp" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
+    <input type="file" id="fileInp" accept="image/*" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
     <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="goBack()">Zurück</button><button class="btn btn-pri" onclick="saveCare('${esc(key)}')">Speichern</button></div></div>
     <div class="foot">Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</div>`;
