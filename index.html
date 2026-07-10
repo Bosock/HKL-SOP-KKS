@@ -461,6 +461,51 @@ function catalogToForm(item){ return { name:item.name||'', menge:item.menge||'',
 function upsertCatalogItem(items,item){ const arr=(items||[]).slice(); const i=arr.findIndex(x=>x.id===item.id); if(i>=0) arr[i]=item; else arr.push(item); return arr; }
 /* Entfernt das Katalog-Objekt mit dieser id. Gibt ein NEUES Array zurück. Rein/testbar. */
 function removeCatalogItem(items,id){ return (items||[]).filter(x=>x.id!==id); }
+/* Kanonischer Vergleichsschlüssel für „fast gleiche" Texte: Kleinschreibung,
+   Umlaute gefaltet, alle Nicht-Alphanumerischen (Leerzeichen/Satzzeichen)
+   entfernt. So gelten „Radial-Schleuse", „Radial Schleuse" und
+   „radialschleuse" als derselbe Name. Rein/testbar. */
+function canonCatalogName(s){ return (s==null?'':''+s).toLowerCase()
+  .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+  .replace(/[^a-z0-9]+/g,''); }
+/* Gruppiert Katalog-Einträge, die als Duplikate/fast-gleich gelten: gleiche
+   Natur + gleicher kanonischer Name + gleiche kanonische Größe. Unterschiedliche
+   Größen bleiben absichtlich getrennt (sonst ginge Info verloren). Rückgabe:
+   Array von Gruppen (je ≥2 Einträge), Reihenfolge stabil nach erstem Auftreten.
+   Einträge ohne Name werden nicht gruppiert. Rein/testbar. */
+function findCatalogDuplicateGroups(items){
+  const map=new Map(); const order=[];
+  (items||[]).forEach(it=>{ const cn=canonCatalogName(it.name); if(!cn) return;
+    const key=(it.nat||'material')+'|'+cn+'|'+canonCatalogName(it.sizeVal);
+    if(!map.has(key)){ map.set(key,[]); order.push(key); } map.get(key).push(it); });
+  return order.map(k=>map.get(k)).filter(g=>g.length>1);
+}
+/* Führt eine Gruppe gleicher Einträge zu EINEM zusammen: behält id, Name und
+   Natur des ersten Eintrags, füllt fehlende Felder (menge/sizeVal/sizeTyp/uk)
+   aus den weiteren Einträgen (erster nicht-leerer gewinnt). Rein/testbar. */
+function mergeCatalogGroup(group){
+  const g=(group||[]).slice(); const base=Object.assign({},g[0]);
+  const filled=v=>v!=null&&v!=='';
+  const firstWith=k=>g.find(it=>filled(it[k]));
+  if(!filled(base.menge)){ const s=firstWith('menge'); base.menge=s?s.menge:null; }
+  if(!filled(base.sizeVal)){ const s=firstWith('sizeVal'); if(s){ base.sizeVal=s.sizeVal; base.sizeTyp=s.sizeTyp||'dimension'; } else { base.sizeVal=null; base.sizeTyp=null; } }
+  else if(!filled(base.sizeTyp)){ base.sizeTyp='dimension'; }
+  if(!filled(base.uk)){ const s=firstWith('uk'); base.uk=s?s.uk:null; }
+  return base;
+}
+/* Führt ALLE Duplikat-Gruppen zusammen. Behält die Array-Reihenfolge: der erste
+   Eintrag jeder Gruppe wird durch das zusammengeführte Objekt ersetzt, die
+   übrigen entfernt. Rückgabe {items,merged,groups}: neues Array, Zahl entfernter
+   Einträge, Zahl der Gruppen. Rein/testbar. */
+function mergeCatalogDuplicates(items){
+  const groups=findCatalogDuplicateGroups(items);
+  if(!groups.length) return { items:(items||[]).slice(), merged:0, groups:0 };
+  const remove=new Set(); const mergedById=new Map(); let merged=0;
+  groups.forEach(g=>{ mergedById.set(g[0].id,mergeCatalogGroup(g)); for(let i=1;i<g.length;i++){ remove.add(g[i].id); merged++; } });
+  const out=[];
+  (items||[]).forEach(it=>{ if(remove.has(it.id)) return; out.push(mergedById.has(it.id)?mergedById.get(it.id):it); });
+  return { items:out, merged, groups:groups.length };
+}
 /* Erzeugt aus allen Standards eine Liste wiederverwendbarer Katalog-Objekte,
    damit ein Gerät/Material nur EINMAL zentral im Katalog gepflegt werden muss.
    Es werden nur beschaffbare Naturen (Geräte/Material) aus den Rubriken
@@ -751,6 +796,8 @@ function renderCatalog(){ const box=$('scr-catalog');
   let html=`<div class="banner"><h2>Katalog</h2><p>Alle Geräte und Materialien an einem Ort – unabhängig von den Standards. Hier anlegen und pflegen; in den Standards über „Aus Katalog übernehmen" einfügen.<br><b>Hinweis:</b> Der Katalog wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div>
     <button class="add-entry-btn" onclick="openCatalogForm(null)">＋ Neuer Katalog-Eintrag</button>
     <button class="add-entry-btn" onclick="generateCatalogFromStandards()">⟳ Aus Standards generieren</button>`;
+  const dupGroups=findCatalogDuplicateGroups(CATALOG.items);
+  if(dupGroups.length){ html+=`<button class="add-entry-btn" onclick="mergeCatalogDuplicatesUI()">⧉ ${dupGroups.length} Duplikat-Gruppe(n) zusammenführen</button>`; }
   const filters=[{k:'alle',l:'Alle'}].concat(procNats.map(n=>({k:n.key,l:n.label})));
   if(procNats.length){ html+=`<div class="filter-row">`+filters.map(f=>`<button class="${catalogFilter===f.k?'on':''}" onclick="setCatalogFilter('${esc(f.k)}')">${esc(f.l)}</button>`).join('')+`</div>`; }
   if(!CATALOG.items.length){ html+=`<div class="empty"><div class="ei">📦</div><h3>Katalog ist leer</h3><p>Lege oben Geräte oder Materialien an. Sie stehen dann in jedem Standard zur Übernahme bereit.</p></div>`; }
@@ -773,6 +820,19 @@ function generateCatalogFromStandards(){
   if(!confirm(neu.length+' neue Geräte/Materialien aus den Standards in den Katalog übernehmen?')) return;
   neu.forEach(it=>{ CATALOG.items=upsertCatalogItem(CATALOG.items,it); });
   saveCatalog(); renderCatalog(); updateBar(); toast(neu.length+' übernommen');
+}
+/* Findet Duplikate/fast-gleiche Katalog-Einträge und führt sie nach Rückfrage
+   zusammen. Sicher: bereits in Standards übernommene Einträge sind Kopien und
+   bleiben unberührt. */
+function mergeCatalogDuplicatesUI(){
+  const groups=findCatalogDuplicateGroups(CATALOG.items);
+  if(!groups.length){ toast('Keine Duplikate gefunden'); return; }
+  const total=groups.reduce((n,g)=>n+g.length,0);
+  const preview=groups.slice(0,8).map(g=>'• '+g.map(it=>it.name).join(' + ')).join('\n');
+  const more=groups.length>8?`\n… und ${groups.length-8} weitere`:'';
+  if(!confirm(`${groups.length} Gruppe(n) mit zusammen ${total} fast gleichen Einträgen zusammenführen?\n\n${preview}${more}`)) return;
+  const res=mergeCatalogDuplicates(CATALOG.items);
+  CATALOG.items=res.items; saveCatalog(); renderCatalog(); updateBar(); toast(res.merged+' Duplikat(e) zusammengeführt');
 }
 function setCatalogFilter(f){ catalogFilter=f; renderCatalog(); }
 function deleteCatalogItem(id){ const it=findCatalogItem(id); if(!it) return; if(!confirm('Katalog-Eintrag „'+it.name+'" löschen? Bereits in Standards übernommene Einträge bleiben erhalten.')) return;

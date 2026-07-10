@@ -66,8 +66,12 @@ function loadHelpers() {
     extractFn('upsertCatalogItem'),
     extractFn('removeCatalogItem'),
     extractFn('buildCatalogFromStandards'),
+    extractFn('canonCatalogName'),
+    extractFn('findCatalogDuplicateGroups'),
+    extractFn('mergeCatalogGroup'),
+    extractFn('mergeCatalogDuplicates'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -466,4 +470,183 @@ test('buildCatalogFromStandards: output feeds catalogToForm without loss', () =>
 test('buildCatalogFromStandards: tolerates empty / missing input', () => {
   assert.equal(JSON.stringify(fns.buildCatalogFromStandards(null, null, seqId(), isBeschaffbar)), '[]');
   assert.equal(JSON.stringify(fns.buildCatalogFromStandards([], [], seqId(), isBeschaffbar)), '[]');
+});
+
+// --- canonCatalogName -------------------------------------------------------
+test('canonCatalogName: lowercases, folds umlauts, strips non-alphanumerics', () => {
+  assert.equal(fns.canonCatalogName('Radial-Schleuse'), 'radialschleuse');
+  assert.equal(fns.canonCatalogName('Radial Schleuse'), 'radialschleuse');
+  assert.equal(fns.canonCatalogName('radialschleuse'), 'radialschleuse');
+  assert.equal(fns.canonCatalogName('Größe Öl Übung Straße'), 'groesseoeluebungstrasse');
+});
+test('canonCatalogName: null/undefined/empty become empty string', () => {
+  assert.equal(fns.canonCatalogName(null), '');
+  assert.equal(fns.canonCatalogName(undefined), '');
+  assert.equal(fns.canonCatalogName('   '), '');
+  assert.equal(fns.canonCatalogName('!!!'), '');
+});
+test('canonCatalogName: coerces non-strings', () => {
+  assert.equal(fns.canonCatalogName(6), '6');
+});
+
+// --- findCatalogDuplicateGroups ---------------------------------------------
+test('findCatalogDuplicateGroups: groups spelling/whitespace/case variants', () => {
+  const items = [
+    { id: 'a', name: 'Radialschleuse', nat: 'material' },
+    { id: 'b', name: 'Radial-Schleuse', nat: 'material' },
+    { id: 'c', name: 'radial schleuse', nat: 'material' },
+    { id: 'd', name: 'Programmer', nat: 'geraet' },
+  ];
+  const groups = fns.findCatalogDuplicateGroups(items);
+  assert.equal(groups.length, 1);
+  // Cross-realm (vm sandbox) arrays: compare by JSON, not reference-strict deepEqual.
+  assert.equal(JSON.stringify(groups[0].map(x => x.id)), JSON.stringify(['a', 'b', 'c']));
+});
+test('findCatalogDuplicateGroups: same name different size stays separate', () => {
+  const items = [
+    { id: 'a', name: 'Schleuse', nat: 'material', sizeVal: '5F' },
+    { id: 'b', name: 'Schleuse', nat: 'material', sizeVal: '6F' },
+  ];
+  assert.equal(fns.findCatalogDuplicateGroups(items).length, 0);
+});
+test('findCatalogDuplicateGroups: same name+size groups; size spelling normalized', () => {
+  const items = [
+    { id: 'a', name: 'Schleuse', nat: 'material', sizeVal: '6 F' },
+    { id: 'b', name: 'Schleuse', nat: 'material', sizeVal: '6F' },
+  ];
+  const groups = fns.findCatalogDuplicateGroups(items);
+  assert.equal(groups.length, 1);
+  assert.equal(JSON.stringify(groups[0].map(x => x.id)), JSON.stringify(['a', 'b']));
+});
+test('findCatalogDuplicateGroups: same name under different nat are distinct', () => {
+  const items = [
+    { id: 'a', name: 'Ultraschall', nat: 'material' },
+    { id: 'b', name: 'Ultraschall', nat: 'geraet' },
+  ];
+  assert.equal(fns.findCatalogDuplicateGroups(items).length, 0);
+});
+test('findCatalogDuplicateGroups: nameless entries are not grouped', () => {
+  const items = [
+    { id: 'a', name: '', nat: 'material' },
+    { id: 'b', name: '   ', nat: 'material' },
+  ];
+  assert.equal(fns.findCatalogDuplicateGroups(items).length, 0);
+});
+test('findCatalogDuplicateGroups: tolerates null/empty input', () => {
+  assert.equal(fns.findCatalogDuplicateGroups(null).length, 0);
+  assert.equal(fns.findCatalogDuplicateGroups([]).length, 0);
+});
+test('findCatalogDuplicateGroups: group order is stable by first appearance', () => {
+  const items = [
+    { id: 'a', name: 'Draht', nat: 'material' },
+    { id: 'b', name: 'Schleuse', nat: 'material' },
+    { id: 'c', name: 'draht', nat: 'material' },
+    { id: 'd', name: 'schleuse', nat: 'material' },
+  ];
+  const groups = fns.findCatalogDuplicateGroups(items);
+  assert.equal(JSON.stringify(groups.map(g => g[0].id)), JSON.stringify(['a', 'b']));
+});
+
+// --- mergeCatalogGroup ------------------------------------------------------
+test('mergeCatalogGroup: keeps first id/name/nat, fills missing fields', () => {
+  const m = fns.mergeCatalogGroup([
+    { id: 'a', name: 'Radialschleuse', nat: 'material', menge: null, sizeTyp: null, sizeVal: null, uk: null },
+    { id: 'b', name: 'Radial-Schleuse', nat: 'material', menge: '2x', sizeTyp: 'french', sizeVal: '6F', uk: 'Ansage' },
+  ]);
+  assert.equal(m.id, 'a');
+  assert.equal(m.name, 'Radialschleuse');
+  assert.equal(m.nat, 'material');
+  assert.equal(m.menge, '2x');
+  assert.equal(m.sizeVal, '6F');
+  assert.equal(m.sizeTyp, 'french');
+  assert.equal(m.uk, 'Ansage');
+});
+test('mergeCatalogGroup: first non-empty wins, primary value kept', () => {
+  const m = fns.mergeCatalogGroup([
+    { id: 'a', name: 'X', nat: 'material', menge: '1x', sizeVal: null, uk: 'Lager' },
+    { id: 'b', name: 'X', nat: 'material', menge: '9x', sizeVal: null, uk: 'Ansage' },
+  ]);
+  assert.equal(m.menge, '1x'); // primary already filled
+  assert.equal(m.uk, 'Lager');
+});
+test('mergeCatalogGroup: sizeVal picked from a member also carries its sizeTyp', () => {
+  const m = fns.mergeCatalogGroup([
+    { id: 'a', name: 'X', nat: 'material', sizeVal: null, sizeTyp: null },
+    { id: 'b', name: 'X', nat: 'material', sizeVal: '10', sizeTyp: 'laenge' },
+  ]);
+  assert.equal(m.sizeVal, '10');
+  assert.equal(m.sizeTyp, 'laenge');
+});
+test('mergeCatalogGroup: sizeVal without a typ anywhere defaults to dimension', () => {
+  const m = fns.mergeCatalogGroup([
+    { id: 'a', name: 'X', nat: 'material', sizeVal: '10' },
+    { id: 'b', name: 'X', nat: 'material' },
+  ]);
+  assert.equal(m.sizeVal, '10');
+  assert.equal(m.sizeTyp, 'dimension');
+});
+test('mergeCatalogGroup: no sizes anywhere yields null size fields', () => {
+  const m = fns.mergeCatalogGroup([
+    { id: 'a', name: 'X', nat: 'material' },
+    { id: 'b', name: 'X', nat: 'material' },
+  ]);
+  assert.equal(m.sizeVal, null);
+  assert.equal(m.sizeTyp, null);
+});
+test('mergeCatalogGroup: does not mutate the primary input', () => {
+  const primary = { id: 'a', name: 'X', nat: 'material', menge: null };
+  fns.mergeCatalogGroup([primary, { id: 'b', name: 'X', nat: 'material', menge: '2x' }]);
+  assert.equal(primary.menge, null);
+});
+
+// --- mergeCatalogDuplicates -------------------------------------------------
+test('mergeCatalogDuplicates: collapses a group in place, drops extras', () => {
+  // Same name+size (both unsized) → merge; the middle unrelated item is untouched.
+  const items = [
+    { id: 'a', name: 'Radialschleuse', nat: 'material', menge: null, sizeVal: null, uk: null },
+    { id: 'x', name: 'Draht', nat: 'material' },
+    { id: 'b', name: 'Radial-Schleuse', nat: 'material', menge: '2x', sizeVal: null, uk: 'Ansage' },
+  ];
+  const res = fns.mergeCatalogDuplicates(items);
+  assert.equal(res.merged, 1);
+  assert.equal(res.groups, 1);
+  // primary kept in original slot, 'b' removed
+  assert.equal(JSON.stringify(res.items.map(x => x.id)), JSON.stringify(['a', 'x']));
+  const rs = res.items.find(x => x.id === 'a');
+  assert.equal(rs.menge, '2x');
+  assert.equal(rs.uk, 'Ansage');
+  assert.equal(rs.sizeVal, null);
+});
+test('mergeCatalogDuplicates: no duplicates returns a copy unchanged', () => {
+  const items = [{ id: 'a', name: 'A', nat: 'material' }, { id: 'b', name: 'B', nat: 'material' }];
+  const res = fns.mergeCatalogDuplicates(items);
+  assert.equal(res.merged, 0);
+  assert.equal(res.groups, 0);
+  assert.deepEqual(res.items.map(x => x.id), ['a', 'b']);
+  assert.notEqual(res.items, items); // new array
+});
+test('mergeCatalogDuplicates: multiple groups counted; only extras removed', () => {
+  const items = [
+    { id: 'a', name: 'Draht', nat: 'material' },
+    { id: 'b', name: 'draht', nat: 'material' },
+    { id: 'c', name: 'Schleuse', nat: 'material' },
+    { id: 'd', name: 'Schleuse!', nat: 'material' },
+    { id: 'e', name: 'schleuse', nat: 'material' },
+  ];
+  const res = fns.mergeCatalogDuplicates(items);
+  assert.equal(res.groups, 2);
+  assert.equal(res.merged, 3); // Draht: 1 extra, Schleuse: 2 extras
+  assert.equal(JSON.stringify(res.items.map(x => x.id)), JSON.stringify(['a', 'c']));
+});
+test('mergeCatalogDuplicates: does not mutate input array', () => {
+  const items = [
+    { id: 'a', name: 'X', nat: 'material' },
+    { id: 'b', name: 'x', nat: 'material' },
+  ];
+  fns.mergeCatalogDuplicates(items);
+  assert.equal(items.length, 2);
+});
+test('mergeCatalogDuplicates: tolerates null/empty input', () => {
+  assert.equal(JSON.stringify(fns.mergeCatalogDuplicates(null).items), '[]');
+  assert.equal(JSON.stringify(fns.mergeCatalogDuplicates([]).items), '[]');
 });
