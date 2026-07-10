@@ -61,8 +61,12 @@ function loadHelpers() {
     extractFn('addSlug'),
     extractFn('makeAddEntry'),
     extractFn('mergeAdditions'),
+    extractFn('makeCatalogItem'),
+    extractFn('catalogToForm'),
+    extractFn('upsertCatalogItem'),
+    extractFn('removeCatalogItem'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -276,4 +280,95 @@ test('mergeAdditions: does not mutate base or add', () => {
   const add = { standards: [], entries: { 's1|0': [{ roh_text: 'neu' }] } };
   fns.mergeAdditions(base, add);
   assert.equal(base.standards[0].rubriken[0].sub_bereiche.length, 0);
+});
+
+// --- makeCatalogItem --------------------------------------------------------
+test('makeCatalogItem: normalizes and trims fields', () => {
+  const it = fns.makeCatalogItem({
+    id: 'c1', name: '  Radialschleuse ', nat: 'material', menge: ' 2x ',
+    sizeTyp: 'french', sizeVal: ' 6F ', uk: ' Material auf Ansage ',
+  });
+  assert.equal(it.id, 'c1');
+  assert.equal(it.name, 'Radialschleuse');
+  assert.equal(it.nat, 'material');
+  assert.equal(it.menge, '2x');
+  assert.equal(it.sizeTyp, 'french');
+  assert.equal(it.sizeVal, '6F');
+  assert.equal(it.uk, 'Material auf Ansage');
+});
+test('makeCatalogItem: empty optionals become null; defaults applied', () => {
+  const it = fns.makeCatalogItem({ id: 'c2', name: 'Programmer' });
+  assert.equal(it.nat, 'material'); // default
+  assert.equal(it.menge, null);
+  assert.equal(it.sizeTyp, null);
+  assert.equal(it.sizeVal, null);
+  assert.equal(it.uk, null);
+});
+test('makeCatalogItem: size value without typ defaults typ to dimension', () => {
+  const it = fns.makeCatalogItem({ id: 'c3', name: 'Ding', sizeVal: '10' });
+  assert.equal(it.sizeTyp, 'dimension');
+  assert.equal(it.sizeVal, '10');
+});
+test('makeCatalogItem: size typ is dropped when there is no value', () => {
+  const it = fns.makeCatalogItem({ id: 'c4', name: 'Ding', sizeTyp: 'french', sizeVal: '   ' });
+  assert.equal(it.sizeVal, null);
+  assert.equal(it.sizeTyp, null);
+});
+
+// --- catalogToForm ----------------------------------------------------------
+test('catalogToForm: maps a catalog item to a form object', () => {
+  const f = fns.catalogToForm({ id: 'c1', name: 'X', nat: 'geraet', menge: '1x', sizeTyp: 'laenge', sizeVal: '5cm', uk: 'Lager' });
+  // Cross-realm (vm sandbox) objects: compare by JSON, not reference-strict deepEqual.
+  assert.equal(JSON.stringify(f), JSON.stringify({ name: 'X', menge: '1x', nat: 'geraet', sizeTyp: 'laenge', sizeVal: '5cm', uk: 'Lager' }));
+});
+test('catalogToForm: null fields become empty strings and nat defaults', () => {
+  const f = fns.catalogToForm({ id: 'c2', name: 'Y', nat: null, menge: null, sizeTyp: null, sizeVal: null, uk: null });
+  assert.equal(JSON.stringify(f), JSON.stringify({ name: 'Y', menge: '', nat: 'material', sizeTyp: '', sizeVal: '', uk: '' }));
+});
+test('catalogToForm output feeds makeAddEntry (adoption path)', () => {
+  const item = fns.makeCatalogItem({ id: 'c1', name: 'Radialschleuse', nat: 'material', menge: '2x', sizeTyp: 'french', sizeVal: '6F', uk: 'Ansage' });
+  const e = fns.makeAddEntry(Object.assign(fns.catalogToForm(item), { aid: 'a9' }));
+  assert.equal(e.anzeige_text, 'Radialschleuse');
+  assert.equal(e.menge, '2x');
+  assert.equal(e.natur, 'material');
+  assert.equal(e.unterkategorie, 'Ansage');
+  assert.equal(e._aid, 'a9');
+  assert.equal(JSON.stringify(e.groessen), JSON.stringify([{ typ: 'french', wert: '6F', roh: '6F' }]));
+});
+
+// --- upsertCatalogItem ------------------------------------------------------
+test('upsertCatalogItem: appends a new item', () => {
+  const out = fns.upsertCatalogItem([{ id: 'a' }], { id: 'b', name: 'B' });
+  assert.deepEqual(out.map(x => x.id), ['a', 'b']);
+});
+test('upsertCatalogItem: replaces item with matching id in place', () => {
+  const out = fns.upsertCatalogItem([{ id: 'a', name: 'old' }, { id: 'b' }], { id: 'a', name: 'new' });
+  assert.equal(out.length, 2);
+  assert.equal(out[0].name, 'new');
+  assert.equal(out[1].id, 'b');
+});
+test('upsertCatalogItem: does not mutate the input array', () => {
+  const input = [{ id: 'a' }];
+  const out = fns.upsertCatalogItem(input, { id: 'b' });
+  assert.equal(input.length, 1);
+  assert.notEqual(out, input);
+});
+test('upsertCatalogItem: tolerates null/undefined items list', () => {
+  const out = fns.upsertCatalogItem(null, { id: 'a' });
+  assert.deepEqual(Array.from(out, x => x.id), ['a']);
+});
+
+// --- removeCatalogItem ------------------------------------------------------
+test('removeCatalogItem: drops the matching id', () => {
+  const out = fns.removeCatalogItem([{ id: 'a' }, { id: 'b' }, { id: 'c' }], 'b');
+  assert.deepEqual(out.map(x => x.id), ['a', 'c']);
+});
+test('removeCatalogItem: no match leaves the list unchanged (new array)', () => {
+  const input = [{ id: 'a' }];
+  const out = fns.removeCatalogItem(input, 'zzz');
+  assert.deepEqual(out.map(x => x.id), ['a']);
+  assert.notEqual(out, input);
+});
+test('removeCatalogItem: tolerates null/undefined items list', () => {
+  assert.deepEqual(Array.from(fns.removeCatalogItem(null, 'a')), []);
 });

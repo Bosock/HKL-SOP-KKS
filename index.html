@@ -319,7 +319,8 @@
     </div>
     <div class="modes">
       <button id="mUse" class="on">Nutzung</button>
-      <button id="mCare">Material pflegen</button>
+      <button id="mCatalog">Katalog</button>
+      <button id="mCare">Pflege</button>
       <button id="mAdmin">Verwaltung</button>
     </div>
     <div class="search-wrap" id="searchWrap">
@@ -336,6 +337,7 @@
     <div class="screen" id="scr-detail"></div>
     <div class="screen" id="scr-care"></div>
     <div class="screen" id="scr-care-item"></div>
+    <div class="screen" id="scr-catalog"></div>
     <div class="screen" id="scr-admin"></div>
     <div class="screen" id="scr-form"></div>
   </main>
@@ -435,6 +437,32 @@ function rebuildDB(){ if(!DB_BASE){ return; } DB=mergeAdditions(DB_BASE,ADDITION
   if(curStd){ const c=DB.standards.find(s=>s.id===curStd.id); if(c) curStd=c; } }
 function findAddEntry(sid,ri,aid){ const arr=ADDITIONS.entries[sid+'|'+ri]||[]; return arr.find(x=>x._aid===aid)||null; }
 
+/* ─────────────────────────────────────────────────────────────
+   BAUSTEIN — KATALOG (Geräte- & Material-Übersicht)
+   Ein von den Standards unabhängiger Bestand aller Geräte und
+   Materialien. Hier legt man Einträge einmalig an und pflegt sie;
+   an anderer Stelle (in den Rubriken der Standards) lassen sie sich
+   per „Aus Katalog übernehmen" einfügen. Gespeichert unter dem
+   Schlüssel `hkl_catalog` und – wie alle Änderungen – zentral auf
+   dem Server geteilt.
+     { items:[ {id,name,nat,menge,sizeTyp,sizeVal,uk} … ] }
+   ───────────────────────────────────────────────────────────── */
+function loadCatalog(){ const c=loadJSON('hkl_catalog',{items:[]}); if(!c||typeof c!=='object'||!Array.isArray(c.items)) return {items:[]}; return c; }
+function saveCatalog(){ saveJSON('hkl_catalog',CATALOG); }
+/* Baut aus den Formularfeldern ein normalisiertes Katalog-Objekt. Rein
+   (kein DOM/Store) – daher testbar. `f.id` muss übergeben werden. */
+function makeCatalogItem(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim(); const val=(f.sizeVal||'').trim(); const uk=(f.uk||'').trim();
+  return { id:f.id, name, nat:f.nat||'material', menge:menge||null, sizeTyp:val?(f.sizeTyp||'dimension'):null, sizeVal:val||null, uk:uk||null }; }
+/* Übersetzt ein Katalog-Objekt in ein Formular-Objekt (für Bearbeiten und
+   für die Übernahme in Standards, die makeAddEntry füttert). Rein/testbar. */
+function catalogToForm(item){ return { name:item.name||'', menge:item.menge||'', nat:item.nat||'material', sizeTyp:item.sizeTyp||'', sizeVal:item.sizeVal||'', uk:item.uk||'' }; }
+/* Fügt ein Katalog-Objekt ein oder ersetzt das mit gleicher id. Gibt ein
+   NEUES Array zurück (mutiert `items` nicht). Rein/testbar. */
+function upsertCatalogItem(items,item){ const arr=(items||[]).slice(); const i=arr.findIndex(x=>x.id===item.id); if(i>=0) arr[i]=item; else arr.push(item); return arr; }
+/* Entfernt das Katalog-Objekt mit dieser id. Gibt ein NEUES Array zurück. Rein/testbar. */
+function removeCatalogItem(items,id){ return (items||[]).filter(x=>x.id!==id); }
+function findCatalogItem(id){ return CATALOG.items.find(x=>x.id===id)||null; }
+
 const UK_PALETTE=['#34c98a','#e8b34a','#bd8ce8','#5fb0e0','#e0795f','#5fd0c0','#c9a24a','#d47fb0'];
 function sizeLabel(t){ return ({french:'Fr',laenge:'Länge',durchmesser:'Ø',volumen:'Vol',dimension:'Maß',naht:'Stärke',groesse_kuerzel:'Größe',typcode:'Typ','durchmesser+french':'Ø·Fr'})[t]||t||''; }
 function rubrikIcon(name,typ){ const n=(name||'').toLowerCase();
@@ -466,6 +494,7 @@ let NATCFG=loadNatCfg();
 let DB=null, DB_BASE=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
 let formCtx=null; /* aktuell offenes Hinzufügen-/Bearbeiten-Formular (Rücksprung) */
 let ADDITIONS=loadAdditions();
+let CATALOG=loadCatalog();
 let admNat='alle', admState='offen';
 let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
@@ -520,13 +549,15 @@ function setBar(t,c,b){ $('barTitle').textContent=t; $('barCrumb').textContent=c
 function updateBar(){ const total=DB.standards.length;
   if(mode==='use'&&nav.length===0) setBar('HKL Standards',total+' Standards',false);
   else if(mode==='care'&&!$('scr-care-item').classList.contains('active')){ const d=MAT_INDEX.filter(m=>careMem[m.key]).length; setBar('Material pflegen',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
+  else if(mode==='catalog'){ setBar('Katalog',CATALOG.items.length+' Geräte & Materialien',false); }
   else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }
 function show(scr){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(scr).classList.add('active'); $('main').scrollTop=0; }
 function setMode(m){ mode=m; formCtx=null; /* offenes Formular verwerfen beim Moduswechsel */
-  $('mUse').classList.toggle('on',m==='use'); $('mCare').classList.toggle('on',m==='care'); $('mAdmin').classList.toggle('on',m==='admin');
+  $('mUse').classList.toggle('on',m==='use'); $('mCatalog').classList.toggle('on',m==='catalog'); $('mCare').classList.toggle('on',m==='care'); $('mAdmin').classList.toggle('on',m==='admin');
   $('searchWrap').style.display=(m==='use'&&nav.length===0)?'block':'none';
   if(m==='use'){ nav=[]; renderStandards(); show('scr-standards'); }
+  else if(m==='catalog'){ renderCatalog(); show('scr-catalog'); }
   else if(m==='care'){ renderCare(); show('scr-care'); } else { renderAdmin(); show('scr-admin'); }
   updateBar();
 }
@@ -615,7 +646,8 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
       (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return; const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; html+=entryCardHTML(e,cid,false); }); });
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
-  $('scr-detail').innerHTML=body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`;
+  const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
+  $('scr-detail').innerHTML=body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Startet das Hinzufügen eines Eintrags in der aktuell offenen Rubrik.
@@ -623,6 +655,22 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
 function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
   const r=curStd.rubriken[top.idx]; const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
   openEntryForm({kind:'add',sid:curStd.id,ri:top.idx,defaultNat}); }
+/* Übernahme aus dem Katalog: Auswahl-Sheet öffnen, ausgewählten Eintrag als
+   neuen (eigenen) Eintrag in die aktuell offene Rubrik einfügen. */
+function startAdoptCatalog(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
+  if(!CATALOG.items.length){ toast('Katalog ist leer – erst im Katalog anlegen',true); return; }
+  renderCatalogPickSheet(); showSheet(true); }
+function renderCatalogPickSheet(){ const items=CATALOG.items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Aus Katalog übernehmen</div><div class="sheet-pick">`;
+  items.forEach(it=>{ const info=natOf(it.nat); const g=(it.sizeVal?[{typ:it.sizeTyp||'dimension',wert:it.sizeVal,roh:it.sizeVal}]:[]); const sizes=g.length?' '+sizeBadges(g):'';
+    h+=`<button class="sheet-pick-btn" onclick="adoptCatalogItem('${esc(it.id)}')"><span style="width:14px;height:14px;border-radius:4px;background:${info.color};display:inline-block"></span>${esc(it.name)}<span class="ps-sub">${esc(info.label)}${it.menge?' · '+esc(it.menge):''}${sizes}</span></button>`; });
+  h+=`</div><button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
+  $('sheet').innerHTML=h; }
+function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.length-1];
+  if(!it||!top||top.lvl!=='rub'||!curStd){ showSheet(false); return; }
+  const key=curStd.id+'|'+top.idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
+  arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
+  saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
 function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
@@ -662,6 +710,34 @@ function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) re
 function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null;
   if(!loc&&!photo){ delete careMem[key]; } else { careMem[key]={loc,photo}; }
   saveJSON('hkl_care',careMem); toast('Gespeichert'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
+
+/* ============ Katalog (Geräte & Materialien) ============ */
+/* Standalone-Übersicht aller angelegten Geräte/Materialien – unabhängig von
+   den Standards. Hinzufügen/Bearbeiten/Löschen hier; Übernahme in einen
+   Standard über „Aus Katalog übernehmen" in der jeweiligen Rubrik. */
+let catalogFilter='alle';
+function renderCatalog(){ const box=$('scr-catalog');
+  let list=CATALOG.items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
+  if(catalogFilter!=='alle') list=list.filter(it=>(it.nat||'material')===catalogFilter);
+  const procNats=natList().filter(n=>n.beschaffbar);
+  let html=`<div class="banner"><h2>Katalog</h2><p>Alle Geräte und Materialien an einem Ort – unabhängig von den Standards. Hier anlegen und pflegen; in den Standards über „Aus Katalog übernehmen" einfügen.<br><b>Hinweis:</b> Der Katalog wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div>
+    <button class="add-entry-btn" onclick="openCatalogForm(null)">＋ Neuer Katalog-Eintrag</button>`;
+  const filters=[{k:'alle',l:'Alle'}].concat(procNats.map(n=>({k:n.key,l:n.label})));
+  if(procNats.length){ html+=`<div class="filter-row">`+filters.map(f=>`<button class="${catalogFilter===f.k?'on':''}" onclick="setCatalogFilter('${esc(f.k)}')">${esc(f.l)}</button>`).join('')+`</div>`; }
+  if(!CATALOG.items.length){ html+=`<div class="empty"><div class="ei">📦</div><h3>Katalog ist leer</h3><p>Lege oben Geräte oder Materialien an. Sie stehen dann in jedem Standard zur Übernahme bereit.</p></div>`; }
+  else if(!list.length){ html+=`<div class="empty"><div class="ei">🔍</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter.</p></div>`; }
+  list.forEach(it=>{ const info=natOf(it.nat); const g=(it.sizeVal?[{typ:it.sizeTyp||'dimension',wert:it.sizeVal,roh:it.sizeVal}]:[]);
+    const sizes=g.length?' '+sizeBadges(g):''; const ukTag=it.uk?` · ${esc(it.uk)}`:'';
+    const mbox=it.menge?`<div class="mbox">${esc(it.menge)}</div>`:'';
+    html+=`<div class="mat-row" style="border-left-color:var(--n-${esc(it.nat)})" onclick="openCatalogForm('${esc(it.id)}')">
+      <div class="mat-thumb">${info.icon||'📦'}</div>${mbox}
+      <div class="mat-main"><div class="mat-name">${esc(it.name)}</div><div class="mat-sub"><span class="mat-sub">${esc(info.label)}${ukTag}${sizes}</span></div></div>
+      <button class="icon-btn" style="width:38px;height:38px;flex:0 0 38px;font-size:16px" onclick="event.stopPropagation();deleteCatalogItem('${esc(it.id)}')" aria-label="Löschen">🗑</button></div>`; });
+  box.innerHTML=html;
+}
+function setCatalogFilter(f){ catalogFilter=f; renderCatalog(); }
+function deleteCatalogItem(id){ const it=findCatalogItem(id); if(!it) return; if(!confirm('Katalog-Eintrag „'+it.name+'" löschen? Bereits in Standards übernommene Einträge bleiben erhalten.')) return;
+  CATALOG.items=removeCatalogItem(CATALOG.items,id); saveCatalog(); renderCatalog(); updateBar(); toast('Gelöscht'); }
 
 /* ============ Verwaltung ============ */
 function allMatGerEntries(){ const out=[]; DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ if(r.typ!=='material'&&r.typ!=='geraete') return; (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push({e,cid:cidOf(std.id,ri,si,ei),std,rubrik:r.name}); }); }); }); }); return out; }
@@ -783,7 +859,7 @@ function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+
 /* ============ Formulare: Hinzufügen / Bearbeiten ============ */
 const SIZE_TYPES=['french','laenge','durchmesser','volumen','dimension','naht','groesse_kuerzel','typcode','durchmesser+french'];
 function closeForm(){ if(!formCtx) return; const b=formCtx.back; formCtx=null; if(b) b(); }
-function natPickHTML(sel){ return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+natList().map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+`</div>`; }
+function natPickHTML(sel,onlyProc){ const items=onlyProc?natList().filter(n=>n.beschaffbar):natList(); return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+items.map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+`</div>`; }
 function pickNat(btn){ const p=btn.parentElement; p.querySelectorAll('button').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); p.dataset.nat=btn.dataset.nat; }
 function sizeTypOptionsHTML(sel){ return `<option value="">— keine Größe —</option>`+SIZE_TYPES.map(t=>`<option value="${esc(t)}" ${t===sel?'selected':''}>${esc(sizeLabel(t))}</option>`).join(''); }
 
@@ -798,22 +874,29 @@ function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
   return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk}; }
 
 /* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
+        | {kind:'catalog'} | {kind:'editCatalog',id}
    optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
 function openEntryForm(desc){
+  const isCatalog=(desc.kind==='catalog'||desc.kind==='editCatalog');
   let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:''}; let title='Eintrag hinzufügen';
   if(desc.kind==='editAdd'){ const e=findAddEntry(desc.sid,desc.ri,desc.aid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e); title='Eintrag bearbeiten'; }
   else if(desc.kind==='editBase'){ const e=findEntry(desc.cid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e,desc.cid); title='Eintrag bearbeiten'; }
+  else if(desc.kind==='editCatalog'){ const it=findCatalogItem(desc.id); if(!it){ toast('Katalog-Eintrag nicht gefunden',true); return; } cur=catalogToForm(it); title='Katalog-Eintrag bearbeiten'; }
+  else if(desc.kind==='catalog'){ title='Katalog-Eintrag hinzufügen'; }
   computeUkList(); const ukOpts=UK_LIST.map(u=>`<option value="${esc(u)}"></option>`).join('');
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
     <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
-    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat)}</div>
+    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog)}</div>
     <div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>
     <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
     <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveEntryForm()">Speichern</button></div>
   </div>`;
+  const crumb=isCatalog?'Katalog':(curStd?curStd.titel:'');
   formCtx={desc, back: desc.back||(()=>reRenderDetail())};
-  $('scr-form').innerHTML=h; show('scr-form'); setBar(title, curStd?curStd.titel:'', true); }
+  $('scr-form').innerHTML=h; show('scr-form'); setBar(title, crumb, true); }
+/* Öffnet das Formular für einen Katalog-Eintrag (neu oder bearbeiten). */
+function openCatalogForm(id){ const back=()=>{ renderCatalog(); show('scr-catalog'); updateBar(); }; openEntryForm(id?{kind:'editCatalog',id,back}:{kind:'catalog',back}); }
 
 function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value }; }
 function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
@@ -821,6 +904,8 @@ function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bi
   if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid()}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
   else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
   else if(d.kind==='editBase'){ applyBaseEntryEdit(d.cid,f); toast('Gespeichert'); }
+  else if(d.kind==='catalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); toast('Zum Katalog hinzugefügt'); }
+  else if(d.kind==='editCatalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:d.id}))); saveCatalog(); toast('Gespeichert'); }
   closeForm(); }
 
 /* Schreibt Formularwerte als Overlay auf einen Basis-Eintrag (nur an dieser Stelle). */
@@ -863,7 +948,7 @@ function toggleTheme(){ const cur=document.documentElement.getAttribute('data-th
 (function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); $('themeBtn').textContent=t==='light'?'☀':'◐'; } })();
 let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='toast',2000); }
 
-$('mUse').onclick=()=>setMode('use'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
+$('mUse').onclick=()=>setMode('use'); $('mCatalog').onclick=()=>setMode('catalog'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
 $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme;
 window.addEventListener('hashchange',()=>{ if((location.hash||'')===''&&mode==='use'){ nav=[]; renderStandards(); show('scr-standards'); updateBar(); $('searchWrap').style.display='block'; } });
 
@@ -883,6 +968,7 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
   h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
   h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')");
+  if(natOf(effNatur(e,cid)).beschaffbar){ h+=sAct('📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
   if(e._added){ h+=sAct('🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
   else { h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
   h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
@@ -894,6 +980,12 @@ function sheetEditDetails(){ const cid=sheetCid, e=sheetEntry; if(!e) return; sh
   else { openEntryForm({kind:'editBase',cid,back:()=>reRenderDetail()}); } }
 function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
   const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
+/* Übernimmt den aktuellen Eintrag (mit effektiven Werten) in den Katalog. */
+function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; const f=entryToForm(e,cid);
+  if(!f.name||!f.name.trim()){ toast('Kein Name vorhanden',true); return; }
+  const dup=CATALOG.items.some(it=>(it.name||'').trim().toLowerCase()===f.name.trim().toLowerCase()&&(it.nat||'material')===(f.nat||'material'));
+  if(dup){ showSheet(false); toast('Schon im Katalog',true); return; }
+  CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); showSheet(false); toast('In Katalog aufgenommen'); }
 function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
@@ -964,7 +1056,7 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
      - Regelmäßiges Polling übernimmt Fremdänderungen, solange man
        selbst nichts Ungespeichertes offen hat.
    ───────────────────────────────────────────────────────────── */
-const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_additions'];
+const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_additions','hkl_catalog'];
 
 /* Übernimmt die (ggf. vom Server aktualisierten) Store-Werte in die
    laufenden Zustandsvariablen. */
@@ -979,6 +1071,7 @@ function hydrateVars(){
   settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
   careMem=loadJSON('hkl_care',{});
   ADDITIONS=loadAdditions();
+  CATALOG=loadCatalog();
   rebuildDB(); /* eingehende eigene Standards/Einträge übernehmen */
   applyNatConfig();
 }
@@ -991,6 +1084,7 @@ function refreshView(){
     if($('sheet').classList.contains('show')) return;
     buildMaterialIndex();
     if(mode==='admin'){ renderAdmin(); updateBar(); return; }
+    if(mode==='catalog'){ if(!formCtx){ renderCatalog(); updateBar(); } return; }
     if(mode==='care'){ if(!$('scr-care-item').classList.contains('active')){ renderCare(); updateBar(); } return; }
     if($('scr-detail').classList.contains('active')){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ const i=top.idx; nav.pop(); openRubrik(i); } }
     else if($('scr-rubriken').classList.contains('active')&&curStd){ openStandard(curStd.id,true); }
