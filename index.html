@@ -12,10 +12,7 @@
      Prinzip "Trennung von Konfiguration und Code":
        - DEFAULT_NAT  = Voreinstellungen im Code (Standardwerte)
        - Verwaltung   = Editor (ändert die Konfiguration ohne Code)
-       - localStorage = lokaler Zwischenspeicher (offline-first)
-       - Server-State = zentrale Persistenz (siehe sync-Baustein unten):
-         Änderungen werden zusätzlich server-seitig unter /api/state
-         gespeichert und über alle Geräte hinweg geteilt.
+       - localStorage = Persistenz (Änderungen bleiben erhalten)
        - applyNatConfig() schreibt die Farben als CSS-Variablen,
          die App liest sie überall. Eine Änderung wirkt sofort überall.
      ============================================================ */
@@ -47,12 +44,6 @@
   .icon-btn[hidden] { display:none; }
   .bar-title { flex:1; min-width:0; }
   .bar-title h1 { margin:0; font-size:17px; font-weight:650; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* Server-Sync-Status: kleiner Punkt im Kopf. */
-  .sync-dot { width:9px; height:9px; border-radius:50%; flex:0 0 9px; background:var(--text-faint); transition:background .2s; cursor:default; }
-  .sync-dot.ok { background:var(--ok); }
-  .sync-dot.saving { background:var(--accent); }
-  .sync-dot.local { background:var(--warn); }
-  .sync-dot.err { background:var(--danger); }
   .bar-title .crumb { font-size:11.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   .modes { display:flex; gap:4px; padding:0 13px 11px; }
@@ -127,6 +118,7 @@
   .e-top { display:flex; align-items:baseline; gap:7px; }
   .e-text { font-size:15px; font-weight:500; line-height:1.34; flex:1; }
   .conf { flex:0 0 auto; font-size:13px; color:var(--warn); cursor:help; }
+  .edited-mark { flex:0 0 auto; font-size:12px; color:var(--accent); cursor:help; }
   .e-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center; }
   .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap; }
   .tag-spec { color:var(--accent); background:rgba(61,155,224,.13); }
@@ -191,20 +183,6 @@
   .btn-sec { background:var(--surface-2); color:var(--text-dim); border:1px solid var(--line); }
   .btn-pri { background:var(--n-material); color:#06210f; }
   .btn-pri:active { filter:brightness(.93); }
-
-  /* Formulare: Eintrag / Standard hinzufügen & bearbeiten (NEU) */
-  .form-grp { margin-bottom:14px; }
-  .form-grp:last-of-type { margin-bottom:6px; }
-  .form-sel { width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:15px; }
-  .form-sel:focus { outline:none; border-color:var(--accent); }
-  .form-row { display:flex; gap:9px; }
-  .form-row > .form-sel, .form-row > .loc-input { flex:1; margin-bottom:0; }
-  .natpick { display:flex; flex-wrap:wrap; gap:6px; }
-  .natpick button { padding:9px 12px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); font-size:13px; font-weight:650; cursor:pointer; }
-  .natpick button.sel { border-color:currentColor; box-shadow:inset 0 0 0 1px currentColor; }
-  .add-entry-btn { width:100%; padding:13px; border-radius:11px; border:1px dashed var(--accent); background:var(--surface-2); color:var(--accent); font-size:14px; font-weight:650; cursor:pointer; margin:10px 0 4px; }
-  .add-entry-btn:active { background:var(--surface-3); }
-  .added-tag { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 6px; border-radius:5px; background:rgba(61,155,224,.16); color:var(--accent); margin-left:6px; }
 
   .vpanel { background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
   .vpanel summary { padding:13px 14px; font-size:13.5px; font-weight:650; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:center; gap:9px; }
@@ -314,13 +292,11 @@
     <div class="bar-row">
       <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
       <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
-      <span id="syncDot" class="sync-dot" title="Server-Status"></span>
       <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
     </div>
-    <div class="modes">
+    <div class="modes" id="modesRow">
       <button id="mUse" class="on">Nutzung</button>
-      <button id="mCatalog">Katalog</button>
-      <button id="mCare">Pflege</button>
+      <button id="mCare">Material pflegen</button>
       <button id="mAdmin">Verwaltung</button>
     </div>
     <div class="search-wrap" id="searchWrap">
@@ -337,9 +313,7 @@
     <div class="screen" id="scr-detail"></div>
     <div class="screen" id="scr-care"></div>
     <div class="screen" id="scr-care-item"></div>
-    <div class="screen" id="scr-catalog"></div>
     <div class="screen" id="scr-admin"></div>
-    <div class="screen" id="scr-form"></div>
   </main>
 </div>
 <div class="toast" id="toast"></div>
@@ -351,14 +325,8 @@
    HKL Standards v4 — Logik
    ============================================================ */
 const DATA_URL='data/hkl_standards_export.json';
-/* Hook: wird nach jedem store.set(key) aufgerufen. Der Server-Sync-Baustein
-   hängt sich hier ein, um geänderte Schlüssel an /api/state zu schicken. */
-let onStoreSet=null;
 const store=(()=>{ let mem={},ok=false; try{localStorage.setItem('__t','1');localStorage.removeItem('__t');ok=true;}catch(e){ok=false;}
-  return { get(k){try{return ok?localStorage.getItem(k):(k in mem?mem[k]:null);}catch(e){return (k in mem)?mem[k]:null;}}, set(k,v){try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;} if(onStoreSet){try{onStoreSet(k);}catch(_){}} } }; })();
-/* schreibt in den Store OHNE den Sync-Hook auszulösen (für eingehende
-   Server-Daten – sonst würden wir Fremdänderungen sofort zurückspielen). */
-function storeSetQuiet(k,v){ const h=onStoreSet; onStoreSet=null; try{ store.set(k,v); } finally { onStoreSet=h; } }
+  return { get(k){try{return ok?localStorage.getItem(k):(k in mem?mem[k]:null);}catch(e){return (k in mem)?mem[k]:null;}}, set(k,v){try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;}} }; })();
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>(s==null?'':String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])));
 const today=()=>new Date().toISOString().slice(0,10);
@@ -370,6 +338,9 @@ function saveJSON(k,v){ store.set(k,JSON.stringify(v)); }
    DEFAULT_NAT sind die Voreinstellungen im Code. Sie werden von
    deinen über die Oberfläche gemachten Änderungen überschrieben.
    ───────────────────────────────────────────────────────────── */
+/* Admin-Passwort (Komfort-Schutz, keine echte Sicherheit — echte Anmeldung kommt mit dem Backend).
+   Zum Ändern: nur den Text zwischen den Anführungszeichen ersetzen. */
+const ADMIN_PASSWORT='HKL-Admin!';
 const DEFAULT_NAT=[
   {key:'material',    label:'Material',    color:'#34c98a', icon:'📦',  builtin:true, beschaffbar:true },
   {key:'geraet',      label:'Gerät',       color:'#e8b34a', icon:'🖥',  builtin:true, beschaffbar:true },
@@ -394,151 +365,9 @@ function natOf(key){ return NATCFG.items[key]||{key,label:key,color:'#7f95ab',ic
 function applyNatConfig(){ const root=document.documentElement; natList().forEach(n=>{ root.style.setProperty('--n-'+n.key, n.color); }); }
 function natSlug(s){ let base=(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'kat'; let k=base,i=2; while(NATCFG.items[k]){k=base+'_'+i;i++;} return k; }
 
-/* ─────────────────────────────────────────────────────────────
-   BAUSTEIN — EIGENE INHALTE (Hinzufügen / Bearbeiten)
-   Neue Standards und neue Material-/Geräte-Einträge werden in einer
-   eigenen Ebene `hkl_additions` gespeichert und beim Laden über die
-   (unveränderte) JSON-Basis gelegt. So bleiben die Quelldaten intakt,
-   die Ergänzungen werden aber wie normale Inhalte angezeigt und – wie
-   alle Änderungen – zentral auf dem Server geteilt.
-     { standards:[ …vollständige Standard-Objekte… ],
-       entries:{ "<stdId>|<rubrikIndex>": [ …neue Einträge… ] } }
-   ───────────────────────────────────────────────────────────── */
-function loadAdditions(){ const a=loadJSON('hkl_additions',{standards:[],entries:{}}); if(!Array.isArray(a.standards)) a.standards=[]; if(!a.entries||typeof a.entries!=='object') a.entries={}; return a; }
-function saveAdditions(){ saveJSON('hkl_additions',ADDITIONS); }
-/* Eindeutige, für onclick-Interpolation ungefährliche IDs ([a-z0-9] only). */
-function newAid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-/* Wie natSlug, aber gegen eine beliebige Menge belegter IDs. `taken` ist ein
-   Set oder ein Objekt; Ergebnis ist immer [a-z0-9_]+ (onclick-sicher). */
-function addSlug(title,taken){ let base=(title||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'std';
-  const has=k=>taken&&(taken.has?taken.has(k):(k in taken)); let k=base,i=2; while(has(k)){k=base+'_'+i;i++;} return k; }
-/* Baut aus den Formularfeldern ein normalisiertes Eintrags-Objekt. Rein
-   (kein DOM/Store) – daher testbar. `f.aid` muss übergeben werden. */
-function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim();
-  const mz=menge?parseInt(menge,10):null;
-  const val=(f.sizeVal||'').trim();
-  const groessen=val?[{typ:(f.sizeTyp||'dimension'),wert:val,roh:val}]:[];
-  const uk=(f.uk||'').trim()||null; const spez=(f.spez||'').trim()||null;
-  return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
-    natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
-    spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
-    ist_fliesstext:false, _added:true, _aid:f.aid }; }
-/* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
-function mergeAdditions(base,add){
-  const inject=(std)=>{ const rubs=std.rubriken||[]; let cloned=false;
-    const newRubs=rubs.map((r,ri)=>{ const extra=add.entries[std.id+'|'+ri]; if(!extra||!extra.length) return r; cloned=true;
-      return Object.assign({},r,{sub_bereiche:(r.sub_bereiche||[]).concat([{name:null,_added:true,eintraege:extra}])}); });
-    return cloned?Object.assign({},std,{rubriken:newRubs}):std; };
-  const baseStds=(base.standards||[]).map(inject);
-  const addStds=(add.standards||[]).map(inject);
-  return Object.assign({},base,{standards:baseStds.concat(addStds)}); }
-/* Baut das sichtbare DB neu aus Basis + Ergänzungen und hält curStd frisch. */
-function rebuildDB(){ if(!DB_BASE){ return; } DB=mergeAdditions(DB_BASE,ADDITIONS);
-  if(curStd){ const c=DB.standards.find(s=>s.id===curStd.id); if(c) curStd=c; } }
-function findAddEntry(sid,ri,aid){ const arr=ADDITIONS.entries[sid+'|'+ri]||[]; return arr.find(x=>x._aid===aid)||null; }
-
-/* ─────────────────────────────────────────────────────────────
-   BAUSTEIN — KATALOG (Geräte- & Material-Übersicht)
-   Ein von den Standards unabhängiger Bestand aller Geräte und
-   Materialien. Hier legt man Einträge einmalig an und pflegt sie;
-   an anderer Stelle (in den Rubriken der Standards) lassen sie sich
-   per „Aus Katalog übernehmen" einfügen. Gespeichert unter dem
-   Schlüssel `hkl_catalog` und – wie alle Änderungen – zentral auf
-   dem Server geteilt.
-     { items:[ {id,name,nat,menge,sizeTyp,sizeVal,uk} … ] }
-   ───────────────────────────────────────────────────────────── */
-function loadCatalog(){ const c=loadJSON('hkl_catalog',{items:[]}); if(!c||typeof c!=='object'||!Array.isArray(c.items)) return {items:[]}; return c; }
-function saveCatalog(){ saveJSON('hkl_catalog',CATALOG); }
-/* Baut aus den Formularfeldern ein normalisiertes Katalog-Objekt. Rein
-   (kein DOM/Store) – daher testbar. `f.id` muss übergeben werden. */
-function makeCatalogItem(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim(); const val=(f.sizeVal||'').trim(); const uk=(f.uk||'').trim();
-  return { id:f.id, name, nat:f.nat||'material', menge:menge||null, sizeTyp:val?(f.sizeTyp||'dimension'):null, sizeVal:val||null, uk:uk||null }; }
-/* Übersetzt ein Katalog-Objekt in ein Formular-Objekt (für Bearbeiten und
-   für die Übernahme in Standards, die makeAddEntry füttert). Rein/testbar. */
-function catalogToForm(item){ return { name:item.name||'', menge:item.menge||'', nat:item.nat||'material', sizeTyp:item.sizeTyp||'', sizeVal:item.sizeVal||'', uk:item.uk||'' }; }
-/* Fügt ein Katalog-Objekt ein oder ersetzt das mit gleicher id. Gibt ein
-   NEUES Array zurück (mutiert `items` nicht). Rein/testbar. */
-function upsertCatalogItem(items,item){ const arr=(items||[]).slice(); const i=arr.findIndex(x=>x.id===item.id); if(i>=0) arr[i]=item; else arr.push(item); return arr; }
-/* Entfernt das Katalog-Objekt mit dieser id. Gibt ein NEUES Array zurück. Rein/testbar. */
-function removeCatalogItem(items,id){ return (items||[]).filter(x=>x.id!==id); }
-/* Kanonischer Vergleichsschlüssel für „fast gleiche" Texte: Kleinschreibung,
-   Umlaute gefaltet, alle Nicht-Alphanumerischen (Leerzeichen/Satzzeichen)
-   entfernt. So gelten „Radial-Schleuse", „Radial Schleuse" und
-   „radialschleuse" als derselbe Name. Rein/testbar. */
-function canonCatalogName(s){ return (s==null?'':''+s).toLowerCase()
-  .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
-  .replace(/[^a-z0-9]+/g,''); }
-/* Gruppiert Katalog-Einträge, die als Duplikate/fast-gleich gelten: gleiche
-   Natur + gleicher kanonischer Name + gleiche kanonische Größe. Unterschiedliche
-   Größen bleiben absichtlich getrennt (sonst ginge Info verloren). Rückgabe:
-   Array von Gruppen (je ≥2 Einträge), Reihenfolge stabil nach erstem Auftreten.
-   Einträge ohne Name werden nicht gruppiert. Rein/testbar. */
-function findCatalogDuplicateGroups(items){
-  const map=new Map(); const order=[];
-  (items||[]).forEach(it=>{ const cn=canonCatalogName(it.name); if(!cn) return;
-    const key=(it.nat||'material')+'|'+cn+'|'+canonCatalogName(it.sizeVal);
-    if(!map.has(key)){ map.set(key,[]); order.push(key); } map.get(key).push(it); });
-  return order.map(k=>map.get(k)).filter(g=>g.length>1);
-}
-/* Führt eine Gruppe gleicher Einträge zu EINEM zusammen: behält id, Name und
-   Natur des ersten Eintrags, füllt fehlende Felder (menge/sizeVal/sizeTyp/uk)
-   aus den weiteren Einträgen (erster nicht-leerer gewinnt). Rein/testbar. */
-function mergeCatalogGroup(group){
-  const g=(group||[]).slice(); const base=Object.assign({},g[0]);
-  const filled=v=>v!=null&&v!=='';
-  const firstWith=k=>g.find(it=>filled(it[k]));
-  if(!filled(base.menge)){ const s=firstWith('menge'); base.menge=s?s.menge:null; }
-  if(!filled(base.sizeVal)){ const s=firstWith('sizeVal'); if(s){ base.sizeVal=s.sizeVal; base.sizeTyp=s.sizeTyp||'dimension'; } else { base.sizeVal=null; base.sizeTyp=null; } }
-  else if(!filled(base.sizeTyp)){ base.sizeTyp='dimension'; }
-  if(!filled(base.uk)){ const s=firstWith('uk'); base.uk=s?s.uk:null; }
-  return base;
-}
-/* Führt ALLE Duplikat-Gruppen zusammen. Behält die Array-Reihenfolge: der erste
-   Eintrag jeder Gruppe wird durch das zusammengeführte Objekt ersetzt, die
-   übrigen entfernt. Rückgabe {items,merged,groups}: neues Array, Zahl entfernter
-   Einträge, Zahl der Gruppen. Rein/testbar. */
-function mergeCatalogDuplicates(items){
-  const groups=findCatalogDuplicateGroups(items);
-  if(!groups.length) return { items:(items||[]).slice(), merged:0, groups:0 };
-  const remove=new Set(); const mergedById=new Map(); let merged=0;
-  groups.forEach(g=>{ mergedById.set(g[0].id,mergeCatalogGroup(g)); for(let i=1;i<g.length;i++){ remove.add(g[i].id); merged++; } });
-  const out=[];
-  (items||[]).forEach(it=>{ if(remove.has(it.id)) return; out.push(mergedById.has(it.id)?mergedById.get(it.id):it); });
-  return { items:out, merged, groups:groups.length };
-}
-/* Erzeugt aus allen Standards eine Liste wiederverwendbarer Katalog-Objekte,
-   damit ein Gerät/Material nur EINMAL zentral im Katalog gepflegt werden muss.
-   Es werden nur beschaffbare Naturen (Geräte/Material) aus den Rubriken
-   „geraete"/„material" berücksichtigt und über `nat|material_key` (bzw. Name)
-   dedupliziert; die erste gefundene Größe dient als Vorgabe. Einträge, die es
-   dem Namen nach (gleiche nat) schon im Katalog gibt, werden übersprungen.
-   Rein/testbar: `newId` liefert eindeutige IDs, `isBeschaffbar(nat)` entscheidet
-   über die Aufnahme. Rückgabe: neue Katalog-Objekte (Form wie makeCatalogItem). */
-function buildCatalogFromStandards(standards,existing,newId,isBeschaffbar){
-  const norm=s=>(s||'').trim().toLowerCase();
-  const have=new Set((existing||[]).map(it=>(it.nat||'material')+'|'+norm(it.name)));
-  const seen=new Set(); const out=[];
-  (standards||[]).forEach(std=>{ (std.rubriken||[]).forEach(r=>{
-    if(r.typ!=='material'&&r.typ!=='geraete') return;
-    (r.sub_bereiche||[]).forEach(sb=>{ (sb.eintraege||[]).forEach(e=>{
-      if(e.ist_fliesstext||e.natur==='ueberschrift') return;
-      const nat=e.natur||'material'; if(!isBeschaffbar(nat)) return;
-      const name=(e.anzeige_text||e.material_key||'').trim(); if(!name) return;
-      const dedup=nat+'|'+(e.material_key?norm(e.material_key):norm(name));
-      if(seen.has(dedup)) return; seen.add(dedup);
-      if(have.has(nat+'|'+norm(name))) return; /* schon im Katalog gepflegt */
-      const g=(e.groessen&&e.groessen[0])||null;
-      out.push({ id:newId(), name, nat, menge:null,
-        sizeTyp:g?(g.typ||'dimension'):null, sizeVal:g?(g.wert||g.roh||null):null, uk:null });
-    }); });
-  }); });
-  return out;
-}
-function findCatalogItem(id){ return CATALOG.items.find(x=>x.id===id)||null; }
-
 const UK_PALETTE=['#34c98a','#e8b34a','#bd8ce8','#5fb0e0','#e0795f','#5fd0c0','#c9a24a','#d47fb0'];
 function sizeLabel(t){ return ({french:'Fr',laenge:'Länge',durchmesser:'Ø',volumen:'Vol',dimension:'Maß',naht:'Stärke',groesse_kuerzel:'Größe',typcode:'Typ','durchmesser+french':'Ø·Fr'})[t]||t||''; }
-function rubrikIcon(name,typ){ const n=(name||'').toLowerCase();
+function rubrikIcon(name,typ){ if(typeof RUBICON!=='undefined'&&RUBICON[name]) return RUBICON[name]; const n=(name||'').toLowerCase();
   if(n.includes('saal')||n.includes('gerät')||n.includes('gerae'))return '🖥'; if(n.includes('notfall'))return '🧰';
   if(n.includes('material'))return '📦'; if(n.includes('patient'))return '🫀'; if(n.includes('tisch'))return '🩺';
   if(n.includes('ablauf')||n.includes('prozedur'))return '📋'; if(n.includes('bettenwarte'))return '🛏';
@@ -564,12 +393,9 @@ const DEMO={ export_datum:null, anzahl_standards:1, standards:[{ id:'demo', date
 
 /* ---- Zustand ---- */
 let NATCFG=loadNatCfg();
-let DB=null, DB_BASE=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
-let formCtx=null; /* aktuell offenes Hinzufügen-/Bearbeiten-Formular (Rücksprung) */
-let ADDITIONS=loadAdditions();
-let CATALOG=loadCatalog();
+let DB=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFilter='alle';
 let admNat='alle', admState='offen';
-let careMem=loadJSON('hkl_care',{});
+let careMem={};
 let checks=loadChecks();
 let overrides=loadJSON('hkl_overrides',{});
 /* QE = Schnellmenü-Änderungen. cid = nur dieser Eintrag; mat = dieses Material überall. */
@@ -577,6 +403,119 @@ let QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)
 function saveQE(){ saveJSON('hkl_qedits',QE); }
 function qeGet(e,cid,prop){ const c=QE.cid[cid]; if(c&&c[prop]!==undefined) return c[prop]; const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; } return undefined; }
 function qeSet(scope,e,cid,prop,val){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{})[prop]=val; } else { (QE.cid[cid]=QE.cid[cid]||{})[prop]=val; } saveQE(); }
+/* Super-User (Rollentrennung): #admin in der Adresse schaltet frei. Komfort, keine echte Sicherheit. */
+let ADMIN=(store.get('hkl_admin')==='1');
+function applyAdminUI(){ const mr=$('modesRow'); if(mr) mr.style.display=ADMIN?'flex':'none'; if(!ADMIN&&mode!=='use') setMode('use'); }
+function checkAdminHash(){ if((location.hash||'')!=='#admin') return; try{ location.hash=''; }catch(e){}
+  if(ADMIN){ applyAdminUI(); return; }
+  const pw=prompt('Admin-Passwort:');
+  if(pw===ADMIN_PASSWORT){ ADMIN=true; store.set('hkl_admin','1'); applyAdminUI(); toast('Admin-Modus aktiv'); }
+  else if(pw!=null){ toast('Falsches Passwort',true); } }
+function adminLogout(){ ADMIN=false; store.set('hkl_admin','0'); applyAdminUI(); setMode('use'); toast('Admin-Modus verlassen'); }
+/* Selbst angelegte Einträge (App-eigene, existieren in keiner Word-Datei) */
+let NEW=loadJSON('hkl_newentries',[]);
+function saveNEW(){ saveJSON('hkl_newentries',NEW); }
+/* App-eigene Standards & Rubriken + Bearbeitungs-Overrides + Eintrag-Reihenfolge */
+let NEWSTD=loadJSON('hkl_newstd',[]);   function saveNEWSTD(){ saveJSON('hkl_newstd',NEWSTD); }
+let NEWRUB=loadJSON('hkl_newrub',[]);   function saveNEWRUB(){ saveJSON('hkl_newrub',NEWRUB); }
+let STDE=loadJSON('hkl_stdedits',{});   function saveSTDE(){ saveJSON('hkl_stdedits',STDE); }
+let RUBE=loadJSON('hkl_rubedits',{});   function saveRUBE(){ saveJSON('hkl_rubedits',RUBE); }
+let ENTORD=loadJSON('hkl_entryorder',{}); function saveENTORD(){ saveJSON('hkl_entryorder',ENTORD); }
+/* ===== Paket 4: App-Gestalt ===== */
+const TXT_DEF={ appTitle:'HKL Standards', careTitle:'Materialwirtschaft', careIntro:'Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.', pruefTitle:'Einstufung prüfen' };
+let TXT=loadJSON('hkl_txt',{}); function saveTXT(){ saveJSON('hkl_txt',TXT); }
+function txt(k){ return (TXT[k]!==undefined && TXT[k]!=='')?TXT[k]:(TXT_DEF[k]||''); }
+let DESIGN=loadJSON('hkl_design',{}); function saveDESIGN(){ saveJSON('hkl_design',DESIGN); }
+function hexA(hex,a){ hex=(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join(''); const r=parseInt(hex.slice(0,2),16)||0,g=parseInt(hex.slice(2,4),16)||0,b=parseInt(hex.slice(4,6),16)||0; return 'rgba('+r+','+g+','+b+','+a+')'; }
+function applyDesign(){ const root=document.documentElement;
+  if(DESIGN.accent){ root.style.setProperty('--accent',DESIGN.accent); root.style.setProperty('--accent-deep',DESIGN.accent); }
+  if(DESIGN.size){ root.style.setProperty('--size',DESIGN.size); root.style.setProperty('--size-bg',hexA(DESIGN.size,0.12)); root.style.setProperty('--size-bd',hexA(DESIGN.size,0.34)); }
+  const zoom={normal:'1',gross:'1.15',wand:'1.35'}[DESIGN.scale||'normal']; try{ if(document.body&&document.body.style) document.body.style.zoom=zoom; }catch(e){} }
+let GRPORD=loadJSON('hkl_grpord',[]); function saveGRPORD(){ saveJSON('hkl_grpord',GRPORD); }
+let RUBICON=loadJSON('hkl_rubicon',{}); function saveRUBICON(){ saveJSON('hkl_rubicon',RUBICON); }
+function groupSort(keys){ return keys.slice().sort((a,b)=>{ let ia=GRPORD.indexOf(a), ib=GRPORD.indexOf(b); if(ia<0)ia=1e6; if(ib<0)ib=1e6; if(ia!==ib) return ia-ib; return a.localeCompare(b,'de'); }); }
+function distinctGroups(){ const s=new Set(); DB.standards.forEach(x=>s.add(stdGruppe(x))); return groupSort([...s]); }
+function moveGroup(name,dir){ const list=distinctGroups(); const i=list.indexOf(name); const j=i+dir; if(i<0||j<0||j>=list.length) return; const t=list[i]; list[i]=list[j]; list[j]=t; GRPORD=list; saveGRPORD(); renderAdmin(); }
+function distinctRubrics(){ const s=new Set(); DB.standards.forEach(std=>(std.rubriken||[]).forEach(r=>s.add(r.name))); return [...s].sort((a,b)=>a.localeCompare(b,'de')); }
+function rubIconEff(r,i){ return RUBICON[r.name] || rubrikIcon(rubName(r,i), r.typ); }
+function editRubIcon(name){ if(!ADMIN) return; const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return; if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); renderAdmin(); }
+function setDesign(k,v){ DESIGN[k]=v; saveDESIGN(); applyDesign(); renderAdmin(); }
+function resetDesign(){ DESIGN={}; saveDESIGN(); const root=document.documentElement; ['--accent','--accent-deep','--size','--size-bg','--size-bd'].forEach(x=>root.style.removeProperty(x)); try{ if(document.body&&document.body.style) document.body.style.zoom='1'; }catch(e){} applyNatConfig(); renderAdmin(); toast('Design zurückgesetzt'); }
+function setTxt(k,v){ if(v.trim()==='') delete TXT[k]; else TXT[k]=v; saveTXT(); updateBar(); renderAdmin(); }
+function resetTxt(){ TXT={}; saveTXT(); updateBar(); renderAdmin(); toast('Texte zurückgesetzt'); }
+function newStdToObj(n){ return { id:'ns:'+n.id, dateiname:'(App-eigen)', titel:n.titel, gruppe:n.gruppe||'EIGENE', __new:true, rubriken:[
+  { name:'Materialien', typ:'material', sub_bereiche:[{name:null,eintraege:[]}] },
+  { name:'Ablauf', typ:'sonstige', sub_bereiche:[{name:null,eintraege:[]}] } ] }; }
+function newRubToObj(n){ return { name:n.name, typ:n.typ||'sonstige', __nrid:n.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
+function mergeCustomIntoDB(){ NEWSTD.forEach(n=>{ if(!DB.standards.find(s=>s.id==='ns:'+n.id)) DB.standards.push(newStdToObj(n)); });
+  NEWRUB.forEach(n=>{ const s=DB.standards.find(x=>x.id===n.std); if(s && !s.rubriken.find(r=>r.__nrid===n.id)) s.rubriken.push(newRubToObj(n)); }); }
+function stdTitel(s){ return (STDE[s.id]&&STDE[s.id].titel)||s.titel; }
+function stdGruppe(s){ return (STDE[s.id]&&STDE[s.id].gruppe)||s.gruppe; }
+function stdHidden(s){ return !!(STDE[s.id]&&STDE[s.id].hidden); }
+function rubKey(r,idx){ return curStd.id+'|'+(r.__nrid?('nr:'+r.__nrid):idx); }
+function rubName(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.name)||r.name; }
+function rubHidden(r,idx){ const e=RUBE[rubKey(r,idx)]; return !!(e&&e.hidden); }
+function rubOrd(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.ord!=null)?e.ord:idx; }
+function newStandard(){ if(!ADMIN) return; const t=prompt('Titel des neuen Standards:',''); if(t==null||!t.trim()) return; const g=prompt('Gruppe (z. B. CRM, EPU, PCI …):','EIGENE')||'EIGENE';
+  const id='s'+Date.now().toString(36)+Math.floor(Math.random()*10000); NEWSTD.push({id,titel:t.trim(),gruppe:g.trim()||'EIGENE'}); saveNEWSTD(); mergeCustomIntoDB(); renderStandards(); toast('Standard angelegt'); }
+function editStandard(){ if(!ADMIN||!curStd) return; const t=prompt('Titel:',stdTitel(curStd)); if(t==null) return; const g=prompt('Gruppe:',stdGruppe(curStd)); if(g==null) return;
+  STDE[curStd.id]=Object.assign({},STDE[curStd.id],{titel:(t.trim()||stdTitel(curStd)),gruppe:(g.trim()||stdGruppe(curStd))}); saveSTDE(); openStandard(curStd.id,true); toast('Standard aktualisiert'); }
+function toggleStdHidden(){ if(!ADMIN||!curStd) return; const h=!stdHidden(curStd); if(h&&!confirm('Standard ausblenden? Kolleginnen sehen ihn dann nicht mehr; Wiederherstellung in Verwaltung → Ausgeblendete Einträge.')) return;
+  STDE[curStd.id]=Object.assign({},STDE[curStd.id],{hidden:h}); saveSTDE(); toast(h?'Standard ausgeblendet':'Standard wieder sichtbar'); openStandard(curStd.id,true); }
+function deleteNewStandard(){ if(!ADMIN||!curStd||!curStd.__new) return; if(!confirm('Diesen App-eigenen Standard endgültig löschen (samt seiner Einträge)?')) return;
+  const nid=curStd.id.slice(3); NEWSTD=NEWSTD.filter(x=>x.id!==nid); saveNEWSTD();
+  NEW=NEW.filter(x=>x.std!==curStd.id); saveNEW(); NEWRUB=NEWRUB.filter(x=>x.std!==curStd.id); saveNEWRUB();
+  const i=DB.standards.findIndex(s=>s.id===curStd.id); if(i>=0) DB.standards.splice(i,1);
+  nav=[]; location.hash=''; setMode('use'); toast('Standard gelöscht'); }
+function addRubrik(){ if(!ADMIN||!curStd) return; const nm=prompt('Name der neuen Rubrik:',''); if(nm==null||!nm.trim()) return;
+  const ty=(prompt('Typ: material / geraete / sonstige','sonstige')||'sonstige').trim().toLowerCase(); const typ=(ty==='material'||ty==='geraete')?ty:'sonstige';
+  const id='r'+Date.now().toString(36)+Math.floor(Math.random()*10000); NEWRUB.push({id,std:curStd.id,name:nm.trim(),typ}); saveNEWRUB(); mergeCustomIntoDB(); openStandard(curStd.id,true); toast('Rubrik angelegt'); }
+function renameRubrik(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const nn=prompt('Rubrik umbenennen:',rubName(r,idx)); if(nn==null||!nn.trim()) return;
+  const k=rubKey(r,idx); RUBE[k]=Object.assign({},RUBE[k],{name:nn.trim()}); saveRUBE(); openStandard(curStd.id,true); }
+function toggleRubHidden(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const k=rubKey(r,idx); const h=!rubHidden(r,idx);
+  if(r.__nrid&&h){ if(!confirm('App-eigene Rubrik endgültig löschen (samt Einträgen)?')) return; NEWRUB=NEWRUB.filter(x=>x.id!==r.__nrid); saveNEWRUB(); NEW=NEW.filter(x=>!(x.std===curStd.id&&x.rub==='nr:'+r.__nrid)); saveNEW(); const i=curStd.rubriken.indexOf(r); if(i>=0) curStd.rubriken.splice(i,1); delete RUBE[k]; saveRUBE(); openStandard(curStd.id,true); toast('Rubrik gelöscht'); return; }
+  RUBE[k]=Object.assign({},RUBE[k],{hidden:h}); saveRUBE(); openStandard(curStd.id,true); toast(h?'Rubrik ausgeblendet':'Rubrik wieder sichtbar'); }
+function moveRubrik(idx,dir){ if(!ADMIN) return; const vis=curStd.rubriken.map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
+  const pos=vis.findIndex(x=>x.i===idx); const j=pos+dir; if(j<0||j>=vis.length) return;
+  vis.forEach((x,k)=>{ const key=rubKey(x.r,x.i); RUBE[key]=Object.assign({},RUBE[key],{ord:k}); });
+  const a=vis[pos], b=vis[j]; const ka=rubKey(a.r,a.i), kb=rubKey(b.r,b.i); const t=RUBE[ka].ord; RUBE[ka].ord=RUBE[kb].ord; RUBE[kb].ord=t; saveRUBE(); openStandard(curStd.id,true); }
+function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.menge||null, menge_zahl:null, natur:n.natur||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:n.uk||null, spalte:null, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false, __new:true }; }
+function addNewEntry(idxKey,uk,natur){ if(!ADMIN) return; const name=prompt('Name des neuen Eintrags:',''); if(name==null||!name.trim()) return; const menge=prompt('Menge (z. B. 1x — leer lassen = keine):','');
+  const id='n'+Date.now().toString(36)+Math.floor(Math.random()*10000);
+  NEW.push({id, std:curStd.id, rub:idxKey, uk:(uk||null), name:name.trim(), menge:(menge&&menge.trim())?menge.trim():null, natur:natur||'material'});
+  saveNEW(); toast('Eintrag angelegt'); reRenderDetail(); }
+function rubIdxKey(r,idx){ return r.__nrid?('nr:'+r.__nrid):idx; }
+function newEntriesFor(r,idx){ const key=rubIdxKey(r,idx); return NEW.filter(n=>n.std===curStd.id && String(n.rub)===String(key)); }
+function orderKeyFor(idx,uk){ const r=curStd.rubriken[idx]; return curStd.id+'|'+rubIdxKey(r,idx)+'|'+(uk||''); }
+function sortByOrder(list,key){ const ord=ENTORD[key]; if(!ord||!ord.length) return list;
+  return list.slice().sort((a,b)=>{ let pa=ord.indexOf(a.cid), pb=ord.indexOf(b.cid); if(pa<0)pa=1e6+list.indexOf(a); if(pb<0)pb=1e6+list.indexOf(b); return pa-pb; }); }
+function collectGroupCids(idx,uk){ const r=curStd.rubriken[idx]; const isMatGer=(r.typ==='material'||r.typ==='geraete'); const out=[];
+  (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false&&e.ist_fliesstext) return;
+    const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return;
+    if(isMatGer){ if((canonUk(e,cid)||'')!==(uk||'')) return; } out.push({e,cid}); }); });
+  newEntriesFor(r,idx).forEach(n=>{ const cid='new|'+n.id; const e=newToEntry(n); if(qeGet(e,cid,'hidden')===true) return;
+    if(isMatGer){ if((canonUk(e,cid)||'')!==(uk||'')) return; } out.push({e,cid}); });
+  return sortByOrder(out, orderKeyFor(idx,uk)); }
+function ablaufSegments(idx){ const r=curStd.rubriken[idx]; const blocks=[]; const segOf={}; let seg=-1; let cur=null;
+  const startSeg=(head)=>{ seg++; cur={head:head||null, segId:'seg'+seg, items:[]}; blocks.push(cur); };
+  (r.sub_bereiche||[]).forEach((sb,si)=>{ if(sb.name) startSeg(sb.name);
+    (sb.eintraege||[]).forEach((e,ei)=>{ const cid=cidOf(curStd.id,idx,si,ei);
+      if(e.natur==='ueberschrift'){ startSeg(e.anzeige_text||e.roh_text); return; }
+      if(settings.fliesstext===false&&e.ist_fliesstext) return;
+      if(qeGet(e,cid,'hidden')===true) return;
+      if(!cur) startSeg(null); cur.items.push({e,cid}); segOf[cid]=cur.segId; }); });
+  const news=newEntriesFor(r,idx);
+  if(news.length){ const nb={head:null,segId:'segnew',items:[]};
+    news.forEach(n=>{ const cid='new|'+n.id; const e=newToEntry(n); if(qeGet(e,cid,'hidden')===true) return; nb.items.push({e,cid}); segOf[cid]='segnew'; });
+    if(nb.items.length) blocks.push(nb); }
+  blocks.forEach(b=>{ b.items=sortByOrder(b.items, orderKeyFor(idx,b.segId)); });
+  return {blocks, segOf}; }
+function moveEntry(dir){ const cid=sheetCid, e=sheetEntry; if(!cid||!e) return; const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'){ showSheet(false); return; }
+  const idx=top.idx; const r=curStd.rubriken[idx]; const isMatGer=(r.typ==='material'||r.typ==='geraete'); let list, okey;
+  if(isMatGer){ const uk=canonUk(e,cid)||''; list=collectGroupCids(idx,uk).map(x=>x.cid); okey=orderKeyFor(idx,uk); }
+  else { const seg=ablaufSegments(idx); const segId=seg.segOf[cid]; if(!segId){ showSheet(false); return; } const b=seg.blocks.find(x=>x.segId===segId); list=b.items.map(x=>x.cid); okey=orderKeyFor(idx,segId); }
+  const pos=list.indexOf(cid); const j=pos+dir; if(pos<0||j<0||j>=list.length){ toast(dir<0?'Schon ganz oben':'Schon ganz unten'); return; }
+  const t=list[pos]; list[pos]=list[j]; list[j]=t; ENTORD[okey]=list; saveENTORD(); showSheet(false); reRenderDetail(); }
 let reviewed=loadJSON('hkl_reviewed',{});
 let reassign=loadJSON('hkl_reassign',{});
 let ukMap=loadJSON('hkl_ukmap',{});
@@ -600,10 +539,11 @@ function ukIconOf(name){ const m=ukMetaOf(name); return m.icon||ukKeywordIcon(na
 /* ============ Laden ============ */
 async function load(){
   applyNatConfig();
+  applyDesign();
   try{ const res=await fetch(DATA_URL,{cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); DB=await res.json(); if(!DB||!Array.isArray(DB.standards)) throw new Error('Struktur ungültig'); }
   catch(e){ DB=DEMO; setTimeout(()=>toast('Keine Standards-Datei gefunden – Demodaten aktiv',true),400); }
-  DB_BASE=DB; rebuildDB(); /* eigene Standards/Einträge über die Basis legen */
-  buildMaterialIndex(); applyDeepLink(); renderStandards(); updateBar();
+  mergeCustomIntoDB();
+  buildMaterialIndex(); checkAdminHash(); applyAdminUI(); try{ history.replaceState({d:0},''); }catch(e){} applyDeepLink(); renderStandards(); updateBar();
 }
 
 /* ============ Material-Index ============ */
@@ -620,38 +560,60 @@ function buildMaterialIndex(){
 /* ============ Kopf / Navigation ============ */
 function setBar(t,c,b){ $('barTitle').textContent=t; $('barCrumb').textContent=c; $('backBtn').hidden=!b; }
 function updateBar(){ const total=DB.standards.length;
-  if(mode==='use'&&nav.length===0) setBar('HKL Standards',total+' Standards',false);
+  if(mode==='use'&&nav.length===0) setBar(txt('appTitle'),total+' Standards',false);
   else if(mode==='care'&&!$('scr-care-item').classList.contains('active')){ const d=MAT_INDEX.filter(m=>careMem[m.key]).length; setBar('Material pflegen',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
-  else if(mode==='catalog'){ setBar('Katalog',CATALOG.items.length+' Geräte & Materialien',false); }
   else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }
 function show(scr){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(scr).classList.add('active'); $('main').scrollTop=0; }
-function setMode(m){ mode=m; formCtx=null; /* offenes Formular verwerfen beim Moduswechsel */
-  $('mUse').classList.toggle('on',m==='use'); $('mCatalog').classList.toggle('on',m==='catalog'); $('mCare').classList.toggle('on',m==='care'); $('mAdmin').classList.toggle('on',m==='admin');
+function setMode(m){ if(!ADMIN&&m!=='use') m='use'; mode=m;
+  $('mUse').classList.toggle('on',m==='use'); $('mCare').classList.toggle('on',m==='care'); $('mAdmin').classList.toggle('on',m==='admin');
   $('searchWrap').style.display=(m==='use'&&nav.length===0)?'block':'none';
-  if(m==='use'){ nav=[]; renderStandards(); show('scr-standards'); }
-  else if(m==='catalog'){ renderCatalog(); show('scr-catalog'); }
+  if(m==='use'){ nav=[]; try{ history.replaceState({d:0},''); }catch(e){} renderStandards(); show('scr-standards'); }
   else if(m==='care'){ renderCare(); show('scr-care'); } else { renderAdmin(); show('scr-admin'); }
   updateBar();
 }
 
 /* ============ Ebene 1: Standards ============ */
 function renderStandards(query){ const box=$('scr-standards'); const q=(query||'').trim().toLowerCase(); const groups={};
-  DB.standards.forEach(s=>{ if(q && !(s.titel||'').toLowerCase().includes(q) && !(s.gruppe||'').toLowerCase().includes(q)) return; (groups[s.gruppe]=groups[s.gruppe]||[]).push(s); });
-  const keys=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'de'));
-  if(keys.length===0){ box.innerHTML=`<div class="empty"><div class="ei">🔍</div><h3>Kein Standard gefunden</h3><p>Für „${esc(query)}" gibt es keinen Treffer.</p></div>`; return; }
-  let html=''; keys.forEach(g=>{ html+=`<div class="grp">${esc(g)}<span class="ln"></span></div>`;
-    groups[g].forEach(s=>{ html+=`<div class="std" onclick="openStandard('${esc(s.id)}')"><span class="std-badge">${esc(s.gruppe)}</span><div class="std-main"><div class="std-title">${esc(s.titel)}</div><div class="std-file">${esc(s.dateiname)}</div></div><span class="chev">›</span></div>`; }); });
+  DB.standards.forEach(s=>{ const hid=stdHidden(s); if(hid&&!ADMIN) return; const t=stdTitel(s), g=stdGruppe(s);
+    if(q && !(t||'').toLowerCase().includes(q) && !(g||'').toLowerCase().includes(q)) return; (groups[g]=groups[g]||[]).push(s); });
+  const keys=groupSort(Object.keys(groups));
+  let html=ADMIN?`<button class="sheet-pick-btn" style="margin:0 0 12px" onclick="newStandard()">＋ Neuer Standard (App-eigen)</button>`:'';
+  if(keys.length===0){ box.innerHTML=html+`<div class="empty"><div class="ei">🔍</div><h3>Kein Standard gefunden</h3><p>Für „${esc(query)}" gibt es keinen Treffer.</p></div>`; return; }
+  keys.forEach(g=>{ html+=`<div class="grp">${esc(g)}<span class="ln"></span></div>`;
+    groups[g].forEach(s=>{ const hid=stdHidden(s); html+=`<div class="std" style="${hid?'opacity:.55;':''}" onclick="openStandard('${esc(s.id)}')"><span class="std-badge">${esc(stdGruppe(s))}</span><div class="std-main"><div class="std-title">${esc(stdTitel(s))}${hid?' <span style="font-size:10px;color:var(--warn)">ausgeblendet</span>':''}${s.__new&&ADMIN?' <span style="font-size:10px;color:var(--accent)">neu</span>':''}</div><div class="std-file">${esc(s.dateiname)}</div></div><span class="chev">›</span></div>`; }); });
   html+=`<div class="qr-hint">Jeder Standard ist per Direktlink erreichbar:<br>…/index.html#/std/<b>id</b> — Grundlage für QR-Code.</div>`;
   box.innerHTML=html;
 }
 
 /* ============ Ebene 2: Rubriken ============ */
-function openStandard(id,replace){ const s=DB.standards.find(x=>x.id===id); if(!s){ toast('Standard nicht gefunden',true); return; }
-  curStd=s; if(!replace) nav.push({lvl:'std',id}); location.hash='#/std/'+id;
-  let html=''; (s.rubriken||[]).forEach((r,i)=>{ const count=(r.sub_bereiche||[]).reduce((n,sb)=>n+(sb.eintraege?sb.eintraege.filter(e=>e.natur!=='ueberschrift').length:0),0);
-    html+=`<div class="rub ${r.typ}" onclick="openRubrik(${i})"><div class="rub-ico">${rubrikIcon(r.name,r.typ)}</div><div class="rub-main"><div class="rub-name">${esc(r.name)}</div><div class="rub-meta">${count} Einträge</div></div><span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`; });
-  $('scr-rubriken').innerHTML=html; show('scr-rubriken'); setBar(s.titel,s.gruppe+' · '+(s.rubriken||[]).length+' Rubriken',true); $('searchWrap').style.display='none';
+function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id); if(!s){ toast('Standard nicht gefunden',true); return; }
+  curStd=s;
+  if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} } }
+  let html='';
+  if(ADMIN){
+    const hiddenNow=stdHidden(s);
+    html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:var(--text-dim)">STANDARD${s.__new?' · <span style="color:var(--accent)">App-eigen</span>':''}${hiddenNow?' · <span style="color:var(--warn)">ausgeblendet</span>':''}</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="editStandard()">✏ Titel/Gruppe</button>
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="toggleStdHidden()">${hiddenNow?'↩ Einblenden':'🗑 Ausblenden'}</button>
+      ${s.__new?`<button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px;color:var(--danger)" onclick="deleteNewStandard()">🗑 Löschen</button>`:''}
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
+    </div></div>`;
+  }
+  const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
+  vis.forEach(({r,i})=>{
+    const hid=rubHidden(r,i); if(hid&&!ADMIN) return;
+    const count=(r.sub_bereiche||[]).reduce((n,sb)=>n+(sb.eintraege?sb.eintraege.filter(e=>e.natur!=='ueberschrift').length:0),0)+newEntriesFor(r,i).length;
+    const adminBtns=ADMIN?`<span style="display:flex;gap:5px;flex:0 0 auto" onclick="event.stopPropagation()">
+      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="renameRubrik(${i})">✏</button>
+      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="moveRubrik(${i},-1)">▲</button>
+      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="moveRubrik(${i},1)">▼</button>
+      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="toggleRubHidden(${i})">${hid?'↩':'🗑'}</button></span>`:'';
+    html+=`<div class="rub ${r.typ}" style="${hid?'opacity:.55;':''}" onclick="openRubrik(${i})"><div class="rub-ico">${rubIconEff(r,i)}</div><div class="rub-main"><div class="rub-name">${esc(rubName(r,i))}${hid?' <span style="font-size:10px;color:var(--warn)">ausgeblendet</span>':''}${r.__nrid&&ADMIN?' <span style="font-size:10px;color:var(--accent)">neu</span>':''}</div><div class="rub-meta">${count} Einträge</div></div>${adminBtns}<span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`; });
+  $('scr-rubriken').innerHTML=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Rubriken</h3><p>Über „＋ Rubrik" anlegen.</p></div>`;
+  show('scr-rubriken'); setBar(stdTitel(s),stdGruppe(s)+' · '+(s.rubriken||[]).length+' Rubriken',true); $('searchWrap').style.display='none';
 }
 
 /* ============ Ebene 3: Detail ============ */
@@ -665,26 +627,27 @@ function entryCardHTML(e,cid,isMatGer){
   const care=showThumb?careMem[e.material_key]:null;
   const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
+  const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
+  const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) );
+  const editedMark=(ADMIN&&hasEdit)?`<span class="edited-mark" title="manuell angepasst">✎</span>`:'';
   const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
-  /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular überschreibbar. */
-  const mv=qeGet(e,cid,'menge'); const menge=(mv!==undefined?mv:e.menge);
-  const grr=qeGet(e,cid,'groessen'); const groessen=(grr!==undefined?grr:e.groessen);
-  const spv=qeGet(e,cid,'spez'); const spez=(spv!==undefined?spv:e.spezifikation);
-  let meta=''; meta+=sizeBadges(groessen); meta+=specTags(spez);
+  const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
+  const sv=qeGet(e,cid,'spez'); const spezEff=(sv!==undefined)?(sv?sv:null):e.spezifikation;
+  let meta=''; meta+=sizeBadges(groessenEff); meta+=specTags(spezEff);
+  if(ADMIN&&e.__new) meta+=`<span class="tag" style="color:var(--accent);background:rgba(61,155,224,.13)">neu</span>`;
   if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
-  const mbox = settings.menge ? (menge?`<div class="mbox${mHi?' hi':''}">${esc(menge)}</div>`:`<div class="mbox empty"></div>`) : '';
+  const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
   const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
   const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
   const star = important?`<span class="imp-star">⭐</span>`:'';
-  const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}</div>${editedMark}${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
 }
 
-function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx});
+function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
   if(isMatGer){
     let lg=''; natList().forEach(n=>{ lg+=`<div class="lg-row"><span class="lg-swatch" style="background:${n.color}"></span>${esc(n.label)}</div>`; });
@@ -701,56 +664,52 @@ function openRubrik(idx){ const r=curStd.rubriken[idx]; nav.push({lvl:'rub',idx}
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     }); });
+    /* Selbst angelegte Einträge dieses Standards/dieser Rubrik einbinden */
+    newEntriesFor(r,idx).forEach(n=>{
+      const cid='new|'+n.id; const e=newToEntry(n); if(qeGet(e,cid,'hidden')===true) return;
+      const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
+      if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
+      groupsMap.get(gkey).entries.push({e,cid});
+    });
+    const addBtn=(uk)=>ADMIN?`<button class="sheet-pick-btn" style="margin:2px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',${uk==null?'null':`decodeURIComponent('${encodeURIComponent(uk)}')`},'material')">＋ Eintrag hinzufügen</button>`:'';
     let groups=[...groupsMap.values()];
+    groups.forEach(g=>{ g.entries=sortByOrder(g.entries, orderKeyFor(idx,(g.uk||''))); });
     groups.sort((a,b)=>{ const oa=(a.uk&&ukMetaOf(a.uk).order!=null)?ukMetaOf(a.uk).order:a.first; const ob=(b.uk&&ukMetaOf(b.uk).order!=null)?ukMetaOf(b.uk).order:b.first; return oa-ob; });
     const named=groups.filter(g=>g.uk); const nullG=groups.find(g=>!g.uk);
-    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
+    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); html+=addBtn(null); }
     else {
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
+      html+=addBtn(null);
       named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
         const ckey=idx+':'+g.uk; const isCol=!!collapsed[ckey];
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" onclick="toggleUk('${esc(ckey)}')"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
+        html+=addBtn(g.uk);
         html+=`</div></div>`;
       });
     }
   } else {
-    (r.sub_bereiche||[]).forEach((sb,si)=>{ if(sb.name) html+=`<div class="sub-head">${esc(sb.name)}</div>`;
-      (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return; const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; html+=entryCardHTML(e,cid,false); }); });
+    const {blocks}=ablaufSegments(idx);
+    blocks.forEach(b=>{ if(b.head) html+=`<div class="sub-head">${esc(b.head)}</div>`;
+      b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); }); });
+    if(ADMIN) html+=`<button class="sheet-pick-btn" style="margin:6px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',null,'hinweis')">＋ Schritt hinzufügen</button>`;
   }
-  const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
-  const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
-  $('scr-detail').innerHTML=body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
+  $('scr-detail').innerHTML=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
-/* Startet das Hinzufügen eines Eintrags in der aktuell offenen Rubrik.
-   Liest Standard/Rubrik aus dem Navigationszustand (keine Nutzertexte im onclick). */
-function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
-  const r=curStd.rubriken[top.idx]; const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
-  openEntryForm({kind:'add',sid:curStd.id,ri:top.idx,defaultNat}); }
-/* Übernahme aus dem Katalog: Auswahl-Sheet öffnen, ausgewählten Eintrag als
-   neuen (eigenen) Eintrag in die aktuell offene Rubrik einfügen. */
-function startAdoptCatalog(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
-  if(!CATALOG.items.length){ toast('Katalog ist leer – erst im Katalog anlegen',true); return; }
-  renderCatalogPickSheet(); showSheet(true); }
-function renderCatalogPickSheet(){ const items=CATALOG.items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Aus Katalog übernehmen</div><div class="sheet-pick">`;
-  items.forEach(it=>{ const info=natOf(it.nat); const g=(it.sizeVal?[{typ:it.sizeTyp||'dimension',wert:it.sizeVal,roh:it.sizeVal}]:[]); const sizes=g.length?' '+sizeBadges(g):'';
-    h+=`<button class="sheet-pick-btn" onclick="adoptCatalogItem('${esc(it.id)}')"><span style="width:14px;height:14px;border-radius:4px;background:${info.color};display:inline-block"></span>${esc(it.name)}<span class="ps-sub">${esc(info.label)}${it.menge?' · '+esc(it.menge):''}${sizes}</span></button>`; });
-  h+=`</div><button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
-  $('sheet').innerHTML=h; }
-function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.length-1];
-  if(!it||!top||top.lvl!=='rub'||!curStd){ showSheet(false); return; }
-  const key=curStd.id+'|'+top.idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
-  arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
-  saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
-function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
+function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
-function goBack(){ if(formCtx){ closeForm(); return; }
-  if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
-  nav.pop(); if(nav.length===0){ location.hash=''; setMode('use'); }
-  else { const top=nav[nav.length-1]; if(top.lvl==='std'){ const s=curStd; nav.pop(); openStandard(s.id); } else openStandard(curStd.id,true); } }
+function goBack(){ if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
+  if(nav.length>0){ try{ history.back(); }catch(e){ } return; }
+  setMode('use'); }
+function gotoState(st){ const d=(st&&st.d)||0;
+  mode='use'; $('mUse').classList.add('on'); $('mCare').classList.remove('on'); $('mAdmin').classList.remove('on');
+  let s=null; if(d>=1&&st&&st.id) s=DB.standards.find(x=>x.id===st.id);
+  if(d<=0||(d>=1&&!s)){ nav=[]; $('searchWrap').style.display='block'; renderStandards(); show('scr-standards'); updateBar(); return; }
+  curStd=s;
+  if(d===1){ nav=[{lvl:'std',id:st.id}]; $('searchWrap').style.display='none'; openStandard(st.id,false,true); }
+  else { nav=[{lvl:'std',id:st.id},{lvl:'rub',idx:st.idx}]; $('searchWrap').style.display='none'; openRubrik(st.idx,true); } }
 
 /* ============ Pflege ============ */
 function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
@@ -758,7 +717,7 @@ function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
   if(careFilter==='material') list=MAT_INDEX.filter(m=>m.typ==='material');
   if(careFilter==='geraet') list=MAT_INDEX.filter(m=>m.typ==='geraet');
   const done=MAT_INDEX.filter(m=>careMem[m.key]).length; const pct=MAT_INDEX.length?Math.round(done/MAT_INDEX.length*100):0;
-  let html=`<div class="banner"><h2>Materialwirtschaft</h2><p>Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.<br><b>Hinweis:</b> Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
+  let html=`<div class="banner"><h2>${esc(txt('careTitle'))}</h2><p>${esc(txt('careIntro'))}<br><b>Hinweis:</b> Fotos werden nur für diese Sitzung gehalten – dauerhaft folgt mit der zentralen Datenablage.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${MAT_INDEX.length} gepflegt (${pct} %)</div></div></div>
   <div class="filter-row"><button class="${careFilter==='alle'?'on':''}" onclick="setCareFilter('alle')">Alle</button><button class="${careFilter==='offen'?'on':''}" onclick="setCareFilter('offen')">Offen</button><button class="${careFilter==='material'?'on':''}" onclick="setCareFilter('material')">Material</button><button class="${careFilter==='geraet'?'on':''}" onclick="setCareFilter('geraet')">Gerät</button></div>`;
   if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter.</p></div>`;
   list.forEach(m=>{ const c=careMem[m.key]; const thumb=c&&c.photo?`<div class="mat-thumb"><img src="${c.photo}" alt=""></div>`:`<div class="mat-thumb">${natOf(m.typ).icon||'📷'}</div>`;
@@ -773,70 +732,14 @@ function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; c
   const photoInner=c.photo?`<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Foto aufnehmen oder wählen</div>`;
   $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
-    <input type="file" id="fileInp" accept="image/*" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
+    <input type="file" id="fileInp" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
     <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="goBack()">Zurück</button><button class="btn btn-pri" onclick="saveCare('${esc(key)}')">Speichern</button></div></div>
-    <div class="foot">Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</div>`;
+    <div class="foot">Fotos werden nur für diese Sitzung gehalten. Dauerhafte Speicherung folgt mit der zentralen Datenablage.</div>`;
   show('scr-care-item'); setBar(m.name,'Material pflegen',true);
 }
 function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${r.result}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=r.result; } }; r.readAsDataURL(f); }
-function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null;
-  if(!loc&&!photo){ delete careMem[key]; } else { careMem[key]={loc,photo}; }
-  saveJSON('hkl_care',careMem); toast('Gespeichert'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
-
-/* ============ Katalog (Geräte & Materialien) ============ */
-/* Standalone-Übersicht aller angelegten Geräte/Materialien – unabhängig von
-   den Standards. Hinzufügen/Bearbeiten/Löschen hier; Übernahme in einen
-   Standard über „Aus Katalog übernehmen" in der jeweiligen Rubrik. */
-let catalogFilter='alle';
-function renderCatalog(){ const box=$('scr-catalog');
-  let list=CATALOG.items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
-  if(catalogFilter!=='alle') list=list.filter(it=>(it.nat||'material')===catalogFilter);
-  const procNats=natList().filter(n=>n.beschaffbar);
-  let html=`<div class="banner"><h2>Katalog</h2><p>Alle Geräte und Materialien an einem Ort – unabhängig von den Standards. Hier anlegen und pflegen; in den Standards über „Aus Katalog übernehmen" einfügen.<br><b>Hinweis:</b> Der Katalog wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div>
-    <button class="add-entry-btn" onclick="openCatalogForm(null)">＋ Neuer Katalog-Eintrag</button>
-    <button class="add-entry-btn" onclick="generateCatalogFromStandards()">⟳ Aus Standards generieren</button>`;
-  const dupGroups=findCatalogDuplicateGroups(CATALOG.items);
-  if(dupGroups.length){ html+=`<button class="add-entry-btn" onclick="mergeCatalogDuplicatesUI()">⧉ ${dupGroups.length} Duplikat-Gruppe(n) zusammenführen</button>`; }
-  const filters=[{k:'alle',l:'Alle'}].concat(procNats.map(n=>({k:n.key,l:n.label})));
-  if(procNats.length){ html+=`<div class="filter-row">`+filters.map(f=>`<button class="${catalogFilter===f.k?'on':''}" onclick="setCatalogFilter('${esc(f.k)}')">${esc(f.l)}</button>`).join('')+`</div>`; }
-  if(!CATALOG.items.length){ html+=`<div class="empty"><div class="ei">📦</div><h3>Katalog ist leer</h3><p>Lege oben Geräte oder Materialien an. Sie stehen dann in jedem Standard zur Übernahme bereit.</p></div>`; }
-  else if(!list.length){ html+=`<div class="empty"><div class="ei">🔍</div><h3>Nichts in diesem Filter</h3><p>Wechsle den Filter.</p></div>`; }
-  list.forEach(it=>{ const info=natOf(it.nat); const g=(it.sizeVal?[{typ:it.sizeTyp||'dimension',wert:it.sizeVal,roh:it.sizeVal}]:[]);
-    const sizes=g.length?' '+sizeBadges(g):''; const ukTag=it.uk?` · ${esc(it.uk)}`:'';
-    const mbox=it.menge?`<div class="mbox">${esc(it.menge)}</div>`:'';
-    html+=`<div class="mat-row" style="border-left-color:var(--n-${esc(it.nat)})" onclick="openCatalogForm('${esc(it.id)}')">
-      <div class="mat-thumb">${info.icon||'📦'}</div>${mbox}
-      <div class="mat-main"><div class="mat-name">${esc(it.name)}</div><div class="mat-sub"><span class="mat-sub">${esc(info.label)}${ukTag}${sizes}</span></div></div>
-      <button class="icon-btn" style="width:38px;height:38px;flex:0 0 38px;font-size:16px" onclick="event.stopPropagation();deleteCatalogItem('${esc(it.id)}')" aria-label="Löschen">🗑</button></div>`; });
-  box.innerHTML=html;
-}
-/* Übernimmt alle wiederverwendbaren Geräte/Materialien aus den vorhandenen
-   Standards in den Katalog – so pflegt man sie danach nur an EINER Stelle. */
-function generateCatalogFromStandards(){
-  const isB=nat=>natOf(nat).beschaffbar;
-  const neu=buildCatalogFromStandards(DB.standards,CATALOG.items,newAid,isB);
-  if(!neu.length){ toast('Katalog ist bereits vollständig'); return; }
-  if(!confirm(neu.length+' neue Geräte/Materialien aus den Standards in den Katalog übernehmen?')) return;
-  neu.forEach(it=>{ CATALOG.items=upsertCatalogItem(CATALOG.items,it); });
-  saveCatalog(); renderCatalog(); updateBar(); toast(neu.length+' übernommen');
-}
-/* Findet Duplikate/fast-gleiche Katalog-Einträge und führt sie nach Rückfrage
-   zusammen. Sicher: bereits in Standards übernommene Einträge sind Kopien und
-   bleiben unberührt. */
-function mergeCatalogDuplicatesUI(){
-  const groups=findCatalogDuplicateGroups(CATALOG.items);
-  if(!groups.length){ toast('Keine Duplikate gefunden'); return; }
-  const total=groups.reduce((n,g)=>n+g.length,0);
-  const preview=groups.slice(0,8).map(g=>'• '+g.map(it=>it.name).join(' + ')).join('\n');
-  const more=groups.length>8?`\n… und ${groups.length-8} weitere`:'';
-  if(!confirm(`${groups.length} Gruppe(n) mit zusammen ${total} fast gleichen Einträgen zusammenführen?\n\n${preview}${more}`)) return;
-  const res=mergeCatalogDuplicates(CATALOG.items);
-  CATALOG.items=res.items; saveCatalog(); renderCatalog(); updateBar(); toast(res.merged+' Duplikat(e) zusammengeführt');
-}
-function setCatalogFilter(f){ catalogFilter=f; renderCatalog(); }
-function deleteCatalogItem(id){ const it=findCatalogItem(id); if(!it) return; if(!confirm('Katalog-Eintrag „'+it.name+'" löschen? Bereits in Standards übernommene Einträge bleiben erhalten.')) return;
-  CATALOG.items=removeCatalogItem(CATALOG.items,id); saveCatalog(); renderCatalog(); updateBar(); toast('Gelöscht'); }
+function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null; careMem[key]={loc,photo}; toast('Gespeichert (nur diese Sitzung)'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
 
 /* ============ Verwaltung ============ */
 function allMatGerEntries(){ const out=[]; DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ if(r.typ!=='material'&&r.typ!=='geraete') return; (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push({e,cid:cidOf(std.id,ri,si,ei),std,rubrik:r.name}); }); }); }); }); return out; }
@@ -845,29 +748,80 @@ function computeUkList(){ const cnt=new Map(); const first=new Map(); let i=0;
   let names=[...cnt.keys()]; names.sort((a,b)=>{ const oa=ukMetaOf(a).order!=null?ukMetaOf(a).order:first.get(a); const ob=ukMetaOf(b).order!=null?ukMetaOf(b).order:first.get(b); return oa-ob; });
   UK_LIST=names; return {names,cnt}; }
 function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ if(qeGet(x.e,x.cid,'hidden')===true) return; const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||overrides[x.cid]) out.push(x); }); return out; }
-function collectHidden(){ const byCid=[]; const byMat=[];
+function collectHidden(){ const byCid=[]; const byMat=[]; const byStd=[]; const byRub=[];
   DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ const cid=cidOf(std.id,ri,si,ei); if(QE.cid[cid]&&QE.cid[cid].hidden){ byCid.push({cid,e,std,rubrik:r.name}); } }); }); }); });
   Object.keys(QE.mat).forEach(mk=>{ if(QE.mat[mk]&&QE.mat[mk].hidden) byMat.push(mk); });
-  return {byCid,byMat}; }
+  DB.standards.forEach(s=>{ if(stdHidden(s)) byStd.push(s); });
+  Object.keys(RUBE).forEach(k=>{ if(!RUBE[k]||!RUBE[k].hidden) return; const sid=k.split('|')[0]; const part=k.slice(sid.length+1); const s=DB.standards.find(x=>x.id===sid); if(!s) return;
+    let r=null; if(part.indexOf('nr:')===0){ r=s.rubriken.find(x=>x.__nrid===part.slice(3)); } else { r=s.rubriken[+part]; }
+    byRub.push({key:k,std:s,name:(RUBE[k].name)||(r?r.name:part)}); });
+  return {byCid,byMat,byStd,byRub}; }
+function restoreStd(id){ if(STDE[id]){ delete STDE[id].hidden; if(Object.keys(STDE[id]).length===0) delete STDE[id]; } saveSTDE(); renderAdmin(); toast('Standard wieder sichtbar'); }
+function restoreRub(key){ if(RUBE[key]){ delete RUBE[key].hidden; if(Object.keys(RUBE[key]).length===0) delete RUBE[key]; } saveRUBE(); renderAdmin(); toast('Rubrik wieder sichtbar'); }
 function restoreCid(cid){ if(QE.cid[cid]){ delete QE.cid[cid].hidden; if(Object.keys(QE.cid[cid]).length===0) delete QE.cid[cid]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 function hideCid(cid){ (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); buildMaterialIndex(); renderAdmin(); toast('Ausgeblendet'); }
+
+/* ============ Datensicherung: Export/Import aller Anpassungen ============ */
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_theme'];
+function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
+  return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
+function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
+  BACKUP_KEYS.forEach(k=>{ if(k in obj.daten){ const v=obj.daten[k]; store.set(k, (typeof v==='string')?v:JSON.stringify(v)); } }); }
+function exportBackup(){ try{ const obj=buildBackup(); const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='hkl-anpassungen-'+today()+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast('Sicherung heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
+function importBackupFile(ev){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ const obj=JSON.parse(r.result); if(!obj||obj.__hkl!=='hkl-anpassungen'){ toast('Keine gültige Sicherungsdatei',true); return; }
+    if(!confirm('Sicherung einspielen? Die aktuellen Anpassungen auf diesem Gerät werden durch die Datei ersetzt.')) return;
+    applyBackup(obj); toast('Sicherung eingespielt – App lädt neu'); setTimeout(()=>{ try{ location.reload(); }catch(e){} },700);
+  }catch(e){ toast('Datei nicht lesbar',true); } }; r.readAsText(f); }
 function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
+  /* Admin-Kopf: Modus verlassen */
+  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Admin-Modus</h2><p style="margin:2px 0 0">Freigeschaltet über #admin. Kolleginnen sehen nur die Nutzung.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
+
+  /* Panel: Datensicherung */
+  html+=`<details class="vpanel" open><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
+    <div class="p-actions"><button class="btn btn-pri" onclick="exportBackup()">Sicherung herunterladen</button><button class="btn btn-sec" onclick="$('bkImp').click()">Sicherung einspielen</button></div>
+    <input type="file" id="bkImp" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
+    <p class="hint">Sichert ALLE Anpassungen dieses Geräts in einer Datei (Kategorien, Umbenennungen, Mengen, Größen, neue Einträge, Ausblendungen, Einstellungen). Nicht enthalten: die Tageshaken und der Admin-Status. Empfehlung: nach jeder größeren Pflege-Sitzung exportieren.</p>
+  </div></details>`;
+
   /* Panel: Anzeige-Einstellungen */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
-  let html=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
+  html+=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
 
-  /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
-  html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
-  if(!ADDITIONS.standards.length) html+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
-  ADDITIONS.standards.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
-    <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
-  html+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
-    <p class="hint">Neue Standards und eigene Einträge werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div></details>`;
+  /* Panel: Design (Paket 4) */
+  const rb=(v,l)=>`<button class="${(DESIGN.scale||'normal')===v?'on':''}" onclick="setDesign('scale','${v}')">${l}</button>`;
+  html+=`<details class="vpanel"><summary>🎨 Design <span class="vp-hint">Farben & Größe</span></summary><div class="vpanel-body">
+    <div class="tgl"><span>Akzentfarbe</span><input type="color" class="colinp" value="${DESIGN.accent||'#3d9be0'}" onchange="setDesign('accent',this.value)"></div>
+    <div class="tgl"><span>Größen-Badge-Farbe</span><input type="color" class="colinp" value="${DESIGN.size||'#21c1d6'}" onchange="setDesign('size',this.value)"></div>
+    <div class="flabel" style="margin:12px 0 6px">Schriftgröße / Ansicht</div>
+    <div class="filter-row">${rb('normal','Normal')}${rb('gross','Groß')}${rb('wand','Wandmonitor')}</div>
+    <button class="reset-btn" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetDesign()">Design zurücksetzen</button>
+    <p class="hint">Akzent- und Badge-Farbe gelten in heller und dunkler Ansicht. „Wandmonitor" vergrößert die gesamte Darstellung.</p>
+  </div></details>`;
+
+  /* Panel: Texte (Paket 4) */
+  const ti=(k,l)=>`<div class="flabel" style="margin-top:8px">${l}</div><input class="txtinp" style="width:100%" value="${esc(txt(k))}" onchange="setTxt('${k}',this.value)">`;
+  html+=`<details class="vpanel"><summary>🔤 Texte <span class="vp-hint">Titel & Banner</span></summary><div class="vpanel-body">
+    ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}${ti('pruefTitle','Titel „Einstufung prüfen"')}
+    <button class="reset-btn" style="margin-top:12px;width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetTxt()">Texte zurücksetzen</button>
+  </div></details>`;
+
+  /* Panel: Gruppen & Symbole (Paket 4) */
+  const grps=distinctGroups(); const rubs=distinctRubrics();
+  html+=`<details class="vpanel"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
+    <div class="flabel">Gruppen-Reihenfolge (Startseite)</div>`;
+  if(grps.length===0) html+=`<p class="hint">Keine Gruppen.</p>`;
+  grps.forEach((g,i)=>{ html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup('${esc(g)}',-1)">▲</button><button class="icon" onclick="moveGroup('${esc(g)}',1)">▼</button></div></div>`; });
+  html+=`<div class="flabel" style="margin-top:14px">Rubrik-Symbole</div>`;
+  rubs.forEach(nm=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon('${esc(nm)}')">Symbol ändern</button></div></div>`; });
+  html+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
 
   /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
   html+=`<details class="vpanel"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
@@ -878,7 +832,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     </div>`;
   });
   html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
-    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
+    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und bleiben auf diesem Gerät gespeichert.</p></div></details>`;
 
   /* Panel: Unterkategorien verwalten */
   html+=`<details class="vpanel"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
@@ -891,9 +845,11 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
 
   /* Panel: Ausgeblendete Einträge (Wiederherstellung) */
-  const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length;
+  const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length+hid.byStd.length+hid.byRub.length;
   html+=`<details class="vpanel"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
   if(hidTotal===0) html+=`<p class="hint">Nichts ausgeblendet.</p>`;
+  hid.byStd.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
+  hid.byRub.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
   hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button onclick="restoreMat('${esc(mk)}')">Wiederherstellen</button></div></div>`; });
   hid.byCid.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
   html+=`</div></details>`;
@@ -904,7 +860,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  html+=`<div class="banner"><h2>Einstufung prüfen</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
+  html+=`<div class="banner"><h2>${esc(txt('pruefTitle'))}</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen gelten lokal auf diesem Gerät (bis das Backend steht).</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
   <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
   html+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
@@ -926,7 +882,7 @@ function setAdmNat(n){ admNat=n; renderAdmin(); }
 function setNatur(cid,nat){ const e=findEntry(cid); if(e&&e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
 function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else reviewed[cid]=true; saveJSON('hkl_reviewed',reviewed); renderAdmin(); }
 function reassignEntry(cid,val){ if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
-function findEntry(cid){ const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
+function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>('new|'+x.id)===cid); return n?newToEntry(n):null; } const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
 
 /* ─── Kategorien-Editor: schreibt in die Konfiguration + speichert ─── */
 function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); renderAdmin(); }
@@ -955,101 +911,18 @@ function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+
   const a=names[i], b=names[j]; const oa=ukMeta[a].order; ukMeta[a].order=ukMeta[b].order; ukMeta[b].order=oa;
   saveJSON('hkl_ukmeta',ukMeta); computeUkList(); renderAdmin(); }
 
-/* ============ Formulare: Hinzufügen / Bearbeiten ============ */
-const SIZE_TYPES=['french','laenge','durchmesser','volumen','dimension','naht','groesse_kuerzel','typcode','durchmesser+french'];
-function closeForm(){ if(!formCtx) return; const b=formCtx.back; formCtx=null; if(b) b(); }
-function natPickHTML(sel,onlyProc){ const items=onlyProc?natList().filter(n=>n.beschaffbar):natList(); return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+items.map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+`</div>`; }
-function pickNat(btn){ const p=btn.parentElement; p.querySelectorAll('button').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); p.dataset.nat=btn.dataset.nat; }
-function sizeTypOptionsHTML(sel){ return `<option value="">— keine Größe —</option>`+SIZE_TYPES.map(t=>`<option value="${esc(t)}" ${t===sel?'selected':''}>${esc(sizeLabel(t))}</option>`).join(''); }
-
-/* Liest die effektiven (ggf. per Overlay bearbeiteten) Feldwerte eines
-   Eintrags in ein Formular-Objekt. Bei Basis-Einträgen `cid` mitgeben. */
-function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
-  const gv=hasCid?qeGet(e,cid,'groessen'):undefined; const groessen=(gv!==undefined?gv:e.groessen)||[]; const g=groessen[0]||null;
-  const nv=hasCid?qeGet(e,cid,'name'):undefined; const name=(nv!==undefined?nv:e.anzeige_text)||'';
-  const mvv=hasCid?qeGet(e,cid,'menge'):undefined; const menge=(mvv!==undefined?mvv:e.menge)||'';
-  const nat=hasCid?effNatur(e,cid):(e.natur||'material');
-  const uk=hasCid?(canonUk(e,cid)||''):(e.unterkategorie||'');
-  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk}; }
-
-/* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
-        | {kind:'catalog'} | {kind:'editCatalog',id}
-   optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
-function openEntryForm(desc){
-  const isCatalog=(desc.kind==='catalog'||desc.kind==='editCatalog');
-  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:''}; let title='Eintrag hinzufügen';
-  if(desc.kind==='editAdd'){ const e=findAddEntry(desc.sid,desc.ri,desc.aid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e); title='Eintrag bearbeiten'; }
-  else if(desc.kind==='editBase'){ const e=findEntry(desc.cid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e,desc.cid); title='Eintrag bearbeiten'; }
-  else if(desc.kind==='editCatalog'){ const it=findCatalogItem(desc.id); if(!it){ toast('Katalog-Eintrag nicht gefunden',true); return; } cur=catalogToForm(it); title='Katalog-Eintrag bearbeiten'; }
-  else if(desc.kind==='catalog'){ title='Katalog-Eintrag hinzufügen'; }
-  computeUkList(); const ukOpts=UK_LIST.map(u=>`<option value="${esc(u)}"></option>`).join('');
-  const h=`<div class="pcard">
-    <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
-    <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
-    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog)}</div>
-    <div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>
-    <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
-    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveEntryForm()">Speichern</button></div>
-  </div>`;
-  const crumb=isCatalog?'Katalog':(curStd?curStd.titel:'');
-  formCtx={desc, back: desc.back||(()=>reRenderDetail())};
-  $('scr-form').innerHTML=h; show('scr-form'); setBar(title, crumb, true); }
-/* Öffnet das Formular für einen Katalog-Eintrag (neu oder bearbeiten). */
-function openCatalogForm(id){ const back=()=>{ renderCatalog(); show('scr-catalog'); updateBar(); }; openEntryForm(id?{kind:'editCatalog',id,back}:{kind:'catalog',back}); }
-
-function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value }; }
-function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
-  const d=formCtx&&formCtx.desc; if(!d) return;
-  if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid()}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
-  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
-  else if(d.kind==='editBase'){ applyBaseEntryEdit(d.cid,f); toast('Gespeichert'); }
-  else if(d.kind==='catalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); toast('Zum Katalog hinzugefügt'); }
-  else if(d.kind==='editCatalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:d.id}))); saveCatalog(); toast('Gespeichert'); }
-  closeForm(); }
-
-/* Schreibt Formularwerte als Overlay auf einen Basis-Eintrag (nur an dieser Stelle). */
-function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
-  qeSet('cid',e,cid,'name',f.name.trim());
-  const menge=f.menge.trim(); qeSet('cid',e,cid,'menge',menge||null);
-  const val=f.sizeVal.trim(); qeSet('cid',e,cid,'groessen', val?[{typ:f.sizeTyp||'dimension',wert:val,roh:val}]:[]);
-  if(f.nat===e.natur){ if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=f.nat; saveJSON('hkl_overrides',overrides); }
-  const uk=f.uk.trim(); reassign[cid]=(uk||null); saveJSON('hkl_reassign',reassign);
-  saveQE(); buildMaterialIndex(); computeUkList(); }
-
-function deleteAddEntry(sid,ri,aid){ const key=sid+'|'+ri; const arr=ADDITIONS.entries[key]; if(!arr) return; ADDITIONS.entries[key]=arr.filter(x=>x._aid!==aid); if(!ADDITIONS.entries[key].length) delete ADDITIONS.entries[key]; saveAdditions(); rebuildDB(); buildMaterialIndex(); }
-
-/* ---- Eigene Standards ---- */
-function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id):null; const title=s?'Standard bearbeiten':'Neuer Standard';
-  const h=`<div class="pcard">
-    <div class="form-grp"><div class="flabel">Titel</div><input class="loc-input" id="sTitel" placeholder="z. B. Koronarangiografie" value="${esc(s?s.titel:'')}"></div>
-    <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" placeholder="z. B. HKL" value="${esc(s?s.gruppe:'Eigene')}"></div>
-    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik über „＋ Eintrag hinzufügen" hinzu.</p>
-    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStandardForm(${s?`'${esc(s.id)}'`:'null'})">Speichern</button></div>
-  </div>`;
-  formCtx={desc:{kind:'std'}, back:()=>{ renderAdmin(); show('scr-admin'); updateBar(); }};
-  $('scr-form').innerHTML=h; show('scr-form'); setBar(title,'Verwaltung',true); }
-function saveStandardForm(id){ const titel=$('sTitel').value.trim(); const gruppe=$('sGruppe').value.trim(); if(!titel){ toast('Bitte einen Titel eingeben',true); return; }
-  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); } else { addStandard(titel,gruppe); toast('Standard angelegt'); } closeForm(); }
-function addStandard(titel,gruppe){ const taken={}; (DB?DB.standards:[]).forEach(s=>taken[s.id]=1); ADDITIONS.standards.forEach(s=>taken[s.id]=1); const id=addSlug(titel,taken);
-  ADDITIONS.standards.push({ id, titel:titel.trim(), gruppe:(gruppe||'').trim()||'Eigene', dateiname:'(manuell angelegt)', _added:true, rubriken:[
-    {name:'Saal und Geräte', typ:'geraete', sub_bereiche:[]}, {name:'Material', typ:'material', sub_bereiche:[]}, {name:'Ablauf', typ:'ablauf', sub_bereiche:[]} ] });
-  saveAdditions(); rebuildDB(); buildMaterialIndex(); return id; }
-function updateStandard(id,titel,gruppe){ const s=ADDITIONS.standards.find(x=>x.id===id); if(!s) return; if(titel&&titel.trim())s.titel=titel.trim(); if(gruppe&&gruppe.trim())s.gruppe=gruppe.trim(); saveAdditions(); rebuildDB(); }
-function deleteStandard(id){ ADDITIONS.standards=ADDITIONS.standards.filter(x=>x.id!==id); Object.keys(ADDITIONS.entries).forEach(k=>{ if(k.split('|')[0]===id) delete ADDITIONS.entries[k]; }); saveAdditions(); rebuildDB(); buildMaterialIndex(); }
-function confirmDeleteStandard(id){ const s=ADDITIONS.standards.find(x=>x.id===id); if(!s) return; if(!confirm('Standard „'+s.titel+'" mitsamt eigenen Einträgen löschen? Das kann nicht rückgängig gemacht werden.')) return; deleteStandard(id); if(curStd&&curStd.id===id) curStd=null; renderAdmin(); toast('Standard gelöscht'); }
-function openStandardById(id){ setMode('use'); openStandard(id); }
-
 /* ============ Deep-Link / Suche / Theme / Toast ============ */
 function applyDeepLink(){ const h=location.hash||''; const m=h.match(/^#\/std\/(.+)$/); if(m){ const id=decodeURIComponent(m[1]); if(DB.standards.find(s=>s.id===id)){ setMode('use'); openStandard(id); } } }
 $('searchInput').addEventListener('input',e=>{ const v=e.target.value; $('searchClear').classList.toggle('show',v.length>0); renderStandards(v); });
 $('searchClear').addEventListener('click',()=>{ $('searchInput').value=''; $('searchClear').classList.remove('show'); renderStandards(''); $('searchInput').focus(); });
-function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); $('themeBtn').textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); applyNatConfig(); }
+function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); $('themeBtn').textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); applyNatConfig(); applyDesign(); }
 (function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); $('themeBtn').textContent=t==='light'?'☀':'◐'; } })();
 let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='toast',2000); }
 
-$('mUse').onclick=()=>setMode('use'); $('mCatalog').onclick=()=>setMode('catalog'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
+$('mUse').onclick=()=>setMode('use'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
 $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme;
-window.addEventListener('hashchange',()=>{ if((location.hash||'')===''&&mode==='use'){ nav=[]; renderStandards(); show('scr-standards'); updateBar(); $('searchWrap').style.display='block'; } });
+window.addEventListener('hashchange',()=>{ checkAdminHash(); });
+window.addEventListener('popstate',(e)=>{ gotoState(e.state); });
 
 /* ============ Schnellmenü (Long-Press) ============ */
 let sheetCid=null, sheetEntry=null, sheetPending=null;
@@ -1059,32 +932,23 @@ function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}
 function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const imp=qeGet(e,cid,'important')===true; const mHi=qeGet(e,cid,'mengeHi')===true; const cur=natOf(effNatur(e,cid));
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Schnellaktion · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
-  h+=sAct('✏️','Details bearbeiten','Name, Menge, Größe, Kategorie …','sheetEditDetails()');
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Schnellaktion · ${esc(cur.label)}</div><div class="sheet-name">${esc(name)}</div>`;
   h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
-  h+=sAct('✏️','Schnell umbenennen','nur Anzeigename','sheetRename()');
+  h+=sAct('✏️','Umbenennen','Anzeigename ändern','sheetRename()');
   h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
+  h+=sAct('#️⃣','Menge ändern',(qeGet(e,cid,'mengeVal')!==undefined?qeGet(e,cid,'mengeVal'):e.menge)||'keine Menge','sheetEditMenge()');
+  h+=sAct('📏','Größen bearbeiten',(function(){const g=qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen; return (g&&g.length)?g.map(x=>x.wert).join(', '):'keine';})(),'sheetEditSizes()');
+  h+=sAct('🧷','Spezifikation bearbeiten',(function(){const s=qeGet(e,cid,'spez'); const v=(s!==undefined)?s:(Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation); return v||'keine';})(),'sheetEditSpez()');
+  h+=sAct('⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
+  h+=sAct('⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
   h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
   h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')");
-  if(natOf(effNatur(e,cid)).beschaffbar){ h+=sAct('📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
-  if(e._added){ h+=sAct('🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
-  else { h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
+  h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger');
   h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h;
 }
-function sheetEditDetails(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
-  if(e._added){ const p=cid.split('|'); openEntryForm({kind:'editAdd',sid:p[0],ri:+p[1],aid:e._aid,back:()=>reRenderDetail()}); }
-  else { openEntryForm({kind:'editBase',cid,back:()=>reRenderDetail()}); } }
-function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
-  const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
-/* Übernimmt den aktuellen Eintrag (mit effektiven Werten) in den Katalog. */
-function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; const f=entryToForm(e,cid);
-  if(!f.name||!f.name.trim()){ toast('Kein Name vorhanden',true); return; }
-  const dup=CATALOG.items.some(it=>(it.name||'').trim().toLowerCase()===f.name.trim().toLowerCase()&&(it.nat||'material')===(f.nat||'material'));
-  if(dup){ showSheet(false); toast('Schon im Katalog',true); return; }
-  CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); showSheet(false); toast('In Katalog aufgenommen'); }
 function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
@@ -1118,15 +982,30 @@ function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if
   else if(p.kind==='uk'){ const val=(p.value===''?'':p.value); if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).uk=val; if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } } else { reassign[cid]=(val===''?null:val); saveJSON('hkl_reassign',reassign); } saveQE(); computeUkList(); }
   else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
   sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
-function sheetDelete(){ if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
+function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||''; const nn=prompt('Neue Menge (z. B. 2x — leer lassen = keine Menge):',cur); if(nn==null) return; const val=nn.trim()===''?null:nn.trim(); sheetPending={kind:'mengeVal',value:val}; askScope(); }
+function guessSizeTyp(t){ const s=t.toLowerCase(); if(/f(r|rench)?$/.test(s)&&/\d/.test(s)) return 'french'; if(/cm$/.test(s)) return 'laenge'; if(/mm$/.test(s)) return 'durchmesser'; if(/(ml|l)$/.test(s)&&/\d/.test(s)) return 'volumen'; if(/\dx\d/.test(s)) return 'dimension'; if(/er$/.test(s)) return 'naht'; return 'typcode'; }
+function parseSizesInput(text){ return (text||'').split(/[,;]+/).map(t=>t.trim()).filter(Boolean).map(t=>({typ:guessSizeTyp(t),wert:t,roh:t})); }
+function sheetEditSizes(){ const e=sheetEntry,cid=sheetCid; const gv=qeGet(e,cid,'groessen'); const cur=((gv!==undefined?gv:e.groessen)||[]).map(g=>g.wert).join(', ');
+  const nn=prompt('Größen, durch Komma getrennt (z. B. 6F, 260cm — leer = keine):',cur); if(nn==null) return;
+  sheetPending={kind:'groessen',value:parseSizesInput(nn)}; askScope(); }
+function sheetEditSpez(){ const e=sheetEntry,cid=sheetCid; const sv=qeGet(e,cid,'spez');
+  const cur=(sv!==undefined)?(sv||''):((Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation)||'');
+  const nn=prompt('Spezifikation (Klammerzusatz/Standort — leer = keine):',cur); if(nn==null) return;
+  sheetPending={kind:'spez',value:(nn.trim()===''?null:nn.trim())}; askScope(); }
+function sheetDelete(){
+  if(sheetCid&&sheetCid.indexOf('new|')===0){ if(!confirm('Diesen selbst angelegten Eintrag endgültig löschen?')) return;
+    const id=sheetCid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
+    if(QE.cid[sheetCid]) delete QE.cid[sheetCid]; if(overrides[sheetCid]){ delete overrides[sheetCid]; saveJSON('hkl_overrides',overrides); }
+    saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); return; }
+  if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
 function sheetResetEntry(){ const cid=sheetCid; if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } saveQE(); buildMaterialIndex(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
-function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ nav.pop(); openRubrik(top.idx); } }
+function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));
 
 /* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
 (function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false,lastTouch=0;
   function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
-  function down(x,y,t){ const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} openSheet(curCid); },500); }
+  function down(x,y,t){ const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); if(ADMIN){ timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} openSheet(curCid); },500); } }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
   function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
   el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
@@ -1139,128 +1018,7 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
 })();
 
-/* ─────────────────────────────────────────────────────────────
-   BAUSTEIN — SERVER-STATE / SYNC
-   Änderungen werden zusätzlich zum localStorage server-seitig unter
-   /api/state gespeichert und über alle Geräte hinweg geteilt.
-
-   Modell:
-     - Offline-first: localStorage bleibt die sofortige Quelle. Ist der
-       Server nicht erreichbar, funktioniert alles wie bisher lokal.
-     - Beim Start: Server-Stand laden und übernehmen; rein lokale
-       Schlüssel zusätzlich hochspielen (Erstbefüllung).
-     - Bei jeder Änderung: nur die geänderten Schlüssel werden an den
-       Server geschickt (Top-Level-Merge – zwei Personen können
-       *verschiedene* Schlüssel bearbeiten, ohne sich zu überschreiben).
-     - Regelmäßiges Polling übernimmt Fremdänderungen, solange man
-       selbst nichts Ungespeichertes offen hat.
-   ───────────────────────────────────────────────────────────── */
-const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_additions','hkl_catalog'];
-
-/* Übernimmt die (ggf. vom Server aktualisierten) Store-Werte in die
-   laufenden Zustandsvariablen. */
-function hydrateVars(){
-  NATCFG=loadNatCfg();
-  overrides=loadJSON('hkl_overrides',{});
-  QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)QE.mat={};
-  reviewed=loadJSON('hkl_reviewed',{});
-  reassign=loadJSON('hkl_reassign',{});
-  ukMap=loadJSON('hkl_ukmap',{});
-  ukMeta=loadJSON('hkl_ukmeta',{});
-  settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
-  careMem=loadJSON('hkl_care',{});
-  ADDITIONS=loadAdditions();
-  CATALOG=loadCatalog();
-  rebuildDB(); /* eingehende eigene Standards/Einträge übernehmen */
-  applyNatConfig();
-}
-
-/* Rendert die aktuell sichtbare Ansicht neu (nach eingehenden Server-Daten).
-   Stört keine offenen Eingaben (Schnellmenü, Material-Detail). */
-function refreshView(){
-  try{
-    if(!DB) return;
-    if($('sheet').classList.contains('show')) return;
-    buildMaterialIndex();
-    if(mode==='admin'){ renderAdmin(); updateBar(); return; }
-    if(mode==='catalog'){ if(!formCtx){ renderCatalog(); updateBar(); } return; }
-    if(mode==='care'){ if(!$('scr-care-item').classList.contains('active')){ renderCare(); updateBar(); } return; }
-    if($('scr-detail').classList.contains('active')){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ const i=top.idx; nav.pop(); openRubrik(i); } }
-    else if($('scr-rubriken').classList.contains('active')&&curStd){ openStandard(curStd.id,true); }
-    else { renderStandards($('searchInput')?$('searchInput').value:''); }
-    updateBar();
-  }catch(e){ /* best effort */ }
-}
-
-const sync=(()=>{
-  const URL='/api/state';
-  let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0;
-  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status'; } }
-  function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
-  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return; storeSetQuiet(k, JSON.stringify(st[k])); changed=true; }); return changed; }
-
-  async function pull(){
-    const r=await fetch(URL,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
-    rev=j.rev||0; const st=j.state||{}; adopt(st,false);
-    // rein lokale Schlüssel, die der Server noch nicht kennt → Erstbefüllung
-    const seed=SHARED_KEYS.filter(k=>store.get(k)!=null && !(k in st));
-    return seed;
-  }
-  async function putKeys(keys){
-    if(!keys.length) return false;
-    const body=JSON.stringify({baseRev:rev, state:payloadFor(keys)});
-    const r=await fetch(URL,{method:'PUT',headers:{'Content-Type':'application/json'},body});
-    if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
-    rev=j.rev||rev; return adopt(j.state,true); /* fremde Schlüssel übernehmen (eigene dirty nicht) */
-  }
-  async function flush(){
-    if(!enabled) return;
-    if(inflight){ pending=true; return; }
-    const keys=[...dirty]; if(!keys.length) return;
-    dirty.clear(); inflight=true; setDot('saving','Speichere…');
-    try{
-      const changed=await putKeys(keys); offline=false; fails=0; setDot('ok','Auf dem Server gespeichert');
-      if(changed && dirty.size===0){ hydrateVars(); refreshView(); }
-    }catch(e){
-      keys.forEach(k=>dirty.add(k)); offline=true; fails++; setDot('local','Nur lokal – Server nicht erreichbar');
-    }finally{
-      inflight=false;
-      if(pending||dirty.size){ pending=false; clearTimeout(timer);
-        const delay=fails>0?Math.min(30000,2000*Math.pow(2,fails-1)):1500; timer=setTimeout(flush,delay); }
-    }
-  }
-  function mark(k){ if(!enabled||!SHARED_KEYS.includes(k)) return; dirty.add(k); if(!offline) setDot('saving','Speichere…'); clearTimeout(timer); timer=setTimeout(flush,800); }
-  async function poll(){
-    if(!enabled||inflight||dirty.size) return;
-    try{
-      const r=await fetch(URL+'?since='+rev,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
-      offline=false;
-      if(j.unchanged){ setDot('ok','Auf dem Server gespeichert'); return; }
-      rev=j.rev||rev; const changed=adopt(j.state,true);
-      if(changed && !dirty.size){ hydrateVars(); refreshView(); }
-      setDot('ok','Auf dem Server gespeichert');
-    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
-  }
-  async function init(){
-    setDot('saving','Verbinde…');
-    try{
-      const seed=await pull(); hydrateVars(); offline=false; setDot('ok','Auf dem Server gespeichert');
-      if(seed.length) await putKeys(seed);
-    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
-  }
-  function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
-    window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });
-    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
-  }
-  return {init,start};
-})();
-
-/* Bootstrap: erst Server-Stand holen, dann App rendern, dann Sync aktiv. */
-(async function boot(){
-  await sync.init();
-  await load();
-  sync.start();
-})();
+load();
 </script>
 </body>
 </html>
