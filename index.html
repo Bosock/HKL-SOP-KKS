@@ -292,7 +292,7 @@
     <div class="bar-row">
       <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
       <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
-      <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
+      <button class="icon-btn" id="menuBtn" aria-label="Menü">☰</button>
     </div>
     <div class="modes" id="modesRow">
       <button id="mUse" class="on">Nutzung</button>
@@ -338,9 +338,15 @@ function saveJSON(k,v){ store.set(k,JSON.stringify(v)); }
    DEFAULT_NAT sind die Voreinstellungen im Code. Sie werden von
    deinen über die Oberfläche gemachten Änderungen überschrieben.
    ───────────────────────────────────────────────────────────── */
-/* Admin-Passwort (Komfort-Schutz, keine echte Sicherheit — echte Anmeldung kommt mit dem Backend).
-   Zum Ändern: nur den Text zwischen den Anführungszeichen ersetzen. */
-const ADMIN_PASSWORT='HKL-Admin!';
+/* Passwort-Schutz (Komfort, keine echte Sicherheit). Start-Passwort: 1234567; in der App änderbar. */
+const AUTH_DEFAULT_PW='1234567';
+const AUTH_TTL=3600*1000; /* Verwaltungsmodus bleibt bis 1 Stunde Inaktivität aktiv */
+function pwHash(s){ let h=5381; s=String(s); for(let i=0;i<s.length;i++){ h=(((h<<5)+h)+s.charCodeAt(i))>>>0; } return 'h'+h.toString(36); }
+function getAuthHash(){ return store.get('hkl_authpw') || pwHash(AUTH_DEFAULT_PW); }
+function checkPw(pw){ return pwHash(pw)===getAuthHash(); }
+function setAuthPw(pw){ store.set('hkl_authpw', pwHash(pw)); }
+function authValid(){ return Date.now() < (+(store.get('hkl_authuntil')||0)); }
+function refreshAuth(){ if(ADMIN) store.set('hkl_authuntil', String(Date.now()+AUTH_TTL)); }
 const DEFAULT_NAT=[
   {key:'material',    label:'Material',    color:'#34c98a', icon:'📦',  builtin:true, beschaffbar:true },
   {key:'geraet',      label:'Gerät',       color:'#e8b34a', icon:'🖥',  builtin:true, beschaffbar:true },
@@ -403,15 +409,26 @@ let QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)
 function saveQE(){ saveJSON('hkl_qedits',QE); }
 function qeGet(e,cid,prop){ const c=QE.cid[cid]; if(c&&c[prop]!==undefined) return c[prop]; const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; } return undefined; }
 function qeSet(scope,e,cid,prop,val){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{})[prop]=val; } else { (QE.cid[cid]=QE.cid[cid]||{})[prop]=val; } saveQE(); }
-/* Super-User (Rollentrennung): #admin in der Adresse schaltet frei. Komfort, keine echte Sicherheit. */
-let ADMIN=(store.get('hkl_admin')==='1');
-function applyAdminUI(){ const mr=$('modesRow'); if(mr) mr.style.display=ADMIN?'flex':'none'; if(!ADMIN&&mode!=='use') setMode('use'); }
-function checkAdminHash(){ if((location.hash||'')!=='#admin') return; try{ location.hash=''; }catch(e){}
-  if(ADMIN){ applyAdminUI(); return; }
-  const pw=prompt('Admin-Passwort:');
-  if(pw===ADMIN_PASSWORT){ ADMIN=true; store.set('hkl_admin','1'); applyAdminUI(); toast('Admin-Modus aktiv'); }
-  else if(pw!=null){ toast('Falsches Passwort',true); } }
-function adminLogout(){ ADMIN=false; store.set('hkl_admin','0'); applyAdminUI(); setMode('use'); toast('Admin-Modus verlassen'); }
+/* Rollentrennung per Anmeldung (Hamburger-Menü). Sitzung überlebt bis 1 h Inaktivität. */
+let ADMIN=authValid();
+function applyAdminUI(){ const mr=$('modesRow'); if(mr) mr.style.display='none'; if(!ADMIN&&mode!=='use') setMode('use'); const mb=$('menuBtn'); if(mb) mb.textContent='☰'; }
+function checkAdminHash(){ if((location.hash||'')!=='#admin') return; try{ location.hash=''; }catch(e){} if(!ADMIN) promptLogin(); }
+function doLogin(pw){ if(checkPw(pw)){ ADMIN=true; store.set('hkl_authuntil', String(Date.now()+AUTH_TTL)); applyAdminUI(); return true; } return false; }
+function promptLogin(){ const pw=prompt('Passwort für den Verwaltungsmodus:'); if(pw==null) return; if(doLogin(pw)){ showSheet(false); toast('Angemeldet – Verwaltungsmodus aktiv'); setMode('admin'); } else { toast('Falsches Passwort',true); } }
+function promptLoginThen(cb){ const pw=prompt('Du bist nicht berechtigt, Änderungen durchzuführen.\nBitte Passwort eingeben:'); if(pw==null) return; if(doLogin(pw)){ toast('Angemeldet'); if(cb) cb(); } else { toast('Falsches Passwort',true); } }
+function changePw(){ const o=prompt('Aktuelles Passwort:'); if(o==null) return; if(!checkPw(o)){ toast('Aktuelles Passwort falsch',true); return; } const n1=prompt('Neues Passwort:'); if(n1==null||!n1.trim()){ toast('Abgebrochen'); return; } const n2=prompt('Neues Passwort bestätigen:'); if(n2==null) return; if(n1!==n2){ toast('Bestätigung stimmt nicht überein',true); return; } setAuthPw(n1.trim()); toast('Passwort geändert'); }
+function adminLogout(){ ADMIN=false; store.set('hkl_authuntil','0'); applyAdminUI(); showSheet(false); setMode('use'); toast('Abgemeldet'); }
+function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Menü${ADMIN?' · angemeldet':''}</div>`;
+  h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
+  if(ADMIN){ h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
+    h+=sAct('📦','Material pflegen','Fotos & Lagerorte',"menuGo('care')");
+    h+=sAct('🔑','Passwort ändern','',"changePw()");
+    h+=sAct('🚪','Abmelden','Verwaltungsmodus beenden',"adminLogout()"); }
+  else { h+=sAct('🔒','Anmelden','Verwaltung freischalten',"promptLogin()"); }
+  h+=sAct('◐','Ansicht hell/dunkel','',"toggleTheme();showSheet(false)");
+  h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+  $('sheet').innerHTML=h; showSheet(true); }
+function menuGo(m){ showSheet(false); setMode(m); }
 /* Selbst angelegte Einträge (App-eigene, existieren in keiner Word-Datei) */
 let NEW=loadJSON('hkl_newentries',[]);
 function saveNEW(){ saveJSON('hkl_newentries',NEW); }
@@ -762,7 +779,7 @@ function restoreCid(cid){ if(QE.cid[cid]){ delete QE.cid[cid].hidden; if(Object.
 function hideCid(cid){ (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); buildMaterialIndex(); renderAdmin(); toast('Ausgeblendet'); }
 
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -915,12 +932,13 @@ function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+
 function applyDeepLink(){ const h=location.hash||''; const m=h.match(/^#\/std\/(.+)$/); if(m){ const id=decodeURIComponent(m[1]); if(DB.standards.find(s=>s.id===id)){ setMode('use'); openStandard(id); } } }
 $('searchInput').addEventListener('input',e=>{ const v=e.target.value; $('searchClear').classList.toggle('show',v.length>0); renderStandards(v); });
 $('searchClear').addEventListener('click',()=>{ $('searchInput').value=''; $('searchClear').classList.remove('show'); renderStandards(''); $('searchInput').focus(); });
-function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); $('themeBtn').textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); applyNatConfig(); applyDesign(); }
-(function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); $('themeBtn').textContent=t==='light'?'☀':'◐'; } })();
+function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const next=cur==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme',next); const tb=$('themeBtn'); if(tb) tb.textContent=next==='light'?'☀':'◐'; store.set('hkl_theme',next); applyNatConfig(); applyDesign(); }
+(function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); const tb=$('themeBtn'); if(tb) tb.textContent=t==='light'?'☀':'◐'; } })();
 let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='toast',2000); }
 
 $('mUse').onclick=()=>setMode('use'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
-$('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme;
+$('backBtn').onclick=goBack; $('menuBtn').onclick=openMenu;
+document.addEventListener('click',()=>{ if(ADMIN) refreshAuth(); });
 window.addEventListener('hashchange',()=>{ checkAdminHash(); });
 window.addEventListener('popstate',(e)=>{ gotoState(e.state); });
 
@@ -1005,7 +1023,7 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
 /* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
 (function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false,lastTouch=0;
   function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
-  function down(x,y,t){ const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); if(ADMIN){ timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} openSheet(curCid); },500); } }
+  function down(x,y,t){ const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(ADMIN){ refreshAuth(); openSheet(curCid); } else { promptLoginThen(()=>openSheet(curCid)); } },500); }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
   function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
   el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
