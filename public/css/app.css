@@ -298,4 +298,44 @@
   .sheet-colorinp { width:46px; height:38px; border:1px solid var(--line); border-radius:9px; background:var(--surface-2); cursor:pointer; padding:2px; }
   .sheet-close { width:100%; padding:13px; border-radius:12px; background:transparent; color:var(--text-dim); border:1px solid var(--line); font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; }
 
+  /* ============================================================
+     Responsive Layout — mobile / tablet / desktop
+     Mobile-first (Default oben): eine Spalte, --maxw schmal (Handy).
+     Auf breiteren Geräten wächst die Spaltenbreite (--maxw) und die
+     Listen-Screens kacheln ihre Karten mehrspaltig (CSS-Grid).
+     Reine Formulare, Detail- und Verwaltungs-Screens bleiben
+     einspaltig (bessere Lesbarkeit, kein Umbau der Render-Struktur).
+     Breakpoints: 640px Tablet-Hochkant · 960px Tablet quer/Laptop ·
+     1280px großer Desktop (Breite gedeckelt → max. 3 Karten-Spalten).
+     ============================================================ */
+  @media (min-width:640px) {
+    :root { --maxw:620px; }
+    main { padding:16px; padding-bottom:44px; }
+  }
+  @media (min-width:960px) {
+    :root { --maxw:900px; }
+    main { padding:20px; padding-bottom:48px; }
+    /* App als zentriertes Panel absetzen statt „gestreckte" Handy-App. */
+    .app { border-left:1px solid var(--line-soft); border-right:1px solid var(--line-soft); }
+  }
+  @media (min-width:1280px) { :root { --maxw:1080px; } }
+
+  /* Listen-Screens kacheln ihre Karten ab Tablet-Breite mehrspaltig.
+     Alles belegt per Default die volle Breite (Gruppen-Titel, Banner,
+     Filter, Buttons, Leerzustand) — nur bekannte Karten-Typen belegen
+     eine einzelne Zelle. So bleibt jeder unbekannte Inhalt sicher voll. */
+  @media (min-width:640px) {
+    #scr-standards.active, #scr-rubriken.active,
+    #scr-catalog.active, #scr-care.active {
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+      gap:8px; align-content:start;
+    }
+    #scr-standards.active > *, #scr-rubriken.active > *,
+    #scr-catalog.active > *, #scr-care.active > * { grid-column:1 / -1; }
+    #scr-standards.active > .std,
+    #scr-rubriken.active > .rub,
+    #scr-catalog.active > .mat-row,
+    #scr-care.active > .mat-row { grid-column:auto; margin-bottom:0; }
+  }
+
   @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
