@@ -1,0 +1,158 @@
+/* ============ Datensicherung: Export/Import aller Anpassungen ============ */
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
+function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
+  return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
+function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
+  BACKUP_KEYS.forEach(k=>{ if(k in obj.daten){ const v=obj.daten[k]; store.set(k, (typeof v==='string')?v:JSON.stringify(v)); } }); }
+function exportBackup(){ try{ const obj=buildBackup(); const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='hkl-anpassungen-'+today()+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast('Sicherung heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
+function importBackupFile(ev){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ const obj=JSON.parse(r.result); if(!obj||obj.__hkl!=='hkl-anpassungen'){ toast('Keine gültige Sicherungsdatei',true); return; }
+    if(!confirm('Sicherung einspielen? Die aktuellen Anpassungen auf diesem Gerät werden durch die Datei ersetzt.')) return;
+    applyBackup(obj); toast('Sicherung eingespielt – App lädt neu'); setTimeout(()=>{ try{ location.reload(); }catch(e){} },700);
+  }catch(e){ toast('Datei nicht lesbar',true); } }; r.readAsText(f); }
+function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
+
+function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
+
+  /* Admin-Kopf: Modus verlassen */
+  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Admin-Modus</h2><p style="margin:2px 0 0">Freigeschaltet über #admin. Kolleginnen sehen nur die Nutzung.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
+
+  /* Panel: Datensicherung */
+  html+=`<details class="vpanel" open><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
+    <div class="p-actions"><button class="btn btn-pri" onclick="exportBackup()">Sicherung herunterladen</button><button class="btn btn-sec" onclick="$('bkImp').click()">Sicherung einspielen</button></div>
+    <input type="file" id="bkImp" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
+    <p class="hint">Sichert ALLE Anpassungen dieses Geräts in einer Datei (Kategorien, Umbenennungen, Mengen, Größen, neue Einträge, Ausblendungen, Einstellungen). Nicht enthalten: die Tageshaken und der Admin-Status. Empfehlung: nach jeder größeren Pflege-Sitzung exportieren.</p>
+  </div></details>`;
+
+  /* Panel: Anzeige-Einstellungen */
+  const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
+  html+=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
+    ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
+  </div></details>`;
+
+  /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
+  html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
+  if(!ADDITIONS.standards.length) html+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
+  ADDITIONS.standards.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
+    <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
+  html+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
+    <p class="hint">Neue Standards und eigene Einträge werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div></details>`;
+
+  /* Panel: Design (Paket 4) */
+  const rb=(v,l)=>`<button class="${(DESIGN.scale||'normal')===v?'on':''}" onclick="setDesign('scale','${v}')">${l}</button>`;
+  html+=`<details class="vpanel"><summary>🎨 Design <span class="vp-hint">Farben & Größe</span></summary><div class="vpanel-body">
+    <div class="tgl"><span>Akzentfarbe</span><input type="color" class="colinp" value="${DESIGN.accent||'#3d9be0'}" onchange="setDesign('accent',this.value)"></div>
+    <div class="tgl"><span>Größen-Badge-Farbe</span><input type="color" class="colinp" value="${DESIGN.size||'#21c1d6'}" onchange="setDesign('size',this.value)"></div>
+    <div class="flabel" style="margin:12px 0 6px">Schriftgröße / Ansicht</div>
+    <div class="filter-row">${rb('normal','Normal')}${rb('gross','Groß')}${rb('wand','Wandmonitor')}</div>
+    <button class="reset-btn" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetDesign()">Design zurücksetzen</button>
+    <p class="hint">Akzent- und Badge-Farbe gelten in heller und dunkler Ansicht. „Wandmonitor" vergrößert die gesamte Darstellung.</p>
+  </div></details>`;
+
+  /* Panel: Texte (Paket 4) */
+  const ti=(k,l)=>`<div class="flabel" style="margin-top:8px">${l}</div><input class="txtinp" style="width:100%" value="${esc(txt(k))}" onchange="setTxt('${k}',this.value)">`;
+  html+=`<details class="vpanel"><summary>🔤 Texte <span class="vp-hint">Titel & Banner</span></summary><div class="vpanel-body">
+    ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}${ti('pruefTitle','Titel „Einstufung prüfen"')}
+    <button class="reset-btn" style="margin-top:12px;width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetTxt()">Texte zurücksetzen</button>
+  </div></details>`;
+
+  /* Panel: Gruppen & Symbole (Paket 4) */
+  const grps=distinctGroups(); const rubs=distinctRubrics();
+  html+=`<details class="vpanel"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
+    <div class="flabel">Gruppen-Reihenfolge (Startseite)</div>`;
+  if(grps.length===0) html+=`<p class="hint">Keine Gruppen.</p>`;
+  grps.forEach((g,i)=>{ html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup('${esc(g)}',-1)">▲</button><button class="icon" onclick="moveGroup('${esc(g)}',1)">▼</button></div></div>`; });
+  html+=`<div class="flabel" style="margin-top:14px">Rubrik-Symbole</div>`;
+  rubs.forEach(nm=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon('${esc(nm)}')">Symbol ändern</button></div></div>`; });
+  html+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
+
+  /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
+  html+=`<details class="vpanel"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
+  natList().forEach(n=>{
+    html+=`<div class="natrow" style="border-left-color:${n.color}">
+      <div class="natrow-head"><span class="nat-ico">${n.icon}</span><input class="txtinp" value="${esc(n.label)}" onchange="setNatLabel('${esc(n.key)}',this.value)"><input type="color" class="colinp" value="${n.color}" onchange="setNatColor('${esc(n.key)}',this.value)"></div>
+      <div class="nat-actions"><button onclick="editNatIcon('${esc(n.key)}')">Symbol: ${n.icon}</button>${n.builtin?'':`<button class="danger-btn" onclick="deleteNat('${esc(n.key)}')">Löschen</button>`}</div>
+    </div>`;
+  });
+  html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
+    <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
+
+  /* Panel: Unterkategorien verwalten */
+  html+=`<details class="vpanel"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
+  if(names.length===0) html+=`<p class="hint">Keine Unterkategorien erkannt.</p>`;
+  names.forEach((name,i)=>{ const col=ukColorOf(name,i); const ico=ukIconOf(name);
+    const sw=UK_PALETTE.map(c=>`<span class="uk-sw ${c===col?'sel':''}" style="background:${c}" onclick="setUkColor(${i},'${c}')"></span>`).join('');
+    html+=`<div class="ukrow" style="--uk:${col}"><div class="ukrow-head"><span class="uk-ico">${ico}</span><span class="uk-name">${esc(name)}</span><span class="uk-count">${cnt.get(name)||0}×</span></div>
+      <div class="uk-swatches">${sw}</div>
+      <div class="uk-actions"><button onclick="renameUk(${i})">Umbenennen / Zusammenführen</button><button class="icon" onclick="moveUk(${i},-1)">▲</button><button class="icon" onclick="moveUk(${i},1)">▼</button></div></div>`; });
+  html+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
+
+  /* Panel: Ausgeblendete Einträge (Wiederherstellung) */
+  const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length+hid.byStd.length+hid.byRub.length;
+  html+=`<details class="vpanel"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
+  if(hidTotal===0) html+=`<p class="hint">Nichts ausgeblendet.</p>`;
+  hid.byStd.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
+  hid.byRub.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
+  hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button onclick="restoreMat('${esc(mk)}')">Wiederherstellen</button></div></div>`; });
+  hid.byCid.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
+  html+=`</div></details>`;
+
+  /* Panel-los: Einstufung prüfen (Prüf-Workflow) */
+  const all=collectUncertain(); const done=all.filter(x=>isHandled(x.cid)).length; const pct=all.length?Math.round(done/all.length*100):0;
+  let list=all;
+  if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
+  if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
+  if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
+  html+=`<div class="banner"><h2>${esc(txt('pruefTitle'))}</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
+  <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
+  const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
+  html+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
+  if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
+  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=!!overrides[x.cid]; const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
+    const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
+    const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).join('');
+    html+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
+      ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
+      <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
+      <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" onchange="reassignEntry('${esc(x.cid)}',this.value)">${opts}</select>
+      <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button><button onclick="hideCid('${esc(x.cid)}')">🗑 Ausblenden</button></div></div>`; });
+  if(list.length>300) html+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
+  box.innerHTML=html;
+}
+function setSetting(k,v){ settings[k]=v; saveJSON('hkl_settings',settings); }
+function setAdmState(s){ admState=s; renderAdmin(); }
+function setAdmNat(n){ admNat=n; renderAdmin(); }
+function setNatur(cid,nat){ const e=findEntry(cid); if(e&&e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
+function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else reviewed[cid]=true; saveJSON('hkl_reviewed',reviewed); renderAdmin(); }
+function reassignEntry(cid,val){ if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
+function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>('new|'+x.id)===cid); return n?newToEntry(n):null; } const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
+
+/* ─── Kategorien-Editor: schreibt in die Konfiguration + speichert ─── */
+function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); renderAdmin(); }
+function setNatColor(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].color=val; saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); }
+function editNatIcon(key){ if(!NATCFG.items[key]) return; const cur=NATCFG.items[key].icon||''; const v=prompt('Symbol (Emoji) für diese Kategorie:',cur); if(v==null) return; NATCFG.items[key].icon=(v.trim()||cur); saveNatCfg(); renderAdmin(); }
+function addNat(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
+  NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); renderAdmin(); toast('Kategorie angelegt'); }
+function deleteNat(key){ if(!NATCFG.items[key]||NATCFG.items[key].builtin) return; if(!confirm('Kategorie „'+NATCFG.items[key].label+'" löschen? Einträge, die du ihr manuell zugewiesen hast, fallen auf ihre ursprüngliche Kategorie zurück.')) return;
+  delete NATCFG.items[key]; NATCFG.order=NATCFG.order.filter(k=>k!==key);
+  Object.keys(overrides).forEach(cid=>{ if(overrides[cid]===key) delete overrides[cid]; }); saveJSON('hkl_overrides',overrides);
+  saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); toast('Kategorie gelöscht'); }
+function resetNatCfg(){ if(!confirm('Alle Kategorie-Anpassungen (Namen, Farben, Symbole, eigene Kategorien) auf die Voreinstellung zurücksetzen?')) return;
+  store.set('hkl_natcfg',JSON.stringify({})); NATCFG=loadNatCfg(); saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); toast('Zurückgesetzt'); }
+
+/* Unterkategorie-Operationen */
+function renameUk(i){ const oldName=UK_LIST[i]; if(oldName==null) return;
+  const nn=prompt('Unterkategorie umbenennen (vorhandenen Namen eingeben = zusammenführen):',oldName); if(nn==null) return; const newName=nn.trim(); if(!newName||newName===oldName) return;
+  Object.keys(ukMap).forEach(raw=>{ if(ukMap[raw]===oldName) ukMap[raw]=newName; }); ukMap[oldName]=newName;
+  Object.keys(reassign).forEach(cid=>{ if(reassign[cid]===oldName) reassign[cid]=newName; });
+  const metaOld=ukMeta[oldName]; if(metaOld){ if(!ukMeta[newName]) ukMeta[newName]=metaOld; delete ukMeta[oldName]; }
+  saveJSON('hkl_ukmap',ukMap); saveJSON('hkl_reassign',reassign); saveJSON('hkl_ukmeta',ukMeta);
+  computeUkList(); renderAdmin(); toast('Unterkategorie aktualisiert'); }
+function setUkColor(i,color){ const name=UK_LIST[i]; if(name==null) return; ukMeta[name]=Object.assign({},ukMeta[name],{color}); saveJSON('hkl_ukmeta',ukMeta); renderAdmin(); }
+function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+dir; if(j<0||j>=names.length) return;
+  names.forEach((n,k)=>{ ukMeta[n]=Object.assign({},ukMeta[n],{order:k}); });
+  const a=names[i], b=names[j]; const oa=ukMeta[a].order; ukMeta[a].order=ukMeta[b].order; ukMeta[b].order=oa;
+  saveJSON('hkl_ukmeta',ukMeta); computeUkList(); renderAdmin(); }
+

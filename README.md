@@ -1,17 +1,34 @@
 # HKL-SOP-KKS
 
 HKL Standards — a self-contained single-page web app for browsing **and editing** HKL /
-SOP / KKS standards on mobile. The frontend (`index.html`) loads its content from
-`data/hkl_standards_export.json`. Edits made in the web interface (categories, corrections,
+SOP / KKS standards on mobile. The frontend ([`public/`](public/) — an HTML shell plus
+small JavaScript modules, no build step) loads its content from
+`public/data/hkl_standards_export.json`. Edits made in the web interface (categories, corrections,
 renames, sub-categories, display settings, material care, **plus adding/editing your own
 material & device entries and creating whole new standards**) are kept in the browser's
 `localStorage` **and** persisted **server-side** so they survive redeploys and are shared
 across all devices (see [Server-side state](#server-side-state)). Per-device state
 (checklists, theme) stays local.
 
-The backend is a tiny **zero-dependency Node server** ([`server.js`](server.js)) that serves
-the static app *and* exposes a `/api/state` persistence endpoint, packaged as a single
-Docker image.
+The backend is a tiny **zero-dependency Node server** ([`server.js`](server.js) →
+[`server/`](server/)) that serves the static app *and* exposes a `/api/state` persistence
+endpoint, packaged as a single Docker image.
+
+## Repository layout
+
+```
+public/            Frontend, served 1:1 as static files
+  index.html         HTML shell — markup + the ordered <script> module list
+  css/app.css        styles
+  js/                one classic-script module per feature/building block
+  data/              standards export (read-only source data)
+server/            Backend modules (config, state, static files, routes/)
+server.js          entry point (`node server.js`)
+test/              node:test suites (client helpers + server integration)
+```
+
+How the modules fit together, the load-order rules, and **how to add a new
+feature or API endpoint** are documented in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Architecture
 
@@ -96,8 +113,11 @@ while making additions behave like normal content (and shared across devices):
 
 ```bash
 # Run the backend directly (no Docker, no build step — needs Node ≥ 18):
-PUBLIC_DIR="$PWD" STATE_DIR=./.state PORT=8080 node server.js
+STATE_DIR=./.state PORT=8080 node server.js
 # open http://localhost:8080  (state persists to ./.state/state.json)
+
+# During development, auto-restart on server changes:
+STATE_DIR=./.state PORT=8080 npm run dev
 
 # Or build and run the container:
 docker build -t hkl-sop-kks:local .
@@ -176,9 +196,12 @@ from other machines, either add a read token there or set the package to **Publi
 
 | Path                              | Purpose                                             |
 |-----------------------------------|-----------------------------------------------------|
-| `index.html`                      | The single-page frontend (offline-first + server sync). |
-| `server.js`                       | Zero-dependency Node backend: static serving + `/api/state`. |
-| `data/hkl_standards_export.json`  | Standards content loaded at runtime.                |
+| `public/index.html`               | HTML shell of the single-page frontend (offline-first + server sync). |
+| `public/js/`                      | Frontend logic, one classic-script module per building block (see [ARCHITECTURE.md](ARCHITECTURE.md)). |
+| `public/css/app.css`              | Styles.                                             |
+| `public/data/hkl_standards_export.json` | Standards content loaded at runtime.          |
+| `server.js` / `server/`           | Zero-dependency Node backend: static serving + `/api/state`. |
+| `ARCHITECTURE.md`                 | Module layout, conventions, how to add features/endpoints. |
 | `Dockerfile`                      | Builds the `node:22-alpine` app image.              |
 | `docker-compose.yml`              | Host deployment definition (with the `hkl-state` volume). |
 | `.env.example`                    | Sample host config (`VIRTUAL_HOST` / `LETSENCRYPT_*`). |

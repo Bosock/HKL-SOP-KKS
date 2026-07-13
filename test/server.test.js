@@ -150,6 +150,25 @@ test('GET data/*.json is revalidated (no-cache)', async () => {
   assert.match(r.headers['content-type'], /application\/json/);
 });
 
+test('GET *.css/*.js are revalidated (no-cache) so deploys never mix versions', async () => {
+  const r = await request('GET', '/app.css');
+  assert.equal(r.status, 200);
+  assert.equal(r.headers['cache-control'], 'no-cache');
+});
+
+test('GET sends a weak ETag; If-None-Match answers 304 without body', async () => {
+  const r1 = await request('GET', '/app.css');
+  assert.equal(r1.status, 200);
+  assert.match(r1.headers['etag'], /^W\/".+"$/);
+  const r2 = await request('GET', '/app.css', { headers: { 'If-None-Match': r1.headers['etag'] } });
+  assert.equal(r2.status, 304);
+  assert.equal(r2.text, '');
+  // stale/foreign ETag still gets the full body
+  const r3 = await request('GET', '/app.css', { headers: { 'If-None-Match': 'W/"nope"' } });
+  assert.equal(r3.status, 200);
+  assert.equal(r3.text, BIG_CSS);
+});
+
 test('GET directory serves its index.html', async () => {
   const r = await request('GET', '/sub');
   assert.equal(r.status, 200);

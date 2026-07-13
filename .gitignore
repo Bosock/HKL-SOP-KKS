@@ -3,3 +3,7 @@
 
 # Local deployment overrides
 .env
+
+# Local server state (created by `node server.js` without STATE_DIR)
+state/
+.state/

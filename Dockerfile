@@ -1,8 +1,8 @@
 # HKL Standards — single-container backend (Node, zero npm dependencies).
 #
-# The app is a single-page frontend (index.html) that fetches
+# The app is a single-page frontend (public/) that fetches
 # data/hkl_standards_export.json. Unlike the previous static-only nginx image,
-# this backend ALSO persists user edits server-side (see server.js): the shared
+# this backend ALSO persists user edits server-side (see server/): the shared
 # state lives in STATE_DIR/state.json on a Docker volume and is exposed via the
 # /api/state endpoint, so edits made in the web interface survive redeploys and
 # are shared across devices — not just kept in one browser's localStorage.
@@ -21,10 +21,10 @@ WORKDIR /app
 
 # Backend (no dependencies, so no npm install step).
 COPY server.js ./server.js
+COPY server/ ./server/
 
-# App content served as static files.
-COPY index.html ./public/index.html
-COPY data/ ./public/data/
+# App content served as static files (HTML shell, CSS, JS modules, data).
+COPY public/ ./public/
 
 # State is persisted here; mount a volume at /app/state to keep it across
 # container recreations (see docker-compose.yml).

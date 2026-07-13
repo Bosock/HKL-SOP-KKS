@@ -1,11 +1,14 @@
 'use strict';
-/* Tests for the pure helper functions embedded in index.html's <script>.
+/* Tests for the pure helper functions in the client modules (public/js/).
 
    Rather than duplicate their bodies (which would drift), we extract the
-   actual source of each function from index.html and evaluate it in a vm
-   sandbox with the few globals it needs. If someone edits a helper in
-   index.html, these tests exercise the edited code. Only genuinely pure
-   helpers (no DOM / no localStorage) are covered here. */
+   actual source of each function from the module files and evaluate it in a
+   vm sandbox with the few globals it needs. If someone edits a helper, these
+   tests exercise the edited code. Only genuinely pure helpers (no DOM / no
+   localStorage) are covered here.
+
+   The module list is read from public/index.html's <script src> tags, so the
+   test also fails loudly if a referenced module file is missing. */
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -13,12 +16,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const SRC = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const PUBLIC = path.join(__dirname, '..', 'public');
+const SHELL = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+const MODULES = [...SHELL.matchAll(/<script src="(js\/[^"]+)"><\/script>/g)].map(m => m[1]);
+assert.ok(MODULES.length > 0, 'no <script src="js/…"> tags found in public/index.html');
+const SRC = MODULES.map(rel => fs.readFileSync(path.join(PUBLIC, rel), 'utf8')).join('\n');
 
 // Grab a `function NAME(...) { ... }` definition by balancing braces.
 function extractFn(name) {
   const sig = SRC.indexOf('function ' + name + '(');
-  assert.notEqual(sig, -1, `function ${name} not found in index.html`);
+  assert.notEqual(sig, -1, `function ${name} not found in public/js modules`);
   let i = SRC.indexOf('{', sig);
   let depth = 0;
   for (let j = i; j < SRC.length; j++) {
@@ -32,7 +39,7 @@ function extractFn(name) {
 function extractConst(name) {
   const re = new RegExp('const ' + name + '\\s*=.*', '');
   const m = SRC.match(re);
-  assert.ok(m, `const ${name} not found in index.html`);
+  assert.ok(m, `const ${name} not found in public/js modules`);
   return m[0];
 }
 

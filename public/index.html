@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0c1116">
+<title>HKL Standards</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="bar-row">
+      <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
+      <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
+      <span id="syncDot" class="sync-dot" title="Server-Status"></span>
+      <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
+      <button class="icon-btn" id="menuBtn" aria-label="Menü">☰</button>
+    </div>
+    <div class="modes" id="modesRow">
+      <button id="mUse" class="on">Nutzung</button>
+      <button id="mCatalog">Katalog</button>
+      <button id="mCare">Pflege</button>
+      <button id="mAdmin">Verwaltung</button>
+    </div>
+    <div class="search-wrap" id="searchWrap">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" type="search" placeholder="Standard suchen…" autocomplete="off">
+        <button class="clear" id="searchClear" aria-label="Suche löschen">×</button>
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    <div class="screen active" id="scr-standards"></div>
+    <div class="screen" id="scr-rubriken"></div>
+    <div class="screen" id="scr-detail"></div>
+    <div class="screen" id="scr-care"></div>
+    <div class="screen" id="scr-care-item"></div>
+    <div class="screen" id="scr-catalog"></div>
+    <div class="screen" id="scr-admin"></div>
+    <div class="screen" id="scr-form"></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="sheet-overlay" id="sheetOv"></div>
+<div class="sheet" id="sheet"></div>
+
+<script src="js/core/store.js"></script>
+<script src="js/core/config.js"></script>
+<script src="js/features/additions.js"></script>
+<script src="js/features/catalog.js"></script>
+<script src="js/core/labels.js"></script>
+<script src="js/data/demo-data.js"></script>
+<script src="js/core/app-state.js"></script>
+<script src="js/data/load.js"></script>
+<script src="js/ui/nav.js"></script>
+<script src="js/ui/standards.js"></script>
+<script src="js/ui/rubriken.js"></script>
+<script src="js/ui/detail.js"></script>
+<script src="js/features/care.js"></script>
+<script src="js/ui/catalog.js"></script>
+<script src="js/ui/admin.js"></script>
+<script src="js/features/backup.js"></script>
+<script src="js/ui/forms.js"></script>
+<script src="js/ui/chrome.js"></script>
+<script src="js/features/quickmenu.js"></script>
+<script src="js/core/sync.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
