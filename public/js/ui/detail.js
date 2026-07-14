@@ -11,7 +11,7 @@ function entryCardHTML(e,cid,isMatGer){
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
   const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) );
-  const editedMark=(ADMIN&&hasEdit)?`<span class="edited-mark" title="manuell angepasst">✎</span>`:'';
+  const editBtn=ADMIN?`<button type="button" class="entry-edit-btn${hasEdit?' edited':''}" title="${hasEdit?'Bearbeiten (angepasst)':'Bearbeiten'}" aria-label="Eintrag bearbeiten">✎</button>`:'';
   const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
   /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular und das Schnellmenü überschreibbar. */
   const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
@@ -28,7 +28,7 @@ function entryCardHTML(e,cid,isMatGer){
   const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
   const star = important?`<span class="imp-star">⭐</span>`:'';
   const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${editedMark}${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${editBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
