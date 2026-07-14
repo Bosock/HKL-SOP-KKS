@@ -18,11 +18,11 @@ function updateAuthUI() {
   if (!authBtn) return;
 
   if (currentGithubUser) {
+    const who = currentGithubUser.name || currentGithubUser.login || ('#' + currentGithubUser.id);
     authBtn.textContent = '👤';
-    authBtn.title = `Angemeldet als: ${currentGithubUser.id}`;
+    authBtn.title = `Angemeldet als ${who} (GitHub)`;
     authBtn.onclick = () => {
-      const msg = `${currentGithubUser.id}\n\nAbmelden?`;
-      if (confirm(msg)) window.location.href = '/auth/logout';
+      if (confirm(`Angemeldet als ${who}.\n\nAbmelden?`)) window.location.href = '/auth/logout';
     };
   } else {
     authBtn.textContent = '🔓';

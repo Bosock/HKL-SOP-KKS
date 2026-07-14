@@ -1,5 +1,11 @@
+/* GitHub-OAuth-Login (optional). Endpunkte:
+     GET /auth/github           → Weiterleitung zu GitHub (Authorize)
+     GET /auth/github/callback  → Code gegen Token tauschen, Cookie setzen
+     GET /auth/logout           → Session-Cookie löschen
+     GET /auth/user             → aktuellen Nutzer melden ({user:null} wenn keiner)
+   Ist GITHUB_CLIENT_ID/SECRET nicht gesetzt, sind nur /auth/user und
+   /auth/logout nutzbar (liefern sauberes JSON); der eigentliche Flow meldet 400. */
 'use strict';
-const { URL } = require('url');
 const config = require('../config.js');
 const { sendJSON } = require('../http-util.js');
 
@@ -8,34 +14,31 @@ function matches(pathname) {
 }
 
 async function handle(req, res, url) {
+  const p = url.pathname;
+  if (p === '/auth/user' && req.method === 'GET') { handleGetUser(req, res); return; }
+  if (p === '/auth/logout' && req.method === 'GET') { handleLogout(res); return; }
+
+  // Ab hier ist GitHub-OAuth-Konfiguration erforderlich.
   if (!config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) {
-    sendJSON(res, 400, { error: 'GitHub OAuth not configured' });
+    sendJSON(req, res, 400, { error: 'GitHub OAuth ist auf diesem Server nicht konfiguriert' });
     return;
   }
-
-  if (url.pathname === '/auth/github' && req.method === 'GET') {
-    handleGitHubLogin(req, res, url);
-  } else if (url.pathname === '/auth/github/callback' && req.method === 'GET') {
-    await handleGitHubCallback(req, res, url);
-  } else if (url.pathname === '/auth/logout' && req.method === 'GET') {
-    handleLogout(req, res);
-  } else if (url.pathname === '/auth/user' && req.method === 'GET') {
-    handleGetUser(req, res);
-  } else {
-    sendJSON(res, 404, { error: 'Not found' });
-  }
+  if (p === '/auth/github' && req.method === 'GET') { handleGitHubLogin(res); return; }
+  if (p === '/auth/github/callback' && req.method === 'GET') { await handleGitHubCallback(req, res, url); return; }
+  sendJSON(req, res, 404, { error: 'Not found' });
 }
 
-function handleGitHubLogin(req, res, url) {
-  const state = Math.random().toString(36).substring(7);
-  const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
-  githubAuthUrl.searchParams.set('client_id', config.GITHUB_CLIENT_ID);
-  githubAuthUrl.searchParams.set('redirect_uri', config.GITHUB_CALLBACK_URL);
-  githubAuthUrl.searchParams.set('scope', 'user:email read:user');
-  githubAuthUrl.searchParams.set('state', state);
-
-  res.writeHead(302, { 'Set-Cookie': `oauth_state=${state}; Path=/; HttpOnly; SameSite=Lax` });
-  res.writeHead(302, { Location: githubAuthUrl.toString() });
+function handleGitHubLogin(res) {
+  const state = randomToken();
+  const auth = new URL('https://github.com/login/oauth/authorize');
+  auth.searchParams.set('client_id', config.GITHUB_CLIENT_ID);
+  auth.searchParams.set('redirect_uri', config.GITHUB_CALLBACK_URL);
+  auth.searchParams.set('scope', 'read:user user:email');
+  auth.searchParams.set('state', state);
+  res.writeHead(302, {
+    'Set-Cookie': `oauth_state=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+    'Location': auth.toString(),
+  });
   res.end();
 }
 
@@ -43,59 +46,54 @@ async function handleGitHubCallback(req, res, url) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const cookies = parseCookies(req);
-
   if (!code || !state || state !== cookies.oauth_state) {
-    sendJSON(res, 400, { error: 'Invalid OAuth state' });
+    sendJSON(req, res, 400, { error: 'Ungültiger OAuth-Zustand' });
     return;
   }
-
   try {
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+    const tokenResp = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: config.GITHUB_CLIENT_ID,
         client_secret: config.GITHUB_CLIENT_SECRET,
         code,
+        redirect_uri: config.GITHUB_CALLBACK_URL,
       }),
     });
-
-    const tokenData = await tokenResponse.json();
-    if (tokenData.error) {
-      sendJSON(res, 400, { error: tokenData.error_description || 'OAuth failed' });
+    const token = await tokenResp.json();
+    if (token.error || !token.access_token) {
+      sendJSON(req, res, 400, { error: token.error_description || 'OAuth fehlgeschlagen' });
       return;
     }
-
-    const userResponse = await fetch('https://api.github.com/user', {
+    const userResp = await fetch('https://api.github.com/user', {
       headers: {
-        'Authorization': `token ${tokenData.access_token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${token.access_token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'hkl-sop-kks',
       },
     });
-
-    const userData = await userResponse.json();
-
-    const token = Buffer.from(`${userData.id}:${tokenData.access_token}`).toString('base64');
+    const user = await userResp.json();
+    const session = Buffer.from(JSON.stringify({
+      id: user.id, login: user.login, name: user.name || user.login,
+    })).toString('base64');
     res.writeHead(302, {
       'Set-Cookie': [
-        `github_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+        `github_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
         `oauth_state=; Path=/; HttpOnly; Max-Age=0`,
       ],
       'Location': '/',
     });
     res.end();
   } catch (err) {
-    console.error('GitHub OAuth error:', err);
-    sendJSON(res, 500, { error: 'OAuth exchange failed' });
+    console.error('[auth] GitHub OAuth error:', err && err.message);
+    sendJSON(req, res, 502, { error: 'OAuth-Austausch fehlgeschlagen' });
   }
 }
 
-function handleLogout(req, res) {
+function handleLogout(res) {
   res.writeHead(302, {
-    'Set-Cookie': 'github_token=; Path=/; HttpOnly; Max-Age=0',
+    'Set-Cookie': 'github_session=; Path=/; HttpOnly; Max-Age=0',
     'Location': '/',
   });
   res.end();
@@ -103,27 +101,30 @@ function handleLogout(req, res) {
 
 function handleGetUser(req, res) {
   const cookies = parseCookies(req);
-  if (!cookies.github_token) {
-    sendJSON(res, 200, { user: null });
-    return;
-  }
-
+  const raw = cookies.github_session;
+  if (!raw) { sendJSON(req, res, 200, { user: null }); return; }
   try {
-    const [userId] = Buffer.from(cookies.github_token, 'base64').toString().split(':');
-    sendJSON(res, 200, { user: { id: userId } });
-  } catch (err) {
-    sendJSON(res, 200, { user: null });
+    const u = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    sendJSON(req, res, 200, { user: { id: u.id, login: u.login, name: u.name } });
+  } catch (e) {
+    sendJSON(req, res, 200, { user: null });
   }
 }
 
 function parseCookies(req) {
-  const cookies = {};
-  const cookieHeader = req.headers.cookie || '';
-  cookieHeader.split(';').forEach(cookie => {
-    const [key, value] = cookie.trim().split('=');
-    if (key && value) cookies[key] = decodeURIComponent(value);
+  const out = {};
+  (req.headers.cookie || '').split(';').forEach(part => {
+    const i = part.indexOf('=');
+    if (i < 0) return;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
   });
-  return cookies;
+  return out;
+}
+
+function randomToken() {
+  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
 module.exports = { matches, handle };
