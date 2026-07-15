@@ -87,9 +87,22 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
+  const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
+  const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
+/* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */
+function rubrikCids(idx){ const r=curStd.rubriken[idx]; if(!r) return []; const out=[];
+  (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push(cidOf(curStd.id,idx,si,ei)); }); });
+  newEntriesFor(r,idx).forEach(n=>out.push('new|'+n.id));
+  return out; }
+/* Entfernt auf einmal alle gesetzten Häkchen dieser Rubrik (nur lokal – Checks
+   sind gerätespezifisch, hkl_checks). */
+function clearRubrikChecks(idx){ const cids=rubrikCids(idx); const set=cids.filter(c=>checks[c]);
+  if(!set.length){ toast('Keine Häkchen gesetzt'); return; }
+  if(!confirm('Alle '+set.length+' Häkchen dieser Rubrik zurücksetzen?')) return;
+  set.forEach(c=>{ delete checks[c]; }); saveChecks(); reRenderDetail(); toast(set.length+' Häkchen zurückgesetzt'); }
 /* Startet das Hinzufügen eines Eintrags in der aktuell offenen Rubrik.
    Liest Standard/Rubrik aus dem Navigationszustand (keine Nutzertexte im onclick). */
 function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;

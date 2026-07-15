@@ -161,6 +161,10 @@
   .entry.filled .e-why { color:var(--e-fill-text); opacity:.92; }
   .ew-lbl { display:inline-block; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--warn); background:rgba(239,143,66,.13); padding:1px 7px; border-radius:5px; margin-right:7px; vertical-align:1px; }
   @keyframes whyIn { from{ opacity:0; transform:translateY(-3px); } to{ opacity:1; transform:none; } }
+  .chk-reset { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 13px; margin-bottom:9px; background:var(--surface); border:1px solid var(--line); border-radius:11px; }
+  .cr-count { font-size:12.5px; font-weight:600; color:var(--ok); }
+  .cr-btn { flex:0 0 auto; min-height:36px; padding:7px 13px; font-size:12.5px; font-weight:600; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; cursor:pointer; }
+  .cr-btn:active { background:var(--surface-3); }
   .e-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center; }
   .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap; }
   .tag-spec { color:var(--accent); background:rgba(61,155,224,.13); }
