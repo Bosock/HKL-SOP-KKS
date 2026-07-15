@@ -6,8 +6,44 @@
    Ist GITHUB_CLIENT_ID/SECRET nicht gesetzt, sind nur /auth/user und
    /auth/logout nutzbar (liefern sauberes JSON); der eigentliche Flow meldet 400. */
 'use strict';
+const crypto = require('crypto');
 const config = require('../config.js');
 const { sendJSON } = require('../http-util.js');
+
+/* Session-Signierung (HMAC-SHA256). Das Cookie trägt die Nutzerdaten als
+   base64url-JSON plus eine Signatur: "<payload>.<sig>". Ohne gültige Signatur
+   wird das Cookie verworfen — so kann niemand durch simples base64-Basteln
+   eine fremde Identität (oder Admin-Rechte, falls später darauf aufgebaut
+   wird) vortäuschen. */
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromB64url(str) {
+  return Buffer.from(String(str).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+}
+function hmac(payloadB64) {
+  return b64url(crypto.createHmac('sha256', config.SESSION_SECRET).update(payloadB64).digest());
+}
+function signSession(obj) {
+  const payload = b64url(JSON.stringify(obj));
+  return payload + '.' + hmac(payload);
+}
+function verifySession(raw) {
+  if (typeof raw !== 'string' || raw.indexOf('.') < 0) return null;
+  const i = raw.lastIndexOf('.');
+  const payload = raw.slice(0, i);
+  const sig = raw.slice(i + 1);
+  const expected = hmac(payload);
+  // Längen-Guard vor timingSafeEqual (wirft bei ungleicher Länge).
+  if (sig.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try { return JSON.parse(fromB64url(payload).toString('utf8')); }
+  catch (e) { return null; }
+}
+function sessionCookie(name, value, maxAge) {
+  const secure = config.COOKIE_SECURE ? ' Secure;' : '';
+  return `${name}=${value}; Path=/; HttpOnly;${secure} SameSite=Lax; Max-Age=${maxAge}`;
+}
 
 function matches(pathname) {
   return pathname.startsWith('/auth/');
@@ -36,7 +72,7 @@ function handleGitHubLogin(res) {
   auth.searchParams.set('scope', 'read:user user:email');
   auth.searchParams.set('state', state);
   res.writeHead(302, {
-    'Set-Cookie': `oauth_state=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+    'Set-Cookie': sessionCookie('oauth_state', state, 600),
     'Location': auth.toString(),
   });
   res.end();
@@ -74,12 +110,12 @@ async function handleGitHubCallback(req, res, url) {
       },
     });
     const user = await userResp.json();
-    const session = Buffer.from(JSON.stringify({
+    const session = signSession({
       id: user.id, login: user.login, name: user.name || user.login,
-    })).toString('base64');
+    });
     res.writeHead(302, {
       'Set-Cookie': [
-        `github_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`,
+        sessionCookie('github_session', session, 2592000),
         `oauth_state=; Path=/; HttpOnly; Max-Age=0`,
       ],
       'Location': '/',
@@ -101,14 +137,9 @@ function handleLogout(res) {
 
 function handleGetUser(req, res) {
   const cookies = parseCookies(req);
-  const raw = cookies.github_session;
-  if (!raw) { sendJSON(req, res, 200, { user: null }); return; }
-  try {
-    const u = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-    sendJSON(req, res, 200, { user: { id: u.id, login: u.login, name: u.name } });
-  } catch (e) {
-    sendJSON(req, res, 200, { user: null });
-  }
+  const u = verifySession(cookies.github_session);
+  if (!u) { sendJSON(req, res, 200, { user: null }); return; }
+  sendJSON(req, res, 200, { user: { id: u.id, login: u.login, name: u.name } });
 }
 
 function parseCookies(req) {
@@ -124,7 +155,7 @@ function parseCookies(req) {
 }
 
 function randomToken() {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  return crypto.randomBytes(16).toString('hex');
 }
 
-module.exports = { matches, handle };
+module.exports = { matches, handle, signSession, verifySession };

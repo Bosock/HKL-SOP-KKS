@@ -28,6 +28,7 @@ const { sendJSON, maybeGzip } = require('./http-util');
 const { safeJoin } = require('./static');
 const { server } = require('./app');
 const stateRoute = require('./routes/state');
+const authRoute = require('./routes/auth');
 
 async function main() {
   await fsp.mkdir(config.STATE_DIR, { recursive: true });
@@ -56,6 +57,9 @@ module.exports = {
   maybeGzip,
   sendJSON,
   handleState: stateRoute.handle,
+  // Session-Signierung (für Tests der OAuth-Härtung).
+  signSession: authRoute.signSession,
+  verifySession: authRoute.verifySession,
   // State accessors for tests (STATE is module-private).
   getState: state.getState,
   resetState: state.resetState,

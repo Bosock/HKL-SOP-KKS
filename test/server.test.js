@@ -380,3 +380,57 @@ test('loadState rehydrates rev and state from disk', async () => {
   assert.equal(s.rev, 7);
   assert.deepEqual(s.state, { restored: 42 });
 });
+
+// ===========================================================================
+// OAuth session hardening (signed cookies, non-forgeable identity)
+// ===========================================================================
+test('signSession round-trips through verifySession', () => {
+  const signed = srv.signSession({ id: 42, login: 'alice', name: 'Alice' });
+  const back = srv.verifySession(signed);
+  assert.equal(back.login, 'alice');
+  assert.equal(back.id, 42);
+});
+
+test('verifySession rejects a forged (unsigned base64) cookie', () => {
+  // This is exactly the old cookie format an attacker could hand-craft.
+  const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
+  assert.equal(srv.verifySession(forged), null);
+});
+
+test('verifySession rejects a tampered payload', () => {
+  const signed = srv.signSession({ id: 1, login: 'bob', name: 'Bob' });
+  const evilPayload = Buffer.from(JSON.stringify({ id: 1, login: 'admin', name: 'admin' }))
+    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const tampered = evilPayload + '.' + signed.slice(signed.lastIndexOf('.') + 1);
+  assert.equal(srv.verifySession(tampered), null);
+});
+
+test('GET /auth/user without a cookie returns user:null', async () => {
+  const r = await request('GET', '/auth/user');
+  assert.equal(r.status, 200);
+  assert.deepEqual(json(r), { user: null });
+});
+
+test('GET /auth/user honours a validly signed session cookie', async () => {
+  const signed = srv.signSession({ id: 7, login: 'carol', name: 'Carol' });
+  const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + signed } });
+  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' } });
+});
+
+test('GET /auth/user ignores a forged session cookie', async () => {
+  const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
+  const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + forged } });
+  assert.deepEqual(json(r), { user: null });
+});
+
+test('GET /auth/github is 400 when OAuth is not configured', async () => {
+  // The test env sets no GITHUB_CLIENT_ID/SECRET.
+  const r = await request('GET', '/auth/github');
+  assert.equal(r.status, 400);
+});
+
+test('GET /auth/logout clears the session cookie', async () => {
+  const r = await request('GET', '/auth/logout');
+  assert.equal(r.status, 302);
+  assert.match(String(r.headers['set-cookie']), /github_session=;/);
+});

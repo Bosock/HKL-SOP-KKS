@@ -2,6 +2,7 @@
    der Umgebung gelesen (Tests setzen process.env daher VOR dem require). */
 'use strict';
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -16,6 +17,19 @@ const MAX_BODY = parseInt(process.env.MAX_BODY || String(32 * 1024 * 1024), 10);
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:8080/auth/github/callback';
+
+/* Secret zum Signieren der Login-Session (HMAC). Ohne konfiguriertes
+   SESSION_SECRET wird beim Start ein zufälliges erzeugt — dann sind vorhandene
+   Sessions nach jedem Neustart ungültig (Nutzer müssen sich neu anmelden).
+   Für stabile Sessions ein festes SESSION_SECRET in der .env setzen. */
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+  console.warn('[config] SESSION_SECRET not set — using a random per-boot secret; logins reset on restart. Set SESSION_SECRET in .env for stable sessions.');
+}
+/* Cookies nur dann mit Secure-Flag ausliefern, wenn wir hinter TLS laufen
+   (erkennbar am https-Callback). Sonst würde der Browser Secure-Cookies über
+   http://localhost verwerfen und die lokale OAuth-Entwicklung bräche. */
+const COOKIE_SECURE = /^https:/i.test(GITHUB_CALLBACK_URL);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -77,4 +91,4 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'geolocation=(), microphone=(), payment=()',
 };
 
-module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL };
+module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, SESSION_SECRET, COOKIE_SECURE };
