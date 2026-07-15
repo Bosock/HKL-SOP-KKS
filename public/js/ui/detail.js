@@ -25,10 +25,16 @@ function entryCardHTML(e,cid,isMatGer){
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
   const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
-  const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
+  /* Farbe: Kategoriefarbe als Vollrahmen; frei gewählte Farbe (accent bzw. für
+     eigene Einträge e.color) füllt den ganzen Eintrag – Textfarbe automatisch
+     nach Kontrast (pickTextColor). */
+  const fill=(accent!==undefined)?accent:e.color; const catCol=isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`;
+  let style, filledCls='';
+  if(fill){ const t=pickTextColor(fill); style=`--e-col:${esc(fill)};--e-fill:${esc(fill)};--e-fill-text:${t};--e-fill-bd:${t}`; filledCls=' filled'; }
+  else { style=`--e-col:${catCol}`; }
   const star = important?`<span class="imp-star">⭐</span>`:'';
   const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${editBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  return `<div class="entry ${cls}${filledCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${editBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }

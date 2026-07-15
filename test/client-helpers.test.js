@@ -81,8 +81,13 @@ function loadHelpers() {
     extractFn('fmtEUR'),
     extractFn('mengeNum'),
     extractFn('rubTplMatches'),
+    extractFn('hexToRgb'),
+    extractFn('_lin'),
+    extractFn('relLuminance'),
+    extractFn('contrastRatio'),
+    extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -734,4 +739,29 @@ test('rubTplMatches: missing/invalid inputs are false', () => {
   assert.equal(fns.rubTplMatches(null, 'a', 'CRM'), false);
   assert.equal(fns.rubTplMatches({ scope: 'groups' }, 'a', 'CRM'), false); // no groups array
   assert.equal(fns.rubTplMatches({ scope: 'weird' }, 'a', 'CRM'), false);
+});
+
+// --- color helpers ----------------------------------------------------------
+test('hexToRgb: parses 3- and 6-digit hex, rejects junk', () => {
+  assert.equal(JSON.stringify(fns.hexToRgb('#ffffff')), JSON.stringify({ r: 255, g: 255, b: 255 }));
+  assert.equal(JSON.stringify(fns.hexToRgb('#000')), JSON.stringify({ r: 0, g: 0, b: 0 }));
+  assert.equal(JSON.stringify(fns.hexToRgb('3d9be0')), JSON.stringify({ r: 61, g: 155, b: 224 }));
+  assert.equal(fns.hexToRgb('nope'), null);
+  assert.equal(fns.hexToRgb(null), null);
+});
+test('contrastRatio: white on black is 21, identical is 1', () => {
+  assert.ok(Math.abs(fns.contrastRatio('#ffffff', '#000000') - 21) < 0.01);
+  assert.ok(Math.abs(fns.contrastRatio('#123456', '#123456') - 1) < 0.001);
+});
+test('pickTextColor: dark bg -> white text, light bg -> dark text', () => {
+  assert.equal(fns.pickTextColor('#000000'), '#ffffff');
+  assert.equal(fns.pickTextColor('#1b73b8'), '#ffffff'); // deep blue
+  assert.equal(fns.pickTextColor('#ffffff'), '#0b1116');
+  assert.equal(fns.pickTextColor('#e8b34a'), '#0b1116'); // amber
+});
+test('pickTextColor: chosen text always meets a usable contrast (>=4)', () => {
+  ['#000000', '#ffffff', '#3d9be0', '#e8b34a', '#34c98a', '#e85d5d', '#7f95ab'].forEach(bg => {
+    const t = fns.pickTextColor(bg);
+    assert.ok(fns.contrastRatio(bg, t) >= 4, `contrast for ${bg} too low`);
+  });
 });

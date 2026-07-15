@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -25,6 +25,7 @@ const SHELL = [
   'css/app.css',
   'js/core/store.js',
   'js/core/config.js',
+  'js/core/color.js',
   'js/features/auth.js',
   'js/features/additions.js',
   'js/features/pricing.js',

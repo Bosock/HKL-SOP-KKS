@@ -26,7 +26,7 @@ function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||
   return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
     natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
     spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
-    ist_fliesstext:false, _added:true, _aid:f.aid }; }
+    color:(f.color||'').trim()||null, ist_fliesstext:false, _added:true, _aid:f.aid }; }
 /* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
 function mergeAdditions(base,add){
   const inject=(std)=>{ const rubs=std.rubriken||[]; let cloned=false;

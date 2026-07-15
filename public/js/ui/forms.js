@@ -15,14 +15,15 @@ function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
   const uk=hasCid?(canonUk(e,cid)||''):(e.unterkategorie||'');
   const spv=hasCid?qeGet(e,cid,'spez'):undefined; const spezRaw=(spv!==undefined)?spv:e.spezifikation;
   const spez=Array.isArray(spezRaw)?spezRaw.join(' | '):(spezRaw||'');
-  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk,spez}; }
+  const cv=hasCid?qeGet(e,cid,'color'):undefined; const color=(cv!==undefined&&cv!==null)?cv:(e.color||'');
+  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk,spez,color}; }
 
 /* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
         | {kind:'catalog'} | {kind:'editCatalog',id}
    optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
 function openEntryForm(desc){
   const isCatalog=(desc.kind==='catalog'||desc.kind==='editCatalog');
-  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:'',spez:''}; let title='Eintrag hinzufügen';
+  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:'',spez:'',color:''}; let title='Eintrag hinzufügen';
   if(desc.kind==='editAdd'){ const e=findAddEntry(desc.sid,desc.ri,desc.aid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e); title='Eintrag bearbeiten'; }
   else if(desc.kind==='editBase'){ const e=findEntry(desc.cid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e,desc.cid); title='Eintrag bearbeiten'; }
   else if(desc.kind==='editCatalog'){ const it=findCatalogItem(desc.id); if(!it){ toast('Katalog-Eintrag nicht gefunden',true); return; } cur=catalogToForm(it); title='Katalog-Eintrag bearbeiten'; }
@@ -35,6 +36,13 @@ function openEntryForm(desc){
     <div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>
     <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
     <div class="form-grp"><div class="flabel">Spezifikation / Hinweis (optional)</div><input class="loc-input" id="fSpez" placeholder="z. B. femoral · für CS-Katheter" value="${esc(cur.spez||'')}"><p class="hint">Erscheint als farbige Markierung am Eintrag – z. B. „femoral" oder „für CS-Katheter".</p></div>
+    <div class="form-grp"><div class="flabel">Farbe (optional)</div>
+      <div class="colorpick" id="fColorWrap" data-color="${esc(cur.color||'')}">
+        <button type="button" class="cp-none ${!cur.color?'sel':''}" onclick="pickEntryColor(this,'')">ohne</button>
+        ${UK_PALETTE.map(c=>`<button type="button" class="cp-sw ${cur.color===c?'sel':''}" style="background:${c}" onclick="pickEntryColor(this,'${c}')"></button>`).join('')}
+        <input type="color" class="cp-inp" value="${esc(cur.color||'#3d9be0')}" oninput="pickEntryColor(this,this.value)">
+      </div>
+      <p class="hint">Färbt den ganzen Eintrag; die Textfarbe wird automatisch lesbar gewählt.</p></div>
     <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveEntryForm()">Speichern</button></div>
   </div>`;
   const crumb=isCatalog?'Katalog':(curStd?curStd.titel:'');
@@ -43,7 +51,10 @@ function openEntryForm(desc){
 /* Öffnet das Formular für einen Katalog-Eintrag (neu oder bearbeiten). */
 function openCatalogForm(id){ const back=()=>{ renderCatalog(); show('scr-catalog'); updateBar(); }; openEntryForm(id?{kind:'editCatalog',id,back}:{kind:'catalog',back}); }
 
-function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value, spez:$('fSpez').value }; }
+function pickEntryColor(el,val){ const w=$('fColorWrap'); if(!w) return; w.dataset.color=val||'';
+  w.querySelectorAll('.cp-sw,.cp-none').forEach(b=>b.classList.remove('sel'));
+  if(el&&el.classList&&(el.classList.contains('cp-sw')||el.classList.contains('cp-none'))) el.classList.add('sel'); }
+function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value, spez:$('fSpez').value, color:($('fColorWrap').dataset.color||'') }; }
 function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
   const d=formCtx&&formCtx.desc; if(!d) return;
   if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid()}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
@@ -59,6 +70,7 @@ function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
   const menge=f.menge.trim(); qeSet('cid',e,cid,'mengeVal',menge||null);
   const val=f.sizeVal.trim(); qeSet('cid',e,cid,'groessen', val?[{typ:f.sizeTyp||'dimension',wert:val,roh:val}]:[]);
   const spez=(f.spez||'').trim(); qeSet('cid',e,cid,'spez', spez||null);
+  const color=(f.color||'').trim(); qeSet('cid',e,cid,'color', color||null);
   if(f.nat===e.natur){ if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=f.nat; saveJSON('hkl_overrides',overrides); }
   const uk=f.uk.trim(); reassign[cid]=(uk||null); saveJSON('hkl_reassign',reassign);
   saveQE(); buildMaterialIndex(); computeUkList(); }
