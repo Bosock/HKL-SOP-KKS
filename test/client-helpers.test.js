@@ -68,6 +68,7 @@ function loadHelpers() {
     extractFn('addSlug'),
     extractFn('parseSyn'),
     extractFn('filterGlossary'),
+    extractFn('voteTally'),
     extractFn('makeAddEntry'),
     extractFn('mergeAdditions'),
     extractFn('makeCatalogItem'),
@@ -89,7 +90,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -301,6 +302,15 @@ test('filterGlossary: matches term or definition, case-insensitively', () => {
 test('filterGlossary: no match yields empty array; tolerates null list', () => {
   assert.equal(fns.filterGlossary(GLOS, 'zzz').length, 0);
   assert.equal(fns.filterGlossary(null, 'x').length, 0);
+});
+
+// --- voteTally --------------------------------------------------------------
+test('voteTally: counts up/down votes, ignoring zero/absent', () => {
+  assert.equal(J(fns.voteTally({ a: 1, b: 1, c: -1, d: 0 })), J({ up: 2, down: 1 }));
+});
+test('voteTally: empty / null votes yield zeroes', () => {
+  assert.equal(J(fns.voteTally({})), J({ up: 0, down: 0 }));
+  assert.equal(J(fns.voteTally(null)), J({ up: 0, down: 0 }));
 });
 test('makeAddEntry: defaults natur to material and size typ to dimension', () => {
   const e = fns.makeAddEntry({ name: 'Ding', sizeVal: '10', aid: 'a3' });

@@ -26,6 +26,8 @@ function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-titl
   h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
   h+=sAct('🔎','Globale Suche','Material, Gerät, Synonym …',"showSheet(false);openGlobalSearch()");
   h+=sAct('📖','Abkürzungsglossar','Begriffe nachschlagen',"showSheet(false);openGlossary()");
+  { const pend=(typeof pendingSuggestions==='function')?pendingSuggestions().length:0;
+    h+=sAct('✍️','Änderungsvorschläge',pend?(pend+' offen'):'ansehen & bewerten',"showSheet(false);openSuggestions()"); }
   if(ADMIN){ h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
     h+=sAct('📦','Material pflegen','Fotos & Lagerorte',"menuGo('care')");
     h+=sAct('🔑','Passwort ändern','',"changePw()");

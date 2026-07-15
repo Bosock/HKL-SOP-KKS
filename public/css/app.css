@@ -76,6 +76,25 @@
   .gl-actions { flex:0 0 auto; display:flex; gap:5px; }
   .gl-actions button { width:32px; height:32px; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:13px; cursor:pointer; }
   .gl-actions button:active { background:var(--surface-3); }
+  .propose-target { font-size:15px; font-weight:600; color:var(--text); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:9px 12px; }
+  .sg-card { border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin-bottom:9px; background:var(--surface); }
+  .sg-card.accepted { opacity:.72; border-color:var(--ok); }
+  .sg-card.rejected { opacity:.6; }
+  .sg-head { display:flex; align-items:center; gap:8px; }
+  .sg-entry { flex:1; font-size:15px; font-weight:700; }
+  .sg-status { flex:0 0 auto; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 8px; border-radius:6px; }
+  .sg-status.accepted { color:var(--ok); background:rgba(52,201,138,.14); }
+  .sg-status.rejected { color:var(--danger,#e0795f); background:rgba(224,121,95,.14); }
+  .sg-del { flex:0 0 auto; width:30px; height:30px; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); cursor:pointer; }
+  .sg-to { font-size:14px; font-weight:600; color:var(--accent); margin-top:5px; }
+  .sg-note { font-size:13.5px; line-height:1.5; color:var(--text-dim); margin-top:5px; }
+  .sg-by { font-size:11px; color:var(--text-faint); margin-top:6px; }
+  .sg-vote { display:flex; gap:8px; margin-top:9px; }
+  .sg-vbtn { min-height:36px; padding:6px 14px; font-size:13px; font-weight:600; border:1px solid var(--line); border-radius:9px; background:var(--surface-2); color:var(--text-dim); cursor:pointer; font-variant-numeric:tabular-nums; }
+  .sg-vbtn.on { border-color:var(--accent); color:var(--accent); background:rgba(61,155,224,.1); }
+  .sg-admin { display:flex; gap:8px; margin-top:10px; }
+  .sg-admin .btn { flex:1; min-height:40px; }
+  .std-meta-line { font-size:12px; color:var(--text-dim); background:var(--surface); border:1px solid var(--line-soft); border-radius:9px; padding:8px 12px; margin-bottom:12px; }
   .entry.flash { animation:hklflash 1.6s ease-out; }
   @keyframes hklflash { 0%,20% { box-shadow:0 0 0 3px var(--accent); } 100% { box-shadow:0 0 0 0 transparent; } }
   /* Hinweis-Banner (wie ein Eintrag, ohne Checkbox, deutlich abgesetzt, frei einfärbbar) */
