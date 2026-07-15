@@ -25,7 +25,12 @@ jobs:
         with:
           node-version: "22"
 
-      # Zero npm dependencies, so nothing to install — just run the suite.
+      # Zero npm dependencies, so nothing to install.
+      # check: JS syntax + sw.js/index.html shell-list sync (catches footguns
+      # that the unit tests, which only load individual helpers, can't see).
+      - name: Self-check (syntax + shell sync)
+        run: npm run check
+
       - name: Run tests
         run: npm test
 

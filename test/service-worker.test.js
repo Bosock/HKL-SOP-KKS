@@ -139,3 +139,12 @@ test('activate drops stale hkl caches, keeps current ones', async () => {
   assert.ok(!names.includes('hkl-shell-v3'), 'old cache removed');
   assert.ok(names.includes('hkl-shell-v4'), 'current shell cache kept');
 });
+
+test('sw.js SHELL list stays in sync with index.html <script> tags', () => {
+  // Same footgun the README warns about, enforced mechanically: every module
+  // index.html loads must be precached, and nothing may linger in SHELL that
+  // index.html no longer loads.
+  const { shellSyncProblems } = require('../scripts/check.js');
+  const problems = shellSyncProblems();
+  assert.deepStrictEqual(problems, [], problems.join('\n'));
+});
