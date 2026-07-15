@@ -108,6 +108,12 @@ server.js             dünner Einstiegspunkt (node server.js)
 - Der Server hält den Zustand im Speicher und persistiert ihn atomar nach
   `STATE_DIR/state.json` (Docker-Volume `hkl-state`) — siehe README,
   Abschnitt "Server-side state".
+- **Snapshots (Datenverlust-Schutz):** Bei jedem Schreiben legt der Server
+  zusätzlich gedrosselt (≤ 1 Snapshot je `BACKUP_INTERVAL_MS`, Default 10 min)
+  eine zeitgestempelte Kopie in `STATE_DIR/backups/` ab und behält die
+  `BACKUP_KEEP` neuesten (Default 48). Best-effort und fire-and-forget: ein
+  Backup-Fehler darf das eigentliche Persistieren nie blockieren. Wiederher-
+  stellen = passende `backups/state-….json` über `state.json` kopieren.
 
 ## Auslieferung & Caching
 
@@ -115,12 +121,26 @@ server.js             dünner Einstiegspunkt (node server.js)
   **ETag** ausgeliefert: Browser revalidieren jede Datei (billige 304er),
   nach einem Deploy mischen sich also nie alte Module mit neuer Schale.
   Bilder/Fonts bekommen `max-age=3600`.
+- **Sicherheits-Header** (`SECURITY_HEADERS` in `server/config.js`, auf jeder
+  Antwort): strikte **Content-Security-Policy** (`default-src 'self'`,
+  `object-src 'none'`, `base-uri`/`form-action`/`frame-ancestors 'self'`;
+  `script`/`style` behalten `'unsafe-inline'` wegen der Inline-`onclick=`/
+  `style=`-Attribute, aber **nie** `'unsafe-eval'`; `img-src` erlaubt `data:`
+  für die Foto-Pflege), **HSTS** (ohne `includeSubDomains`) sowie
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` und eine
+  `Permissions-Policy`, die ungenutzte Sensor-/Zahlungs-APIs abschaltet.
 - Deployment-Weg unverändert: Push auf `main` → GitHub Actions (Tests →
   Image → GHCR) → SSH-Deploy per `docker compose pull && up -d`
   (siehe README / `.github/workflows/deploy.yml`).
 
-## Tests
+## Tests & Selbstprüfung
 
+- `npm run check` (`scripts/check.js`, keine Abhängigkeiten): `node --check`
+  über alle projekteigenen `.js`-Dateien **und** Abgleich, dass die `SHELL`-
+  Liste in `public/sw.js` und die `<script>`-Tags in `public/index.html`
+  dieselben Module führen. Fängt die zwei Fehlerquellen ab, die kein Unit-Test
+  sieht (Syntaxfehler, auseinandergelaufene Offline-Liste). Läuft in CI vor den
+  Tests. Praktische Anleitung für Mitpflegende: [CONTRIBUTING.md](CONTRIBUTING.md).
 - `npm test` (Node ≥ 18, `node --test`, keine Abhängigkeiten).
 - `test/server.test.js`: Integrationstests gegen den echten Server auf einem
   ephemeren Port (Fixture-Verzeichnisse unter `$TMPDIR`).
