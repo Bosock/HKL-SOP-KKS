@@ -78,6 +78,39 @@ function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id)
   $('scr-form').innerHTML=h; show('scr-form'); setBar(title,mode==='admin'?'Verwaltung':'Neuer Standard',true); }
 function saveStandardForm(id){ const titel=$('sTitel').value.trim(); const gruppe=$('sGruppe').value.trim(); if(!titel){ toast('Bitte einen Titel eingeben',true); return; }
   if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); } else { addStandard(titel,gruppe); toast('Standard angelegt'); } closeForm(); }
+
+/* ---- Rubrik-Vorlagen (Name, Typ, Geltungsbereich) ---- */
+function openRubrikForm(id){ const t=id?RUBTPL.find(x=>x.id===id):null;
+  const curName=t?t.name:''; const curTyp=t?t.typ:'sonstige'; const curScope=t?t.scope:'std'; const curGroups=(t&&t.groups)||[];
+  const grps=distinctGroups();
+  const typOpt=(v,l)=>`<option value="${v}" ${curTyp===v?'selected':''}>${l}</option>`;
+  const scopeBtn=(v,l,sub)=>`<button type="button" class="scope-btn ${curScope===v?'sel':''}" data-scope="${v}" onclick="pickRubScope(this)"><b>${esc(l)}</b><span class="scope-sub">${esc(sub)}</span></button>`;
+  const grpChecks=grps.length?grps.map(g=>`<label class="grpchk"><input type="checkbox" value="${esc(g)}" ${curGroups.indexOf(g)>=0?'checked':''}><span>${esc(g)}</span></label>`).join(''):'<p class="hint">Noch keine Gruppen vorhanden.</p>';
+  const h=`<div class="pcard">
+    <div class="form-grp"><div class="flabel">Name der Rubrik</div><input class="loc-input" id="rName" placeholder="z. B. Notfallmaterial" value="${esc(curName)}"></div>
+    <div class="form-grp"><div class="flabel">Typ</div><select class="form-sel" id="rTyp" style="width:100%">${typOpt('material','Material')}${typOpt('geraete','Geräte')}${typOpt('sonstige','Ablauf / Sonstige')}</select></div>
+    <div class="form-grp"><div class="flabel">Wo soll die Rubrik erscheinen?</div>
+      <div class="scope-pick" id="rScope" data-scope="${curScope}">
+        ${scopeBtn('std','Nur dieser Standard',curStd?curStd.titel:'einzeln')}
+        ${scopeBtn('groups','Bestimmte Gruppen','Mehrfachauswahl')}
+        ${scopeBtn('all','Alle Eingriffe','jeder Standard')}
+      </div>
+      <div class="grp-checks" id="rGroups" style="${curScope==='groups'?'':'display:none'}">${grpChecks}</div>
+      <p class="hint">„Bestimmte Gruppen" oder „Alle Eingriffe" lassen die Rubrik automatisch in jedem passenden Standard erscheinen – dort wird sie einzeln befüllt. Später zentral steuerbar unter „Rubriken-Vorlagen".</p>
+    </div>
+    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveRubrikForm(${t?`'${esc(t.id)}'`:'null'})">Speichern</button></div>
+  </div>`;
+  const back=(mode==='admin')?(()=>{ renderAdmin(); show('scr-admin'); updateBar(); }):(()=>{ if(curStd){ openStandard(curStd.id,true); } else { setMode('use'); } });
+  formCtx={desc:{kind:'rubtpl'}, back};
+  $('scr-form').innerHTML=h; show('scr-form'); setBar(t?'Rubrik bearbeiten':'Neue Rubrik', mode==='admin'?'Verwaltung':(curStd?curStd.titel:''), true); }
+function pickRubScope(btn){ const p=btn.parentElement; p.querySelectorAll('.scope-btn').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); p.dataset.scope=btn.dataset.scope;
+  const g=$('rGroups'); if(g) g.style.display=(btn.dataset.scope==='groups')?'':'none'; }
+function readRubrikForm(){ const scope=($('rScope').dataset.scope)||'std'; const groups=[...document.querySelectorAll('#rGroups input:checked')].map(x=>x.value);
+  return { name:$('rName').value, typ:$('rTyp').value, scope, groups }; }
+function saveRubrikForm(id){ const f=readRubrikForm(); if(!f.name.trim()){ toast('Bitte einen Namen eingeben',true); return; }
+  if(f.scope==='groups' && !f.groups.length){ toast('Bitte mindestens eine Gruppe wählen',true); return; }
+  saveRubrikTpl(Object.assign({},f,{id:(id||undefined), std:(curStd&&curStd.id)}));
+  toast(id?'Rubrik gespeichert':'Rubrik angelegt'); const b=formCtx&&formCtx.back; formCtx=null; if(b) b(); }
 function addStandard(titel,gruppe){ const taken={}; (DB?DB.standards:[]).forEach(s=>taken[s.id]=1); ADDITIONS.standards.forEach(s=>taken[s.id]=1); const id=addSlug(titel,taken);
   ADDITIONS.standards.push({ id, titel:titel.trim(), gruppe:(gruppe||'').trim()||'Eigene', dateiname:'(manuell angelegt)', _added:true, rubriken:[
     {name:'Saal und Geräte', typ:'geraete', sub_bereiche:[]}, {name:'Material', typ:'material', sub_bereiche:[]}, {name:'Ablauf', typ:'ablauf', sub_bereiche:[]} ] });

@@ -80,8 +80,9 @@ function loadHelpers() {
     extractFn('parsePreis'),
     extractFn('fmtEUR'),
     extractFn('mengeNum'),
+    extractFn('rubTplMatches'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -710,4 +711,27 @@ test('mengeNum: numeric input floored, non-positive -> 1', () => {
   assert.equal(fns.mengeNum(4), 4);
   assert.equal(fns.mengeNum(2.7), 2);
   assert.equal(fns.mengeNum(0), 1);
+});
+
+// --- rubTplMatches ----------------------------------------------------------
+test('rubTplMatches: scope "all" matches every standard', () => {
+  const t = { scope: 'all' };
+  assert.equal(fns.rubTplMatches(t, 'crm-x', 'CRM'), true);
+  assert.equal(fns.rubTplMatches(t, 'lhk-y', 'LHK'), true);
+});
+test('rubTplMatches: scope "std" matches only its standard', () => {
+  const t = { scope: 'std', std: 'crm-x' };
+  assert.equal(fns.rubTplMatches(t, 'crm-x', 'CRM'), true);
+  assert.equal(fns.rubTplMatches(t, 'crm-z', 'CRM'), false);
+});
+test('rubTplMatches: scope "groups" matches by group membership', () => {
+  const t = { scope: 'groups', groups: ['CRM', 'TAVI'] };
+  assert.equal(fns.rubTplMatches(t, 'a', 'CRM'), true);
+  assert.equal(fns.rubTplMatches(t, 'b', 'TAVI'), true);
+  assert.equal(fns.rubTplMatches(t, 'c', 'LHK'), false);
+});
+test('rubTplMatches: missing/invalid inputs are false', () => {
+  assert.equal(fns.rubTplMatches(null, 'a', 'CRM'), false);
+  assert.equal(fns.rubTplMatches({ scope: 'groups' }, 'a', 'CRM'), false); // no groups array
+  assert.equal(fns.rubTplMatches({ scope: 'weird' }, 'a', 'CRM'), false);
 });

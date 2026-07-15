@@ -129,6 +129,26 @@ server.js             dünner Einstiegspunkt (node server.js)
   Schale) und führt sie in einer vm-Sandbox aus — getestet wird also immer
   der echte, aktuelle Quelltext.
 
+## Rubrik-Vorlagen mit Geltungsbereich (`hkl_rubtpl`)
+
+Rubriken können über einen einzelnen Standard hinaus gelten. Eine Vorlage
+(`RUBTPL`-Eintrag) hat `{id, name, typ, scope}` mit `scope`:
+
+- `'std'` (+ `std:<id>`) — nur ein Standard,
+- `'groups'` (+ `groups:[…]`) — alle Standards dieser Gruppen,
+- `'all'` — jeder Standard.
+
+`mergeCustomIntoDB()` hängt passende Vorlagen-Rubriken (`__tplid`) **auf einer
+Kopie** des jeweiligen Standard-Objekts an (nie DB_BASE mutieren!). Steuerung
+per Häkchen-Matrix in der Verwaltung (`rubTplPanelHTML` / `toggleTplGroup`, per
+Gruppen-**Index** aufgerufen — Freitext gehört wegen der `esc()`-Apostroph-Altlast
+nicht in `onclick`). Anlegen/Bearbeiten über `openRubrikForm`. Einträge und
+Rubrik-Overrides (`RUBE`) nutzen den stabilen `rubKey` (`tpl:<id>`).
+
+Neue geteilte Schlüssel: `hkl_prod` (Material-Preise) und `hkl_rubtpl`
+(Rubrik-Vorlagen) — beide in `SHARED_KEYS` (`core/sync.js`) **und** `BACKUP_KEYS`
+(`features/backup.js`).
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped kein `'`. In `onclick`-Attributen, die Werte in
