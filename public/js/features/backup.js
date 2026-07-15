@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -13,6 +13,16 @@ function importBackupFile(ev){ const f=ev.target.files&&ev.target.files[0]; if(!
     applyBackup(obj); toast('Sicherung eingespielt – App lädt neu'); setTimeout(()=>{ try{ location.reload(); }catch(e){} },700);
   }catch(e){ toast('Datei nicht lesbar',true); } }; r.readAsText(f); }
 function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
+
+/* Plankosten je Standard als CSV (Semikolon-getrennt, mit BOM für Excel/Umlaute). */
+function exportCostCSV(){ try{
+  const rows=[['Standard','Gruppe','Plankosten_EUR','Materialien','mit_Preis']];
+  DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total)
+    .forEach(x=>rows.push([stdTitel(x.s),stdGruppe(x.s),x.pk.total.toFixed(2).replace('.',','),String(x.pk.items),String(x.pk.priced)]));
+  const csv=rows.map(r=>r.map(c=>{ const v=String(c); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='hkl-plankosten-'+today()+'.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('CSV heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
 
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
@@ -31,6 +41,19 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
+
+  /* Panel: Kostenübersicht (Plankosten je Standard) */
+  const costRows=DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total);
+  const costTotal=costRows.reduce((n,x)=>n+x.pk.total,0);
+  html+=`<details class="vpanel"><summary>💶 Kostenübersicht <span class="vp-hint">Plankosten je Standard</span></summary><div class="vpanel-body">`;
+  if(!costRows.length) html+=`<p class="hint">Noch keine Preise erfasst. Stückpreise in „Material pflegen" eintragen – die Plankosten je Standard erscheinen dann hier und als Banner im Standard.</p>`;
+  else{
+    html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name"><b>Gesamt (alle Standards)</b></span><span class="uk-count">${fmtEUR(costTotal)}</span></div></div>`;
+    costRows.forEach(x=>{ const miss=x.pk.items-x.pk.priced;
+      html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(x.s))}</span><span class="uk-count">${fmtEUR(x.pk.total)}</span></div><div class="vw-ctx">${esc(stdGruppe(x.s))} · ${x.pk.priced}/${x.pk.items} mit Preis${miss>0?` · ${miss} offen`:''}</div></div>`; });
+    html+=`<div class="p-actions"><button class="btn btn-sec" onclick="exportCostCSV()">Als CSV exportieren</button></div>`;
+  }
+  html+=`<p class="hint">Plankosten = Summe aus Menge × Stückpreis über alle beschaffbaren Materialien/Geräte eines Standards. Materialien ohne Preis zählen als 0.</p></div></details>`;
 
   /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
   html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;

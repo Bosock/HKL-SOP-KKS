@@ -13,6 +13,10 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
       ${s.__new?`<button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px;color:var(--danger)" onclick="deleteNewStandard()">🗑 Löschen</button>`:''}
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
     </div></div>`;
+    const pk=stdPlankosten(s);
+    if(pk.items>0){ const miss=pk.items-pk.priced;
+      html+=`<div class="banner cost-banner"><div class="cost-total"><span class="cost-lbl">Plankosten</span><span class="cost-val">${fmtEUR(pk.total)}</span></div>
+        <div class="cost-sub">${pk.priced}/${pk.items} Materialien mit Preis${miss>0?` · ${miss} ohne Preis (in „Material pflegen" ergänzen)`:''}</div></div>`; }
   }
   const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   vis.forEach(({r,i})=>{

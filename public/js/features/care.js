@@ -14,19 +14,30 @@ function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
   box.innerHTML=html;
 }
 function setCareFilter(f){ careFilter=f; renderCare(); }
-function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; const c=careMem[key]||{};
+function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; const c=careMem[key]||{}; const pd=PROD[key]||{};
   const sizes=m.groessen&&m.groessen.length?`<div class="info-field"><div class="if-l">Größen (automatisch erkannt)</div><div class="if-v">${sizeBadges(m.groessen)}</div></div>`:'';
   const photoInner=c.photo?`<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Foto aufnehmen oder wählen</div>`;
   $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
     <input type="file" id="fileInp" accept="image/*" style="display:none" onchange="onPhoto(event,'${esc(key)}')">
     <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
+    <div class="flabel" style="margin-top:14px">HERSTELLER (optional)</div><input class="loc-input" id="prodHersteller" placeholder="z. B. Terumo" value="${esc(pd.hersteller||'')}">
+    <div class="flabel">REF / BESTELLNR. (optional)</div><input class="loc-input" id="prodRef" placeholder="z. B. RM*RG5J40" value="${esc(pd.ref||'')}">
+    <div class="flabel">VERWENDUNG (optional)</div><input class="loc-input" id="prodVerw" placeholder="z. B. femoraler Zugang" value="${esc(pd.verwendung||'')}">
+    <div class="flabel">STÜCKPREIS € (optional)</div><input class="loc-input" id="prodPreis" inputmode="decimal" placeholder="z. B. 12,50" value="${esc(pd.preis!=null?String(pd.preis).replace('.',','):'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="goBack()">Zurück</button><button class="btn btn-pri" onclick="saveCare('${esc(key)}')">Speichern</button></div></div>
-    <div class="foot">Foto und Lagerort werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</div>`;
+    <div class="foot">Foto, Lagerort und Preisangaben werden zentral auf dem Server gespeichert und auf allen Geräten geteilt. Aus den Stückpreisen werden die Plankosten je Standard berechnet.</div>`;
   show('scr-care-item'); setBar(m.name,'Material pflegen',true);
 }
 function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${r.result}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=r.result; } }; r.readAsDataURL(f); }
 function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null;
   if(!loc&&!photo){ delete careMem[key]; } else { careMem[key]={loc,photo}; }
-  saveJSON('hkl_care',careMem); toast('Gespeichert'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
+  saveJSON('hkl_care',careMem);
+  /* Preisstammdaten (eigener Schlüssel hkl_prod) */
+  const hersteller=$('prodHersteller').value.trim(); const ref=$('prodRef').value.trim();
+  const verwendung=$('prodVerw').value.trim(); const preis=parsePreis($('prodPreis').value);
+  if(!hersteller&&!ref&&!verwendung&&preis==null){ delete PROD[key]; }
+  else { PROD[key]={hersteller:hersteller||null,ref:ref||null,verwendung:verwendung||null,preis:(preis==null?null:preis)}; }
+  saveProd();
+  toast('Gespeichert'); setTimeout(()=>{ renderCare(); show('scr-care'); updateBar(); },600); }
 

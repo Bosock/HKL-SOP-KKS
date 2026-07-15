@@ -77,8 +77,11 @@ function loadHelpers() {
     extractFn('findCatalogDuplicateGroups'),
     extractFn('mergeCatalogGroup'),
     extractFn('mergeCatalogDuplicates'),
+    extractFn('parsePreis'),
+    extractFn('fmtEUR'),
+    extractFn('mengeNum'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -656,4 +659,55 @@ test('mergeCatalogDuplicates: does not mutate input array', () => {
 test('mergeCatalogDuplicates: tolerates null/empty input', () => {
   assert.equal(JSON.stringify(fns.mergeCatalogDuplicates(null).items), '[]');
   assert.equal(JSON.stringify(fns.mergeCatalogDuplicates([]).items), '[]');
+});
+
+// --- parsePreis -------------------------------------------------------------
+test('parsePreis: German comma decimal', () => {
+  assert.equal(fns.parsePreis('12,50'), 12.5);
+  assert.equal(fns.parsePreis('12,50 €'), 12.5);
+  assert.equal(fns.parsePreis('  3,00  '), 3);
+});
+test('parsePreis: thousands dot + comma decimal', () => {
+  assert.equal(fns.parsePreis('1.234,56'), 1234.56);
+  assert.equal(fns.parsePreis('1.234,56 €'), 1234.56);
+});
+test('parsePreis: plain dot decimal and integers', () => {
+  assert.equal(fns.parsePreis('12.5'), 12.5);
+  assert.equal(fns.parsePreis('42'), 42);
+});
+test('parsePreis: numbers pass through, junk is null', () => {
+  assert.equal(fns.parsePreis(9.99), 9.99);
+  assert.equal(fns.parsePreis(''), null);
+  assert.equal(fns.parsePreis(null), null);
+  assert.equal(fns.parsePreis('k. A.'), null);
+});
+
+// --- fmtEUR -----------------------------------------------------------------
+test('fmtEUR: two decimals with comma and euro sign', () => {
+  assert.equal(fns.fmtEUR(12.5), '12,50 €');
+  assert.equal(fns.fmtEUR(0), '0,00 €');
+  assert.equal(fns.fmtEUR(3), '3,00 €');
+});
+test('fmtEUR: thousands separator', () => {
+  assert.equal(fns.fmtEUR(1234.56), '1.234,56 €');
+  assert.equal(fns.fmtEUR(1000000), '1.000.000,00 €');
+});
+test('fmtEUR: null/invalid becomes dash', () => {
+  assert.equal(fns.fmtEUR(null), '–');
+  assert.equal(fns.fmtEUR(NaN), '–');
+});
+
+// --- mengeNum ---------------------------------------------------------------
+test('mengeNum: parses leading count, defaults to 1', () => {
+  assert.equal(fns.mengeNum('2x'), 2);
+  assert.equal(fns.mengeNum('3 ×'), 3);
+  assert.equal(fns.mengeNum('10 Stück'), 10);
+  assert.equal(fns.mengeNum(null), 1);
+  assert.equal(fns.mengeNum('auf Ansage'), 1);
+  assert.equal(fns.mengeNum(''), 1);
+});
+test('mengeNum: numeric input floored, non-positive -> 1', () => {
+  assert.equal(fns.mengeNum(4), 4);
+  assert.equal(fns.mengeNum(2.7), 2);
+  assert.equal(fns.mengeNum(0), 1);
 });
