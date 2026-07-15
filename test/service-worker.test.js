@@ -70,7 +70,7 @@ test('install precaches the app shell', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  const shell = env.stores.get('hkl-shell-v3');
+  const shell = env.stores.get('hkl-shell-v4');
   assert.ok(shell, 'shell cache exists');
   assert.ok(shell.m.has('http://localhost/index.html'), 'index.html precached');
   assert.ok(shell.m.has('http://localhost/css/app.css'), 'css precached');
@@ -133,9 +133,9 @@ test('activate drops stale hkl caches, keeps current ones', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  await env.caches.open('hkl-shell-v2'); // simulate an old generation
+  await env.caches.open('hkl-shell-v3'); // simulate an old generation
   await env.activate();
   const names = await env.caches.keys();
-  assert.ok(!names.includes('hkl-shell-v2'), 'old cache removed');
-  assert.ok(names.includes('hkl-shell-v3'), 'current shell cache kept');
+  assert.ok(!names.includes('hkl-shell-v3'), 'old cache removed');
+  assert.ok(names.includes('hkl-shell-v4'), 'current shell cache kept');
 });

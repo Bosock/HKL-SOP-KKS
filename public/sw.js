@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -29,6 +29,7 @@ const SHELL = [
   'js/features/auth.js',
   'js/features/additions.js',
   'js/features/pricing.js',
+  'js/features/hints.js',
   'js/features/catalog.js',
   'js/core/labels.js',
   'js/data/demo-data.js',
