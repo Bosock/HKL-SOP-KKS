@@ -68,8 +68,14 @@ function newStdToObj(n){ return { id:'ns:'+n.id, dateiname:'(App-eigen)', titel:
   { name:'Materialien', typ:'material', sub_bereiche:[{name:null,eintraege:[]}] },
   { name:'Ablauf', typ:'sonstige', sub_bereiche:[{name:null,eintraege:[]}] } ] }; }
 function newRubToObj(n){ return { name:n.name, typ:n.typ||'sonstige', __nrid:n.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
+/* Legt App-eigene Standards/Rubriken über das DB. WICHTIG: nie das (ggf. mit
+   DB_BASE geteilte) Standard-Objekt mutieren – sonst „wandern" eingefügte
+   Rubriken in die Basis und Einträge gehen beim nächsten rebuildDB verloren.
+   Betroffene Standards werden daher geklont. */
 function mergeCustomIntoDB(){ NEWSTD.forEach(n=>{ if(!DB.standards.find(s=>s.id==='ns:'+n.id)) DB.standards.push(newStdToObj(n)); });
-  NEWRUB.forEach(n=>{ const s=DB.standards.find(x=>x.id===n.std); if(s && !s.rubriken.find(r=>r.__nrid===n.id)) s.rubriken.push(newRubToObj(n)); }); }
+  if(!NEWRUB.length) return;
+  DB.standards=DB.standards.map(s=>{ const extra=NEWRUB.filter(n=>n.std===s.id && !((s.rubriken||[]).find(r=>r.__nrid===n.id)));
+    if(!extra.length) return s; return Object.assign({},s,{rubriken:(s.rubriken||[]).concat(extra.map(newRubToObj))}); }); }
 function stdTitel(s){ return (STDE[s.id]&&STDE[s.id].titel)||s.titel; }
 function stdGruppe(s){ return (STDE[s.id]&&STDE[s.id].gruppe)||s.gruppe; }
 function stdHidden(s){ return !!(STDE[s.id]&&STDE[s.id].hidden); }
@@ -77,8 +83,9 @@ function rubKey(r,idx){ return curStd.id+'|'+(r.__nrid?('nr:'+r.__nrid):idx); }
 function rubName(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.name)||r.name; }
 function rubHidden(r,idx){ const e=RUBE[rubKey(r,idx)]; return !!(e&&e.hidden); }
 function rubOrd(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.ord!=null)?e.ord:idx; }
-function newStandard(){ if(!ADMIN) return; const t=prompt('Titel des neuen Standards:',''); if(t==null||!t.trim()) return; const g=prompt('Gruppe (z. B. CRM, EPU, PCI …):','EIGENE')||'EIGENE';
-  const id='s'+Date.now().toString(36)+Math.floor(Math.random()*10000); NEWSTD.push({id,titel:t.trim(),gruppe:g.trim()||'EIGENE'}); saveNEWSTD(); mergeCustomIntoDB(); renderStandards(); toast('Standard angelegt'); }
+/* Standards werden ausschließlich über das Formular-System (openStandardForm →
+   ADDITIONS) angelegt; das frühere prompt-basierte newStandard() wurde bei der
+   Konsolidierung entfernt. */
 function editStandard(){ if(!ADMIN||!curStd) return; const t=prompt('Titel:',stdTitel(curStd)); if(t==null) return; const g=prompt('Gruppe:',stdGruppe(curStd)); if(g==null) return;
   STDE[curStd.id]=Object.assign({},STDE[curStd.id],{titel:(t.trim()||stdTitel(curStd)),gruppe:(g.trim()||stdGruppe(curStd))}); saveSTDE(); openStandard(curStd.id,true); toast('Standard aktualisiert'); }
 function toggleStdHidden(){ if(!ADMIN||!curStd) return; const h=!stdHidden(curStd); if(h&&!confirm('Standard ausblenden? Kolleginnen sehen ihn dann nicht mehr; Wiederherstellung in Verwaltung → Ausgeblendete Einträge.')) return;
@@ -101,10 +108,10 @@ function moveRubrik(idx,dir){ if(!ADMIN) return; const vis=curStd.rubriken.map((
   vis.forEach((x,k)=>{ const key=rubKey(x.r,x.i); RUBE[key]=Object.assign({},RUBE[key],{ord:k}); });
   const a=vis[pos], b=vis[j]; const ka=rubKey(a.r,a.i), kb=rubKey(b.r,b.i); const t=RUBE[ka].ord; RUBE[ka].ord=RUBE[kb].ord; RUBE[kb].ord=t; saveRUBE(); openStandard(curStd.id,true); }
 function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.menge||null, menge_zahl:null, natur:n.natur||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:n.uk||null, spalte:null, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false, __new:true }; }
-function addNewEntry(idxKey,uk,natur){ if(!ADMIN) return; const name=prompt('Name des neuen Eintrags:',''); if(name==null||!name.trim()) return; const menge=prompt('Menge (z. B. 1x — leer lassen = keine):','');
-  const id='n'+Date.now().toString(36)+Math.floor(Math.random()*10000);
-  NEW.push({id, std:curStd.id, rub:idxKey, uk:(uk||null), name:name.trim(), menge:(menge&&menge.trim())?menge.trim():null, natur:natur||'material'});
-  saveNEW(); toast('Eintrag angelegt'); reRenderDetail(); }
+/* Einträge werden ausschließlich über das Formular-System (startAddEntry →
+   ADDITIONS) angelegt; das frühere prompt-basierte addNewEntry() wurde bei der
+   Konsolidierung entfernt. Bestehende Alt-Einträge (NEW) werden weiterhin
+   angezeigt (newEntriesFor), aber nicht mehr neu erzeugt. */
 function rubIdxKey(r,idx){ return r.__nrid?('nr:'+r.__nrid):idx; }
 function newEntriesFor(r,idx){ const key=rubIdxKey(r,idx); return NEW.filter(n=>n.std===curStd.id && String(n.rub)===String(key)); }
 function orderKeyFor(idx,uk){ const r=curStd.rubriken[idx]; return curStd.id+'|'+rubIdxKey(r,idx)+'|'+(uk||''); }

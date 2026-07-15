@@ -55,20 +55,17 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     });
-    const addBtn=(uk)=>ADMIN?`<button class="sheet-pick-btn" style="margin:2px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',${uk==null?'null':`decodeURIComponent('${encodeURIComponent(uk)}')`},'material')">＋ Eintrag hinzufügen</button>`:'';
     let groups=[...groupsMap.values()];
     groups.forEach(g=>{ g.entries=sortByOrder(g.entries, orderKeyFor(idx,(g.uk||''))); });
     groups.sort((a,b)=>{ const oa=(a.uk&&ukMetaOf(a.uk).order!=null)?ukMetaOf(a.uk).order:a.first; const ob=(b.uk&&ukMetaOf(b.uk).order!=null)?ukMetaOf(b.uk).order:b.first; return oa-ob; });
     const named=groups.filter(g=>g.uk); const nullG=groups.find(g=>!g.uk);
-    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); html+=addBtn(null); }
+    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
     else {
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
-      html+=addBtn(null);
       named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
         const ckey=idx+':'+g.uk; const isCol=!!collapsed[ckey];
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" onclick="toggleUk('${esc(ckey)}')"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
-        html+=addBtn(g.uk);
         html+=`</div></div>`;
       });
     }
@@ -76,7 +73,6 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     const {blocks}=ablaufSegments(idx);
     blocks.forEach(b=>{ if(b.head) html+=`<div class="sub-head">${esc(b.head)}</div>`;
       b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); }); });
-    if(ADMIN) html+=`<button class="sheet-pick-btn" style="margin:6px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',null,'hinweis')">＋ Schritt hinzufügen</button>`;
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
