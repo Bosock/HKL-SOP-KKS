@@ -152,6 +152,15 @@
   .entry-edit-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px -4px -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:flex-start; transition:background .15s,color .15s; }
   .entry-edit-btn:active { background:var(--surface-3); }
   .entry-edit-btn.edited { color:var(--accent); border-color:var(--accent); }
+  .entry-why-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px 0 -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:flex-start; transition:background .15s,transform .15s; }
+  .entry-why-btn:active { background:var(--surface-3); }
+  .entry.show-why .entry-why-btn { background:var(--size-bg,rgba(232,179,74,.16)); transform:scale(1.05); }
+  .entry.filled .entry-why-btn { border-color:var(--e-fill-text); }
+  .e-why { display:none; padding:0 12px 12px 12px; font-size:13.5px; line-height:1.5; color:var(--text-dim); }
+  .entry.show-why .e-why { display:block; animation:whyIn .18s ease-out; }
+  .entry.filled .e-why { color:var(--e-fill-text); opacity:.92; }
+  .ew-lbl { display:inline-block; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--warn); background:rgba(239,143,66,.13); padding:1px 7px; border-radius:5px; margin-right:7px; vertical-align:1px; }
+  @keyframes whyIn { from{ opacity:0; transform:translateY(-3px); } to{ opacity:1; transform:none; } }
   .e-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center; }
   .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap; }
   .tag-spec { color:var(--accent); background:rgba(61,155,224,.13); }

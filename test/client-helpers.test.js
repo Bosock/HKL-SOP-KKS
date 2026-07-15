@@ -66,6 +66,7 @@ function loadHelpers() {
     extractFn('natOf'),
     extractFn('natList'),
     extractFn('addSlug'),
+    extractFn('parseSyn'),
     extractFn('makeAddEntry'),
     extractFn('mergeAdditions'),
     extractFn('makeCatalogItem'),
@@ -87,7 +88,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -257,6 +258,29 @@ test('makeAddEntry: no menge / no size yields nulls and empty groessen', () => {
   assert.equal(e.groessen.length, 0);
   assert.equal(e.unterkategorie, null);
   assert.equal(e.spezifikation, null);
+  assert.equal(e.why, null);
+  assert.equal(e.synonyms, null);
+});
+test('makeAddEntry: carries why text and parsed synonyms', () => {
+  const e = fns.makeAddEntry({ name: 'Schleuse', why: '  weil femoral  ', synonyms: 'Introducer, Sheath ; Schleuse', aid: 'a5' });
+  assert.equal(e.why, 'weil femoral');
+  assert.equal(JSON.stringify(e.synonyms), JSON.stringify(['Introducer', 'Sheath', 'Schleuse']));
+});
+
+// --- parseSyn --------------------------------------------------------------
+// Cross-realm (vm sandbox) arrays aren't reference-equal to host arrays, so
+// compare by JSON like the makeAddEntry tests above.
+const J = (v) => JSON.stringify(v);
+test('parseSyn: splits on comma/semicolon and trims, dropping empties', () => {
+  assert.equal(J(fns.parseSyn('a, b ;c,, ; d')), J(['a', 'b', 'c', 'd']));
+});
+test('parseSyn: empty / whitespace yields empty array', () => {
+  assert.equal(J(fns.parseSyn('   ')), '[]');
+  assert.equal(J(fns.parseSyn('')), '[]');
+  assert.equal(J(fns.parseSyn(null)), '[]');
+});
+test('parseSyn: passes through an existing array (trim + drop empties)', () => {
+  assert.equal(J(fns.parseSyn([' x ', '', 'y'])), J(['x', 'y']));
 });
 test('makeAddEntry: defaults natur to material and size typ to dimension', () => {
   const e = fns.makeAddEntry({ name: 'Ding', sizeVal: '10', aid: 'a3' });
