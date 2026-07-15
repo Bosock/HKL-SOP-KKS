@@ -67,6 +67,15 @@
   .srch-hit:active { background:var(--surface-2); }
   .srch-hit .sh-name { font-size:15px; font-weight:600; }
   .srch-hit .sh-ctx { font-size:12px; color:var(--text-dim); margin-top:3px; }
+  .gs-std { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--text-dim); margin:14px 2px 8px; }
+  .gs-badge { flex:0 0 auto; font-size:10px; font-weight:700; color:var(--accent); background:rgba(61,155,224,.13); padding:2px 8px; border-radius:6px; }
+  .gl-card { display:flex; align-items:flex-start; gap:10px; border:1px solid var(--line-soft); border-radius:11px; padding:11px 13px; margin-bottom:7px; background:var(--surface); }
+  .gl-main { flex:1; min-width:0; }
+  .gl-term { font-size:15px; font-weight:700; color:var(--text); }
+  .gl-def { font-size:13.5px; line-height:1.5; color:var(--text-dim); margin-top:3px; }
+  .gl-actions { flex:0 0 auto; display:flex; gap:5px; }
+  .gl-actions button { width:32px; height:32px; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:13px; cursor:pointer; }
+  .gl-actions button:active { background:var(--surface-3); }
   .entry.flash { animation:hklflash 1.6s ease-out; }
   @keyframes hklflash { 0%,20% { box-shadow:0 0 0 3px var(--accent); } 100% { box-shadow:0 0 0 0 transparent; } }
   /* Hinweis-Banner (wie ein Eintrag, ohne Checkbox, deutlich abgesetzt, frei einfärbbar) */

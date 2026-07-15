@@ -24,6 +24,8 @@ function changePw(){ const o=prompt('Aktuelles Passwort:'); if(o==null) return; 
 function adminLogout(){ ADMIN=false; store.set('hkl_authuntil','0'); applyAdminUI(); showSheet(false); setMode('use'); toast('Abgemeldet'); }
 function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Menü${ADMIN?' · angemeldet':''}</div>`;
   h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
+  h+=sAct('🔎','Globale Suche','Material, Gerät, Synonym …',"showSheet(false);openGlobalSearch()");
+  h+=sAct('📖','Abkürzungsglossar','Begriffe nachschlagen',"showSheet(false);openGlossary()");
   if(ADMIN){ h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
     h+=sAct('📦','Material pflegen','Fotos & Lagerorte',"menuGo('care')");
     h+=sAct('🔑','Passwort ändern','',"changePw()");

@@ -14,7 +14,7 @@
      - Regelmäßiges Polling übernimmt Fremdänderungen, solange man
        selbst nichts Ungespeichertes offen hat.
    ───────────────────────────────────────────────────────────── */
-const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_prod','hkl_hints','hkl_additions','hkl_catalog',
+const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_additions','hkl_catalog',
   /* Inhalte & Anpassungen aus dem Verwaltungsmodus (vom Kollegen) – jetzt ebenfalls zentral geteilt */
   'hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw'];
 
@@ -32,6 +32,7 @@ function hydrateVars(){
   careMem=loadJSON('hkl_care',{});
   PROD=loadJSON('hkl_prod',{});
   HINTS=loadHints();
+  GLOSSARY=loadGlossary();
   ADDITIONS=loadAdditions();
   CATALOG=loadCatalog();
   /* Inhalte & Anpassungen aus dem Verwaltungsmodus (vom Kollegen) neu einlesen */
@@ -56,6 +57,8 @@ function refreshView(){
   try{
     if(!DB) return;
     if($('sheet').classList.contains('show')) return;
+    /* offene Such-/Glossar-Ansichten nicht wegrendern (analog Material-Detail) */
+    if($('scr-search').classList.contains('active')||$('scr-glossary').classList.contains('active')) return;
     buildMaterialIndex();
     if(mode==='admin'){ renderAdmin(); updateBar(); return; }
     if(mode==='catalog'){ if(!formCtx){ renderCatalog(); updateBar(); } return; }

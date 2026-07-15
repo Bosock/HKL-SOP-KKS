@@ -67,6 +67,7 @@ function loadHelpers() {
     extractFn('natList'),
     extractFn('addSlug'),
     extractFn('parseSyn'),
+    extractFn('filterGlossary'),
     extractFn('makeAddEntry'),
     extractFn('mergeAdditions'),
     extractFn('makeCatalogItem'),
@@ -88,7 +89,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -281,6 +282,25 @@ test('parseSyn: empty / whitespace yields empty array', () => {
 });
 test('parseSyn: passes through an existing array (trim + drop empties)', () => {
   assert.equal(J(fns.parseSyn([' x ', '', 'y'])), J(['x', 'y']));
+});
+
+// --- filterGlossary ---------------------------------------------------------
+const GLOS = [
+  { id: '1', term: 'CS', def: 'Coronarsinus' },
+  { id: '2', term: 'ACT', def: 'Activated Clotting Time' },
+  { id: '3', term: 'RCA', def: 'rechte Koronararterie' },
+];
+test('filterGlossary: empty query returns all, alphabetically by term', () => {
+  const r = fns.filterGlossary(GLOS, '');
+  assert.equal(J(r.map(g => g.term)), J(['ACT', 'CS', 'RCA']));
+});
+test('filterGlossary: matches term or definition, case-insensitively', () => {
+  assert.equal(J(fns.filterGlossary(GLOS, 'cs').map(g => g.term)), J(['CS']));
+  assert.equal(J(fns.filterGlossary(GLOS, 'koronar').map(g => g.term)), J(['RCA']));
+});
+test('filterGlossary: no match yields empty array; tolerates null list', () => {
+  assert.equal(fns.filterGlossary(GLOS, 'zzz').length, 0);
+  assert.equal(fns.filterGlossary(null, 'x').length, 0);
 });
 test('makeAddEntry: defaults natur to material and size typ to dimension', () => {
   const e = fns.makeAddEntry({ name: 'Ding', sizeVal: '10', aid: 'a3' });
