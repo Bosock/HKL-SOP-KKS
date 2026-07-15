@@ -69,7 +69,7 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     else {
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
       named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
-        const ckey=idx+':'+g.uk; const isCol=!!collapsed[ckey];
+        const ckey=idx+':'+g.uk; const isCol=(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt */
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" onclick="toggleUk('${esc(ckey)}')"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
         html+=`</div></div>`;
@@ -106,7 +106,7 @@ function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.l
   const key=curStd.id+'|'+top.idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
   arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
   saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
-function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
+function toggleUk(ckey){ collapsed[ckey]=(collapsed[ckey]===false)?true:false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
 function goBack(){ if(formCtx){ closeForm(); return; }

@@ -57,6 +57,18 @@
   .search svg { flex:0 0 17px; opacity:.55; }
   .search input { flex:1; border:none; background:transparent; color:var(--text); font-size:15px; outline:none; height:100%; }
   .search input::placeholder { color:var(--text-faint); }
+  /* Suche innerhalb eines Standards */
+  .std-search { display:flex; align-items:center; gap:9px; background:var(--surface-2); border:1px solid var(--line); border-radius:11px; padding:0 12px; height:44px; margin-bottom:11px; }
+  .std-search svg { flex:0 0 16px; width:16px; height:16px; opacity:.55; }
+  .std-search input { flex:1; border:none; background:transparent; color:var(--text); font-size:15px; outline:none; height:100%; }
+  .std-search input::placeholder { color:var(--text-faint); }
+  .srch-count { font-size:12px; color:var(--text-dim); margin:2px 2px 9px; }
+  .srch-hit { border:1px solid var(--line-soft); border-radius:10px; padding:11px 12px; margin-bottom:7px; cursor:pointer; background:var(--surface); }
+  .srch-hit:active { background:var(--surface-2); }
+  .srch-hit .sh-name { font-size:15px; font-weight:600; }
+  .srch-hit .sh-ctx { font-size:12px; color:var(--text-dim); margin-top:3px; }
+  .entry.flash { animation:hklflash 1.6s ease-out; }
+  @keyframes hklflash { 0%,20% { box-shadow:0 0 0 3px var(--accent); } 100% { box-shadow:0 0 0 0 transparent; } }
   .search .clear { background:none; border:none; color:var(--text-dim); font-size:20px; cursor:pointer; padding:4px; display:none; }
   .search .clear.show { display:block; }
 
