@@ -9,10 +9,13 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
       <span style="font-size:12px;font-weight:700;color:var(--text-dim)">STANDARD${s.__new?' · <span style="color:var(--accent)">App-eigen</span>':''}${hiddenNow?' · <span style="color:var(--warn)">ausgeblendet</span>':''}</span>
       <span style="flex:1"></span>
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="editStandard()">✏ Titel/Gruppe</button>
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="openStdMetaForm()">🏷 Version/Freigabe</button>
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="toggleStdHidden()">${hiddenNow?'↩ Einblenden':'🗑 Ausblenden'}</button>
       ${s.__new?`<button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px;color:var(--danger)" onclick="deleteNewStandard()">🗑 Löschen</button>`:''}
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
     </div></div>`;
+    const m=STDE[s.id]||{}; const metaBits=[m.version?('Version '+m.version):'', m.status||'', m.validFrom?('gültig ab '+m.validFrom):'', m.validTo?('bis '+m.validTo):''].filter(Boolean);
+    if(metaBits.length) html+=`<div class="std-meta-line">🏷 ${esc(metaBits.join(' · '))}${m.approvedBy?` · zuletzt: ${esc(m.approvedBy)}`:''}</div>`;
     const pk=stdPlankosten(s);
     if(pk.items>0){ const miss=pk.items-pk.priced;
       html+=`<div class="banner cost-banner"><div class="cost-total"><span class="cost-lbl">Plankosten</span><span class="cost-val">${fmtEUR(pk.total)}</span></div>

@@ -136,6 +136,25 @@ function saveRubrikForm(id){ const f=readRubrikForm(); if(!f.name.trim()){ toast
   if(f.scope==='groups' && !f.groups.length){ toast('Bitte mindestens eine Gruppe wählen',true); return; }
   saveRubrikTpl(Object.assign({},f,{id:(id||undefined), std:(curStd&&curStd.id)}));
   toast(id?'Rubrik gespeichert':'Rubrik angelegt'); const b=formCtx&&formCtx.back; formCtx=null; if(b) b(); }
+/* ---- Version & Freigabe eines Standards (nur Verwaltung sichtbar) ---- */
+function openStdMetaForm(){ if(!ADMIN||!curStd) return; const s=curStd; const m=STDE[s.id]||{};
+  const statuses=['Entwurf','In Prüfung','Freigegeben','Veraltet'];
+  const opts=statuses.map(x=>`<option value="${esc(x)}" ${m.status===x?'selected':''}>${esc(x)}</option>`).join('');
+  const html=`<div class="pcard">
+    <div class="form-grp"><div class="flabel">Version</div><input class="loc-input" id="mVer" placeholder="z. B. 1.2" value="${esc(m.version||'')}"></div>
+    <div class="form-grp"><div class="flabel">Status / Freigabe</div><select class="form-sel" id="mStatus" style="width:100%"><option value="">— kein —</option>${opts}</select></div>
+    <div class="form-grp"><div class="flabel">Gültig ab (optional)</div><input class="loc-input" id="mFrom" type="date" value="${esc(m.validFrom||'')}"></div>
+    <div class="form-grp"><div class="flabel">Gültig bis (optional)</div><input class="loc-input" id="mTo" type="date" value="${esc(m.validTo||'')}"></div>
+    <p class="hint">Nur im Verwaltungsmodus sichtbar. Version & Freigabe erscheinen auch im PDF-Kopf, wenn gesetzt.</p>
+    <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStdMeta()">Speichern</button></div>
+  </div>`;
+  formCtx={desc:{kind:'stdmeta'}, back:()=>openStandard(s.id,true)};
+  $('scr-form').innerHTML=html; show('scr-form'); setBar('Version & Freigabe',stdTitel(s),true); }
+function saveStdMeta(){ if(!ADMIN||!curStd) return; const s=curStd;
+  const upd={ version:($('mVer').value||'').trim(), status:($('mStatus').value||'').trim(), validFrom:($('mFrom').value||'').trim(), validTo:($('mTo').value||'').trim() };
+  ['version','status','validFrom','validTo'].forEach(k=>{ if(!upd[k]) delete upd[k]; });
+  upd.approvedBy=(typeof voterName==='function'?voterName():'Verwaltung'); upd.approvedAt=today();
+  STDE[s.id]=Object.assign({},STDE[s.id],upd); saveSTDE(); const b=formCtx&&formCtx.back; formCtx=null; toast('Version & Freigabe gespeichert'); if(b) b(); }
 function addStandard(titel,gruppe){ const taken={}; (DB?DB.standards:[]).forEach(s=>taken[s.id]=1); ADDITIONS.standards.forEach(s=>taken[s.id]=1); const id=addSlug(titel,taken);
   ADDITIONS.standards.push({ id, titel:titel.trim(), gruppe:(gruppe||'').trim()||'Eigene', dateiname:'(manuell angelegt)', _added:true, rubriken:[
     {name:'Saal und Geräte', typ:'geraete', sub_bereiche:[]}, {name:'Material', typ:'material', sub_bereiche:[]}, {name:'Ablauf', typ:'ablauf', sub_bereiche:[]} ] });
