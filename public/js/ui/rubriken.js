@@ -31,7 +31,7 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
     listHtml+=`<div class="rub ${r.typ}" style="${hid?'opacity:.55;':''}" onclick="openRubrik(${i})"><div class="rub-ico">${rubIconEff(r,i)}</div><div class="rub-main"><div class="rub-name">${esc(rubName(r,i))}${hid?' <span style="font-size:10px;color:var(--warn)">ausgeblendet</span>':''}${r.__nrid&&ADMIN?' <span style="font-size:10px;color:var(--accent)">neu</span>':''}</div><div class="rub-meta">${count} Einträge</div></div>${adminBtns}<span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`; });
   const searchBox=`<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="stdSearchInput" placeholder="In diesem Standard suchen (Material, Gerät …)" oninput="stdSearch(this.value)" autocomplete="off"></div>`;
   const listBody=listHtml||`<div class="empty"><div class="ei">📄</div><h3>Keine Rubriken</h3><p>Über „＋ Rubrik" anlegen.</p></div>`;
-  $('scr-rubriken').innerHTML=html+hintsBlockHTML('std',s.id)+searchBox+`<div id="stdSearchResults" style="display:none"></div><div id="stdRubList">${listBody}</div>`;
+  $('scr-rubriken').innerHTML=html+hintsBlockHTML('std',s.id)+searchBox+`<div id="stdSearchResults" style="display:none"></div><div id="stdRubList">${listBody}</div><button class="add-entry-btn print-btn" onclick="printStandard()">🖨 Als PDF drucken / exportieren</button>`;
   show('scr-rubriken'); setBar(stdTitel(s),stdGruppe(s)+' · '+(s.rubriken||[]).length+' Rubriken',true); $('searchWrap').style.display='none';
 }
 

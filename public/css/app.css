@@ -426,3 +426,27 @@
   }
 
   @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+
+  /* ---- Druck / PDF-Export ---- */
+  .print-btn { margin-top:10px; }
+  #printRoot { display:none; }
+  @media print {
+    .app, .toast, .sheet, .sheet-overlay { display:none !important; }
+    html, body { background:#fff !important; }
+    #printRoot { display:block; color:#111; font-family:"Segoe UI",system-ui,sans-serif; }
+    .pr-doc { max-width:100%; }
+    .pr-head { border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:14px; }
+    .pr-grp { font-size:10pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#555; }
+    .pr-head h1 { font-size:20pt; margin:2px 0 4px; }
+    .pr-ver { font-size:9.5pt; color:#333; }
+    .pr-date { font-size:9pt; color:#666; }
+    .pr-rub { break-inside:avoid; margin-bottom:12px; }
+    .pr-rub h2 { font-size:12.5pt; background:#f0f0f0; padding:4px 8px; border-left:3px solid #111; margin:12px 0 6px; break-after:avoid; }
+    .pr-uk { font-size:10pt; font-weight:700; color:#333; margin:7px 0 3px; break-after:avoid; }
+    .pr-row { display:flex; gap:8px; align-items:baseline; font-size:10pt; padding:2px 0; border-bottom:1px dotted #ddd; break-inside:avoid; }
+    .pr-menge { flex:0 0 34px; font-weight:700; font-variant-numeric:tabular-nums; }
+    .pr-name { flex:0 0 auto; font-weight:600; }
+    .pr-meta { flex:1; color:#555; font-size:9pt; text-align:right; }
+    .pr-foot { margin-top:16px; padding-top:6px; border-top:1px solid #ccc; font-size:8pt; color:#888; text-align:center; }
+    @page { margin:14mm 12mm; }
+  }
