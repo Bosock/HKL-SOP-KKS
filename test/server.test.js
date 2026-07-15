@@ -39,6 +39,8 @@ fs.writeFileSync(path.join(TMP, 'secret.txt'), 'TOP SECRET');
 process.env.PUBLIC_DIR = PUBLIC_DIR;
 process.env.STATE_DIR = STATE_DIR;
 process.env.MAX_BODY = '4096'; // small so the 413 path is cheap to exercise
+process.env.BACKUP_KEEP = '3'; // small so the prune path is cheap to exercise
+process.env.BACKUP_INTERVAL_MS = '60000'; // long, so throttling is observable in-test
 
 const srv = require('../server.js');
 
@@ -433,4 +435,44 @@ test('GET /auth/logout clears the session cookie', async () => {
   const r = await request('GET', '/auth/logout');
   assert.equal(r.status, 302);
   assert.match(String(r.headers['set-cookie']), /github_session=;/);
+});
+
+// ===========================================================================
+// state snapshots (data-loss protection)
+// ===========================================================================
+const BACKUP_DIR = srv.config.BACKUP_DIR;
+async function listSnaps() {
+  try { return (await fsp.readdir(BACKUP_DIR)).filter(n => /^state-.*\.json$/.test(n)).sort(); }
+  catch (e) { return []; }
+}
+async function clearSnaps() {
+  for (const n of await listSnaps()) await fsp.unlink(path.join(BACKUP_DIR, n));
+}
+
+test('snapshot() writes a timestamped copy of the current state', async () => {
+  await clearSnaps();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { snap: 'me' } }) });
+  const file = await srv.snapshot();
+  assert.ok(file, 'snapshot returns a path');
+  const snaps = await listSnaps();
+  assert.ok(snaps.length >= 1);
+  const onDisk = JSON.parse(await fsp.readFile(file, 'utf8'));
+  assert.equal(onDisk.state.snap, 'me');
+});
+
+test('snapshot() prunes to BACKUP_KEEP newest copies', async () => {
+  await clearSnaps();
+  for (let i = 0; i < 5; i++) await srv.snapshot(); // KEEP is 3 in this env
+  const snaps = await listSnaps();
+  assert.equal(snaps.length, srv.config.BACKUP_KEEP);
+});
+
+test('persist throttles snapshots: two rapid writes create only one', async () => {
+  await clearSnaps();
+  srv._resetBackupClock();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 1 } }) });
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 2 } }) });
+  await new Promise(r => setTimeout(r, 120)); // let the fire-and-forget snapshot land
+  const snaps = await listSnaps();
+  assert.equal(snaps.length, 1, `expected exactly one throttled snapshot, got ${snaps.length}`);
 });

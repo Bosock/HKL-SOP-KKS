@@ -14,6 +14,13 @@ const STATE_FILE = path.join(STATE_DIR, 'state.json');
 // body can get large. 32 MiB gives generous head-room; tune via MAX_BODY.
 const MAX_BODY = parseInt(process.env.MAX_BODY || String(32 * 1024 * 1024), 10);
 
+// Rotierende Snapshots von state.json — Schutz vor Datenverlust (Korruption,
+// versehentliches Überschreiben eines Schlüssels, Fehl-Merge). Gedrosselt, um
+// bei häufigen kleinen Edits nicht die Platte vollzuschreiben.
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(STATE_DIR, 'backups');
+const BACKUP_INTERVAL_MS = parseInt(process.env.BACKUP_INTERVAL_MS || String(10 * 60 * 1000), 10); // ≤ 1 Snapshot / 10 min
+const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP || '48', 10); // ~8 h Historie bei voller Aktivität
+
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:8080/auth/github/callback';
@@ -91,4 +98,4 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'geolocation=(), microphone=(), payment=()',
 };
 
-module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, SESSION_SECRET, COOKIE_SECURE };
+module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, BACKUP_DIR, BACKUP_INTERVAL_MS, BACKUP_KEEP, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, SESSION_SECRET, COOKIE_SECURE };
