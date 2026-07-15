@@ -125,6 +125,47 @@ test('GET /healthz returns ok with security headers', async () => {
 });
 
 // ===========================================================================
+// security headers (CSP / HSTS / Permissions-Policy)
+// ===========================================================================
+test('static responses carry a Content-Security-Policy', async () => {
+  const r = await request('GET', '/');
+  const csp = r.headers['content-security-policy'];
+  assert.ok(csp, 'CSP header present');
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /object-src 'none'/);
+  assert.match(csp, /frame-ancestors 'self'/);
+  // Inline handlers/styles are part of the design → must stay allowed…
+  assert.match(csp, /script-src 'self' 'unsafe-inline'/);
+  assert.match(csp, /style-src 'self' 'unsafe-inline'/);
+  // …but eval() must never be whitelisted.
+  assert.doesNotMatch(csp, /unsafe-eval/);
+  // Care photos are data: URLs.
+  assert.match(csp, /img-src[^;]*data:/);
+});
+
+test('JSON API responses also carry the security headers', async () => {
+  const r = await request('GET', '/api/state');
+  assert.ok(r.headers['content-security-policy'], 'CSP on API responses too');
+  assert.equal(r.headers['x-content-type-options'], 'nosniff');
+});
+
+test('HSTS is sent without includeSubDomains', async () => {
+  const r = await request('GET', '/healthz');
+  const hsts = r.headers['strict-transport-security'];
+  assert.ok(hsts, 'HSTS header present');
+  assert.match(hsts, /max-age=\d+/);
+  assert.doesNotMatch(hsts, /includeSubDomains/);
+});
+
+test('Permissions-Policy locks down unused sensitive features', async () => {
+  const r = await request('GET', '/healthz');
+  const pp = r.headers['permissions-policy'];
+  assert.ok(pp, 'Permissions-Policy present');
+  assert.match(pp, /geolocation=\(\)/);
+  assert.match(pp, /microphone=\(\)/);
+});
+
+// ===========================================================================
 // static file serving
 // ===========================================================================
 test('GET / serves index.html with no-cache', async () => {

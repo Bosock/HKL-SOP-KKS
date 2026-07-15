@@ -33,10 +33,48 @@ const MIME = {
   '.txt':  'text/plain; charset=utf-8',
 };
 const COMPRESSIBLE = /^(text\/|application\/(json|javascript|xml)|image\/svg)/;
+
+/* Content-Security-Policy — eng gefasst, aber verträglich mit dem bewussten
+   Design der App (Inline-`onclick=`-Handler und Inline-`style=`-Attribute im
+   generierten Markup, Foto-Pflege als data:-URLs). Konkret:
+     - default/connect/font/manifest/worker: nur 'self' (keine Fremd-Origins;
+       alle fetch()-Aufrufe gehen an /api bzw. /auth, alles same-origin).
+     - script/style: 'unsafe-inline' ist nötig, weil das Markup Handler und
+       Stile inline referenziert. KEIN 'unsafe-eval' — die App nutzt weder
+       eval() noch new Function() (per Grep verifiziert), daher bleibt das
+       gefährlichste Schlupfloch zu.
+     - img: 'self' + data:/blob: für die base64-Fotos der Materialpflege.
+     - object-src 'none', base-uri/form-action 'self', frame-ancestors 'self'
+       (deckungsgleich mit X-Frame-Options) — härtet gegen Clickjacking,
+       <base>-Hijacking und Formular-Exfiltration. */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
+
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'SAMEORIGIN',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Content-Security-Policy': CSP,
+  // Browser ignorieren HSTS über http (nur über https honoriert) — daher
+  // gefahrlos immer mitzusenden. Ohne includeSubDomains, um andere
+  // (evtl. http-only) Subdomains von kardio.wiki nicht mitzureißen.
+  'Strict-Transport-Security': 'max-age=15552000',
+  // Ungenutzte, sensible Browser-Features abschalten. Kamera bleibt bewusst
+  // unerwähnt (= Default self), damit die Foto-Pflege via <input type=file
+  // capture> unangetastet bleibt.
+  'Permissions-Policy': 'geolocation=(), microphone=(), payment=()',
 };
 
 module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL };
