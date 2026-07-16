@@ -110,6 +110,13 @@ async function handleGitHubCallback(req, res, url) {
       },
     });
     const user = await userResp.json();
+    // Schlägt der /user-Aufruf fehl (abgelaufener/entzogener Token, Rate-Limit),
+    // antwortet GitHub mit einem Fehlerobjekt ohne id/login. Dann KEINE Session
+    // setzen — sonst entstünde eine „Geister"-Anmeldung (Angemeldet als #undefined).
+    if (!user || user.id == null || !user.login) {
+      sendJSON(req, res, 502, { error: 'GitHub-Profil konnte nicht gelesen werden' });
+      return;
+    }
     const session = signSession({
       id: user.id, login: user.login, name: user.name || user.login,
     });
@@ -136,10 +143,14 @@ function handleLogout(res) {
 }
 
 function handleGetUser(req, res) {
+  // Dem Client mitteilen, ob GitHub-OAuth auf diesem Server überhaupt
+  // konfiguriert ist — sonst blendet er den Login-Knopf aus, statt den Nutzer
+  // auf die 400-Seite von /auth/github laufen zu lassen.
+  const oauth = !!(config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET);
   const cookies = parseCookies(req);
   const u = verifySession(cookies.github_session);
-  if (!u) { sendJSON(req, res, 200, { user: null }); return; }
-  sendJSON(req, res, 200, { user: { id: u.id, login: u.login, name: u.name } });
+  if (!u) { sendJSON(req, res, 200, { user: null, oauth }); return; }
+  sendJSON(req, res, 200, { user: { id: u.id, login: u.login, name: u.name }, oauth });
 }
 
 function parseCookies(req) {

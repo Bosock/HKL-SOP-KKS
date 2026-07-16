@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -126,7 +126,11 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;                      // Sync-PUTs etc. ans Netz
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;       // Fremd-Origins nicht anfassen
-  if (url.pathname.startsWith('/api/')) return;          // Server-State immer live
+  // Server-State (/api) und Login (/auth) NIE cachen/abfangen: /auth/user meldet
+  // den aktuellen Anmeldestatus (darf nicht stale sein), /auth/github &
+  // /auth/logout sind Redirects, die der Browser nativ auflösen soll. Die
+  // Cache-API ignoriert Cache-Control: no-store, daher der explizite Bypass.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
   if (req.mode === 'navigate') { event.respondWith(navigate(req)); return; }
   if (url.pathname === DATA_PATH) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }

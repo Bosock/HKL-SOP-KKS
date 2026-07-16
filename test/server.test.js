@@ -410,19 +410,27 @@ test('verifySession rejects a tampered payload', () => {
 test('GET /auth/user without a cookie returns user:null', async () => {
   const r = await request('GET', '/auth/user');
   assert.equal(r.status, 200);
-  assert.deepEqual(json(r), { user: null });
+  // The test env configures no OAuth, so the availability flag is false.
+  assert.deepEqual(json(r), { user: null, oauth: false });
 });
 
 test('GET /auth/user honours a validly signed session cookie', async () => {
   const signed = srv.signSession({ id: 7, login: 'carol', name: 'Carol' });
   const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + signed } });
-  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' } });
+  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' }, oauth: false });
 });
 
 test('GET /auth/user ignores a forged session cookie', async () => {
   const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
   const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + forged } });
-  assert.deepEqual(json(r), { user: null });
+  assert.deepEqual(json(r), { user: null, oauth: false });
+});
+
+test('GET /auth/user reports oauth:false so the client hides the login button', async () => {
+  // Without GITHUB_CLIENT_ID/SECRET the client must not offer a GitHub login
+  // (clicking it would dead-end on the /auth/github 400 page).
+  const r = await request('GET', '/auth/user');
+  assert.equal(json(r).oauth, false);
 });
 
 test('GET /auth/github is 400 when OAuth is not configured', async () => {
