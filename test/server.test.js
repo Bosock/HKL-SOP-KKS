@@ -39,6 +39,8 @@ fs.writeFileSync(path.join(TMP, 'secret.txt'), 'TOP SECRET');
 process.env.PUBLIC_DIR = PUBLIC_DIR;
 process.env.STATE_DIR = STATE_DIR;
 process.env.MAX_BODY = '4096'; // small so the 413 path is cheap to exercise
+process.env.BACKUP_KEEP = '3'; // small so the prune path is cheap to exercise
+process.env.BACKUP_INTERVAL_MS = '60000'; // long, so throttling is observable in-test
 
 const srv = require('../server.js');
 
@@ -122,6 +124,47 @@ test('GET /healthz returns ok with security headers', async () => {
   assert.equal(r.text, 'ok\n');
   assert.equal(r.headers['x-content-type-options'], 'nosniff');
   assert.equal(r.headers['x-frame-options'], 'SAMEORIGIN');
+});
+
+// ===========================================================================
+// security headers (CSP / HSTS / Permissions-Policy)
+// ===========================================================================
+test('static responses carry a Content-Security-Policy', async () => {
+  const r = await request('GET', '/');
+  const csp = r.headers['content-security-policy'];
+  assert.ok(csp, 'CSP header present');
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /object-src 'none'/);
+  assert.match(csp, /frame-ancestors 'self'/);
+  // Inline handlers/styles are part of the design → must stay allowed…
+  assert.match(csp, /script-src 'self' 'unsafe-inline'/);
+  assert.match(csp, /style-src 'self' 'unsafe-inline'/);
+  // …but eval() must never be whitelisted.
+  assert.doesNotMatch(csp, /unsafe-eval/);
+  // Care photos are data: URLs.
+  assert.match(csp, /img-src[^;]*data:/);
+});
+
+test('JSON API responses also carry the security headers', async () => {
+  const r = await request('GET', '/api/state');
+  assert.ok(r.headers['content-security-policy'], 'CSP on API responses too');
+  assert.equal(r.headers['x-content-type-options'], 'nosniff');
+});
+
+test('HSTS is sent without includeSubDomains', async () => {
+  const r = await request('GET', '/healthz');
+  const hsts = r.headers['strict-transport-security'];
+  assert.ok(hsts, 'HSTS header present');
+  assert.match(hsts, /max-age=\d+/);
+  assert.doesNotMatch(hsts, /includeSubDomains/);
+});
+
+test('Permissions-Policy locks down unused sensitive features', async () => {
+  const r = await request('GET', '/healthz');
+  const pp = r.headers['permissions-policy'];
+  assert.ok(pp, 'Permissions-Policy present');
+  assert.match(pp, /geolocation=\(\)/);
+  assert.match(pp, /microphone=\(\)/);
 });
 
 // ===========================================================================
@@ -338,4 +381,98 @@ test('loadState rehydrates rev and state from disk', async () => {
   const s = srv.getState();
   assert.equal(s.rev, 7);
   assert.deepEqual(s.state, { restored: 42 });
+});
+
+// ===========================================================================
+// OAuth session hardening (signed cookies, non-forgeable identity)
+// ===========================================================================
+test('signSession round-trips through verifySession', () => {
+  const signed = srv.signSession({ id: 42, login: 'alice', name: 'Alice' });
+  const back = srv.verifySession(signed);
+  assert.equal(back.login, 'alice');
+  assert.equal(back.id, 42);
+});
+
+test('verifySession rejects a forged (unsigned base64) cookie', () => {
+  // This is exactly the old cookie format an attacker could hand-craft.
+  const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
+  assert.equal(srv.verifySession(forged), null);
+});
+
+test('verifySession rejects a tampered payload', () => {
+  const signed = srv.signSession({ id: 1, login: 'bob', name: 'Bob' });
+  const evilPayload = Buffer.from(JSON.stringify({ id: 1, login: 'admin', name: 'admin' }))
+    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const tampered = evilPayload + '.' + signed.slice(signed.lastIndexOf('.') + 1);
+  assert.equal(srv.verifySession(tampered), null);
+});
+
+test('GET /auth/user without a cookie returns user:null', async () => {
+  const r = await request('GET', '/auth/user');
+  assert.equal(r.status, 200);
+  assert.deepEqual(json(r), { user: null });
+});
+
+test('GET /auth/user honours a validly signed session cookie', async () => {
+  const signed = srv.signSession({ id: 7, login: 'carol', name: 'Carol' });
+  const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + signed } });
+  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' } });
+});
+
+test('GET /auth/user ignores a forged session cookie', async () => {
+  const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
+  const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + forged } });
+  assert.deepEqual(json(r), { user: null });
+});
+
+test('GET /auth/github is 400 when OAuth is not configured', async () => {
+  // The test env sets no GITHUB_CLIENT_ID/SECRET.
+  const r = await request('GET', '/auth/github');
+  assert.equal(r.status, 400);
+});
+
+test('GET /auth/logout clears the session cookie', async () => {
+  const r = await request('GET', '/auth/logout');
+  assert.equal(r.status, 302);
+  assert.match(String(r.headers['set-cookie']), /github_session=;/);
+});
+
+// ===========================================================================
+// state snapshots (data-loss protection)
+// ===========================================================================
+const BACKUP_DIR = srv.config.BACKUP_DIR;
+async function listSnaps() {
+  try { return (await fsp.readdir(BACKUP_DIR)).filter(n => /^state-.*\.json$/.test(n)).sort(); }
+  catch (e) { return []; }
+}
+async function clearSnaps() {
+  for (const n of await listSnaps()) await fsp.unlink(path.join(BACKUP_DIR, n));
+}
+
+test('snapshot() writes a timestamped copy of the current state', async () => {
+  await clearSnaps();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { snap: 'me' } }) });
+  const file = await srv.snapshot();
+  assert.ok(file, 'snapshot returns a path');
+  const snaps = await listSnaps();
+  assert.ok(snaps.length >= 1);
+  const onDisk = JSON.parse(await fsp.readFile(file, 'utf8'));
+  assert.equal(onDisk.state.snap, 'me');
+});
+
+test('snapshot() prunes to BACKUP_KEEP newest copies', async () => {
+  await clearSnaps();
+  for (let i = 0; i < 5; i++) await srv.snapshot(); // KEEP is 3 in this env
+  const snaps = await listSnaps();
+  assert.equal(snaps.length, srv.config.BACKUP_KEEP);
+});
+
+test('persist throttles snapshots: two rapid writes create only one', async () => {
+  await clearSnaps();
+  srv._resetBackupClock();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 1 } }) });
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 2 } }) });
+  await new Promise(r => setTimeout(r, 120)); // let the fire-and-forget snapshot land
+  const snaps = await listSnaps();
+  assert.equal(snaps.length, 1, `expected exactly one throttled snapshot, got ${snaps.length}`);
 });

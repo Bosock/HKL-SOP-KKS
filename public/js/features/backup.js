@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_newentries','hkl_newstd','hkl_newrub','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -14,10 +14,44 @@ function importBackupFile(ev){ const f=ev.target.files&&ev.target.files[0]; if(!
   }catch(e){ toast('Datei nicht lesbar',true); } }; r.readAsText(f); }
 function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 
+/* Kategorie als „beschaffbar" markieren (fließt in Pflege/Preise/Katalog/Kosten). */
+function setNatBeschaffbar(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].beschaffbar=!!val; saveNatCfg(); buildMaterialIndex(); renderAdmin(); }
+/* Vollständiges Entfernen einer Rubrik-Vorlage (nur zentral in der Matrix). */
+function confirmDeleteRubTpl(id){ const t=RUBTPL.find(x=>x.id===id); if(!t) return;
+  if(!confirm('Vorlage „'+t.name+'" überall entfernen? Die Rubrik verschwindet aus allen Standards; bereits dort eingetragene Einträge dieser Rubrik gehen verloren.')) return;
+  deleteRubTpl(id); renderAdmin(); toast('Vorlage entfernt'); }
+/* Baut das „Rubriken-Vorlagen"-Panel mit der Gruppen-Matrix (Häkchentabelle). */
+function rubTplPanelHTML(){ const grps=distinctGroups();
+  let h=`<details class="vpanel"><summary>🧩 Rubriken-Vorlagen <span class="vp-hint">${RUBTPL.length}</span></summary><div class="vpanel-body">
+    <p class="panel-help">Rubriken, die in mehreren Standards erscheinen sollen. Ein Häkchen setzt die Rubrik für eine ganze <b>Gruppe</b> (Spalte). Zeilen = Vorlagen. „●" bedeutet: gilt für <b>alle</b> Eingriffe. Anlegen im Standard über „＋ Rubrik" (dort Geltungsbereich wählen) oder hier unten.</p>`;
+  if(!RUBTPL.length){ h+=`<p class="hint">Noch keine Vorlagen vorhanden.</p>`; }
+  else if(!grps.length){ h+=`<p class="hint">Keine Gruppen vorhanden.</p>`; }
+  else {
+    h+=`<div class="tbl-wrap"><table class="rubmatrix"><thead><tr><th>Vorlage</th>`+grps.map(g=>`<th>${esc(g)}</th>`).join('')+`<th></th></tr></thead><tbody>`;
+    RUBTPL.forEach(t=>{ const isAll=t.scope==='all';
+      h+=`<tr><td class="rm-name">${esc(t.name)}<span class="rm-typ">${esc(typLabel(t.typ))}</span>${t.scope==='std'?`<span class="rm-scope">nur 1 Standard</span>`:''}</td>`;
+      grps.forEach((g,gi)=>{ const on=(t.scope!=='std')&&rubTplMatches(t,null,g);
+        h+=`<td class="rm-cell ${on?'on':''}" onclick="toggleTplGroup('${esc(t.id)}',${gi})">${on?(isAll?'●':'✓'):''}</td>`; });
+      h+=`<td class="rm-actions"><button class="icon" onclick="openRubrikForm('${esc(t.id)}')">✏</button><button class="icon danger-btn" onclick="confirmDeleteRubTpl('${esc(t.id)}')">🗑</button></td></tr>`; });
+    h+=`</tbody></table></div>`;
+  }
+  h+=`<div class="nat-foot"><button class="add-btn" onclick="openRubrikForm(null)">＋ Neue Vorlage</button></div></div></details>`;
+  return h; }
+
+/* Plankosten je Standard als CSV (Semikolon-getrennt, mit BOM für Excel/Umlaute). */
+function exportCostCSV(){ try{
+  const rows=[['Standard','Gruppe','Plankosten_EUR','Materialien','mit_Preis']];
+  DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total)
+    .forEach(x=>rows.push([stdTitel(x.s),stdGruppe(x.s),x.pk.total.toFixed(2).replace('.',','),String(x.pk.items),String(x.pk.priced)]));
+  const csv=rows.map(r=>r.map(c=>{ const v=String(c); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='hkl-plankosten-'+today()+'.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('CSV heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
+
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
   /* Admin-Kopf: Modus verlassen */
-  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Admin-Modus</h2><p style="margin:2px 0 0">Freigeschaltet über #admin. Kolleginnen sehen nur die Nutzung.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
+  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Verwaltung</h2><p style="margin:2px 0 0">Hier stellst du die App ohne Programmierung ein: Inhalte (Standards, Rubriken, Kategorien), Anzeige, Preise und Design. Jeder Bereich unten hat eine kurze Erklärung. Kolleginnen im Nutzungs-Modus sehen nur die fertigen Standards.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
 
   /* Panel: Datensicherung */
   html+=`<details class="vpanel" open><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
@@ -32,6 +66,19 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
 
+  /* Panel: Kostenübersicht (Plankosten je Standard) */
+  const costRows=DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total);
+  const costTotal=costRows.reduce((n,x)=>n+x.pk.total,0);
+  html+=`<details class="vpanel"><summary>💶 Kostenübersicht <span class="vp-hint">Plankosten je Standard</span></summary><div class="vpanel-body">`;
+  if(!costRows.length) html+=`<p class="hint">Noch keine Preise erfasst. Stückpreise in „Material pflegen" eintragen – die Plankosten je Standard erscheinen dann hier und als Banner im Standard.</p>`;
+  else{
+    html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name"><b>Gesamt (alle Standards)</b></span><span class="uk-count">${fmtEUR(costTotal)}</span></div></div>`;
+    costRows.forEach(x=>{ const miss=x.pk.items-x.pk.priced;
+      html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(x.s))}</span><span class="uk-count">${fmtEUR(x.pk.total)}</span></div><div class="vw-ctx">${esc(stdGruppe(x.s))} · ${x.pk.priced}/${x.pk.items} mit Preis${miss>0?` · ${miss} offen`:''}</div></div>`; });
+    html+=`<div class="p-actions"><button class="btn btn-sec" onclick="exportCostCSV()">Als CSV exportieren</button></div>`;
+  }
+  html+=`<p class="hint">Plankosten = Summe aus Menge × Stückpreis über alle beschaffbaren Materialien/Geräte eines Standards. Materialien ohne Preis zählen als 0.</p></div></details>`;
+
   /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
   html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
   if(!ADDITIONS.standards.length) html+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
@@ -39,6 +86,9 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
   html+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
     <p class="hint">Neue Standards und eigene Einträge werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div></details>`;
+
+  /* Panel: Rubriken-Vorlagen (Geltungsbereich-Matrix) */
+  html+=rubTplPanelHTML();
 
   /* Panel: Design (Paket 4) */
   const rb=(v,l)=>`<button class="${(DESIGN.scale||'normal')===v?'on':''}" onclick="setDesign('scale','${v}')">${l}</button>`;
@@ -74,6 +124,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     html+=`<div class="natrow" style="border-left-color:${n.color}">
       <div class="natrow-head"><span class="nat-ico">${n.icon}</span><input class="txtinp" value="${esc(n.label)}" onchange="setNatLabel('${esc(n.key)}',this.value)"><input type="color" class="colinp" value="${n.color}" onchange="setNatColor('${esc(n.key)}',this.value)"></div>
       <div class="nat-actions"><button onclick="editNatIcon('${esc(n.key)}')">Symbol: ${n.icon}</button>${n.builtin?'':`<button class="danger-btn" onclick="deleteNat('${esc(n.key)}')">Löschen</button>`}</div>
+      <label class="tgl natbesch"><span>zählt als Material (Pflege · Preise · Katalog)</span><input type="checkbox" ${n.beschaffbar?'checked':''} onchange="setNatBeschaffbar('${esc(n.key)}',this.checked)"></label>
     </div>`;
   });
   html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>

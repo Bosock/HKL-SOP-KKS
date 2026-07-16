@@ -11,7 +11,7 @@ function entryCardHTML(e,cid,isMatGer){
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
   const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) );
-  const editedMark=(ADMIN&&hasEdit)?`<span class="edited-mark" title="manuell angepasst">✎</span>`:'';
+  const editBtn=ADMIN?`<button type="button" class="entry-edit-btn${hasEdit?' edited':''}" title="${hasEdit?'Bearbeiten (angepasst)':'Bearbeiten'}" aria-label="Eintrag bearbeiten">✎</button>`:'';
   const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
   /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular und das Schnellmenü überschreibbar. */
   const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
@@ -25,10 +25,21 @@ function entryCardHTML(e,cid,isMatGer){
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
   const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
-  const borderColor = accent?esc(accent):(isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`);
+  /* Farbe: Kategoriefarbe als Vollrahmen; frei gewählte Farbe (accent bzw. für
+     eigene Einträge e.color) füllt den ganzen Eintrag – Textfarbe automatisch
+     nach Kontrast (pickTextColor). */
+  const fill=(accent!==undefined)?accent:e.color; const catCol=isMatGer?`var(--n-${esc(nat)})`:`var(--n-hinweis)`;
+  let style, filledCls='';
+  if(fill){ const t=pickTextColor(fill); style=`--e-col:${esc(fill)};--e-fill:${esc(fill)};--e-fill-text:${t};--e-fill-bd:${t}`; filledCls=' filled'; }
+  else { style=`--e-col:${catCol}`; }
   const star = important?`<span class="imp-star">⭐</span>`:'';
   const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
-  return `<div class="entry ${cls} ${done}" id="e-${esc(cid)}" style="border-left-color:${borderColor}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${editedMark}${conf}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div></div>`;
+  /* „Warum"-Wissensfeld: aufklappbares 💡-Detail (für alle sichtbar, im Admin
+     über das Bearbeiten-Formular pflegbar). */
+  const whyQe=qeGet(e,cid,'why'); const why=(((whyQe!==undefined&&whyQe!==null)?whyQe:(e.why||''))||'').toString();
+  const whyBtn=why?`<button type="button" class="entry-why-btn" aria-label="Warum – Hintergrund anzeigen" aria-expanded="false" title="Warum?">💡</button>`:'';
+  const whyPanel=why?`<div class="e-why"><span class="ew-lbl">Warum</span>${esc(why).replace(/\n/g,'<br>')}</div>`:'';
+  return `<div class="entry ${cls}${filledCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${whyBtn}${editBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -55,20 +66,17 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     });
-    const addBtn=(uk)=>ADMIN?`<button class="sheet-pick-btn" style="margin:2px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',${uk==null?'null':`decodeURIComponent('${encodeURIComponent(uk)}')`},'material')">＋ Eintrag hinzufügen</button>`:'';
     let groups=[...groupsMap.values()];
     groups.forEach(g=>{ g.entries=sortByOrder(g.entries, orderKeyFor(idx,(g.uk||''))); });
     groups.sort((a,b)=>{ const oa=(a.uk&&ukMetaOf(a.uk).order!=null)?ukMetaOf(a.uk).order:a.first; const ob=(b.uk&&ukMetaOf(b.uk).order!=null)?ukMetaOf(b.uk).order:b.first; return oa-ob; });
     const named=groups.filter(g=>g.uk); const nullG=groups.find(g=>!g.uk);
-    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); html+=addBtn(null); }
+    if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
     else {
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
-      html+=addBtn(null);
       named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
-        const ckey=idx+':'+g.uk; const isCol=!!collapsed[ckey];
+        const ckey=idx+':'+g.uk; const isCol=(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt */
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" onclick="toggleUk('${esc(ckey)}')"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
-        html+=addBtn(g.uk);
         html+=`</div></div>`;
       });
     }
@@ -76,13 +84,25 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     const {blocks}=ablaufSegments(idx);
     blocks.forEach(b=>{ if(b.head) html+=`<div class="sub-head">${esc(b.head)}</div>`;
       b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); }); });
-    if(ADMIN) html+=`<button class="sheet-pick-btn" style="margin:6px 0 10px" onclick="addNewEntry('${rubIdxKey(r,idx)}',null,'hinweis')">＋ Schritt hinzufügen</button>`;
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
-  $('scr-detail').innerHTML=body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
+  const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
+  const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
+/* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */
+function rubrikCids(idx){ const r=curStd.rubriken[idx]; if(!r) return []; const out=[];
+  (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push(cidOf(curStd.id,idx,si,ei)); }); });
+  newEntriesFor(r,idx).forEach(n=>out.push('new|'+n.id));
+  return out; }
+/* Entfernt auf einmal alle gesetzten Häkchen dieser Rubrik (nur lokal – Checks
+   sind gerätespezifisch, hkl_checks). */
+function clearRubrikChecks(idx){ const cids=rubrikCids(idx); const set=cids.filter(c=>checks[c]);
+  if(!set.length){ toast('Keine Häkchen gesetzt'); return; }
+  if(!confirm('Alle '+set.length+' Häkchen dieser Rubrik zurücksetzen?')) return;
+  set.forEach(c=>{ delete checks[c]; }); saveChecks(); reRenderDetail(); toast(set.length+' Häkchen zurückgesetzt'); }
 /* Startet das Hinzufügen eines Eintrags in der aktuell offenen Rubrik.
    Liest Standard/Rubrik aus dem Navigationszustand (keine Nutzertexte im onclick). */
 function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
@@ -104,7 +124,7 @@ function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.l
   const key=curStd.id+'|'+top.idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
   arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
   saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
-function toggleUk(ckey){ collapsed[ckey]=!collapsed[ckey]; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
+function toggleUk(ckey){ collapsed[ckey]=(collapsed[ckey]===false)?true:false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
 
 function goBack(){ if(formCtx){ closeForm(); return; }

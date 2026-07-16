@@ -16,6 +16,10 @@ function newAid(){ return 'a'+Date.now().toString(36)+Math.random().toString(36)
    Set oder ein Objekt; Ergebnis ist immer [a-z0-9_]+ (onclick-sicher). */
 function addSlug(title,taken){ let base=(title||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'std';
   const has=k=>taken&&(taken.has?taken.has(k):(k in taken)); let k=base,i=2; while(has(k)){k=base+'_'+i;i++;} return k; }
+/* Zerlegt eine Freitext-Synonymliste (Komma/Semikolon-getrennt) in ein
+   bereinigtes Array. Rein (kein DOM/Store) – daher testbar. */
+function parseSyn(str){ if(Array.isArray(str)) return str.map(s=>String(s).trim()).filter(Boolean);
+  return String(str||'').split(/[,;]+/).map(s=>s.trim()).filter(Boolean); }
 /* Baut aus den Formularfeldern ein normalisiertes Eintrags-Objekt. Rein
    (kein DOM/Store) – daher testbar. `f.aid` muss übergeben werden. */
 function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim();
@@ -23,9 +27,11 @@ function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||
   const val=(f.sizeVal||'').trim();
   const groessen=val?[{typ:(f.sizeTyp||'dimension'),wert:val,roh:val}]:[];
   const uk=(f.uk||'').trim()||null; const spez=(f.spez||'').trim()||null;
+  const syn=parseSyn(f.synonyms);
   return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
     natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
     spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
+    color:(f.color||'').trim()||null, why:(f.why||'').trim()||null, synonyms:syn.length?syn:null,
     ist_fliesstext:false, _added:true, _aid:f.aid }; }
 /* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
 function mergeAdditions(base,add){

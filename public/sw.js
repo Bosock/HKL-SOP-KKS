@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v7';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -25,7 +25,11 @@ const SHELL = [
   'css/app.css',
   'js/core/store.js',
   'js/core/config.js',
+  'js/core/color.js',
+  'js/features/auth.js',
   'js/features/additions.js',
+  'js/features/pricing.js',
+  'js/features/hints.js',
   'js/features/catalog.js',
   'js/core/labels.js',
   'js/data/demo-data.js',
@@ -42,6 +46,10 @@ const SHELL = [
   'js/ui/forms.js',
   'js/ui/chrome.js',
   'js/features/quickmenu.js',
+  'js/features/search.js',
+  'js/features/glossary.js',
+  'js/features/pdfprint.js',
+  'js/features/suggestions.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',

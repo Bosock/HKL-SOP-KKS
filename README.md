@@ -33,6 +33,9 @@ test/              node:test suites (client helpers + server + service worker)
 
 How the modules fit together, the load-order rules, and **how to add a new
 feature or API endpoint** are documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+A hands-on, German step-by-step cookbook for making the common changes yourself
+(texts, colours, new fields, new modules, deploy, restore) is in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Offline (PWA)
 
@@ -96,6 +99,15 @@ Previously all edits lived only in one browser's `localStorage`. Now the app is
 - **Polling** (every 15 s, and on tab focus / reconnect) pulls in changes other devices made.
 - **Offline / no backend**: everything keeps working from `localStorage`; queued changes are
   retried with exponential backoff and flushed once the server is reachable again.
+- **Snapshots**: every write also drops a throttled, timestamped copy into
+  `STATE_DIR/backups/` (≤ 1 per `BACKUP_INTERVAL_MS`, default 10 min; the newest
+  `BACKUP_KEEP`, default 48, are kept). Restore by copying a
+  `backups/state-….json` over `state/state.json`. Guards against corruption or
+  an accidental key overwrite wiping the shared edits.
+- **Signed login sessions**: the GitHub-OAuth session cookie is HMAC-signed with
+  `SESSION_SECRET` (set a fixed value in `.env`, else a random per-boot one is
+  used and logins reset on restart) — a plain base64 cookie can no longer forge
+  an identity.
 
 Shared keys: `hkl_natcfg`, `hkl_overrides`, `hkl_qedits`, `hkl_reviewed`, `hkl_reassign`,
 `hkl_ukmap`, `hkl_ukmeta`, `hkl_settings`, `hkl_care`, `hkl_additions`. Per-device keys that
@@ -139,6 +151,9 @@ STATE_DIR=./.state PORT=8080 node server.js
 
 # During development, auto-restart on server changes:
 STATE_DIR=./.state PORT=8080 npm run dev
+
+# Before committing/deploying: syntax + offline-list self-check, then tests.
+npm run check && npm test
 
 # Or build and run the container:
 docker build -t hkl-sop-kks:local .

@@ -70,7 +70,7 @@ test('install precaches the app shell', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  const shell = env.stores.get('hkl-shell-v1');
+  const shell = env.stores.get('hkl-shell-v7');
   assert.ok(shell, 'shell cache exists');
   assert.ok(shell.m.has('http://localhost/index.html'), 'index.html precached');
   assert.ok(shell.m.has('http://localhost/css/app.css'), 'css precached');
@@ -133,9 +133,18 @@ test('activate drops stale hkl caches, keeps current ones', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  await env.caches.open('hkl-shell-v0'); // simulate an old generation
+  await env.caches.open('hkl-shell-v6'); // simulate an old generation
   await env.activate();
   const names = await env.caches.keys();
-  assert.ok(!names.includes('hkl-shell-v0'), 'old cache removed');
-  assert.ok(names.includes('hkl-shell-v1'), 'current shell cache kept');
+  assert.ok(!names.includes('hkl-shell-v6'), 'old cache removed');
+  assert.ok(names.includes('hkl-shell-v7'), 'current shell cache kept');
+});
+
+test('sw.js SHELL list stays in sync with index.html <script> tags', () => {
+  // Same footgun the README warns about, enforced mechanically: every module
+  // index.html loads must be precached, and nothing may linger in SHELL that
+  // index.html no longer loads.
+  const { shellSyncProblems } = require('../scripts/check.js');
+  const problems = shellSyncProblems();
+  assert.deepStrictEqual(problems, [], problems.join('\n'));
 });

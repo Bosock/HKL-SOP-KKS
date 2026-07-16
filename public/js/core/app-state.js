@@ -24,6 +24,10 @@ function changePw(){ const o=prompt('Aktuelles Passwort:'); if(o==null) return; 
 function adminLogout(){ ADMIN=false; store.set('hkl_authuntil','0'); applyAdminUI(); showSheet(false); setMode('use'); toast('Abgemeldet'); }
 function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Menü${ADMIN?' · angemeldet':''}</div>`;
   h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
+  h+=sAct('🔎','Globale Suche','Material, Gerät, Synonym …',"showSheet(false);openGlobalSearch()");
+  h+=sAct('📖','Abkürzungsglossar','Begriffe nachschlagen',"showSheet(false);openGlossary()");
+  { const pend=(typeof pendingSuggestions==='function')?pendingSuggestions().length:0;
+    h+=sAct('✍️','Änderungsvorschläge',pend?(pend+' offen'):'ansehen & bewerten',"showSheet(false);openSuggestions()"); }
   if(ADMIN){ h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
     h+=sAct('📦','Material pflegen','Fotos & Lagerorte',"menuGo('care')");
     h+=sAct('🔑','Passwort ändern','',"changePw()");
@@ -39,6 +43,10 @@ function saveNEW(){ saveJSON('hkl_newentries',NEW); }
 /* App-eigene Standards & Rubriken + Bearbeitungs-Overrides + Eintrag-Reihenfolge */
 let NEWSTD=loadJSON('hkl_newstd',[]);   function saveNEWSTD(){ saveJSON('hkl_newstd',NEWSTD); }
 let NEWRUB=loadJSON('hkl_newrub',[]);   function saveNEWRUB(){ saveJSON('hkl_newrub',NEWRUB); }
+/* Rubrik-Vorlagen mit Geltungsbereich: erscheinen automatisch in allen
+   passenden Standards. { id, name, typ, scope:'std'|'groups'|'all',
+   std?:<id>, groups?:[...] } */
+let RUBTPL=loadJSON('hkl_rubtpl',[]);   function saveRubTpl(){ saveJSON('hkl_rubtpl',RUBTPL); }
 let STDE=loadJSON('hkl_stdedits',{});   function saveSTDE(){ saveJSON('hkl_stdedits',STDE); }
 let RUBE=loadJSON('hkl_rubedits',{});   function saveRUBE(){ saveJSON('hkl_rubedits',RUBE); }
 let ENTORD=loadJSON('hkl_entryorder',{}); function saveENTORD(){ saveJSON('hkl_entryorder',ENTORD); }
@@ -68,17 +76,33 @@ function newStdToObj(n){ return { id:'ns:'+n.id, dateiname:'(App-eigen)', titel:
   { name:'Materialien', typ:'material', sub_bereiche:[{name:null,eintraege:[]}] },
   { name:'Ablauf', typ:'sonstige', sub_bereiche:[{name:null,eintraege:[]}] } ] }; }
 function newRubToObj(n){ return { name:n.name, typ:n.typ||'sonstige', __nrid:n.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
+function tplRubToObj(t){ return { name:t.name, typ:t.typ||'sonstige', __tplid:t.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
+/* Gilt eine Rubrik-Vorlage für diesen Standard? (rein/testbar) */
+function rubTplMatches(tpl,stdId,grp){ if(!tpl) return false;
+  if(tpl.scope==='all') return true;
+  if(tpl.scope==='std') return tpl.std===stdId;
+  if(tpl.scope==='groups') return Array.isArray(tpl.groups)&&tpl.groups.indexOf(grp)>=0;
+  return false; }
+/* Legt App-eigene Standards/Rubriken + Rubrik-Vorlagen über das DB. WICHTIG:
+   nie das (ggf. mit DB_BASE geteilte) Standard-Objekt mutieren – sonst
+   „wandern" eingefügte Rubriken in die Basis und Einträge gehen beim nächsten
+   rebuildDB verloren. Betroffene Standards werden daher geklont. */
 function mergeCustomIntoDB(){ NEWSTD.forEach(n=>{ if(!DB.standards.find(s=>s.id==='ns:'+n.id)) DB.standards.push(newStdToObj(n)); });
-  NEWRUB.forEach(n=>{ const s=DB.standards.find(x=>x.id===n.std); if(s && !s.rubriken.find(r=>r.__nrid===n.id)) s.rubriken.push(newRubToObj(n)); }); }
+  if(!NEWRUB.length && !RUBTPL.length) return;
+  DB.standards=DB.standards.map(s=>{ const grp=stdGruppe(s); const add=[];
+    NEWRUB.forEach(n=>{ if(n.std===s.id && !((s.rubriken||[]).find(r=>r.__nrid===n.id)) && !add.find(r=>r.__nrid===n.id)) add.push(newRubToObj(n)); });
+    RUBTPL.forEach(t=>{ if(rubTplMatches(t,s.id,grp) && !((s.rubriken||[]).find(r=>r.__tplid===t.id)) && !add.find(r=>r.__tplid===t.id)) add.push(tplRubToObj(t)); });
+    if(!add.length) return s; return Object.assign({},s,{rubriken:(s.rubriken||[]).concat(add)}); }); }
 function stdTitel(s){ return (STDE[s.id]&&STDE[s.id].titel)||s.titel; }
 function stdGruppe(s){ return (STDE[s.id]&&STDE[s.id].gruppe)||s.gruppe; }
 function stdHidden(s){ return !!(STDE[s.id]&&STDE[s.id].hidden); }
-function rubKey(r,idx){ return curStd.id+'|'+(r.__nrid?('nr:'+r.__nrid):idx); }
+function rubKey(r,idx){ return curStd.id+'|'+(r.__tplid?('tpl:'+r.__tplid):(r.__nrid?('nr:'+r.__nrid):idx)); }
 function rubName(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.name)||r.name; }
 function rubHidden(r,idx){ const e=RUBE[rubKey(r,idx)]; return !!(e&&e.hidden); }
 function rubOrd(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.ord!=null)?e.ord:idx; }
-function newStandard(){ if(!ADMIN) return; const t=prompt('Titel des neuen Standards:',''); if(t==null||!t.trim()) return; const g=prompt('Gruppe (z. B. CRM, EPU, PCI …):','EIGENE')||'EIGENE';
-  const id='s'+Date.now().toString(36)+Math.floor(Math.random()*10000); NEWSTD.push({id,titel:t.trim(),gruppe:g.trim()||'EIGENE'}); saveNEWSTD(); mergeCustomIntoDB(); renderStandards(); toast('Standard angelegt'); }
+/* Standards werden ausschließlich über das Formular-System (openStandardForm →
+   ADDITIONS) angelegt; das frühere prompt-basierte newStandard() wurde bei der
+   Konsolidierung entfernt. */
 function editStandard(){ if(!ADMIN||!curStd) return; const t=prompt('Titel:',stdTitel(curStd)); if(t==null) return; const g=prompt('Gruppe:',stdGruppe(curStd)); if(g==null) return;
   STDE[curStd.id]=Object.assign({},STDE[curStd.id],{titel:(t.trim()||stdTitel(curStd)),gruppe:(g.trim()||stdGruppe(curStd))}); saveSTDE(); openStandard(curStd.id,true); toast('Standard aktualisiert'); }
 function toggleStdHidden(){ if(!ADMIN||!curStd) return; const h=!stdHidden(curStd); if(h&&!confirm('Standard ausblenden? Kolleginnen sehen ihn dann nicht mehr; Wiederherstellung in Verwaltung → Ausgeblendete Einträge.')) return;
@@ -88,9 +112,27 @@ function deleteNewStandard(){ if(!ADMIN||!curStd||!curStd.__new) return; if(!con
   NEW=NEW.filter(x=>x.std!==curStd.id); saveNEW(); NEWRUB=NEWRUB.filter(x=>x.std!==curStd.id); saveNEWRUB();
   const i=DB.standards.findIndex(s=>s.id===curStd.id); if(i>=0) DB.standards.splice(i,1);
   nav=[]; location.hash=''; setMode('use'); toast('Standard gelöscht'); }
-function addRubrik(){ if(!ADMIN||!curStd) return; const nm=prompt('Name der neuen Rubrik:',''); if(nm==null||!nm.trim()) return;
-  const ty=(prompt('Typ: material / geraete / sonstige','sonstige')||'sonstige').trim().toLowerCase(); const typ=(ty==='material'||ty==='geraete')?ty:'sonstige';
-  const id='r'+Date.now().toString(36)+Math.floor(Math.random()*10000); NEWRUB.push({id,std:curStd.id,name:nm.trim(),typ}); saveNEWRUB(); mergeCustomIntoDB(); openStandard(curStd.id,true); toast('Rubrik angelegt'); }
+/* Öffnet das Rubrik-Formular (Name, Typ, Geltungsbereich). Ersetzt das frühere
+   prompt-basierte Anlegen; neue Rubriken sind jetzt Vorlagen mit Geltungsbereich. */
+function addRubrik(){ if(!ADMIN||!curStd) return; openRubrikForm(null); }
+function makeRubTpl(f){ const id=f.id||('t'+Date.now().toString(36)+Math.floor(Math.random()*10000));
+  const typ=(f.typ==='material'||f.typ==='geraete')?f.typ:'sonstige';
+  const scope=(f.scope==='groups'||f.scope==='all')?f.scope:'std';
+  const tpl={id,name:(f.name||'').trim(),typ,scope};
+  if(scope==='std') tpl.std=f.std||(curStd&&curStd.id)||null;
+  if(scope==='groups') tpl.groups=(f.groups||[]).slice();
+  return tpl; }
+function saveRubrikTpl(f){ const tpl=makeRubTpl(f); const i=RUBTPL.findIndex(t=>t.id===tpl.id);
+  if(i>=0) RUBTPL[i]=tpl; else RUBTPL.push(tpl); saveRubTpl(); rebuildDB(); }
+function deleteRubTpl(id){ RUBTPL=RUBTPL.filter(t=>t.id!==id); saveRubTpl(); rebuildDB(); }
+/* Schaltet eine Vorlage für eine Gruppe an/aus (Matrix-Zelle). Die Gruppe wird
+   über ihren Index geliefert (kein Freitext im onclick – esc()-Caveat). */
+function toggleTplGroup(id,gi){ const t=RUBTPL.find(x=>x.id===id); if(!t) return; const grp=distinctGroups()[gi]; if(grp==null) return;
+  if(t.scope==='all'){ /* „alle" auf konkrete Gruppen herunterbrechen, dann die eine entfernen */
+    t.scope='groups'; t.groups=distinctGroups().filter(g=>g!==grp); delete t.std; }
+  else if(t.scope==='groups'){ t.groups=t.groups||[]; const i=t.groups.indexOf(grp); if(i>=0) t.groups.splice(i,1); else t.groups.push(grp); }
+  else { /* std → groups mit dieser einen Gruppe */ t.scope='groups'; t.groups=[grp]; delete t.std; }
+  saveRubTpl(); rebuildDB(); renderAdmin(); }
 function renameRubrik(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const nn=prompt('Rubrik umbenennen:',rubName(r,idx)); if(nn==null||!nn.trim()) return;
   const k=rubKey(r,idx); RUBE[k]=Object.assign({},RUBE[k],{name:nn.trim()}); saveRUBE(); openStandard(curStd.id,true); }
 function toggleRubHidden(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const k=rubKey(r,idx); const h=!rubHidden(r,idx);
@@ -101,10 +143,10 @@ function moveRubrik(idx,dir){ if(!ADMIN) return; const vis=curStd.rubriken.map((
   vis.forEach((x,k)=>{ const key=rubKey(x.r,x.i); RUBE[key]=Object.assign({},RUBE[key],{ord:k}); });
   const a=vis[pos], b=vis[j]; const ka=rubKey(a.r,a.i), kb=rubKey(b.r,b.i); const t=RUBE[ka].ord; RUBE[ka].ord=RUBE[kb].ord; RUBE[kb].ord=t; saveRUBE(); openStandard(curStd.id,true); }
 function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.menge||null, menge_zahl:null, natur:n.natur||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:n.uk||null, spalte:null, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false, __new:true }; }
-function addNewEntry(idxKey,uk,natur){ if(!ADMIN) return; const name=prompt('Name des neuen Eintrags:',''); if(name==null||!name.trim()) return; const menge=prompt('Menge (z. B. 1x — leer lassen = keine):','');
-  const id='n'+Date.now().toString(36)+Math.floor(Math.random()*10000);
-  NEW.push({id, std:curStd.id, rub:idxKey, uk:(uk||null), name:name.trim(), menge:(menge&&menge.trim())?menge.trim():null, natur:natur||'material'});
-  saveNEW(); toast('Eintrag angelegt'); reRenderDetail(); }
+/* Einträge werden ausschließlich über das Formular-System (startAddEntry →
+   ADDITIONS) angelegt; das frühere prompt-basierte addNewEntry() wurde bei der
+   Konsolidierung entfernt. Bestehende Alt-Einträge (NEW) werden weiterhin
+   angezeigt (newEntriesFor), aber nicht mehr neu erzeugt. */
 function rubIdxKey(r,idx){ return r.__nrid?('nr:'+r.__nrid):idx; }
 function newEntriesFor(r,idx){ const key=rubIdxKey(r,idx); return NEW.filter(n=>n.std===curStd.id && String(n.rub)===String(key)); }
 function orderKeyFor(idx,uk){ const r=curStd.rubriken[idx]; return curStd.id+'|'+rubIdxKey(r,idx)+'|'+(uk||''); }
