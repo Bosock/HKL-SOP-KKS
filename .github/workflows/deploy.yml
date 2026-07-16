@@ -3,6 +3,10 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
+  # Pull Requests gegen main werden validiert (nur die Test-Stufe; Build/Deploy
+  # bleiben dem Merge auf main vorbehalten — siehe `if:` an jenen Jobs).
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -37,6 +41,8 @@ jobs:
   build:
     name: Build & push image
     needs: test
+    # Auf Pull Requests NICHT bauen/pushen — nur bei push auf main bzw. manuell.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,6 +83,8 @@ jobs:
   deploy:
     name: Deploy to 162.19.250.88
     needs: build
+    # Nie aus einem Pull Request deployen.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

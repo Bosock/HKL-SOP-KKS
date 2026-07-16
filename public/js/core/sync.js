@@ -76,7 +76,13 @@ const sync=(()=>{
   let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0;
   function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status'; } }
   function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
-  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return; storeSetQuiet(k, JSON.stringify(st[k])); changed=true; }); return changed; }
+  /* Übernimmt eingehende Server-Werte in den Store. Nur WIRKLICH abweichende
+     Werte werden geschrieben und als Änderung gemeldet – so löst das Zurück-
+     spiegeln der gerade selbst gespeicherten Schlüssel kein überflüssiges
+     hydrateVars()/refreshView() aus (kein Flackern/Fokusverlust beim Tippen).
+     Client wie Server serialisieren über JSON.stringify, daher sind die Strings
+     vergleichbar; im Zweifel (String ungleich) wird geschrieben – nie zu wenig. */
+  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return; const next=JSON.stringify(st[k]); if(store.get(k)===next) return; storeSetQuiet(k, next); changed=true; }); return changed; }
 
   async function pull(){
     const r=await fetch(URL,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
