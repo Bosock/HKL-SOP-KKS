@@ -348,11 +348,11 @@ test('PUT /api/state over MAX_BODY is 413', async () => {
   const r = await request('PUT', '/api/state', {
     body: JSON.stringify({ state: { blob: big } }),
   });
-  // The server rejects oversize bodies mid-stream and destroys the socket,
-  // so the client either reads the 413 response or sees the reset first.
-  // Either way the oversize write must not be applied.
-  assert.ok(r.status === 413 || r.error === 'ECONNRESET', `got status=${r.status} error=${r.error}`);
-  if (r.status === 413) assert.deepEqual(json(r), { error: 'payload too large' });
+  // Der Server stoppt beim Limit das Puffern, reißt den Socket aber NICHT ab,
+  // sondern antwortet sauber mit 413 — so kann der Client den Status wirklich
+  // lesen (früher gab es hier eine Race gegen ECONNRESET).
+  assert.equal(r.status, 413, `got status=${r.status} error=${r.error}`);
+  assert.deepEqual(json(r), { error: 'payload too large' });
   const after = await request('GET', '/api/state');
   assert.equal(json(after).rev, 0);
 });

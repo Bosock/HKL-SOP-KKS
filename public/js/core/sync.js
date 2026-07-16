@@ -73,7 +73,7 @@ function refreshView(){
 
 const sync=(()=>{
   const URL='/api/state';
-  let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0;
+  let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0, oversize=false;
   function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status'; } }
   function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
   /* Übernimmt eingehende Server-Werte in den Store. Nur WIRKLICH abweichende
@@ -95,7 +95,7 @@ const sync=(()=>{
     if(!keys.length) return false;
     const body=JSON.stringify({baseRev:rev, state:payloadFor(keys)});
     const r=await fetch(URL,{method:'PUT',headers:{'Content-Type':'application/json'},body});
-    if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+    if(!r.ok){ const err=new Error('HTTP '+r.status); err.status=r.status; throw err; } const j=await r.json();
     rev=j.rev||rev; return adopt(j.state,true); /* fremde Schlüssel übernehmen (eigene dirty nicht) */
   }
   async function flush(){
@@ -104,14 +104,23 @@ const sync=(()=>{
     const keys=[...dirty]; if(!keys.length) return;
     dirty.clear(); inflight=true; setDot('saving','Speichere…');
     try{
-      const changed=await putKeys(keys); offline=false; fails=0; setDot('ok','Auf dem Server gespeichert');
+      const changed=await putKeys(keys); offline=false; fails=0; oversize=false; setDot('ok','Auf dem Server gespeichert');
       if(changed && dirty.size===0){ hydrateVars(); refreshView(); }
     }catch(e){
-      keys.forEach(k=>dirty.add(k)); offline=true; fails++; setDot('local','Nur lokal – Server nicht erreichbar');
+      keys.forEach(k=>dirty.add(k));
+      if(e && e.status===413){
+        // Zustand größer als das Server-Limit (MAX_BODY) – typischerweise zu
+        // viele/große Material-Fotos. KEIN Netzfehler: der Server ist erreichbar
+        // und lehnt ab. Daher klare, handlungsleitende Meldung und langsamer
+        // Wiederholtakt statt endlosem 1,5-s-Hämmern mit demselben Payload.
+        oversize=true; setDot('local','Daten zu groß für den Server – lokal gesichert. Bitte Fotos verkleinern.');
+      } else {
+        oversize=false; offline=true; fails++; setDot('local','Nur lokal – Server nicht erreichbar');
+      }
     }finally{
       inflight=false;
       if(pending||dirty.size){ pending=false; clearTimeout(timer);
-        const delay=fails>0?Math.min(30000,2000*Math.pow(2,fails-1)):1500; timer=setTimeout(flush,delay); }
+        const delay=oversize?60000:(fails>0?Math.min(30000,2000*Math.pow(2,fails-1)):1500); timer=setTimeout(flush,delay); }
     }
   }
   function mark(k){ if(!enabled||!SHARED_KEYS.includes(k)) return; dirty.add(k); if(!offline) setDot('saving','Speichere…'); clearTimeout(timer); timer=setTimeout(flush,800); }
