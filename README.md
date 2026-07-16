@@ -109,9 +109,11 @@ Previously all edits lived only in one browser's `localStorage`. Now the app is
   used and logins reset on restart) — a plain base64 cookie can no longer forge
   an identity.
 
-Shared keys: `hkl_natcfg`, `hkl_overrides`, `hkl_qedits`, `hkl_reviewed`, `hkl_reassign`,
-`hkl_ukmap`, `hkl_ukmeta`, `hkl_settings`, `hkl_care`, `hkl_additions`. Per-device keys that
-stay local: `hkl_checks` (daily checklist), `hkl_theme`.
+Shared keys: the authoritative list is `SHARED_KEYS` in
+[`public/js/core/sync.js`](public/js/core/sync.js) (content overlays, settings, prices,
+hints, glossary, suggestions, own standards/entries, design/texts, …). Per-device keys
+that deliberately stay local: `hkl_checks` (daily checklist), `hkl_theme`,
+`hkl_authuntil` (admin session TTL), `hkl_voterid` (suggestion voting identity).
 
 ### Adding & editing content
 
@@ -160,8 +162,9 @@ docker build -t hkl-sop-kks:local .
 docker run --rm -p 8080:80 -v hkl-state:/app/state hkl-sop-kks:local
 # open http://localhost:8080
 
-# Or with compose (uses the published image; set HOST_PORT to taste):
-HOST_PORT=8080 docker compose up
+# Note: docker-compose.yml is the PRODUCTION definition (no host port — it
+# expects the shared nginx-proxy network). For a local container use the
+# `docker run -p 8080:80 …` line above.
 ```
 
 Health check: `curl http://localhost:8080/healthz` → `ok`.

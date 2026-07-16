@@ -27,7 +27,11 @@ public/
       additions.js      eigene Einträge/Standards (hkl_additions)
       catalog.js        Katalog-Domänenlogik (rein, testbar)
       care.js           Materialpflege (Fotos, Lagerorte)
-      backup.js         Export/Import aller Anpassungen
+      backup.js         Export/Import aller Anpassungen — enthält historisch
+                        bedingt AUCH die Verwaltungsansicht (renderAdmin +
+                        Kategorien-/UK-Editoren); ui/admin.js hält nur die
+                        Sammel-Helfer. Bei Gelegenheit entwirren (siehe
+                        docs/audits/).
       quickmenu.js      Schnellmenü (Long-Press)
     ui/               Ansichten & Navigation
       nav.js, standards.js, rubriken.js, detail.js,

@@ -48,11 +48,13 @@ function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="shee
 function sheetSetNatur(key){ sheetPending={kind:'natur',value:key}; askScope(); }
 function sheetNewNatur(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length]; NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); sheetPending={kind:'natur',value:key}; askScope(); }
 function renderSheetUk(){ computeUkList(); let h=`<div class="sheet-grip"></div><div class="sheet-title">Unterkategorie wählen</div><div class="sheet-pick">`;
-  h+=`<button class="sheet-pick-btn" onclick="sheetSetUk('')">— ohne —</button>`;
-  UK_LIST.forEach(u=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetUk('${esc(u)}')">${ukIconOf(u)} ${esc(u)}</button>`; });
+  /* Per INDEX in UK_LIST (−1 = ohne): UK-Namen sind Freitext und gehören
+     nicht in onclick-String-Literale (esc() escaped kein Apostroph). */
+  h+=`<button class="sheet-pick-btn" onclick="sheetSetUk(-1)">— ohne —</button>`;
+  UK_LIST.forEach((u,i)=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetUk(${i})">${ukIconOf(u)} ${esc(u)}</button>`; });
   h+=`<button class="sheet-pick-btn" onclick="sheetNewUk()">＋ Neue Unterkategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
-function sheetSetUk(val){ sheetPending={kind:'uk',value:val}; askScope(); }
+function sheetSetUk(i){ const val=(i<0)?'':(UK_LIST[i]!=null?UK_LIST[i]:''); sheetPending={kind:'uk',value:val}; askScope(); }
 function sheetNewUk(){ const nm=prompt('Name der neuen Unterkategorie:',''); if(nm==null||!nm.trim()) return; sheetPending={kind:'uk',value:nm.trim()}; askScope(); }
 function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Farbe wählen</div><div class="sheet-colorrow">`;
   UK_PALETTE.forEach(c=>{ h+=`<span class="sheet-sw" style="background:${c}" onclick="sheetSetColor('${c}')"></span>`; });

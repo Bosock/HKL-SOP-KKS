@@ -64,10 +64,13 @@ let GRPORD=loadJSON('hkl_grpord',[]); function saveGRPORD(){ saveJSON('hkl_grpor
 let RUBICON=loadJSON('hkl_rubicon',{}); function saveRUBICON(){ saveJSON('hkl_rubicon',RUBICON); }
 function groupSort(keys){ return keys.slice().sort((a,b)=>{ let ia=GRPORD.indexOf(a), ib=GRPORD.indexOf(b); if(ia<0)ia=1e6; if(ib<0)ib=1e6; if(ia!==ib) return ia-ib; return a.localeCompare(b,'de'); }); }
 function distinctGroups(){ const s=new Set(); DB.standards.forEach(x=>s.add(stdGruppe(x))); return groupSort([...s]); }
-function moveGroup(name,dir){ const list=distinctGroups(); const i=list.indexOf(name); const j=i+dir; if(i<0||j<0||j>=list.length) return; const t=list[i]; list[i]=list[j]; list[j]=t; GRPORD=list; saveGRPORD(); renderAdmin(); }
+/* Per INDEX statt Name aufgerufen (Freitext gehört nicht in onclick – esc()
+   escaped kein Apostroph, siehe ARCHITECTURE.md „Altlasten"). */
+function moveGroup(i,dir){ const list=distinctGroups(); const j=i+dir; if(i<0||i>=list.length||j<0||j>=list.length) return; const t=list[i]; list[i]=list[j]; list[j]=t; GRPORD=list; saveGRPORD(); renderAdmin(); }
 function distinctRubrics(){ const s=new Set(); DB.standards.forEach(std=>(std.rubriken||[]).forEach(r=>s.add(r.name))); return [...s].sort((a,b)=>a.localeCompare(b,'de')); }
 function rubIconEff(r,i){ return RUBICON[r.name] || rubrikIcon(rubName(r,i), r.typ); }
-function editRubIcon(name){ if(!ADMIN) return; const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return; if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); renderAdmin(); }
+/* Per INDEX in distinctRubrics() aufgerufen (kein Freitext in onclick). */
+function editRubIcon(i){ if(!ADMIN) return; const name=distinctRubrics()[i]; if(name==null) return; const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return; if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); renderAdmin(); }
 function setDesign(k,v){ DESIGN[k]=v; saveDESIGN(); applyDesign(); renderAdmin(); }
 function resetDesign(){ DESIGN={}; saveDESIGN(); const root=document.documentElement; ['--accent','--accent-deep','--size','--size-bg','--size-bd'].forEach(x=>root.style.removeProperty(x)); try{ if(document.body&&document.body.style) document.body.style.zoom='1'; }catch(e){} applyNatConfig(); renderAdmin(); toast('Design zurückgesetzt'); }
 function setTxt(k,v){ if(v.trim()==='') delete TXT[k]; else TXT[k]=v; saveTXT(); updateBar(); renderAdmin(); }

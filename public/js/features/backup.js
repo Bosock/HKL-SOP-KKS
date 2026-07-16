@@ -113,9 +113,9 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=`<details class="vpanel"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
     <div class="flabel">Gruppen-Reihenfolge (Startseite)</div>`;
   if(grps.length===0) html+=`<p class="hint">Keine Gruppen.</p>`;
-  grps.forEach((g,i)=>{ html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup('${esc(g)}',-1)">▲</button><button class="icon" onclick="moveGroup('${esc(g)}',1)">▼</button></div></div>`; });
+  grps.forEach((g,i)=>{ html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup(${i},-1)">▲</button><button class="icon" onclick="moveGroup(${i},1)">▼</button></div></div>`; });
   html+=`<div class="flabel" style="margin-top:14px">Rubrik-Symbole</div>`;
-  rubs.forEach(nm=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon('${esc(nm)}')">Symbol ändern</button></div></div>`; });
+  rubs.forEach((nm,i)=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon(${i})">Symbol ändern</button></div></div>`; });
   html+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
 
   /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
@@ -146,7 +146,9 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(hidTotal===0) html+=`<p class="hint">Nichts ausgeblendet.</p>`;
   hid.byStd.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
   hid.byRub.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
-  hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button onclick="restoreMat('${esc(mk)}')">Wiederherstellen</button></div></div>`; });
+  /* material_key ist Freitext (kann ' enthalten) → über data-Attribut statt
+     Inline-Argument übergeben; esc() macht den Wert Attribut-sicher ("). */
+  hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button data-k="${esc(mk)}" onclick="restoreMat(this.dataset.k)">Wiederherstellen</button></div></div>`; });
   hid.byCid.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
   html+=`</div></details>`;
 
