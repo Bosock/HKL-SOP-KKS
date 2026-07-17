@@ -72,6 +72,10 @@
     <button type="button" class="scan-btn-cancel" onclick="stopCam()">Abbrechen</button>
   </div>
 </div>
+<!-- On-Device-OCR: Fortschritts-Overlay während der Texterkennung -->
+<div class="ocr-busy" id="ocrBusy" aria-hidden="true" role="status" aria-live="polite">
+  <div class="ocr-box"><div class="ocr-spin"></div><div class="ocr-msg" id="ocrBusyMsg">OCR läuft …</div></div>
+</div>
 
 <script src="js/core/store.js"></script>
 <script src="js/core/config.js"></script>
@@ -101,6 +105,7 @@
 <script src="js/features/pdfprint.js"></script>
 <script src="js/features/suggestions.js"></script>
 <script src="js/features/scanner.js"></script>
+<script src="js/features/ocr.js"></script>
 <script src="js/core/sync.js"></script>
 <script src="js/core/pwa.js"></script>
 <script src="js/main.js"></script>

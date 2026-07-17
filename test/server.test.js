@@ -33,6 +33,12 @@ fs.writeFileSync(path.join(PUBLIC_DIR, 'app.css'), BIG_CSS);
 fs.writeFileSync(path.join(PUBLIC_DIR, 'small.txt'), 'hi');
 fs.writeFileSync(path.join(DATA_DIR, 'standards.json'), '{"standards":[]}');
 fs.writeFileSync(path.join(SUB_DIR, 'index.html'), '<p>sub index</p>');
+// Mini-Fixtures für die vendorten OCR-Assets (nur die MIME-Zuordnung per
+// Endung wird geprüft, nicht der Inhalt).
+const VENDOR_DIR = path.join(PUBLIC_DIR, 'vendor', 'tesseract');
+fs.mkdirSync(VENDOR_DIR, { recursive: true });
+fs.writeFileSync(path.join(VENDOR_DIR, 'tesseract-core-simd-lstm.wasm'), Buffer.from([0, 0x61, 0x73, 0x6d]));
+fs.writeFileSync(path.join(VENDOR_DIR, 'eng.traineddata.gz'), Buffer.from([0x1f, 0x8b, 0x08, 0x00]));
 // A file outside PUBLIC_DIR that path-traversal attempts might target.
 fs.writeFileSync(path.join(TMP, 'secret.txt'), 'TOP SECRET');
 
@@ -139,10 +145,24 @@ test('static responses carry a Content-Security-Policy', async () => {
   // Inline handlers/styles are part of the design → must stay allowed…
   assert.match(csp, /script-src 'self' 'unsafe-inline'/);
   assert.match(csp, /style-src 'self' 'unsafe-inline'/);
-  // …but eval() must never be whitelisted.
-  assert.doesNotMatch(csp, /unsafe-eval/);
+  // …WASM compilation is allowed for the on-device OCR (Tesseract.js)…
+  assert.match(csp, /'wasm-unsafe-eval'/);
+  // …but the dangerous bare 'unsafe-eval' (eval()/new Function()) must NEVER be.
+  assert.doesNotMatch(csp, /'unsafe-eval'/);
   // Care photos are data: URLs.
   assert.match(csp, /img-src[^;]*data:/);
+});
+
+test('vendored OCR assets are served with correct MIME (no double-gzip)', async () => {
+  const wasm = await request('GET', '/vendor/tesseract/tesseract-core-simd-lstm.wasm');
+  assert.strictEqual(wasm.status, 200);
+  assert.match(wasm.headers['content-type'], /application\/wasm/);
+  // Das Sprachmodell wird als .gz ausgeliefert und clientseitig entpackt — der
+  // Server darf es NICHT zusätzlich gzip-kodieren, sonst scheitert der Client.
+  const gz = await request('GET', '/vendor/tesseract/eng.traineddata.gz');
+  assert.strictEqual(gz.status, 200);
+  assert.match(gz.headers['content-type'], /application\/gzip/);
+  assert.ok(!gz.headers['content-encoding'], 'gz must not be double-encoded');
 });
 
 test('JSON API responses also carry the security headers', async () => {

@@ -23,6 +23,7 @@ alternativ Pfad zu einem Chrome/Chromium via `E2E_CHROME=/pfad/zu/chrome`.
 |---|---|
 | `backend-roundtrip.js` | Gerät A schreibt über die realen Save-Funktionen **aller 13 geteilten Module** → Server → Gerät B liest denselben Stand |
 | `scanner.js` | Etikett-Scanner end-to-end (ohne echte Kamera, `onDecode` mit GS1-Strings): Parser · unbekannter Scan → Formular · Speichern → Produktdatenbank · erneuter Scan → Wiedererkennung · Server-Persistenz · Gerät B |
+| `ocr.js` | On-Device-OCR: selbst gehostete Tesseract-Engine wird vom Server (unter der CSP mit WASM) geladen und liest echten Text aus einem gerenderten Etikett; `extractLabelFields` gewinnt REF/Hersteller/French. Langsamer (~6 MB + WASM). |
 | `sync-rerender.js` | Eigene Edits erzeugen kein überflüssiges Re-Rendering; Fremd-Edits werden übernommen und rendern |
 | `payload-too-large.js` | 413-Kette: sauberer Serverstatus, klare Client-Meldung, Daten bleiben lokal |
 | `auth-button.js` | Login-Knopf je OAuth-Konfiguration; `/auth/user`-Flag; GitHub-Redirect |

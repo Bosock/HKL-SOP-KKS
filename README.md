@@ -154,11 +154,18 @@ CSP change, works offline.
   known product → its record opens; scan an unknown one → a pre-filled form.
 - The barcode does **not** carry the human-readable **REF** or **manufacturer name**, so those
   free-text fields (plus sizes: French, length, outer/inner Ø) are entered **once per GTIN** and
-  are then shown automatically on every future scan. Deliberately **no OCR and no cloud** (a
-  conscious Phase-1 decision — see `docs/MASSNAHMEN.md`).
-- Looking products up is open to everyone; creating/editing a record requires the admin login.
-  Where `BarcodeDetector` is unavailable, the database stays searchable and (as admin) manually
-  editable.
+  are then shown automatically on every future scan.
+- **On-device OCR** ([`public/js/features/ocr.js`](public/js/features/ocr.js)) fills those
+  free-text fields from a **photo of the label**: in the product form, *„📸 Etikett fotografieren"*
+  captures a picture and reads REF, manufacturer and sizes off it (`extractLabelFields`), pre-filling
+  the form for the user to confirm. It runs **entirely on the device** — Tesseract.js (WASM) is
+  **self-hosted** under [`public/vendor/tesseract/`](public/vendor/tesseract/) (no cloud, no
+  third-party origin, offline after first use). The engine is loaded lazily on first use only. This
+  needs `wasm-unsafe-eval` in the CSP (WASM compilation only — never bare `unsafe-eval`; see
+  `server/config.js`).
+- Looking products up is open to everyone; creating/editing a record and running OCR require the
+  admin login. Where `BarcodeDetector` is unavailable, the database stays searchable and (as admin)
+  manually editable; the photo-OCR works independently of it.
 
 ### API
 

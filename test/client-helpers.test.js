@@ -92,6 +92,7 @@ function loadHelpers() {
     extractFn('filterGtin'),
     extractFn('gtinGroups'),
     extractFn('gtinBadges'),
+    extractFn('extractLabelFields'),
     extractFn('rubTplMatches'),
     extractFn('hexToRgb'),
     extractFn('_lin'),
@@ -99,7 +100,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -967,4 +968,40 @@ test('gtinBadges: nur gesetzte Maße als [Label,Wert]-Paare', () => {
   // gtinBadges({}) kommt aus der vm-Sandbox (fremdes Array.prototype) → per
   // Länge/JSON prüfen statt deepEqual (das den Prototyp mitvergleicht).
   assert.equal(fns.gtinBadges({}).length, 0);
+});
+
+// --- On-Device-OCR: Etikett-Text → Felder ----------------------------------
+test('extractLabelFields: typisches Schleusen-Etikett', () => {
+  const txt = [
+    'TERUMO',
+    'Radifocus Introducer II',
+    'REF RM*RG5J40',
+    'LOT 3A1234',
+    '6Fr  110 cm',
+  ].join('\n');
+  const f = fns.extractLabelFields(txt);
+  assert.equal(f.hersteller, 'Terumo');
+  assert.equal(f.ref, 'RM*RG5J40');
+  assert.equal(f.lot, '3A1234');
+  assert.equal(f.french, '6F');
+  assert.equal(f.laenge, '110 cm');
+  assert.equal(f.name, 'Radifocus Introducer II');
+});
+test('extractLabelFields: Durchmesser außen/innen + CAT-Nummer', () => {
+  const f = fns.extractLabelFields('Boston Scientific\nCAT NO H12345\nOD 2.6 mm  ID 1.8 mm');
+  assert.equal(f.hersteller, 'Boston Scientific'); // längster Marken-Treffer
+  assert.equal(f.ref, 'H12345');
+  assert.equal(f.dAussen, '2,6 mm');
+  assert.equal(f.dInnen, '1,8 mm');
+});
+test('extractLabelFields: leerer/nutzloser Text ergibt leere Felder (nichts geraten)', () => {
+  const f = fns.extractLabelFields('');
+  assert.equal(f.ref, ''); assert.equal(f.hersteller, ''); assert.equal(f.french, '');
+  const g = fns.extractLabelFields(null);
+  assert.equal(g.ref, '');
+});
+test('extractLabelFields: French auch ausgeschrieben, Dezimalkomma', () => {
+  const f = fns.extractLabelFields('Cordis\n7.5 French');
+  assert.equal(f.french, '7.5F');
+  assert.equal(f.hersteller, 'Cordis');
 });

@@ -500,3 +500,14 @@
 .gtin-mono { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; color:var(--text-faint); }
 .exp-soon { color:#d98a1f; font-weight:600; }
 .exp-expired { color:#d64545; font-weight:700; }
+
+/* ===== On-Device-OCR ===== */
+.ocr-cta { min-height:48px; font-size:15px; margin:2px 0 4px; }
+.ocr-hint { font-size:12.5px; color:var(--text-faint); line-height:1.45; margin:0 2px 4px; }
+.ocr-filled { outline:2px solid var(--size); outline-offset:1px; background:var(--size-bg); }
+.ocr-busy { position:fixed; inset:0; z-index:1300; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); }
+.ocr-busy.show { display:flex; }
+.ocr-box { background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:16px; padding:22px 26px; text-align:center; min-width:200px; max-width:80vw; box-shadow:0 10px 40px rgba(0,0,0,.4); }
+.ocr-spin { width:34px; height:34px; margin:0 auto 12px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:ocr-spin 0.9s linear infinite; }
+@keyframes ocr-spin { to { transform:rotate(360deg); } }
+.ocr-msg { font-size:14px; font-weight:600; }

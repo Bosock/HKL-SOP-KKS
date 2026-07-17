@@ -131,8 +131,10 @@ server.js             dünner Einstiegspunkt (node server.js)
   Antwort): strikte **Content-Security-Policy** (`default-src 'self'`,
   `object-src 'none'`, `base-uri`/`form-action`/`frame-ancestors 'self'`;
   `script`/`style` behalten `'unsafe-inline'` wegen der Inline-`onclick=`/
-  `style=`-Attribute, aber **nie** `'unsafe-eval'`; `img-src` erlaubt `data:`
-  für die Foto-Pflege), **HSTS** (ohne `includeSubDomains`) sowie
+  `style=`-Attribute; `script-src` trägt zusätzlich `'wasm-unsafe-eval'` für die
+  On-Device-OCR (nur WASM-Kompilierung — **nie** das gefährliche bare
+  `'unsafe-eval'`), `worker-src` erlaubt `blob:` für den OCR-Worker; `img-src`
+  erlaubt `data:`/`blob:` für die Foto-Pflege), **HSTS** (ohne `includeSubDomains`) sowie
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` und eine
   `Permissions-Policy`, die ungenutzte Sensor-/Zahlungs-APIs abschaltet.
 - Deployment-Weg unverändert: Push auf `main` → GitHub Actions (Tests →
@@ -184,11 +186,24 @@ GS1-Barcodes/UDI-DataMatrix live von der Kamera. Der reine, testbare Kern
 GS1-Application-Identifiers (01 GTIN, 17 Verfall, 10 LOT, 21 Serie …) und ist
 in `test/client-helpers.test.js` abgedeckt; die Kamera-/DOM-Schicht bleibt dünn.
 Die **GTIN** ist der Datenbankschlüssel — der Barcode trägt REF/Hersteller
-bewusst **nicht**, diese Freitextfelder werden einmal je GTIN erfasst (kein OCR,
-keine Cloud; Phase-1-Entscheidung). Geteilter Schlüssel `hkl_gtin` in
-`SHARED_KEYS` (+ `hydrateVars`) **und** `BACKUP_KEYS`. Keine CSP-Änderung nötig
-(BarcodeDetector ist kein Skript-`eval`; die Kamera ist per `Permissions-Policy`
-erlaubt). End-to-End: `e2e/scanner.js`.
+bewusst **nicht**, diese Freitextfelder werden einmal je GTIN erfasst. Geteilter
+Schlüssel `hkl_gtin` in `SHARED_KEYS` (+ `hydrateVars`) **und** `BACKUP_KEYS`.
+Der Barcode-Teil braucht keine CSP-Änderung (BarcodeDetector ist kein
+Skript-`eval`; die Kamera ist per `Permissions-Policy` erlaubt).
+End-to-End: `e2e/scanner.js`.
+
+**On-Device-OCR** (`features/ocr.js`) füllt die Freitextfelder aus einem
+Etikett-**Foto** vor. `extractLabelFields(text)` ist rein/testbar (REF, LOT,
+Marken-Hersteller, French/Länge/Ø aus dem OCR-Text) und wird nur auf **leere**
+Formularfelder angewendet (nie überschreiben). Die Engine ist **Tesseract.js
+(WASM)**, selbst gehostet unter `public/vendor/tesseract/` (SIMD-LSTM-Core +
+`eng.traineddata.gz`, ~6 MB), **lazy** erst beim ersten OCR-Aufruf geladen und
+same-origin (offline-fähig, `connect-src 'self'`). Dafür — und **nur** dafür —
+trägt die CSP `'wasm-unsafe-eval'` (reine WASM-Kompilierung, kein bare
+`'unsafe-eval'`), plus `worker-src 'self' blob:`; der Server liefert `.wasm`
+(`application/wasm`) und das `.gz`-Sprachmodell ohne Content-Encoding aus
+(Client entpackt selbst). End-to-End (lädt echte Engine, liest echten Text):
+`e2e/ocr.js`.
 
 ## Bekannte Altlasten / bewusste Kompromisse
 

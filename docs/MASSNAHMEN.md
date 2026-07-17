@@ -57,7 +57,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | N5 | Onboarding-Coachmarks (3 Stück, einmalig) | UX Roadmap | ☐ |
 | N6 | Speicherpfad-Migration `overrides`/`reassign` → QE-Overlay | QM §2 | ☐ |
 | N7 | Visionär: Steril-Sprachmodus, QR am Regal, Wandmonitor-Board | UX Roadmap | ☐ |
-| N8 | Etikett-Scanner **Phase 2**: Texterkennung von REF/Hersteller/Maßen (On-Device-OCR *oder* Cloud-Vision) — nur bei Bedarf; Phase 1 (Barcode + 1× erfassen) ist bewusst OCR-frei | Scanner | ✋ (spätere Entscheidung) |
+| N8 | Etikett-Scanner **Phase 2**: Texterkennung von REF/Hersteller/Maßen — **erledigt als On-Device-OCR** (Betreiber-Entscheidung); Cloud-Vision bewusst NICHT umgesetzt | Scanner | ☑ (2026-07-17) |
 
 ## Erledigt
 
@@ -74,3 +74,4 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | 2026-07-17 | **E2E-Suite versioniert** (`e2e/`, 6 Suiten, `npm run e2e`) | QA P7/V7 |
 | 2026-07-17 | Offsite-Backup-Anleitung (CONTRIBUTING) · MDR-Leitplanke (README) · diese Liste | QA V3/V11/V4 |
 | 2026-07-17 | **Etikett-Scanner & Produktdatenbank (Phase 1):** Live-Barcode/UDI-DataMatrix via nativem `BarcodeDetector` → GTIN/LOT/Verfall (offline, zero-dep, keine CSP-Änderung); GTIN als DB-Schlüssel; REF/Hersteller/Maße 1× je GTIN; `hkl_gtin` geteilt + Backup; 20 Unit-Tests + E2E-Suite `scanner.js` | Betreiber-Entscheidung: Barcode-first, Android-Chrome |
+| 2026-07-17 | **Etikett-Scanner Phase 2 — On-Device-OCR:** Foto → REF/Hersteller/Maße per Tesseract.js (WASM, selbst gehostet unter `public/vendor/tesseract/`, ~6 MB, lazy, offline); `extractLabelFields` rein/testbar; füllt nur leere Felder; CSP `wasm-unsafe-eval`+`worker-src blob:`; Server-MIME `.wasm`/`.gz`; 4 Unit-Tests + E2E `ocr.js` (echte Engine liest echten Text) | Betreiber-Entscheidung: On-Device statt Cloud |

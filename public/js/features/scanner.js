@@ -6,14 +6,15 @@
    Artikel liefert immer dieselbe GTIN → die Produktdatenbank gruppiert und
    organisiert sich von selbst.
 
-   Bewusste Grenzen (Entscheidung des Betreibers, Phase 1):
-     - KEIN OCR / KEINE Cloud. Der Barcode trägt die GTIN, NICHT die
-       menschenlesbare REF oder den Herstellernamen. Diese Freitext-Felder
-       (REF, Hersteller, Maße) werden EINMAL pro GTIN erfasst und sind danach
-       bei jedem Scan sofort da.
-     - Nutzt die native BarcodeDetector-API (Android-Chrome). Kein Fremd-Skript,
-       keine Abhängigkeit, keine CSP-Lockerung. Fehlt die API, bleibt die
-       Datenbank durchsuchbar und (als Admin) manuell pflegbar.
+   Aufteilung:
+     - Der Barcode (native BarcodeDetector-API, Android-Chrome) trägt die GTIN,
+       NICHT die menschenlesbare REF oder den Herstellernamen. Die GTIN ist der
+       DB-Schlüssel; die Freitext-Felder werden EINMAL pro GTIN erfasst.
+     - Das Erfassen dieser Felder unterstützt zusätzlich On-Device-OCR aus einem
+       Etikett-Foto (features/ocr.js, Tesseract.js/WASM, selbst gehostet) — sie
+       füllt das Formular vor, der Nutzer bestätigt.
+     - Fehlt die BarcodeDetector-API, bleibt die Datenbank durchsuchbar und
+       (als Admin) manuell pflegbar; die Foto-OCR funktioniert unabhängig davon.
 
    Geteilter Zustand: `hkl_gtin` (in SHARED_KEYS + BACKUP_KEYS).
      GTINDB[gtin] = { gtin, hersteller, ref, name, verwendung,
@@ -309,6 +310,8 @@ function renderScanItemForm(r){
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${g?('GTIN '+esc(g)):'Neues Produkt'}</div>
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
+    <button type="button" class="scan-cta ocr-cta" onclick="ocrCaptureAndFill()">📸 Etikett fotografieren – Felder automatisch ausfüllen</button>
+    <div class="ocr-hint">Liest REF, Hersteller und Maße direkt vom Etikett (läuft auf dem Gerät). Bitte die erkannten Werte prüfen.</div>
     <div class="flabel" style="margin-top:12px">HERSTELLER *</div><input class="loc-input" id="scHersteller" placeholder="z. B. Terumo" value="${esc(r.hersteller||'')}">
     <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}">
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
