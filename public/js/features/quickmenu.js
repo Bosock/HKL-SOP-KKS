@@ -52,6 +52,44 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h;
 }
+
+/* ── Gegliedertes Menü für einen STANDARD (Titelzeile bearbeiten) ──
+   Gleiches Muster wie das Eintrags-Menü (§3): fasst die früher verstreuten
+   Admin-Buttons in einem kontextsensitiven Sheet zusammen. */
+function openStdSheet(){ if(!ADMIN||!curStd) return; const s=curStd; const hid=stdHidden(s);
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
+  h+=sGroup('Inhalt','Titel, Gruppe & Freigabe');
+  h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);editStandard()');
+  h+=sAct('🏷️','Version & Freigabe','Status und Gültigkeit','showSheet(false);openStdMetaForm()');
+  h+=sGroup('Gefahrenzone','Ausblenden & löschen');
+  h+=sAct(hid?'↩️':'🗑️',hid?'Wieder einblenden':'Ausblenden',hid?'für alle wieder sichtbar':'aus der Nutzung nehmen (wiederherstellbar)','showSheet(false);toggleStdHidden()',hid?'':'danger');
+  if(s.__new){ h+=sAct('🗑️','Endgültig löschen','App-eigenen Standard samt Einträgen entfernen','showSheet(false);deleteNewStandard()','danger'); }
+  h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+  $('sheet').innerHTML=h; showSheet(true);
+}
+
+/* ── Gegliedertes Menü für eine RUBRIK (Kopf bearbeiten) ── */
+function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const hid=rubHidden(r,idx); const isTpl=!!r.__tplid;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Rubrik bearbeiten${isTpl?' · Vorlage':(r.__nrid?' · eigene':'')}</div><div class="sheet-name">${esc(rubName(r,idx))}</div>`;
+  h+=sGroup('Inhalt','Name & Symbol');
+  h+=sAct('✏️','Umbenennen','nur der Rubrik-Name','showSheet(false);renameRubrik('+idx+')');
+  h+=sAct('🔣','Symbol ändern','Emoji der Rubrik','showSheet(false);editRubIconFor('+idx+')');
+  h+=sGroup('Organisation','Reihenfolge & Geltung');
+  h+=sAct('⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
+  h+=sAct('⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
+  if(isTpl){ h+=sAct('🌐','Geltungsbereich','in welchen Standards die Rubrik erscheint','showSheet(false);openRubrikForm(\''+esc(r.__tplid)+'\')'); }
+  h+=sGroup('Gefahrenzone','Häkchen & Ausblenden');
+  h+=sAct('♻️','Häkchen zurücksetzen','die Tages-Häkchen dieser Rubrik','showSheet(false);clearRubrikChecks('+idx+')');
+  h+=sAct(hid?'↩️':'🗑️',hid?'Wieder einblenden':(r.__nrid?'Endgültig löschen':'Ausblenden'),hid?'':(r.__nrid?'eigene Rubrik samt Einträgen':'aus der Anzeige nehmen (wiederherstellbar)'),'showSheet(false);toggleRubHidden('+idx+')',hid?'':'danger');
+  h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+  $('sheet').innerHTML=h; showSheet(true);
+}
+/* Symbol (Emoji) genau DIESER Rubrik ändern (RUBICON ist nach Rubrik-Name
+   indiziert – anders als editRubIcon, das den Verwaltungs-Index nutzt). */
+function editRubIconFor(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const name=rubName(r,idx);
+  const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return;
+  if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); openStandard(curStd.id,true); toast('Symbol geändert'); }
+
 /* Öffnet das Bearbeiten-Formular direkt für eine cid (vom ✎-Button und vom
    Schnellmenü genutzt – eine gemeinsame Stelle statt doppelter Logik). */
 function editEntry(cid){ const e=findEntry(cid); if(!e) return;

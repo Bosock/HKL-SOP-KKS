@@ -61,6 +61,23 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       [...document.querySelectorAll('#sheet .sheet-group .sg-t')].some(x => x.textContent === g))));
   await page.evaluate(() => showSheet(false));
 
+  // §3: Standard- und Rubrik-Menü im gleichen gegliederten Muster
+  r.check('§3 Standard-Menü gegliedert (Bearbeiten)', await page.evaluate(() => {
+    openStdSheet();
+    const ok = document.getElementById('sheet').classList.contains('show')
+      && /Standard bearbeiten/.test(document.getElementById('sheet').textContent)
+      && [...document.querySelectorAll('#sheet .sg-t')].some(x => x.textContent === 'Gefahrenzone');
+    showSheet(false); return ok;
+  }));
+  r.check('§3 Rubrik-Menü gegliedert (Bearbeiten)', await page.evaluate(() => {
+    openRubSheet(0);
+    const titles = [...document.querySelectorAll('#sheet .sg-t')].map(x => x.textContent);
+    const ok = document.getElementById('sheet').classList.contains('show')
+      && /Rubrik bearbeiten/.test(document.getElementById('sheet').textContent)
+      && ['Inhalt', 'Organisation', 'Gefahrenzone'].every(g => titles.includes(g));
+    showSheet(false); return ok;
+  }));
+
   // --- P1: Quota voll → Warnung + Wert bleibt lesbar (mem-Überlagerung) ---
   const quota = await page.evaluate(() => {
     const orig = Storage.prototype.setItem;

@@ -8,11 +8,8 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
     html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center">
       <span style="font-size:12px;font-weight:700;color:var(--text-dim)">STANDARD${s.__new?' · <span style="color:var(--accent)">App-eigen</span>':''}${hiddenNow?' · <span style="color:var(--warn)">ausgeblendet</span>':''}</span>
       <span style="flex:1"></span>
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="editStandard()">✏ Titel/Gruppe</button>
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="openStdMetaForm()">🏷 Version/Freigabe</button>
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="toggleStdHidden()">${hiddenNow?'↩ Einblenden':'🗑 Ausblenden'}</button>
-      ${s.__new?`<button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px;color:var(--danger)" onclick="deleteNewStandard()">🗑 Löschen</button>`:''}
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 11px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="openStdSheet()">✎ Bearbeiten</button>
+      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
     </div></div>`;
     const m=STDE[s.id]||{}; const metaBits=[m.version?('Version '+m.version):'', m.status||'', m.validFrom?('gültig ab '+m.validFrom):'', m.validTo?('bis '+m.validTo):''].filter(Boolean);
     if(metaBits.length) html+=`<div class="std-meta-line">🏷 ${esc(metaBits.join(' · '))}${m.approvedBy?` · zuletzt: ${esc(m.approvedBy)}`:''}</div>`;
@@ -26,11 +23,9 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
   vis.forEach(({r,i})=>{
     const hid=rubHidden(r,i); if(hid&&!ADMIN) return;
     const count=(r.sub_bereiche||[]).reduce((n,sb)=>n+(sb.eintraege?sb.eintraege.filter(e=>e.natur!=='ueberschrift').length:0),0)+newEntriesFor(r,i).length;
-    const adminBtns=ADMIN?`<span style="display:flex;gap:5px;flex:0 0 auto" onclick="event.stopPropagation()">
-      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="renameRubrik(${i})">✏</button>
-      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="moveRubrik(${i},-1)">▲</button>
-      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="moveRubrik(${i},1)">▼</button>
-      <button class="icon-btn" style="width:34px;height:34px;font-size:13px" onclick="toggleRubHidden(${i})">${hid?'↩':'🗑'}</button></span>`:'';
+    /* Ein ⋯ statt vier Einzel-Icons: öffnet das gegliederte Rubrik-Menü
+       (gleiches Muster wie Eintrag/Standard). */
+    const adminBtns=ADMIN?`<button class="icon-btn rub-menu-btn" style="width:36px;height:36px;font-size:18px;flex:0 0 auto" onclick="event.stopPropagation();openRubSheet(${i})" aria-label="Rubrik bearbeiten">⋯</button>`:'';
     listHtml+=`<div class="rub ${r.typ}" style="${hid?'opacity:.55;':''}" onclick="openRubrik(${i})"><div class="rub-ico">${rubIconEff(r,i)}</div><div class="rub-main"><div class="rub-name">${esc(rubName(r,i))}${hid?' <span style="font-size:11px;color:var(--warn)">ausgeblendet</span>':''}${r.__nrid&&ADMIN?' <span style="font-size:11px;color:var(--accent)">neu</span>':''}</div><div class="rub-meta">${count} Einträge</div></div>${adminBtns}<span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`; });
   const searchBox=`<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="stdSearchInput" placeholder="In diesem Standard suchen (Material, Gerät …)" oninput="stdSearch(this.value)" autocomplete="off"></div>`;
   const listBody=listHtml||`<div class="empty"><div class="ei">📄</div><h3>Keine Rubriken</h3><p>Über „＋ Rubrik" anlegen.</p></div>`;
