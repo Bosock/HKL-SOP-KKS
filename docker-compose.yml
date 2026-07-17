@@ -45,6 +45,13 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+    # Log-Rotation: ohne Limit wächst das json-file-Log unbegrenzt und kann
+    # die Platte des Shared Hosts füllen (QA-Befund P4).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   hkl-state:

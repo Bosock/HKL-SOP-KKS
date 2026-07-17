@@ -101,6 +101,12 @@ const { fns } = loadHelpers();
 test('esc: escapes HTML metacharacters', () => {
   assert.equal(fns.esc('<a>&"'), '&lt;a&gt;&amp;&quot;');
 });
+test("esc: escapes apostrophes (root fix for the onclick class of bugs)", () => {
+  // Ein ' in Namen (O'Brien-Schrank, L'Apostroph) zerbrach früher inline
+  // interpolierte '…'-Literale still — jetzt an der Wurzel entschärft.
+  assert.equal(fns.esc("O'Brien"), 'O&#39;Brien');
+  assert.equal(fns.esc("a'b'c"), 'a&#39;b&#39;c');
+});
 test('esc: null/undefined become empty string', () => {
   assert.equal(fns.esc(null), '');
   assert.equal(fns.esc(undefined), '');
