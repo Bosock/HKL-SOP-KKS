@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -50,6 +50,7 @@ const SHELL = [
   'js/features/glossary.js',
   'js/features/pdfprint.js',
   'js/features/suggestions.js',
+  'js/features/scanner.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',

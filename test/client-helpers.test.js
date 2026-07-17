@@ -83,6 +83,15 @@ function loadHelpers() {
     extractFn('parsePreis'),
     extractFn('fmtEUR'),
     extractFn('mengeNum'),
+    extractFn('parseGS1'),
+    extractFn('formatGs1Date'),
+    extractFn('gtinKey'),
+    extractFn('expiryStatus'),
+    extractFn('parseScan'),
+    extractFn('mergeGtinRecord'),
+    extractFn('filterGtin'),
+    extractFn('gtinGroups'),
+    extractFn('gtinBadges'),
     extractFn('rubTplMatches'),
     extractFn('hexToRgb'),
     extractFn('_lin'),
@@ -90,7 +99,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -824,4 +833,138 @@ test('pickTextColor: chosen text always meets a usable contrast (>=4)', () => {
     const t = fns.pickTextColor(bg);
     assert.ok(fns.contrastRatio(bg, t) >= 4, `contrast for ${bg} too low`);
   });
+});
+
+// --- Etikett-Scanner: GS1-Parser & Produktdatenbank -------------------------
+const GS = String.fromCharCode(29); // FNC1/Gruppen-Trenner (ASCII 29)
+
+test('parseGS1: GTIN + Verfall (fixe Längen) ohne Trenner', () => {
+  // 01 + 14-stellige GTIN, 17 + YYMMDD
+  const r = fns.parseGS1('0103453120000011' + '17' + '261130');
+  assert.equal(r.gtin, '03453120000011');
+  assert.equal(r.expiry, '261130');
+});
+test('parseGS1: LOT variabel bis Stringende (kein Trenner)', () => {
+  const r = fns.parseGS1('0103453120000011' + '17261130' + '10ABC1234');
+  assert.equal(r.gtin, '03453120000011');
+  assert.equal(r.expiry, '261130');
+  assert.equal(r.lot, 'ABC1234');
+});
+test('parseGS1: Serie variabel via GS-Trenner, dann weiteres Feld', () => {
+  const r = fns.parseGS1('0103453120000011' + '21SER-9' + GS + '17261130');
+  assert.equal(r.gtin, '03453120000011');
+  assert.equal(r.serial, 'SER-9');
+  assert.equal(r.expiry, '261130');
+});
+test('parseGS1: führendes FNC1 und AIM-Symbologie-Kennung werden entfernt', () => {
+  const r = fns.parseGS1(']d2' + GS + '0103453120000011' + '10L1');
+  assert.equal(r.gtin, '03453120000011');
+  assert.equal(r.lot, 'L1');
+});
+test('parseGS1: AI 240 als itemRef (mögliche Hersteller-REF)', () => {
+  const r = fns.parseGS1('0103453120000011' + '240RM-RG5J40');
+  assert.equal(r.itemRef, 'RM-RG5J40');
+});
+test('parseGS1: Nicht-GS1-Text ergibt null', () => {
+  assert.equal(fns.parseGS1('https://example.org'), null);
+  assert.equal(fns.parseGS1(''), null);
+  assert.equal(fns.parseGS1(null), null);
+});
+
+test('formatGs1Date: YYMMDD -> ISO', () => {
+  assert.equal(fns.formatGs1Date('261130'), '2026-11-30');
+  assert.equal(fns.formatGs1Date('260101'), '2026-01-01');
+});
+test('formatGs1Date: Tag 00 = Monatsende', () => {
+  assert.equal(fns.formatGs1Date('260200'), '2026-02-28'); // Feb 2026 (kein Schaltjahr)
+  assert.equal(fns.formatGs1Date('240200'), '2024-02-29'); // Feb 2024 (Schaltjahr)
+});
+test('formatGs1Date: ungültige Eingabe bleibt unverändert', () => {
+  assert.equal(fns.formatGs1Date('12'), '12');
+  assert.equal(fns.formatGs1Date('261399'), '261399'); // Monat 13
+});
+
+test('gtinKey: EAN-13 und GTIN-14 desselben Artikels ergeben denselben Schlüssel', () => {
+  assert.equal(fns.gtinKey('4012345678901'), '04012345678901');
+  assert.equal(fns.gtinKey('04012345678901'), '04012345678901');
+  assert.equal(fns.gtinKey(' 04012345678901 '), '04012345678901');
+});
+test('gtinKey: nicht-numerische Codes bleiben (getrimmt) erhalten', () => {
+  assert.equal(fns.gtinKey('ABC-123'), 'ABC-123');
+  assert.equal(fns.gtinKey(null), '');
+});
+
+test('expiryStatus: abgelaufen / bald / ok relativ zu heute', () => {
+  assert.equal(fns.expiryStatus('2026-01-01', '2026-07-17'), 'expired');
+  assert.equal(fns.expiryStatus('2026-08-01', '2026-07-17'), 'soon');   // < 90 Tage
+  assert.equal(fns.expiryStatus('2027-07-17', '2026-07-17'), 'ok');
+  assert.equal(fns.expiryStatus('', '2026-07-17'), '');
+});
+
+test('parseScan: GS1-DataMatrix erkannt', () => {
+  const r = fns.parseScan('0103453120000011' + '17261130', 'data_matrix');
+  assert.equal(r.kind, 'gs1');
+  assert.equal(r.gtin, '03453120000011');
+});
+test('parseScan: reine EAN-Ziffern als GTIN', () => {
+  const r = fns.parseScan('4012345678901', 'ean_13');
+  assert.equal(r.kind, 'gtin');
+  assert.equal(r.gtin, '4012345678901');
+});
+test('parseScan: QR-Link als url', () => {
+  const r = fns.parseScan('https://sops.kardio.wiki/x', 'qr_code');
+  assert.equal(r.kind, 'url');
+  assert.equal(r.url, 'https://sops.kardio.wiki/x');
+});
+test('parseScan: sonstiger Text als text', () => {
+  assert.equal(fns.parseScan('Hallo Welt', 'qr_code').kind, 'text');
+});
+
+test('mergeGtinRecord: legt an, pflegt Zeitstempel, überschreibt Felder', () => {
+  const a = fns.mergeGtinRecord(null, { gtin: '1', ref: 'R1' }, 'T1');
+  assert.equal(a.createdAt, 'T1');
+  assert.equal(a.updatedAt, 'T1');
+  assert.equal(a.ref, 'R1');
+  const b = fns.mergeGtinRecord(a, { ref: 'R2', hersteller: 'H' }, 'T2');
+  assert.equal(b.createdAt, 'T1');   // Anlage-Zeitpunkt bleibt
+  assert.equal(b.updatedAt, 'T2');
+  assert.equal(b.ref, 'R2');
+  assert.equal(b.hersteller, 'H');
+});
+
+test('filterGtin: Volltext über Name/REF/Hersteller/GTIN', () => {
+  const list = [
+    { gtin: '1', name: 'Radialschleuse 6F', ref: 'RG5J40', hersteller: 'Terumo' },
+    { gtin: '2', name: 'Führungsdraht', ref: 'GW035', hersteller: 'Boston' },
+  ];
+  assert.equal(fns.filterGtin(list, 'terumo').length, 1);
+  assert.equal(fns.filterGtin(list, 'GW035')[0].gtin, '2');
+  assert.equal(fns.filterGtin(list, '').length, 2);
+  assert.equal(fns.filterGtin(list, 'xyz').length, 0);
+});
+
+test('gtinGroups: nach Hersteller gruppiert und sortiert', () => {
+  const list = [
+    { gtin: '1', name: 'B-Artikel', hersteller: 'Terumo' },
+    { gtin: '2', name: 'A-Artikel', hersteller: 'Terumo' },
+    { gtin: '3', name: 'X', hersteller: 'Boston' },
+    { gtin: '4', name: 'Y', hersteller: '' },
+  ];
+  const g = fns.gtinGroups(list);
+  assert.equal(g[0].hersteller, 'Boston');
+  assert.equal(g[1].hersteller, 'Ohne Hersteller');
+  assert.equal(g[2].hersteller, 'Terumo');
+  assert.equal(g[2].items[0].name, 'A-Artikel'); // innerhalb nach Name sortiert
+});
+
+test('gtinBadges: nur gesetzte Maße als [Label,Wert]-Paare', () => {
+  const b = fns.gtinBadges({ french: '6F', laenge: '110 cm', dAussen: '2,6 mm' });
+  // Reihenfolge: french, laenge, dAussen, dInnen, weitere.
+  // Non-ASCII-Labels (Ø/ä) über NFC-normalisierten JSON vergleichen, damit die
+  // Quelldateien-Normalform (NFC/NFD) den Test nicht verfälscht.
+  const nfc = (x) => JSON.stringify(x).normalize('NFC');
+  assert.equal(nfc(b), nfc([['Fr', '6F'], ['Länge', '110 cm'], ['Ø außen', '2,6 mm']]));
+  // gtinBadges({}) kommt aus der vm-Sandbox (fremdes Array.prototype) → per
+  // Länge/JSON prüfen statt deepEqual (das den Prototyp mitvergleicht).
+  assert.equal(fns.gtinBadges({}).length, 0);
 });

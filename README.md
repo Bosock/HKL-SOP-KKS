@@ -118,7 +118,8 @@ Previously all edits lived only in one browser's `localStorage`. Now the app is
 
 Shared keys: the authoritative list is `SHARED_KEYS` in
 [`public/js/core/sync.js`](public/js/core/sync.js) (content overlays, settings, prices,
-hints, glossary, suggestions, own standards/entries, design/texts, …). Per-device keys
+hints, glossary, suggestions, own standards/entries, design/texts, **scanned product
+database `hkl_gtin`**, …). Per-device keys
 that deliberately stay local: `hkl_checks` (daily checklist), `hkl_theme`,
 `hkl_authuntil` (admin session TTL), `hkl_voterid` (suggestion voting identity).
 
@@ -136,6 +137,28 @@ while making additions behave like normal content (and shared across devices):
 - **New standards** — *Verwaltung → „➕ Eigene Standards" → „＋ Neuer Standard"* creates a
   standard (title + group) pre-seeded with *Saal und Geräte*, *Material* and *Ablauf*
   rubrics; it then appears in the normal *Nutzung* list.
+
+### Etikett-Scanner & Produktdatenbank
+
+*☰ → „📷 Etikett scannen"* opens a **live barcode / UDI-DataMatrix scanner**
+([`public/js/features/scanner.js`](public/js/features/scanner.js)). It uses the browser's
+native **`BarcodeDetector`** (Android-Chrome) plus the camera — no third-party library, no
+CSP change, works offline.
+
+- From a GS1 code the app reads **exactly and offline**: the **GTIN** (globally unique
+  product number), **LOT/batch**, **expiry** and **serial**. GS1 Application Identifiers are
+  parsed in pure JS (`parseGS1`), the expiry is shown as an ISO date with an *expired / expires
+  soon* flag.
+- The **GTIN is the database key**: the same article always yields the same GTIN, so the
+  product database (`hkl_gtin`, shared across devices) groups and organises itself. Scan a
+  known product → its record opens; scan an unknown one → a pre-filled form.
+- The barcode does **not** carry the human-readable **REF** or **manufacturer name**, so those
+  free-text fields (plus sizes: French, length, outer/inner Ø) are entered **once per GTIN** and
+  are then shown automatically on every future scan. Deliberately **no OCR and no cloud** (a
+  conscious Phase-1 decision — see `docs/MASSNAHMEN.md`).
+- Looking products up is open to everyone; creating/editing a record requires the admin login.
+  Where `BarcodeDetector` is unavailable, the database stays searchable and (as admin) manually
+  editable.
 
 ### API
 

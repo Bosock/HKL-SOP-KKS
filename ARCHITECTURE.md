@@ -33,6 +33,8 @@ public/
                         Sammel-Helfer. Bei Gelegenheit entwirren (siehe
                         docs/audits/).
       quickmenu.js      Schnellmenü (Long-Press)
+      scanner.js        Etikett-Scanner: GS1-Parser (rein/testbar) + Kamera
+                        (BarcodeDetector) + Produktdatenbank (hkl_gtin)
     ui/               Ansichten & Navigation
       nav.js, standards.js, rubriken.js, detail.js,
       catalog.js, admin.js, forms.js, chrome.js
@@ -172,6 +174,21 @@ Rubrik-Overrides (`RUBE`) nutzen den stabilen `rubKey` (`tpl:<id>`).
 Neue geteilte Schlüssel: `hkl_prod` (Material-Preise) und `hkl_rubtpl`
 (Rubrik-Vorlagen) — beide in `SHARED_KEYS` (`core/sync.js`) **und** `BACKUP_KEYS`
 (`features/backup.js`).
+
+## Etikett-Scanner & Produktdatenbank (`hkl_gtin`)
+
+`features/scanner.js` liest per nativer **`BarcodeDetector`**-API (Android-Chrome)
+GS1-Barcodes/UDI-DataMatrix live von der Kamera. Der reine, testbare Kern
+(`parseGS1`, `parseScan`, `formatGs1Date`, `gtinKey`, `expiryStatus`,
+`mergeGtinRecord`, `filterGtin`, `gtinGroups`, `gtinBadges`) zerlegt die
+GS1-Application-Identifiers (01 GTIN, 17 Verfall, 10 LOT, 21 Serie …) und ist
+in `test/client-helpers.test.js` abgedeckt; die Kamera-/DOM-Schicht bleibt dünn.
+Die **GTIN** ist der Datenbankschlüssel — der Barcode trägt REF/Hersteller
+bewusst **nicht**, diese Freitextfelder werden einmal je GTIN erfasst (kein OCR,
+keine Cloud; Phase-1-Entscheidung). Geteilter Schlüssel `hkl_gtin` in
+`SHARED_KEYS` (+ `hydrateVars`) **und** `BACKUP_KEYS`. Keine CSP-Änderung nötig
+(BarcodeDetector ist kein Skript-`eval`; die Kamera ist per `Permissions-Policy`
+erlaubt). End-to-End: `e2e/scanner.js`.
 
 ## Bekannte Altlasten / bewusste Kompromisse
 

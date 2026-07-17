@@ -477,3 +477,26 @@
     .pr-foot { margin-top:16px; padding-top:6px; border-top:1px solid #ccc; font-size:8pt; color:#888; text-align:center; }
     @page { margin:14mm 12mm; }
   }
+
+/* ===== Etikett-Scanner ===== */
+.scan-cam { position:fixed; inset:0; z-index:1200; background:#000; display:none; }
+.scan-cam.show { display:block; }
+.scan-cam video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+.scan-reticle { position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+  width:min(74vw,320px); height:min(74vw,320px); border:3px solid rgba(255,255,255,.92);
+  border-radius:18px; box-shadow:0 0 0 100vmax rgba(0,0,0,.5); pointer-events:none; }
+.scan-hint { position:absolute; left:0; right:0; top:calc(44% + min(37vw,160px) + 22px); text-align:center;
+  color:#fff; font-size:15px; padding:0 24px; text-shadow:0 1px 4px rgba(0,0,0,.85); pointer-events:none; }
+.scan-bar { position:absolute; left:0; right:0; bottom:0; display:flex; gap:12px; justify-content:center;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px)); background:linear-gradient(to top,rgba(0,0,0,.65),transparent); }
+.scan-bar button { min-width:130px; min-height:48px; border-radius:12px; border:0; font-size:15px; font-weight:600; cursor:pointer; }
+.scan-btn-cancel { background:rgba(255,255,255,.18); color:#fff; }
+.scan-btn-torch { background:rgba(255,255,255,.18); color:#fff; }
+.scan-btn-torch.on { background:#f5c542; color:#161616; }
+.scan-cta { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:56px;
+  margin:2px 0 14px; border:0; border-radius:14px; background:var(--accent); color:#fff; font-size:17px; font-weight:700; cursor:pointer; }
+.scan-this { margin:10px 0; padding:12px 14px; border-radius:12px; background:var(--size-bg); border:1px solid var(--size-bd); font-size:14px; line-height:1.5; }
+.scan-this b { font-weight:700; }
+.gtin-mono { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; color:var(--text-faint); }
+.exp-soon { color:#d98a1f; font-weight:600; }
+.exp-expired { color:#d64545; font-weight:700; }

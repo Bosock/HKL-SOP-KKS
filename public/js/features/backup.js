@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');

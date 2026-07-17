@@ -1,5 +1,5 @@
 /* BACKEND-ANBINDUNG, Kernbeweis: Gerät A schreibt über die REALEN
-   Save-Funktionen aller 12 geteilten Feature-Module → Server (/api/state) →
+   Save-Funktionen aller 13 geteilten Feature-Module → Server (/api/state) →
    Gerät B (frischer Kontext) liest denselben Stand. Prüft damit jede
    Funktionsgruppe end-to-end gegen das Backend. */
 'use strict';
@@ -38,9 +38,10 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     TXT.appTitle = 'Klinik_' + marker; saveTXT();
     DESIGN.accent = '#abcdef'; saveDESIGN();
     settings.spez = false; saveJSON('hkl_settings', settings);
+    GTINDB['gt_' + marker] = mergeGtinRecord(null, { gtin: 'gt_' + marker, hersteller: 'Terumo', ref: 'REF_' + marker, french: '6F' }, new Date().toISOString()); saveGtinDB();
     return { cid, stdId, ver: STDE[stdId].version };
   }, marker);
-  r.ok('Gerät A: 12 reale Save-Funktionen ausgeführt');
+  r.ok('Gerät A: 13 reale Save-Funktionen ausgeführt');
 
   // Warten, bis der Sync alle Marker auf den Server geflusht hat.
   let S = {};
@@ -64,6 +65,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     ['hkl_txt', !!(S.hkl_txt && S.hkl_txt.appTitle === 'Klinik_' + marker)],
     ['hkl_design', !!(S.hkl_design && S.hkl_design.accent === '#abcdef')],
     ['hkl_settings', !!(S.hkl_settings && S.hkl_settings.spez === false)],
+    ['hkl_gtin', !!(S.hkl_gtin && S.hkl_gtin['gt_' + marker] && S.hkl_gtin['gt_' + marker].ref === 'REF_' + marker)],
   ];
   for (const [k, ok] of serverChecks) r.check('Server hat ' + k, ok);
 
@@ -84,6 +86,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       txt: txt('appTitle') === 'Klinik_' + marker,
       design: !!(DESIGN && DESIGN.accent === '#abcdef'),
       settings: !!(settings && settings.spez === false),
+      gtin: !!(GTINDB && GTINDB['gt_' + marker] && GTINDB['gt_' + marker].ref === 'REF_' + marker),
     };
   }, { marker, cid: written.cid, stdId: written.stdId, ver: written.ver });
   for (const k of Object.keys(b)) r.check('Gerät B synchron: ' + k, b[k]);
