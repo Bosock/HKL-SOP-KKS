@@ -14,6 +14,13 @@ The backend is a tiny **zero-dependency Node server** ([`server.js`](server.js) 
 [`server/`](server/)) that serves the static app *and* exposes a `/api/state` persistence
 endpoint, packaged as a single Docker image.
 
+> **Zweck & Abgrenzung (bewusste Leitplanke):** Die App organisiert Material,
+> Abläufe und Wissen des Teams — sie ist eine **Arbeits- und Organisationshilfe**
+> und gibt keine patientenindividuellen klinischen Empfehlungen (keine Diagnose-,
+> Dosier- oder Therapieentscheidungen). Neue Funktionen müssen diese Grenze
+> wahren, damit die App kein Medizinprodukt im Sinne der MDR wird
+> (siehe `docs/audits/2026-07-17-qaqc-gutachten.md`, Befund R2).
+
 ## Repository layout
 
 ```

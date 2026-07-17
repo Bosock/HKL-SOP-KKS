@@ -175,10 +175,11 @@ Neue geteilte Schlüssel: `hkl_prod` (Material-Preise) und `hkl_rubtpl`
 
 ## Bekannte Altlasten / bewusste Kompromisse
 
-- `esc()` escaped kein `'`. In `onclick`-Attributen, die Werte in
-  JS-String-Literale interpolieren, sind daher nur `[a-z0-9_]`-IDs sicher
-  (dafür gibt es `newAid()`/`addSlug()`). Freitext nie direkt in
-  `onclick`-Strings interpolieren — IDs übergeben und nachschlagen.
+- `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere
+  Apostroph-Fehlerklasse ist damit an der Wurzel entschärft. Die Regel gilt
+  als Defense-in-depth trotzdem weiter: Freitext nicht direkt in
+  `onclick`-String-Literale interpolieren — IDs/Indizes übergeben oder
+  `data-`-Attribute nutzen (Beispiele: `moveGroup(i,…)`, `toggleUk(this.dataset.k)`).
 - Der Passwort-Schutz (`core/config.js`) ist Komfort-, keine echte
   Sicherheitsfunktion (djb2-Hash im geteilten Zustand); die App ist für den
   internen Gebrauch hinter vertrauenswürdigem Netz gedacht.

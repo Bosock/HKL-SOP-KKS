@@ -207,6 +207,28 @@ Alle Eingaben der Kolleg:innen liegen server-seitig in **einer** Datei:
   Datei herunter; Import spielt sie wieder ein. Praktisch, um einen Stand zu
   sichern, bevor du Größeres umbaust.
 
+### Offsite-Kopie (wichtig!) & Wiederherstellungsprobe
+
+Die Snapshots liegen im **selben** Docker-Volume wie die Daten — bei einem
+Server-/Plattenausfall wären beide weg (QA-Gutachten, Befund P3). Deshalb auf
+dem Host **einmalig** einen täglichen Kopier-Job einrichten, Ziel ist ein
+anderer Rechner/Speicher:
+
+```bash
+# als Deploy-Nutzer: crontab -e  → täglich 03:10 Uhr eine tar-Kopie ziehen
+10 3 * * * docker run --rm -v hkl-state:/data:ro -v /var/backups/hkl:/out alpine \
+  tar czf /out/hkl-state-$(date +\%F).tar.gz -C /data . && \
+  ls -1t /var/backups/hkl/hkl-state-*.tar.gz | tail -n +15 | xargs -r rm
+# → /var/backups/hkl zusätzlich per rsync/rclone auf ein ZWEITES Ziel spiegeln.
+```
+
+**Wiederherstellungsprobe (vierteljährlich, 5 Minuten):** eine
+`backups/state-….json` in ein Testverzeichnis kopieren, lokal
+`STATE_DIR=./probe PORT=8080 node server.js` starten und prüfen, dass
+`curl localhost:8080/api/state` die erwarteten Inhalte zeigt. Ein Backup, das
+nie zurückgespielt wurde, ist keins. (Der Ablauf ist genau so am 2026-07-17
+verifiziert worden — siehe QA-Gutachten.)
+
 ---
 
 ## Wenn etwas kaputt ist
