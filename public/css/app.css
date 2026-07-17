@@ -291,6 +291,8 @@
   .add-entry-btn:active { background:var(--surface-3); }
   .added-tag { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 6px; border-radius:5px; background:rgba(61,155,224,.16); color:var(--accent); margin-left:6px; }
 
+  .vsec { font-size:13px; font-weight:800; letter-spacing:.02em; color:var(--text); margin:20px 2px 9px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+  .vsec:first-of-type { margin-top:8px; }
   .vpanel { background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
   .vpanel summary { padding:13px 14px; font-size:13.5px; font-weight:650; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:center; gap:9px; }
   .vpanel summary::-webkit-details-marker { display:none; }

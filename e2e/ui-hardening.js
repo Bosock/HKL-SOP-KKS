@@ -32,7 +32,10 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     setMode('admin');
     out.adminRendered = /Verwaltung/.test(document.getElementById('scr-admin').innerHTML);
     const before = distinctGroups().join('|');
-    const arrow = [...document.querySelectorAll('#scr-admin .uk-actions .icon')].find(b => b.textContent === '▼');
+    // Gezielt den moveGroup-Pfeil treffen (nicht irgendein ▼) — die Panels sind
+    // jetzt in Blöcke gegliedert, andere Panels haben ebenfalls ▲▼ (§4B).
+    const arrow = [...document.querySelectorAll('#scr-admin .uk-actions .icon')]
+      .find(b => (b.getAttribute('onclick') || '').indexOf('moveGroup(') >= 0 && b.textContent === '▼');
     if (arrow) arrow.click();
     out.groupMoveWorks = distinctGroups().length < 2 || distinctGroups().join('|') !== before;
 
@@ -79,6 +82,24 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('UK auf-/zuklappen (data-Attribut) funktioniert', res.ukToggled);
   r.check('Foto wird verkleinert (JPEG, ≤1280px)', res.photoShrunk);
   r.check('Druck-HTML sauber (keine Steuerzeichen)', res.printOk);
+
+  // §4B: Verwaltung gegliedert + Einstellungs-Suche
+  const adm = await page.evaluate(() => {
+    setMode('admin');
+    const sections = [...document.querySelectorAll('#scr-admin .vsec')].map(x => x.textContent);
+    const has3 = ['Inhalte pflegen', 'Aussehen & Anzeige', 'Daten & Sicherung'].every(s => sections.includes(s));
+    adminSearch('preis');
+    const vis = [...document.querySelectorAll('#scr-admin .vpanel')].filter(p => p.style.display !== 'none')
+      .map(p => p.querySelector('summary').textContent);
+    const onlyKosten = vis.length >= 1 && vis.every(t => /Kosten/.test(t));
+    adminSearch('');
+    const allBack = [...document.querySelectorAll('#scr-admin .vpanel')].every(p => p.style.display !== 'none');
+    return { has3, onlyKosten, allBack };
+  });
+  r.check('§4B Verwaltung in 3 Blöcke gegliedert', adm.has3);
+  r.check('§4B Einstellungs-Suche filtert (preis → Kosten)', adm.onlyKosten);
+  r.check('§4B leere Suche zeigt wieder alles', adm.allBack);
+
   r.check('keine Konsolenfehler', errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

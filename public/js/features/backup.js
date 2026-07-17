@@ -51,48 +51,53 @@ function exportCostCSV(){ try{
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
   /* Admin-Kopf: Modus verlassen */
-  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Verwaltung</h2><p style="margin:2px 0 0">Hier stellst du die App ohne Programmierung ein: Inhalte (Standards, Rubriken, Kategorien), Anzeige, Preise und Design. Jeder Bereich unten hat eine kurze Erklärung. Kolleginnen im Nutzungs-Modus sehen nur die fertigen Standards.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
+  let html=`<div class="banner" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><h2 style="margin:0">Verwaltung</h2><p style="margin:2px 0 0">Hier stellst du die App ohne Programmierung ein. Die Bereiche sind in drei Blöcke gegliedert; oben kannst du eine Einstellung direkt suchen. Kolleginnen im Nutzungs-Modus sehen nur die fertigen Standards.</p></div><button class="btn btn-sec" style="flex:0 0 auto;min-height:44px;padding:10px 14px" onclick="adminLogout()">Verlassen</button></div>`;
 
-  /* Panel: Datensicherung */
-  html+=`<details class="vpanel" open><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
+  /* Einstellungs-Suche (wie in den Handy-Einstellungen): filtert die Panels
+     nach Titel + Stichwörtern/Synonymen (QM-Konzept §4B). */
+  html+=`<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="admSearchInput" placeholder="Einstellung suchen (z. B. Farbe, Preis, Kategorie …)" oninput="adminSearch(this.value)" autocomplete="off"></div>`;
+  html+=`<div id="admNoHit" class="empty" style="display:none"><div class="ei">🔍</div><h3>Kein Treffer</h3><p>Keine Einstellung passt zu deiner Suche.</p></div>`;
+
+  /* ── Panel: Datensicherung ── */
+  const pBackup=`<details class="vpanel" data-keys="datensicherung sicherung backup export import daten datei"><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
     <div class="p-actions"><button class="btn btn-pri" onclick="exportBackup()">Sicherung herunterladen</button><button class="btn btn-sec" onclick="$('bkImp').click()">Sicherung einspielen</button></div>
     <input type="file" id="bkImp" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
     <p class="hint">Sichert ALLE Anpassungen dieses Geräts in einer Datei (Kategorien, Umbenennungen, Mengen, Größen, neue Einträge, Ausblendungen, Einstellungen). Nicht enthalten: die Tageshaken und der Admin-Status. Empfehlung: nach jeder größeren Pflege-Sitzung exportieren.</p>
   </div></details>`;
 
-  /* Panel: Anzeige-Einstellungen */
+  /* ── Panel: Anzeige-Einstellungen ── */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
-  html+=`<details class="vpanel"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
+  const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort konfidenz fließtext fliesstext badges"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
 
-  /* Panel: Kostenübersicht (Plankosten je Standard) */
+  /* ── Panel: Kostenübersicht (Plankosten je Standard) ── */
   const costRows=DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total);
   const costTotal=costRows.reduce((n,x)=>n+x.pk.total,0);
-  html+=`<details class="vpanel"><summary>💶 Kostenübersicht <span class="vp-hint">Plankosten je Standard</span></summary><div class="vpanel-body">`;
-  if(!costRows.length) html+=`<p class="hint">Noch keine Preise erfasst. Stückpreise in „Material pflegen" eintragen – die Plankosten je Standard erscheinen dann hier und als Banner im Standard.</p>`;
+  let pKosten=`<details class="vpanel" data-keys="kosten kostenübersicht kostenuebersicht preis plankosten euro geld csv"><summary>💶 Kostenübersicht <span class="vp-hint">Plankosten je Standard</span></summary><div class="vpanel-body">`;
+  if(!costRows.length) pKosten+=`<p class="hint">Noch keine Preise erfasst. Stückpreise in „Material pflegen" eintragen – die Plankosten je Standard erscheinen dann hier und als Banner im Standard.</p>`;
   else{
-    html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name"><b>Gesamt (alle Standards)</b></span><span class="uk-count">${fmtEUR(costTotal)}</span></div></div>`;
+    pKosten+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name"><b>Gesamt (alle Standards)</b></span><span class="uk-count">${fmtEUR(costTotal)}</span></div></div>`;
     costRows.forEach(x=>{ const miss=x.pk.items-x.pk.priced;
-      html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(x.s))}</span><span class="uk-count">${fmtEUR(x.pk.total)}</span></div><div class="vw-ctx">${esc(stdGruppe(x.s))} · ${x.pk.priced}/${x.pk.items} mit Preis${miss>0?` · ${miss} offen`:''}</div></div>`; });
-    html+=`<div class="p-actions"><button class="btn btn-sec" onclick="exportCostCSV()">Als CSV exportieren</button></div>`;
+      pKosten+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(x.s))}</span><span class="uk-count">${fmtEUR(x.pk.total)}</span></div><div class="vw-ctx">${esc(stdGruppe(x.s))} · ${x.pk.priced}/${x.pk.items} mit Preis${miss>0?` · ${miss} offen`:''}</div></div>`; });
+    pKosten+=`<div class="p-actions"><button class="btn btn-sec" onclick="exportCostCSV()">Als CSV exportieren</button></div>`;
   }
-  html+=`<p class="hint">Plankosten = Summe aus Menge × Stückpreis über alle beschaffbaren Materialien/Geräte eines Standards. Materialien ohne Preis zählen als 0.</p></div></details>`;
+  pKosten+=`<p class="hint">Plankosten = Summe aus Menge × Stückpreis über alle beschaffbaren Materialien/Geräte eines Standards. Materialien ohne Preis zählen als 0.</p></div></details>`;
 
-  /* Panel: Eigene Standards — neue Standards anlegen/bearbeiten (NEU) */
-  html+=`<details class="vpanel"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
-  if(!ADDITIONS.standards.length) html+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
-  ADDITIONS.standards.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
+  /* ── Panel: Eigene Standards ── */
+  let pStd=`<details class="vpanel" data-keys="eigene standards standard neu anlegen"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
+  if(!ADDITIONS.standards.length) pStd+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
+  ADDITIONS.standards.forEach(s=>{ pStd+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
     <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
-  html+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
+  pStd+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>
     <p class="hint">Neue Standards und eigene Einträge werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p></div></details>`;
 
-  /* Panel: Rubriken-Vorlagen (Geltungsbereich-Matrix) */
-  html+=rubTplPanelHTML();
+  /* ── Panel: Rubriken-Vorlagen (Geltungsbereich-Matrix) ── */
+  const pRubTpl=rubTplPanelHTML();
 
-  /* Panel: Design (Paket 4) */
+  /* ── Panel: Design ── */
   const rb=(v,l)=>`<button class="${(DESIGN.scale||'normal')===v?'on':''}" onclick="setDesign('scale','${v}')">${l}</button>`;
-  html+=`<details class="vpanel"><summary>🎨 Design <span class="vp-hint">Farben & Größe</span></summary><div class="vpanel-body">
+  const pDesign=`<details class="vpanel" data-keys="design farbe farben akzent größe groesse schrift schriftgröße wandmonitor aussehen"><summary>🎨 Design <span class="vp-hint">Farben & Größe</span></summary><div class="vpanel-body">
     <div class="tgl"><span>Akzentfarbe</span><input type="color" class="colinp" value="${DESIGN.accent||'#3d9be0'}" onchange="setDesign('accent',this.value)"></div>
     <div class="tgl"><span>Größen-Badge-Farbe</span><input type="color" class="colinp" value="${DESIGN.size||'#21c1d6'}" onchange="setDesign('size',this.value)"></div>
     <div class="flabel" style="margin:12px 0 6px">Schriftgröße / Ansicht</div>
@@ -101,78 +106,99 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     <p class="hint">Akzent- und Badge-Farbe gelten in heller und dunkler Ansicht. „Wandmonitor" vergrößert die gesamte Darstellung.</p>
   </div></details>`;
 
-  /* Panel: Texte (Paket 4) */
+  /* ── Panel: Texte ── */
   const ti=(k,l)=>`<div class="flabel" style="margin-top:8px">${l}</div><input class="txtinp" style="width:100%" value="${esc(txt(k))}" onchange="setTxt('${k}',this.value)">`;
-  html+=`<details class="vpanel"><summary>🔤 Texte <span class="vp-hint">Titel & Banner</span></summary><div class="vpanel-body">
+  const pTexte=`<details class="vpanel" data-keys="texte text titel banner beschriftung benennung wörter überschrift"><summary>🔤 Texte <span class="vp-hint">Titel & Banner</span></summary><div class="vpanel-body">
     ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}${ti('pruefTitle','Titel „Einstufung prüfen"')}
     <button class="reset-btn" style="margin-top:12px;width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetTxt()">Texte zurücksetzen</button>
   </div></details>`;
 
-  /* Panel: Gruppen & Symbole (Paket 4) */
+  /* ── Panel: Gruppen & Symbole ── */
   const grps=distinctGroups(); const rubs=distinctRubrics();
-  html+=`<details class="vpanel"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
+  let pGruppen=`<details class="vpanel" data-keys="gruppen gruppe symbole symbol icon icons reihenfolge"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
     <div class="flabel">Gruppen-Reihenfolge (Startseite)</div>`;
-  if(grps.length===0) html+=`<p class="hint">Keine Gruppen.</p>`;
-  grps.forEach((g,i)=>{ html+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup(${i},-1)">▲</button><button class="icon" onclick="moveGroup(${i},1)">▼</button></div></div>`; });
-  html+=`<div class="flabel" style="margin-top:14px">Rubrik-Symbole</div>`;
-  rubs.forEach((nm,i)=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon(${i})">Symbol ändern</button></div></div>`; });
-  html+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
+  if(grps.length===0) pGruppen+=`<p class="hint">Keine Gruppen.</p>`;
+  grps.forEach((g,i)=>{ pGruppen+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup(${i},-1)">▲</button><button class="icon" onclick="moveGroup(${i},1)">▼</button></div></div>`; });
+  pGruppen+=`<div class="flabel" style="margin-top:14px">Rubrik-Symbole</div>`;
+  rubs.forEach((nm,i)=>{ const ic=RUBICON[nm]||rubrikIcon(nm,''); pGruppen+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-ico">${ic}</span><span class="uk-name">${esc(nm)}</span></div><div class="uk-actions"><button onclick="editRubIcon(${i})">Symbol ändern</button></div></div>`; });
+  pGruppen+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
 
-  /* Panel: Kategorien (Naturen) — NEU, der Editor der Konfiguration */
-  html+=`<details class="vpanel"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
+  /* ── Panel: Kategorien (Naturen) ── */
+  let pKat=`<details class="vpanel" data-keys="kategorien kategorie natur naturen farbe symbol material beschaffbar art"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
   natList().forEach(n=>{
-    html+=`<div class="natrow" style="border-left-color:${n.color}">
+    pKat+=`<div class="natrow" style="border-left-color:${n.color}">
       <div class="natrow-head"><span class="nat-ico">${n.icon}</span><input class="txtinp" value="${esc(n.label)}" onchange="setNatLabel('${esc(n.key)}',this.value)"><input type="color" class="colinp" value="${n.color}" onchange="setNatColor('${esc(n.key)}',this.value)"></div>
       <div class="nat-actions"><button onclick="editNatIcon('${esc(n.key)}')">Symbol: ${n.icon}</button>${n.builtin?'':`<button class="danger-btn" onclick="deleteNat('${esc(n.key)}')">Löschen</button>`}</div>
       <label class="tgl natbesch"><span>zählt als Material (Pflege · Preise · Katalog)</span><input type="checkbox" ${n.beschaffbar?'checked':''} onchange="setNatBeschaffbar('${esc(n.key)}',this.checked)"></label>
     </div>`;
   });
-  html+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
+  pKat+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
     <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
 
-  /* Panel: Unterkategorien verwalten */
-  html+=`<details class="vpanel"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
-  if(names.length===0) html+=`<p class="hint">Keine Unterkategorien erkannt.</p>`;
+  /* ── Panel: Unterkategorien verwalten ── */
+  let pUk=`<details class="vpanel" data-keys="unterkategorien unterkategorie untergruppe materialgruppe farbe zusammenführen zusammenfuehren"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
+  if(names.length===0) pUk+=`<p class="hint">Keine Unterkategorien erkannt.</p>`;
   names.forEach((name,i)=>{ const col=ukColorOf(name,i); const ico=ukIconOf(name);
     const sw=UK_PALETTE.map(c=>`<span class="uk-sw ${c===col?'sel':''}" style="background:${c}" onclick="setUkColor(${i},'${c}')"></span>`).join('');
-    html+=`<div class="ukrow" style="--uk:${col}"><div class="ukrow-head"><span class="uk-ico">${ico}</span><span class="uk-name">${esc(name)}</span><span class="uk-count">${cnt.get(name)||0}×</span></div>
+    pUk+=`<div class="ukrow" style="--uk:${col}"><div class="ukrow-head"><span class="uk-ico">${ico}</span><span class="uk-name">${esc(name)}</span><span class="uk-count">${cnt.get(name)||0}×</span></div>
       <div class="uk-swatches">${sw}</div>
       <div class="uk-actions"><button onclick="renameUk(${i})">Umbenennen / Zusammenführen</button><button class="icon" onclick="moveUk(${i},-1)">▲</button><button class="icon" onclick="moveUk(${i},1)">▼</button></div></div>`; });
-  html+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
+  pUk+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
 
-  /* Panel: Ausgeblendete Einträge (Wiederherstellung) */
+  /* ── Panel: Ausgeblendete Einträge (Wiederherstellung) ── */
   const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length+hid.byStd.length+hid.byRub.length;
-  html+=`<details class="vpanel"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
-  if(hidTotal===0) html+=`<p class="hint">Nichts ausgeblendet.</p>`;
-  hid.byStd.forEach(s=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
-  hid.byRub.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
+  let pHidden=`<details class="vpanel" data-keys="ausgeblendete einträge eintraege versteckt wiederherstellen papierkorb gelöscht geloescht"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
+  if(hidTotal===0) pHidden+=`<p class="hint">Nichts ausgeblendet.</p>`;
+  hid.byStd.forEach(s=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
+  hid.byRub.forEach(x=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
   /* material_key ist Freitext (kann ' enthalten) → über data-Attribut statt
      Inline-Argument übergeben; esc() macht den Wert Attribut-sicher ("). */
-  hid.byMat.forEach(mk=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button data-k="${esc(mk)}" onclick="restoreMat(this.dataset.k)">Wiederherstellen</button></div></div>`; });
-  hid.byCid.forEach(x=>{ html+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
-  html+=`</div></details>`;
+  hid.byMat.forEach(mk=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(mk)}</span><span class="uk-count">überall</span></div><div class="uk-actions"><button data-k="${esc(mk)}" onclick="restoreMat(this.dataset.k)">Wiederherstellen</button></div></div>`; });
+  hid.byCid.forEach(x=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
+  pHidden+=`</div></details>`;
 
-  /* Panel-los: Einstufung prüfen (Prüf-Workflow) */
+  /* ── Panel: Einstufung prüfen (Prüf-Workflow, jetzt einklappbar) ── */
   const all=collectUncertain(); const done=all.filter(x=>isHandled(x.cid)).length; const pct=all.length?Math.round(done/all.length*100):0;
+  const openCount=all.filter(x=>!isHandled(x.cid)).length;
   let list=all;
   if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  html+=`<div class="banner"><h2>${esc(txt('pruefTitle'))}</h2><p>Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen".<br><b>Hinweis:</b> Korrekturen werden zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div></div>
+  let pPruef=`<details class="vpanel" data-keys="einstufung prüfen pruefen kategorie konfidenz zuordnung unsicher korrigieren"${openCount?' open':''}><summary>🔎 ${esc(txt('pruefTitle'))} <span class="vp-hint">${openCount} offen</span></summary><div class="vpanel-body">`;
+  pPruef+=`<p class="panel-help">Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen". Korrekturen werden zentral gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div>
   <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
-  html+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
-  if(list.length===0) html+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
+  pPruef+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
+  if(list.length===0) pPruef+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
   list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=!!overrides[x.cid]; const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
     const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
     const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).join('');
-    html+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
+    pPruef+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
       ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
       <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
       <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" onchange="reassignEntry('${esc(x.cid)}',this.value)">${opts}</select>
       <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button><button onclick="hideCid('${esc(x.cid)}')">🗑 Ausblenden</button></div></div>`; });
-  if(list.length>300) html+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
+  if(list.length>300) pPruef+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
+  pPruef+=`</div></details>`;
+
+  /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
+  const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
+  html+=sec('Inhalte pflegen')+pStd+pRubTpl+pKat+pUk+pPruef+pHidden;
+  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte;
+  html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
+}
+/* Filtert die Verwaltungs-Panels live nach Titel/Stichwörtern (§4B). Alle
+   Suchbegriffe müssen vorkommen; Abschnitts-Überschriften ohne sichtbares
+   Panel werden mit ausgeblendet. Kein Re-Render → Panel-Zustände bleiben. */
+function adminSearch(q){ q=(q||'').trim().toLowerCase(); const toks=q.split(/\s+/).filter(Boolean);
+  const panels=[...document.querySelectorAll('#scr-admin .vpanel')];
+  panels.forEach(p=>{ const keys=(p.getAttribute('data-keys')||'').toLowerCase();
+    const show=!toks.length||toks.every(t=>keys.indexOf(t)>=0); p.style.display=show?'':'none'; if(toks.length&&show) p.open=true; });
+  document.querySelectorAll('#scr-admin .vsec').forEach(s=>{ let n=s.nextElementSibling, any=false;
+    while(n && !n.classList.contains('vsec')){ if(n.classList&&n.classList.contains('vpanel')&&n.style.display!=='none') any=true; n=n.nextElementSibling; }
+    s.style.display=any?'':'none'; });
+  const nh=$('admNoHit'); if(nh) nh.style.display=(toks.length && !panels.some(p=>p.style.display!=='none'))?'':'none';
 }
 function setSetting(k,v){ settings[k]=v; saveJSON('hkl_settings',settings); }
 function setAdmState(s){ admState=s; renderAdmin(); }
