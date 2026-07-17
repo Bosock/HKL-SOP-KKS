@@ -385,9 +385,21 @@ test('DELETE /api/state is 405 with Allow header', async () => {
 
 test('state is persisted to STATE_FILE on write', async () => {
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { persisted: true } }) });
-  // persist() serialises through a write chain; give it a tick to flush.
-  await new Promise(r => setTimeout(r, 50));
-  const onDisk = JSON.parse(await fsp.readFile(srv.config.STATE_FILE, 'utf8'));
+  // persist() serialises through a write chain and fsyncs — auf das Landen
+  // POLLEN statt fixe 50 ms (unter CI-Last kann der fsync-Write länger dauern;
+  // sonst ENOENT/rev-Flake).
+  // Auf den KONKRETEN Inhalt dieses Writes pollen (nicht nur rev) — resetState
+  // setzt nur den Speicher zurück, eine ältere state.json kann noch auf der
+  // Platte liegen. Wir warten, bis genau dieser Write gelandet ist.
+  let onDisk = null;
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    try { const d = JSON.parse(await fsp.readFile(srv.config.STATE_FILE, 'utf8')); if (d.state && d.state.persisted === true) { onDisk = d; break; } }
+    catch (e) { /* Datei noch nicht geschrieben */ }
+    if (Date.now() > deadline) break;
+    await new Promise(r => setTimeout(r, 25));
+  }
+  assert.ok(onDisk, 'state.json mit diesem Write wurde geschrieben');
   assert.equal(onDisk.state.persisted, true);
   assert.equal(onDisk.rev, 1);
 });
@@ -500,7 +512,13 @@ test('persist throttles snapshots: two rapid writes create only one', async () =
   srv._resetBackupClock();
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 1 } }) });
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 2 } }) });
-  await new Promise(r => setTimeout(r, 120)); // let the fire-and-forget snapshot land
-  const snaps = await listSnaps();
+  // Fire-and-forget-Snapshot (writeFile+fsync) → aufs Landen POLLEN statt fixe
+  // 120 ms (fsync kann unter CI-Last länger dauern → sonst „got 0"-Flake).
+  const deadline = Date.now() + 3000;
+  let snaps = await listSnaps();
+  while (snaps.length < 1 && Date.now() < deadline) { await new Promise(r => setTimeout(r, 25)); snaps = await listSnaps(); }
+  // kurz nachfassen, dass der Throttle KEINEN zweiten zulässt
+  await new Promise(r => setTimeout(r, 60));
+  snaps = await listSnaps();
   assert.equal(snaps.length, 1, `expected exactly one throttled snapshot, got ${snaps.length}`);
 });
