@@ -26,7 +26,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | H3 | Word→JSON-Datenpipeline dokumentieren bzw. Konverter einchecken | QA P6/V5 | ☐ |
 | H4 | 3–5 beobachtete Nutzertests vor Phase-2-UI-Umbau | QA Q3/V6 | ☐ |
 | H5 | Zweite interne Wartungsperson per CONTRIBUTING-Walkthrough einarbeiten | QA W1 | ☐ |
-| H6 | Kontextsensitives Bearbeiten-Menü je Elementtyp (gebündelt statt 15er-Liste) | QM §3 / UX 10 | ☐ |
+| H6 | Kontextsensitives Bearbeiten-Menü je Elementtyp (gebündelt statt 15er-Liste) | QM §3 / UX 10 | ◐ Eintrags-Menü in 4 Fächer gegliedert (2026-07-17); offen: eigene Einstiege Rubrik-Kopf/Standard-Titel |
 | H7 | Wirkungs-Chips („ändert WAS/WO, sichtbar für WEN") in Verwaltung & Scope-Dialog | QM §1 / UX H6 | ☐ |
 
 ## MITTEL
@@ -74,4 +74,5 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | 2026-07-17 | **E2E-Suite versioniert** (`e2e/`, 6 Suiten, `npm run e2e`) | QA P7/V7 |
 | 2026-07-17 | Offsite-Backup-Anleitung (CONTRIBUTING) · MDR-Leitplanke (README) · diese Liste | QA V3/V11/V4 |
 | 2026-07-17 | **Etikett-Scanner & Produktdatenbank (Phase 1):** Live-Barcode/UDI-DataMatrix via nativem `BarcodeDetector` → GTIN/LOT/Verfall (offline, zero-dep, keine CSP-Änderung); GTIN als DB-Schlüssel; REF/Hersteller/Maße 1× je GTIN; `hkl_gtin` geteilt + Backup; 20 Unit-Tests + E2E-Suite `scanner.js` | Betreiber-Entscheidung: Barcode-first, Android-Chrome |
+| 2026-07-17 | **Bearbeiten-Menü gegliedert (QM §3, Teil von H6):** flache 15er-Liste → vier Fächer *Inhalt · Darstellung · Organisation · Gefahrenzone* mit Überschrift + Ein-Satz-Erklärung; material-/gerätespezifische Aktionen nur bei beschaffbaren Einträgen; E2E-Check | Menü-Ordnung zuerst |
 | 2026-07-17 | **Etikett-Scanner Phase 2 — On-Device-OCR:** Foto → REF/Hersteller/Maße per Tesseract.js (WASM, selbst gehostet unter `public/vendor/tesseract/`, ~6 MB, lazy, offline); `extractLabelFields` rein/testbar; füllt nur leere Felder; CSP `wasm-unsafe-eval`+`worker-src blob:`; Server-MIME `.wasm`/`.gz`; 4 Unit-Tests + E2E `ocr.js` (echte Engine liest echten Text) | Betreiber-Entscheidung: On-Device statt Cloud |

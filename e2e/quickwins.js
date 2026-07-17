@@ -53,8 +53,12 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   await page.evaluate(() => { doLogin('1234567'); if (typeof closeForm === 'function') closeForm(); });
   await page.evaluate(() => { const s = curStd || DB.standards[0]; openStandard(s.id, true); openRubrik((s.rubriken || []).findIndex(rr => rr.typ === 'material' || rr.typ === 'geraete')); });
   await page.click('#scr-detail .entry-menu-btn');
-  r.check('K1 ⋯ (Admin) öffnet Schnellmenü', await page.evaluate(() =>
-    document.getElementById('sheet').classList.contains('show') && /Schnellaktion/.test(document.getElementById('sheet').textContent)));
+  r.check('K1 ⋯ (Admin) öffnet Bearbeiten-Menü', await page.evaluate(() =>
+    document.getElementById('sheet').classList.contains('show') && /Bearbeiten/.test(document.getElementById('sheet').textContent)));
+  // §3: Menü ist in vier Fächer gegliedert (Inhalt · Darstellung · Organisation · Gefahrenzone)
+  r.check('§3 Bearbeiten-Menü in 4 Fächer gegliedert', await page.evaluate(() =>
+    ['Inhalt', 'Darstellung', 'Organisation', 'Gefahrenzone'].every(g =>
+      [...document.querySelectorAll('#sheet .sheet-group .sg-t')].some(x => x.textContent === g))));
   await page.evaluate(() => showSheet(false));
 
   // --- P1: Quota voll → Warnung + Wert bleibt lesbar (mem-Überlagerung) ---
