@@ -98,7 +98,7 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
 /* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
 (function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false,lastTouch=0;
   function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
-  function down(x,y,t){ if(t&&t.closest&&(t.closest('.entry-edit-btn')||t.closest('.entry-why-btn'))) return; const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(ADMIN){ refreshAuth(); openSheet(curCid); } else { openProposeForm(curCid); } },500); }
+  function down(x,y,t){ if(t&&t.closest&&(t.closest('.entry-edit-btn')||t.closest('.entry-why-btn')||t.closest('.entry-menu-btn'))) return; const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(ADMIN){ refreshAuth(); openSheet(curCid); } else { openProposeForm(curCid); } },500); }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
   function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
   el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
@@ -111,6 +111,9 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
   /* Sichtbarer ✎-Button: öffnet direkt das Bearbeiten-Formular (kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-edit-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); editEntry(cid); } else { promptLoginThen(()=>editEntry(cid)); } });
+  /* ⋯-Button (für alle sichtbar): Admin → Schnellmenü, sonst → Vorschlag.
+     Ersetzt die Unsichtbarkeit des Long-Press als einzigem Einstieg (UX K1). */
+  el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-menu-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } });
   /* 💡-Button: klappt das „Warum"-Detail auf/zu (für alle, kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-why-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry) return; const open=entry.classList.toggle('show-why'); b.setAttribute('aria-expanded',open?'true':'false'); });
 })();

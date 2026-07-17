@@ -74,7 +74,14 @@ function refreshView(){
 const sync=(()=>{
   const URL='/api/state';
   let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0, oversize=false;
-  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status'; } }
+  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
+    /* Im „nur lokal"-Zustand Text zeigen: Status muss ohne Hover erkennbar
+       sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4). */
+    d.textContent=(cls==='local')?'lokal':''; } }
+  /* Einmaliger Hinweis beim Übergang online→offline; danach spricht das
+     „lokal"-Pill. Beim Wiederverbinden zeigt der grüne Punkt den Erfolg. */
+  function noteOffline(){ if(offline) return; offline=true;
+    try{ if(typeof toast==='function') toast('Keine Verbindung – Änderungen werden lokal gesichert und später übertragen',true); }catch(e){} }
   function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
   /* Übernimmt eingehende Server-Werte in den Store. Nur WIRKLICH abweichende
      Werte werden geschrieben und als Änderung gemeldet – so löst das Zurück-
@@ -115,7 +122,7 @@ const sync=(()=>{
         // Wiederholtakt statt endlosem 1,5-s-Hämmern mit demselben Payload.
         oversize=true; setDot('local','Daten zu groß für den Server – lokal gesichert. Bitte Fotos verkleinern.');
       } else {
-        oversize=false; offline=true; fails++; setDot('local','Nur lokal – Server nicht erreichbar');
+        oversize=false; noteOffline(); fails++; setDot('local','Nur lokal – Server nicht erreichbar');
       }
     }finally{
       inflight=false;
@@ -133,14 +140,14 @@ const sync=(()=>{
       rev=j.rev||rev; const changed=adopt(j.state,true);
       if(changed && !dirty.size){ hydrateVars(); refreshView(); }
       setDot('ok','Auf dem Server gespeichert');
-    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
+    }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
   }
   async function init(){
     setDot('saving','Verbinde…');
     try{
       const seed=await pull(); hydrateVars(); offline=false; setDot('ok','Auf dem Server gespeichert');
       if(seed.length) await putKeys(seed);
-    }catch(e){ offline=true; setDot('local','Nur lokal – Server nicht erreichbar'); }
+    }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
   }
   function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
     window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });

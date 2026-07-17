@@ -8,6 +8,11 @@ let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.cl
 
 $('mUse').onclick=()=>setMode('use'); $('mCatalog').onclick=()=>setMode('catalog'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
 $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme; $('menuBtn').onclick=openMenu;
+/* 🔎 immer in der Kopfleiste (UX-Audit H1a): globale Suche in EINEM Tipp. */
+$('searchBtn').onclick=()=>openGlobalSearch();
+/* Sync-Status antippbar (UX-Audit K4): erklärt den Zustand in einem Satz —
+   Tooltips gibt es auf Touch nicht. */
+$('syncDot').onclick=()=>{ const d=$('syncDot'); if(d&&d.title) toast(d.title); };
 document.addEventListener('click',()=>{ if(ADMIN) refreshAuth(); });
 window.addEventListener('hashchange',()=>{ checkAdminHash(); });
 window.addEventListener('popstate',(e)=>{ gotoState(e.state); });

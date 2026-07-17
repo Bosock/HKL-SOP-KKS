@@ -2,7 +2,9 @@
 <html lang="de" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Zoom bewusst NICHT gesperrt (WCAG 1.4.4): Sehschwäche muss zoomen können.
+     Der Doppeltipp-Zoom-Delay wird stattdessen per CSS touch-action gelöst. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0c1116">
 <title>HKL Standards</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -20,7 +22,8 @@
     <div class="bar-row">
       <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
       <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
-      <span id="syncDot" class="sync-dot" title="Server-Status"></span>
+      <button class="icon-btn" id="searchBtn" aria-label="Alles durchsuchen" title="Alles durchsuchen">🔎</button>
+      <span id="syncDot" class="sync-dot" role="status" aria-live="polite" title="Server-Status"></span>
       <button class="icon-btn" id="authBtn" aria-label="Authentifizierung">🔓</button>
       <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
       <button class="icon-btn" id="menuBtn" aria-label="Menü">☰</button>

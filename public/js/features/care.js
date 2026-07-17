@@ -52,6 +52,24 @@ function shrinkPhoto(dataUrl,cb){ const MAX=1280; const img=new Image();
 function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
   r.onload=()=>{ shrinkPhoto(r.result,(photo)=>{ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; } }); };
   r.readAsDataURL(f); }
+
+/* Verkleinert einmalig ALT-Fotos, die vor Einführung der automatischen
+   Verkleinerung in Originalgröße gespeichert wurden (QA-Befund P1: solche
+   Bestände füllen Geräte-Quota und Server-Limit). Läuft im Leerlauf nach dem
+   Start, ein Foto je Tick; idempotent über die Größenprüfung; das Ergebnis
+   wird geteilt gespeichert — EIN Gerät saniert damit den Bestand für alle. */
+const CARE_PHOTO_MAX=400000; /* ~300 KB Base64 – darüber wird nachverkleinert */
+function migrateCarePhotos(done){
+  let changed=false;
+  const keys=Object.keys(careMem).filter(k=>careMem[k]&&careMem[k].photo&&careMem[k].photo.length>CARE_PHOTO_MAX);
+  let i=0;
+  (function step(){
+    if(i>=keys.length){ if(changed) saveJSON('hkl_care',careMem); if(done) done({migrated:changed?keys.length:0}); return; }
+    const k=keys[i++];
+    try{ shrinkPhoto(careMem[k].photo,(small)=>{ if(small&&small.length<careMem[k].photo.length){ careMem[k].photo=small; changed=true; } setTimeout(step,120); }); }
+    catch(e){ setTimeout(step,120); }
+  })();
+}
 function saveCare(key){ const loc=$('locInp').value.trim(); const z=$('photoZone'); const photo=(z&&z.dataset.photo)||(careMem[key]&&careMem[key].photo)||null;
   if(!loc&&!photo){ delete careMem[key]; } else { careMem[key]={loc,photo}; }
   saveJSON('hkl_care',careMem);
