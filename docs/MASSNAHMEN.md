@@ -27,7 +27,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | H4 | 3–5 beobachtete Nutzertests vor Phase-2-UI-Umbau | QA Q3/V6 | ☐ |
 | H5 | Zweite interne Wartungsperson per CONTRIBUTING-Walkthrough einarbeiten | QA W1 | ☐ |
 | H6 | Kontextsensitives Bearbeiten-Menü je Elementtyp (gebündelt statt 15er-Liste) | QM §3 / UX 10 | ☑ (2026-07-17) Eintrag · Rubrik · Standard nutzen dasselbe gegliederte Menü |
-| H7 | Wirkungs-Chips („ändert WAS/WO, sichtbar für WEN") in Verwaltung & Scope-Dialog | QM §1 / UX H6 | ☐ |
+| H7 | Wirkungs-Chips („ändert WAS/WO, sichtbar für WEN") in Verwaltung & Scope-Dialog | QM §1 / UX H6 | ◐ (2026-07-17) Chips + „Ändert…"-Untertitel in den Bearbeiten-Menüs; offen: Live-Vorschau (C), Scope-Dialog-Chips |
 
 ## MITTEL
 
@@ -75,5 +75,6 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | 2026-07-17 | Offsite-Backup-Anleitung (CONTRIBUTING) · MDR-Leitplanke (README) · diese Liste | QA V3/V11/V4 |
 | 2026-07-17 | **Etikett-Scanner & Produktdatenbank (Phase 1):** Live-Barcode/UDI-DataMatrix via nativem `BarcodeDetector` → GTIN/LOT/Verfall (offline, zero-dep, keine CSP-Änderung); GTIN als DB-Schlüssel; REF/Hersteller/Maße 1× je GTIN; `hkl_gtin` geteilt + Backup; 20 Unit-Tests + E2E-Suite `scanner.js` | Betreiber-Entscheidung: Barcode-first, Android-Chrome |
 | 2026-07-17 | **Bearbeiten-Menü gegliedert (QM §3, H6):** flache 15er-Liste → vier Fächer *Inhalt · Darstellung · Organisation · Gefahrenzone*; **Standard-Titel & Rubrik-Kopf** nutzen jetzt dasselbe gegliederte Menü (⋯/✎), verstreute Admin-Buttons gebündelt; E2E-Checks | Menü-Ordnung zuerst |
+| 2026-07-17 | **Lange-Tippen überall + Wirkungs-Chips (QM §1/§3):** Halten öffnet das gegliederte Bearbeiten-Menü auf JEDER Ebene — Standard-Übersicht, Rubriken-Liste, Einträge (generischer `attachHoldNav`, Tippen=öffnen/Halten=Menü); Wirkungs-Chips (📄/🗂/📍 · 👥 alle Geräte) + ehrliche „Ändert…"-Untertitel in den Menüs; echte Maus-Halte-E2E-Checks | Option 2 + „durch langes Tippen überall" |
 | 2026-07-17 | **Verwaltung gegliedert & durchsuchbar (QM §4B, M5):** ~11 Panels in 3 Themenblöcke (*Inhalte pflegen · Aussehen & Anzeige · Daten & Sicherung*); Einstellungs-Suchfeld (Titel+Synonyme, blendet leere Blöcke aus); großer „Einstufung prüfen"-Block jetzt einklappbares Panel; E2E-Checks | Menü-Ordnung zuerst |
 | 2026-07-17 | **Etikett-Scanner Phase 2 — On-Device-OCR:** Foto → REF/Hersteller/Maße per Tesseract.js (WASM, selbst gehostet unter `public/vendor/tesseract/`, ~6 MB, lazy, offline); `extractLabelFields` rein/testbar; füllt nur leere Felder; CSP `wasm-unsafe-eval`+`worker-src blob:`; Server-MIME `.wasm`/`.gz`; 4 Unit-Tests + E2E `ocr.js` (echte Engine liest echten Text) | Betreiber-Entscheidung: On-Device statt Cloud |

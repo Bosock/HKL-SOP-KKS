@@ -78,6 +78,29 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     showSheet(false); return ok;
   }));
 
+  // Lange-Tippen (Halten ≈500 ms) erreicht das Menü auf jeder Ebene
+  await page.evaluate(() => setMode('use'));
+  await page.waitForTimeout(150);
+  const sBox = await page.evaluate(() => { const el = document.querySelector('#scr-standards .std'); if (!el) return null; el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 18) }; });
+  let stdHold = false;
+  if (sBox) { await page.mouse.move(sBox.x, sBox.y); await page.mouse.down(); await page.waitForTimeout(650);
+    stdHold = await page.evaluate(() => document.getElementById('sheet').classList.contains('show') && /Standard bearbeiten/.test(document.getElementById('sheet').textContent));
+    await page.mouse.up(); await page.evaluate(() => showSheet(false)); }
+  r.check('Lange-Tippen auf Standard-Karte öffnet Standard-Menü', stdHold);
+
+  const rBox = await page.evaluate(() => { const s = DB.standards[0]; openStandard(s.id, true); const el = document.querySelector('#scr-rubriken .rub'); if (!el) return null; el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 18) }; });
+  let rubHold = false;
+  if (rBox) { await page.mouse.move(rBox.x, rBox.y); await page.mouse.down(); await page.waitForTimeout(650);
+    rubHold = await page.evaluate(() => document.getElementById('sheet').classList.contains('show') && /Rubrik bearbeiten/.test(document.getElementById('sheet').textContent));
+    await page.mouse.up(); await page.evaluate(() => showSheet(false)); }
+  r.check('Lange-Tippen auf Rubrik öffnet Rubrik-Menü', rubHold);
+
+  // Wirkungs-Chips (§1/A) im Menü sichtbar
+  r.check('Wirkungs-Chips im Bearbeiten-Menü', await page.evaluate(() => {
+    openStdSheet(DB.standards[0].id);
+    const ok = document.querySelector('#sheet .sheet-chips .schip') != null; showSheet(false); return ok;
+  }));
+
   // --- P1: Quota voll → Warnung + Wert bleibt lesbar (mem-Überlagerung) ---
   const quota = await page.evaluate(() => {
     const orig = Storage.prototype.setItem;

@@ -7,6 +7,9 @@ function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}
    flacher Liste — QM-Konzept §3: Inhalt · Darstellung · Organisation ·
    Gefahrenzone). */
 function sGroup(title,sub){ return `<div class="sheet-group"><span class="sg-t">${esc(title)}</span>${sub?`<span class="sg-s">${esc(sub)}</span>`:''}</div>`; }
+/* Wirkungs-Chips (QM-Konzept §1/A): zeigen WO die Änderungen wirken und WER sie
+   sieht — einmal gelernt, überall wiedererkannt. Nur feste, sichere Literale. */
+function sChips(arr){ return `<div class="sheet-chips">`+arr.map(c=>`<span class="schip">${c}</span>`).join('')+`</div>`; }
 /* Das Bearbeiten-Menü zeigt nur, was für DIESES Element sinnvoll ist, gegliedert
    in vier feste Fächer. Material-/Gerätespezifisches (Größen, Spezifikation,
    Unterkategorie, Katalog) erscheint nur bei beschaffbaren Einträgen. */
@@ -18,6 +21,7 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const groessen=(function(){const g=qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen; return (g&&g.length)?g.map(x=>x.wert).join(', '):'keine';})();
   const spez=(function(){const s=qeGet(e,cid,'spez'); const v=(s!==undefined)?s:(Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation); return v||'keine';})();
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Bearbeiten · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
+  h+=sChips(['📍 dieser Eintrag', '👥 alle Geräte']);
 
   /* ── Inhalt ── */
   h+=sGroup('Inhalt','Was der Eintrag ist');
@@ -56,8 +60,9 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 /* ── Gegliedertes Menü für einen STANDARD (Titelzeile bearbeiten) ──
    Gleiches Muster wie das Eintrags-Menü (§3): fasst die früher verstreuten
    Admin-Buttons in einem kontextsensitiven Sheet zusammen. */
-function openStdSheet(){ if(!ADMIN||!curStd) return; const s=curStd; const hid=stdHidden(s);
+function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(x=>x.id===id); if(t) curStd=t; } if(!curStd) return; const s=curStd; const hid=stdHidden(s);
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
+  h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
   h+=sGroup('Inhalt','Titel, Gruppe & Freigabe');
   h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);editStandard()');
   h+=sAct('🏷️','Version & Freigabe','Status und Gültigkeit','showSheet(false);openStdMetaForm()');
@@ -71,9 +76,10 @@ function openStdSheet(){ if(!ADMIN||!curStd) return; const s=curStd; const hid=s
 /* ── Gegliedertes Menü für eine RUBRIK (Kopf bearbeiten) ── */
 function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const hid=rubHidden(r,idx); const isTpl=!!r.__tplid;
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Rubrik bearbeiten${isTpl?' · Vorlage':(r.__nrid?' · eigene':'')}</div><div class="sheet-name">${esc(rubName(r,idx))}</div>`;
+  h+=sChips(['🗂 diese Rubrik', '👥 alle Geräte']);
   h+=sGroup('Inhalt','Name & Symbol');
-  h+=sAct('✏️','Umbenennen','nur der Rubrik-Name','showSheet(false);renameRubrik('+idx+')');
-  h+=sAct('🔣','Symbol ändern','Emoji der Rubrik','showSheet(false);editRubIconFor('+idx+')');
+  h+=sAct('✏️','Umbenennen','nur diese Rubrik in diesem Standard','showSheet(false);renameRubrik('+idx+')');
+  h+=sAct('🔣','Symbol ändern','gilt für ALLE Rubriken dieses Namens','showSheet(false);editRubIconFor('+idx+')');
   h+=sGroup('Organisation','Reihenfolge & Geltung');
   h+=sAct('⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
   h+=sAct('⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
@@ -180,5 +186,33 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-menu-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } });
   /* 💡-Button: klappt das „Warum"-Detail auf/zu (für alle, kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-why-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry) return; const open=entry.classList.toggle('show-why'); b.setAttribute('aria-expanded',open?'true':'false'); });
+})();
+
+/* Generischer Halte-Detektor für Listen mit eigener Navigation: kurzes Tippen
+   = öffnen, langes Halten (≈500 ms) = Bearbeiten-Menü. Damit ist das gegliederte
+   Menü auf JEDER Ebene per Long-Press erreichbar — Standard-Übersicht, Rubriken-
+   Liste und (separat) Einträge. Delegation am persistenten Container. */
+function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired=false,cur=null,active=false,lastTouch=0;
+  function row(t){ if(!t||!t.closest) return null; if(opts.ignoreSel && t.closest(opts.ignoreSel)) return null; return t.closest(opts.rowSel); }
+  function down(x,y,t){ const rw=row(t); if(!rw) return; cur=rw; sx=x; sy=y; fired=false; active=true; clearTimeout(timer);
+    timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(opts.onHold) opts.onHold(cur); },500); }
+  function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
+  function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(cur&&opts.onTap) opts.onTap(cur); }
+  el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
+  el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
+  el.addEventListener('touchend',()=>{ lastTouch=Date.now(); up(); });
+  el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
+  el.addEventListener('mousedown',e=>{ if(Date.now()-lastTouch<700) return; down(e.clientX,e.clientY,e.target); });
+  el.addEventListener('mousemove',e=>{ if(Date.now()-lastTouch<700) return; move(e.clientX,e.clientY); });
+  el.addEventListener('mouseup',()=>{ if(Date.now()-lastTouch<700) return; up(); });
+  el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
+}
+(function attachListHolds(){
+  attachHoldNav($('scr-standards'), { rowSel:'.std',
+    onTap:rw=>{ const id=rw.dataset.sid; if(id) openStandard(id); },
+    onHold:rw=>{ const id=rw.dataset.sid; if(id&&ADMIN){ refreshAuth(); openStdSheet(id); } } });
+  attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn',
+    onTap:rw=>{ const i=rw.dataset.ri; if(i!=null) openRubrik(+i); },
+    onHold:rw=>{ const i=rw.dataset.ri; if(i!=null&&ADMIN){ refreshAuth(); openRubSheet(+i); } } });
 })();
 
