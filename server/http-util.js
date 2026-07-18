@@ -32,14 +32,22 @@ function maybeGzip(req, res, code, headers, body, contentType) {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let size = 0; const chunks = [];
+    let size = 0; const chunks = []; let done = false;
     req.on('data', c => {
+      if (done) return;              // nach dem Limit: weitere Chunks verwerfen
       size += c.length;
-      if (size > MAX_BODY) { reject(Object.assign(new Error('payload too large'), { code: 'TOO_LARGE' })); req.destroy(); return; }
+      if (size > MAX_BODY) {
+        done = true;
+        // NICHT req.destroy() aufrufen: das würde den Socket abreißen, bevor der
+        // Handler sauber 413 senden kann (Client sähe nur ERR_EMPTY_RESPONSE).
+        // Wir hören auf zu puffern und lassen den Handler ordentlich antworten.
+        reject(Object.assign(new Error('payload too large'), { code: 'TOO_LARGE' }));
+        return;
+      }
       chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
+    req.on('end', () => { if (!done) resolve(Buffer.concat(chunks)); });
+    req.on('error', e => { if (!done) { done = true; reject(e); } });
   });
 }
 

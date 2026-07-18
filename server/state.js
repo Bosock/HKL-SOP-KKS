@@ -27,12 +27,16 @@ async function loadState() {
   }
 }
 
-// Atomic-ish write: write to a temp file then rename over the target.
+// Atomic write: write to a temp file, fsync it, then rename over the target.
+// Ohne fsync kann bei Stromausfall das Rename vor den Daten auf der Platte
+// landen (leere/halbe Datei) — der sync() schließt dieses Fenster (QA P5).
 function persist() {
   const snapshot = JSON.stringify(STATE);
   writeChain = writeChain.then(async () => {
     const tmp = STATE_FILE + '.' + crypto.randomBytes(4).toString('hex') + '.tmp';
-    await fsp.writeFile(tmp, snapshot, 'utf8');
+    const fh = await fsp.open(tmp, 'w');
+    try { await fh.writeFile(snapshot, 'utf8'); await fh.sync(); }
+    finally { await fh.close(); }
     await fsp.rename(tmp, STATE_FILE);
   }).catch(err => console.error('[state] write failed:', err.message));
   maybeSnapshot(); // best-effort, throttled — never blocks/rejects the main write

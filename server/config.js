@@ -52,6 +52,12 @@ const MIME = {
   '.ico':  'image/x-icon',
   '.woff2':'font/woff2',
   '.txt':  'text/plain; charset=utf-8',
+  // On-Device-OCR (Tesseract.js, selbst gehostet unter /vendor/tesseract/):
+  '.wasm': 'application/wasm',
+  // Sprachmodell wird als .gz ausgeliefert und clientseitig (pako) entpackt —
+  // daher application/gzip OHNE Content-Encoding (der Browser darf es NICHT
+  // automatisch auspacken, sonst scheitert Tesseracts eigener gunzip).
+  '.gz':   'application/gzip',
 };
 const COMPRESSIBLE = /^(text\/|application\/(json|javascript|xml)|image\/svg)/;
 
@@ -70,13 +76,17 @@ const COMPRESSIBLE = /^(text\/|application\/(json|javascript|xml)|image\/svg)/;
        <base>-Hijacking und Formular-Exfiltration. */
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // 'wasm-unsafe-eval' erlaubt AUSSCHLIESSLICH das Kompilieren/Instanziieren von
+  // WebAssembly (nötig für die On-Device-OCR mit Tesseract.js) — es ist NICHT
+  // das gefährliche 'unsafe-eval' und öffnet weder eval() noch new Function().
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self'",
   "manifest-src 'self'",
-  "worker-src 'self'",
+  // blob: für den Tesseract-Web-Worker (je nach Ladeweg als Blob instanziiert).
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

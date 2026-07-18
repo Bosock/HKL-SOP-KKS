@@ -2,7 +2,9 @@
 <html lang="de" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Zoom bewusst NICHT gesperrt (WCAG 1.4.4): Sehschwäche muss zoomen können.
+     Der Doppeltipp-Zoom-Delay wird stattdessen per CSS touch-action gelöst. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0c1116">
 <title>HKL Standards</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -20,7 +22,8 @@
     <div class="bar-row">
       <button class="icon-btn" id="backBtn" hidden aria-label="Zurück">‹</button>
       <div class="bar-title"><h1 id="barTitle">HKL Standards</h1><div class="crumb" id="barCrumb">Lädt…</div></div>
-      <span id="syncDot" class="sync-dot" title="Server-Status"></span>
+      <button class="icon-btn" id="searchBtn" aria-label="Alles durchsuchen" title="Alles durchsuchen">🔎</button>
+      <span id="syncDot" class="sync-dot" role="status" aria-live="polite" title="Server-Status"></span>
       <button class="icon-btn" id="authBtn" aria-label="Authentifizierung">🔓</button>
       <button class="icon-btn" id="themeBtn" aria-label="Ansicht wechseln">◐</button>
       <button class="icon-btn" id="menuBtn" aria-label="Menü">☰</button>
@@ -50,6 +53,8 @@
     <div class="screen" id="scr-search"></div>
     <div class="screen" id="scr-glossary"></div>
     <div class="screen" id="scr-suggest"></div>
+    <div class="screen" id="scr-scan"></div>
+    <div class="screen" id="scr-scan-item"></div>
     <div class="screen" id="scr-form"></div>
   </main>
 </div>
@@ -57,10 +62,25 @@
 <div class="sheet-overlay" id="sheetOv"></div>
 <div class="sheet" id="sheet"></div>
 <div id="printRoot" aria-hidden="true"></div>
+<!-- Etikett-Scanner: Vollbild-Kameraebene (nur sichtbar mit .show) -->
+<div class="scan-cam" id="scanCam" aria-hidden="true">
+  <video id="scanVideo" playsinline muted></video>
+  <div class="scan-reticle"></div>
+  <div class="scan-hint">Etikett-Barcode in den Rahmen halten …</div>
+  <div class="scan-bar">
+    <button type="button" class="scan-btn-torch" id="scanTorch" onclick="toggleTorch()">🔦 Licht</button>
+    <button type="button" class="scan-btn-cancel" onclick="stopCam()">Abbrechen</button>
+  </div>
+</div>
+<!-- On-Device-OCR: Fortschritts-Overlay während der Texterkennung -->
+<div class="ocr-busy" id="ocrBusy" aria-hidden="true" role="status" aria-live="polite">
+  <div class="ocr-box"><div class="ocr-spin"></div><div class="ocr-msg" id="ocrBusyMsg">OCR läuft …</div></div>
+</div>
 
 <script src="js/core/store.js"></script>
 <script src="js/core/config.js"></script>
 <script src="js/core/color.js"></script>
+<script src="js/features/rules.js"></script>
 <script src="js/features/auth.js"></script>
 <script src="js/features/additions.js"></script>
 <script src="js/features/pricing.js"></script>
@@ -85,6 +105,8 @@
 <script src="js/features/glossary.js"></script>
 <script src="js/features/pdfprint.js"></script>
 <script src="js/features/suggestions.js"></script>
+<script src="js/features/scanner.js"></script>
+<script src="js/features/ocr.js"></script>
 <script src="js/core/sync.js"></script>
 <script src="js/core/pwa.js"></script>
 <script src="js/main.js"></script>

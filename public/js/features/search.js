@@ -26,11 +26,15 @@ function searchGlobal(q){ const res=[]; q=(q||'').trim().toLowerCase(); if(!q||!
   });
   return res; }
 
-function openGlobalSearch(){ showSheet(false);
+/* Optionaler preset-Text (z. B. Weiterreichen der erfolglosen Startsuche –
+   UX-Audit M2): Feld vorbefüllen und sofort suchen. */
+function openGlobalSearch(preset){ showSheet(false);
   formCtx=null; mode='use'; nav=[]; /* Zurück führt sauber zur Übersicht */
   const html=`<div class="std-search gsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gSearchInput" placeholder="Alles durchsuchen – Material, Gerät, Synonym …" oninput="globalSearch(this.value)" autocomplete="off"></div><div id="gSearchResults"><div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet jeden Eintrag über alle Standards – und zeigt zu einem Material alle Eingriffe, in denen es vorkommt.</p></div></div>`;
   $('scr-search').innerHTML=html; show('scr-search'); setBar('Globale Suche','über alle Standards',true);
-  $('searchWrap').style.display='none'; setTimeout(()=>{ const i=$('gSearchInput'); if(i) i.focus(); },50); }
+  $('searchWrap').style.display='none';
+  if(preset&&String(preset).trim()){ const i=$('gSearchInput'); if(i){ i.value=preset; } globalSearch(preset); }
+  setTimeout(()=>{ const i=$('gSearchInput'); if(i) i.focus(); },50); }
 
 function globalSearch(q){ const box=$('gSearchResults'); if(!box) return;
   if(!(q||'').trim()){ box.innerHTML=`<div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet jeden Eintrag über alle Standards – und zeigt zu einem Material alle Eingriffe, in denen es vorkommt.</p></div>`; return; }

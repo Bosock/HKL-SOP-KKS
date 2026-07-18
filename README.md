@@ -14,6 +14,13 @@ The backend is a tiny **zero-dependency Node server** ([`server.js`](server.js) 
 [`server/`](server/)) that serves the static app *and* exposes a `/api/state` persistence
 endpoint, packaged as a single Docker image.
 
+> **Zweck & Abgrenzung (bewusste Leitplanke):** Die App organisiert Material,
+> Abläufe und Wissen des Teams — sie ist eine **Arbeits- und Organisationshilfe**
+> und gibt keine patientenindividuellen klinischen Empfehlungen (keine Diagnose-,
+> Dosier- oder Therapieentscheidungen). Neue Funktionen müssen diese Grenze
+> wahren, damit die App kein Medizinprodukt im Sinne der MDR wird
+> (siehe `docs/audits/2026-07-17-qaqc-gutachten.md`, Befund R2).
+
 ## Repository layout
 
 ```
@@ -109,9 +116,12 @@ Previously all edits lived only in one browser's `localStorage`. Now the app is
   used and logins reset on restart) — a plain base64 cookie can no longer forge
   an identity.
 
-Shared keys: `hkl_natcfg`, `hkl_overrides`, `hkl_qedits`, `hkl_reviewed`, `hkl_reassign`,
-`hkl_ukmap`, `hkl_ukmeta`, `hkl_settings`, `hkl_care`, `hkl_additions`. Per-device keys that
-stay local: `hkl_checks` (daily checklist), `hkl_theme`.
+Shared keys: the authoritative list is `SHARED_KEYS` in
+[`public/js/core/sync.js`](public/js/core/sync.js) (content overlays, settings, prices,
+hints, glossary, suggestions, own standards/entries, design/texts, **scanned product
+database `hkl_gtin`**, …). Per-device keys
+that deliberately stay local: `hkl_checks` (daily checklist), `hkl_theme`,
+`hkl_authuntil` (admin session TTL), `hkl_voterid` (suggestion voting identity).
 
 ### Adding & editing content
 
@@ -127,6 +137,35 @@ while making additions behave like normal content (and shared across devices):
 - **New standards** — *Verwaltung → „➕ Eigene Standards" → „＋ Neuer Standard"* creates a
   standard (title + group) pre-seeded with *Saal und Geräte*, *Material* and *Ablauf*
   rubrics; it then appears in the normal *Nutzung* list.
+
+### Etikett-Scanner & Produktdatenbank
+
+*☰ → „📷 Etikett scannen"* opens a **live barcode / UDI-DataMatrix scanner**
+([`public/js/features/scanner.js`](public/js/features/scanner.js)). It uses the browser's
+native **`BarcodeDetector`** (Android-Chrome) plus the camera — no third-party library, no
+CSP change, works offline.
+
+- From a GS1 code the app reads **exactly and offline**: the **GTIN** (globally unique
+  product number), **LOT/batch**, **expiry** and **serial**. GS1 Application Identifiers are
+  parsed in pure JS (`parseGS1`), the expiry is shown as an ISO date with an *expired / expires
+  soon* flag.
+- The **GTIN is the database key**: the same article always yields the same GTIN, so the
+  product database (`hkl_gtin`, shared across devices) groups and organises itself. Scan a
+  known product → its record opens; scan an unknown one → a pre-filled form.
+- The barcode does **not** carry the human-readable **REF** or **manufacturer name**, so those
+  free-text fields (plus sizes: French, length, outer/inner Ø) are entered **once per GTIN** and
+  are then shown automatically on every future scan.
+- **On-device OCR** ([`public/js/features/ocr.js`](public/js/features/ocr.js)) fills those
+  free-text fields from a **photo of the label**: in the product form, *„📸 Etikett fotografieren"*
+  captures a picture and reads REF, manufacturer and sizes off it (`extractLabelFields`), pre-filling
+  the form for the user to confirm. It runs **entirely on the device** — Tesseract.js (WASM) is
+  **self-hosted** under [`public/vendor/tesseract/`](public/vendor/tesseract/) (no cloud, no
+  third-party origin, offline after first use). The engine is loaded lazily on first use only. This
+  needs `wasm-unsafe-eval` in the CSP (WASM compilation only — never bare `unsafe-eval`; see
+  `server/config.js`).
+- Looking products up is open to everyone; creating/editing a record and running OCR require the
+  admin login. Where `BarcodeDetector` is unavailable, the database stays searchable and (as admin)
+  manually editable; the photo-OCR works independently of it.
 
 ### API
 
@@ -160,8 +199,9 @@ docker build -t hkl-sop-kks:local .
 docker run --rm -p 8080:80 -v hkl-state:/app/state hkl-sop-kks:local
 # open http://localhost:8080
 
-# Or with compose (uses the published image; set HOST_PORT to taste):
-HOST_PORT=8080 docker compose up
+# Note: docker-compose.yml is the PRODUCTION definition (no host port — it
+# expects the shared nginx-proxy network). For a local container use the
+# `docker run -p 8080:80 …` line above.
 ```
 
 Health check: `curl http://localhost:8080/healthz` → `ok`.

@@ -10,8 +10,11 @@ function entryCardHTML(e,cid,isMatGer){
   const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
-  const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) );
+  const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) || (typeof hasStelleRule==='function'&&hasStelleRule(cid)) );
   const editBtn=ADMIN?`<button type="button" class="entry-edit-btn${hasEdit?' edited':''}" title="${hasEdit?'Bearbeiten (angepasst)':'Bearbeiten'}" aria-label="Eintrag bearbeiten">✎</button>`:'';
+  /* Sichtbarer Aktions-Einstieg für ALLE (UX-Audit K1): Admin → Schnellmenü,
+     sonst → „Änderung vorschlagen". Der Long-Press bleibt als Abkürzung. */
+  const menuBtn=`<button type="button" class="entry-menu-btn" title="${ADMIN?'Aktionen':'Änderung vorschlagen'}" aria-label="${ADMIN?'Aktionen zu diesem Eintrag':'Änderung zu diesem Eintrag vorschlagen'}">⋯</button>`;
   const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
   /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular und das Schnellmenü überschreibbar. */
   const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
@@ -39,7 +42,7 @@ function entryCardHTML(e,cid,isMatGer){
   const whyQe=qeGet(e,cid,'why'); const why=(((whyQe!==undefined&&whyQe!==null)?whyQe:(e.why||''))||'').toString();
   const whyBtn=why?`<button type="button" class="entry-why-btn" aria-label="Warum – Hintergrund anzeigen" aria-expanded="false" title="Warum?">💡</button>`:'';
   const whyPanel=why?`<div class="e-why"><span class="ew-lbl">Warum</span>${esc(why).replace(/\n/g,'<br>')}</div>`:'';
-  return `<div class="entry ${cls}${filledCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${whyBtn}${editBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
+  return `<div class="entry ${cls}${filledCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -75,7 +78,9 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
       named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
         const ckey=idx+':'+g.uk; const isCol=(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt */
-        html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" onclick="toggleUk('${esc(ckey)}')"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
+        /* ckey enthält den UK-Namen (Freitext) → per data-Attribut übergeben,
+           nicht als Inline-String-Literal (esc() escaped kein Apostroph). */
+        html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" data-k="${esc(ckey)}" onclick="toggleUk(this.dataset.k)"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
         html+=`</div></div>`;
       });
@@ -125,7 +130,10 @@ function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.l
   arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
   saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
 function toggleUk(ckey){ collapsed[ckey]=(collapsed[ckey]===false)?true:false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
-function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]); }
+function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]);
+  /* Einmaliger Hinweis (pro Gerät) auf den täglichen Reset — sonst wundert man
+     sich am nächsten Morgen, wohin die Häkchen sind (UX-Audit K4c). */
+  if(checks[cid] && !store.get('hkl_hint_daily')){ store.set('hkl_hint_daily','1'); toast('Häkchen gelten für heute – morgen starten sie automatisch leer.'); } }
 
 function goBack(){ if(formCtx){ closeForm(); return; }
   if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }

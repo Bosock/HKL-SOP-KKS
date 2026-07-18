@@ -27,8 +27,14 @@ public/
       additions.js      eigene Einträge/Standards (hkl_additions)
       catalog.js        Katalog-Domänenlogik (rein, testbar)
       care.js           Materialpflege (Fotos, Lagerorte)
-      backup.js         Export/Import aller Anpassungen
+      backup.js         Export/Import aller Anpassungen — enthält historisch
+                        bedingt AUCH die Verwaltungsansicht (renderAdmin +
+                        Kategorien-/UK-Editoren); ui/admin.js hält nur die
+                        Sammel-Helfer. Bei Gelegenheit entwirren (siehe
+                        docs/audits/).
       quickmenu.js      Schnellmenü (Long-Press)
+      scanner.js        Etikett-Scanner: GS1-Parser (rein/testbar) + Kamera
+                        (BarcodeDetector) + Produktdatenbank (hkl_gtin)
     ui/               Ansichten & Navigation
       nav.js, standards.js, rubriken.js, detail.js,
       catalog.js, admin.js, forms.js, chrome.js
@@ -125,8 +131,10 @@ server.js             dünner Einstiegspunkt (node server.js)
   Antwort): strikte **Content-Security-Policy** (`default-src 'self'`,
   `object-src 'none'`, `base-uri`/`form-action`/`frame-ancestors 'self'`;
   `script`/`style` behalten `'unsafe-inline'` wegen der Inline-`onclick=`/
-  `style=`-Attribute, aber **nie** `'unsafe-eval'`; `img-src` erlaubt `data:`
-  für die Foto-Pflege), **HSTS** (ohne `includeSubDomains`) sowie
+  `style=`-Attribute; `script-src` trägt zusätzlich `'wasm-unsafe-eval'` für die
+  On-Device-OCR (nur WASM-Kompilierung — **nie** das gefährliche bare
+  `'unsafe-eval'`), `worker-src` erlaubt `blob:` für den OCR-Worker; `img-src`
+  erlaubt `data:`/`blob:` für die Foto-Pflege), **HSTS** (ohne `includeSubDomains`) sowie
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` und eine
   `Permissions-Policy`, die ungenutzte Sensor-/Zahlungs-APIs abschaltet.
 - Deployment-Weg unverändert: Push auf `main` → GitHub Actions (Tests →
@@ -169,12 +177,41 @@ Neue geteilte Schlüssel: `hkl_prod` (Material-Preise) und `hkl_rubtpl`
 (Rubrik-Vorlagen) — beide in `SHARED_KEYS` (`core/sync.js`) **und** `BACKUP_KEYS`
 (`features/backup.js`).
 
+## Etikett-Scanner & Produktdatenbank (`hkl_gtin`)
+
+`features/scanner.js` liest per nativer **`BarcodeDetector`**-API (Android-Chrome)
+GS1-Barcodes/UDI-DataMatrix live von der Kamera. Der reine, testbare Kern
+(`parseGS1`, `parseScan`, `formatGs1Date`, `gtinKey`, `expiryStatus`,
+`mergeGtinRecord`, `filterGtin`, `gtinGroups`, `gtinBadges`) zerlegt die
+GS1-Application-Identifiers (01 GTIN, 17 Verfall, 10 LOT, 21 Serie …) und ist
+in `test/client-helpers.test.js` abgedeckt; die Kamera-/DOM-Schicht bleibt dünn.
+Die **GTIN** ist der Datenbankschlüssel — der Barcode trägt REF/Hersteller
+bewusst **nicht**, diese Freitextfelder werden einmal je GTIN erfasst. Geteilter
+Schlüssel `hkl_gtin` in `SHARED_KEYS` (+ `hydrateVars`) **und** `BACKUP_KEYS`.
+Der Barcode-Teil braucht keine CSP-Änderung (BarcodeDetector ist kein
+Skript-`eval`; die Kamera ist per `Permissions-Policy` erlaubt).
+End-to-End: `e2e/scanner.js`.
+
+**On-Device-OCR** (`features/ocr.js`) füllt die Freitextfelder aus einem
+Etikett-**Foto** vor. `extractLabelFields(text)` ist rein/testbar (REF, LOT,
+Marken-Hersteller, French/Länge/Ø aus dem OCR-Text) und wird nur auf **leere**
+Formularfelder angewendet (nie überschreiben). Die Engine ist **Tesseract.js
+(WASM)**, selbst gehostet unter `public/vendor/tesseract/` (SIMD-LSTM-Core +
+`eng.traineddata.gz`, ~6 MB), **lazy** erst beim ersten OCR-Aufruf geladen und
+same-origin (offline-fähig, `connect-src 'self'`). Dafür — und **nur** dafür —
+trägt die CSP `'wasm-unsafe-eval'` (reine WASM-Kompilierung, kein bare
+`'unsafe-eval'`), plus `worker-src 'self' blob:`; der Server liefert `.wasm`
+(`application/wasm`) und das `.gz`-Sprachmodell ohne Content-Encoding aus
+(Client entpackt selbst). End-to-End (lädt echte Engine, liest echten Text):
+`e2e/ocr.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
-- `esc()` escaped kein `'`. In `onclick`-Attributen, die Werte in
-  JS-String-Literale interpolieren, sind daher nur `[a-z0-9_]`-IDs sicher
-  (dafür gibt es `newAid()`/`addSlug()`). Freitext nie direkt in
-  `onclick`-Strings interpolieren — IDs übergeben und nachschlagen.
+- `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere
+  Apostroph-Fehlerklasse ist damit an der Wurzel entschärft. Die Regel gilt
+  als Defense-in-depth trotzdem weiter: Freitext nicht direkt in
+  `onclick`-String-Literale interpolieren — IDs/Indizes übergeben oder
+  `data-`-Attribute nutzen (Beispiele: `moveGroup(i,…)`, `toggleUk(this.dataset.k)`).
 - Der Passwort-Schutz (`core/config.js`) ist Komfort-, keine echte
   Sicherheitsfunktion (djb2-Hash im geteilten Zustand); die App ist für den
   internen Gebrauch hinter vertrauenswürdigem Netz gedacht.

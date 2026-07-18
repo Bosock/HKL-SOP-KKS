@@ -23,6 +23,16 @@ services:
       # letsencrypt companion: hostname + contact e-mail for the ACME cert.
       LETSENCRYPT_HOST: "${LETSENCRYPT_HOST:-sops.kardio.wiki}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:-mail@severinfink.de}"
+      # App-Konfiguration aus ~/hkl-sop-kks/.env durchreichen (docker compose
+      # liest .env automatisch für ${…}-Substitution). Ohne diese Zeilen
+      # erreichten die in .env.example dokumentierten Werte den Container NIE:
+      #  - SESSION_SECRET fest setzen, sonst werden OAuth-Logins bei jedem
+      #    Redeploy ungültig (Server erzeugt sonst pro Start ein Zufalls-Secret).
+      #  - GITHUB_*: nur gesetzt aktivieren sie den GitHub-Login; leer = aus.
+      SESSION_SECRET: "${SESSION_SECRET:-}"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      GITHUB_CALLBACK_URL: "${GITHUB_CALLBACK_URL:-https://sops.kardio.wiki/auth/github/callback}"
     volumes:
       # Server-side state (edits made in the web interface) persists here and
       # survives `docker compose pull && up -d` redeploys.
@@ -35,6 +45,13 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+    # Log-Rotation: ohne Limit wächst das json-file-Log unbegrenzt und kann
+    # die Platte des Shared Hosts füllen (QA-Befund P4).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   hkl-state:

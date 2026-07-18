@@ -33,6 +33,12 @@ fs.writeFileSync(path.join(PUBLIC_DIR, 'app.css'), BIG_CSS);
 fs.writeFileSync(path.join(PUBLIC_DIR, 'small.txt'), 'hi');
 fs.writeFileSync(path.join(DATA_DIR, 'standards.json'), '{"standards":[]}');
 fs.writeFileSync(path.join(SUB_DIR, 'index.html'), '<p>sub index</p>');
+// Mini-Fixtures für die vendorten OCR-Assets (nur die MIME-Zuordnung per
+// Endung wird geprüft, nicht der Inhalt).
+const VENDOR_DIR = path.join(PUBLIC_DIR, 'vendor', 'tesseract');
+fs.mkdirSync(VENDOR_DIR, { recursive: true });
+fs.writeFileSync(path.join(VENDOR_DIR, 'tesseract-core-simd-lstm.wasm'), Buffer.from([0, 0x61, 0x73, 0x6d]));
+fs.writeFileSync(path.join(VENDOR_DIR, 'eng.traineddata.gz'), Buffer.from([0x1f, 0x8b, 0x08, 0x00]));
 // A file outside PUBLIC_DIR that path-traversal attempts might target.
 fs.writeFileSync(path.join(TMP, 'secret.txt'), 'TOP SECRET');
 
@@ -139,10 +145,24 @@ test('static responses carry a Content-Security-Policy', async () => {
   // Inline handlers/styles are part of the design → must stay allowed…
   assert.match(csp, /script-src 'self' 'unsafe-inline'/);
   assert.match(csp, /style-src 'self' 'unsafe-inline'/);
-  // …but eval() must never be whitelisted.
-  assert.doesNotMatch(csp, /unsafe-eval/);
+  // …WASM compilation is allowed for the on-device OCR (Tesseract.js)…
+  assert.match(csp, /'wasm-unsafe-eval'/);
+  // …but the dangerous bare 'unsafe-eval' (eval()/new Function()) must NEVER be.
+  assert.doesNotMatch(csp, /'unsafe-eval'/);
   // Care photos are data: URLs.
   assert.match(csp, /img-src[^;]*data:/);
+});
+
+test('vendored OCR assets are served with correct MIME (no double-gzip)', async () => {
+  const wasm = await request('GET', '/vendor/tesseract/tesseract-core-simd-lstm.wasm');
+  assert.strictEqual(wasm.status, 200);
+  assert.match(wasm.headers['content-type'], /application\/wasm/);
+  // Das Sprachmodell wird als .gz ausgeliefert und clientseitig entpackt — der
+  // Server darf es NICHT zusätzlich gzip-kodieren, sonst scheitert der Client.
+  const gz = await request('GET', '/vendor/tesseract/eng.traineddata.gz');
+  assert.strictEqual(gz.status, 200);
+  assert.match(gz.headers['content-type'], /application\/gzip/);
+  assert.ok(!gz.headers['content-encoding'], 'gz must not be double-encoded');
 });
 
 test('JSON API responses also carry the security headers', async () => {
@@ -348,11 +368,11 @@ test('PUT /api/state over MAX_BODY is 413', async () => {
   const r = await request('PUT', '/api/state', {
     body: JSON.stringify({ state: { blob: big } }),
   });
-  // The server rejects oversize bodies mid-stream and destroys the socket,
-  // so the client either reads the 413 response or sees the reset first.
-  // Either way the oversize write must not be applied.
-  assert.ok(r.status === 413 || r.error === 'ECONNRESET', `got status=${r.status} error=${r.error}`);
-  if (r.status === 413) assert.deepEqual(json(r), { error: 'payload too large' });
+  // Der Server stoppt beim Limit das Puffern, reißt den Socket aber NICHT ab,
+  // sondern antwortet sauber mit 413 — so kann der Client den Status wirklich
+  // lesen (früher gab es hier eine Race gegen ECONNRESET).
+  assert.equal(r.status, 413, `got status=${r.status} error=${r.error}`);
+  assert.deepEqual(json(r), { error: 'payload too large' });
   const after = await request('GET', '/api/state');
   assert.equal(json(after).rev, 0);
 });
@@ -365,9 +385,21 @@ test('DELETE /api/state is 405 with Allow header', async () => {
 
 test('state is persisted to STATE_FILE on write', async () => {
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { persisted: true } }) });
-  // persist() serialises through a write chain; give it a tick to flush.
-  await new Promise(r => setTimeout(r, 50));
-  const onDisk = JSON.parse(await fsp.readFile(srv.config.STATE_FILE, 'utf8'));
+  // persist() serialises through a write chain and fsyncs — auf das Landen
+  // POLLEN statt fixe 50 ms (unter CI-Last kann der fsync-Write länger dauern;
+  // sonst ENOENT/rev-Flake).
+  // Auf den KONKRETEN Inhalt dieses Writes pollen (nicht nur rev) — resetState
+  // setzt nur den Speicher zurück, eine ältere state.json kann noch auf der
+  // Platte liegen. Wir warten, bis genau dieser Write gelandet ist.
+  let onDisk = null;
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    try { const d = JSON.parse(await fsp.readFile(srv.config.STATE_FILE, 'utf8')); if (d.state && d.state.persisted === true) { onDisk = d; break; } }
+    catch (e) { /* Datei noch nicht geschrieben */ }
+    if (Date.now() > deadline) break;
+    await new Promise(r => setTimeout(r, 25));
+  }
+  assert.ok(onDisk, 'state.json mit diesem Write wurde geschrieben');
   assert.equal(onDisk.state.persisted, true);
   assert.equal(onDisk.rev, 1);
 });
@@ -410,19 +442,27 @@ test('verifySession rejects a tampered payload', () => {
 test('GET /auth/user without a cookie returns user:null', async () => {
   const r = await request('GET', '/auth/user');
   assert.equal(r.status, 200);
-  assert.deepEqual(json(r), { user: null });
+  // The test env configures no OAuth, so the availability flag is false.
+  assert.deepEqual(json(r), { user: null, oauth: false });
 });
 
 test('GET /auth/user honours a validly signed session cookie', async () => {
   const signed = srv.signSession({ id: 7, login: 'carol', name: 'Carol' });
   const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + signed } });
-  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' } });
+  assert.deepEqual(json(r), { user: { id: 7, login: 'carol', name: 'Carol' }, oauth: false });
 });
 
 test('GET /auth/user ignores a forged session cookie', async () => {
   const forged = Buffer.from(JSON.stringify({ id: 1, login: 'root', name: 'root' })).toString('base64');
   const r = await request('GET', '/auth/user', { headers: { Cookie: 'github_session=' + forged } });
-  assert.deepEqual(json(r), { user: null });
+  assert.deepEqual(json(r), { user: null, oauth: false });
+});
+
+test('GET /auth/user reports oauth:false so the client hides the login button', async () => {
+  // Without GITHUB_CLIENT_ID/SECRET the client must not offer a GitHub login
+  // (clicking it would dead-end on the /auth/github 400 page).
+  const r = await request('GET', '/auth/user');
+  assert.equal(json(r).oauth, false);
 });
 
 test('GET /auth/github is 400 when OAuth is not configured', async () => {
@@ -472,7 +512,13 @@ test('persist throttles snapshots: two rapid writes create only one', async () =
   srv._resetBackupClock();
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 1 } }) });
   await request('PUT', '/api/state', { body: JSON.stringify({ state: { t: 2 } }) });
-  await new Promise(r => setTimeout(r, 120)); // let the fire-and-forget snapshot land
-  const snaps = await listSnaps();
+  // Fire-and-forget-Snapshot (writeFile+fsync) → aufs Landen POLLEN statt fixe
+  // 120 ms (fsync kann unter CI-Last länger dauern → sonst „got 0"-Flake).
+  const deadline = Date.now() + 3000;
+  let snaps = await listSnaps();
+  while (snaps.length < 1 && Date.now() < deadline) { await new Promise(r => setTimeout(r, 25)); snaps = await listSnaps(); }
+  // kurz nachfassen, dass der Throttle KEINEN zweiten zulässt
+  await new Promise(r => setTimeout(r, 60));
+  snaps = await listSnaps();
   assert.equal(snaps.length, 1, `expected exactly one throttled snapshot, got ${snaps.length}`);
 });

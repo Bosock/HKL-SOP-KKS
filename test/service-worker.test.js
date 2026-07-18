@@ -70,7 +70,7 @@ test('install precaches the app shell', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  const shell = env.stores.get('hkl-shell-v7');
+  const shell = env.stores.get('hkl-shell-v16');
   assert.ok(shell, 'shell cache exists');
   assert.ok(shell.m.has('http://localhost/index.html'), 'index.html precached');
   assert.ok(shell.m.has('http://localhost/css/app.css'), 'css precached');
@@ -119,6 +119,18 @@ test('/api requests are never intercepted', async () => {
   assert.strictEqual(r.passthrough, true);
 });
 
+test('/auth requests are never intercepted (login status must not be cached)', async () => {
+  const env = makeEnv();
+  env.box.fetchImpl = (input) => mkRes('shell:' + input);
+  await env.install();
+  // /auth/user reports the live login state — a stale cached copy would show
+  // the wrong user; /auth/github & /auth/logout are redirects for the browser.
+  const user = await env.doFetch({ method: 'GET', url: 'http://localhost/auth/user', mode: 'cors' });
+  assert.strictEqual(user.passthrough, true);
+  const gh = await env.doFetch({ method: 'GET', url: 'http://localhost/auth/github', mode: 'navigate' });
+  assert.strictEqual(gh.passthrough, true);
+});
+
 test('non-GET and cross-origin requests pass through', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
@@ -133,11 +145,11 @@ test('activate drops stale hkl caches, keeps current ones', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  await env.caches.open('hkl-shell-v6'); // simulate an old generation
+  await env.caches.open('hkl-shell-v15'); // simulate an old generation
   await env.activate();
   const names = await env.caches.keys();
-  assert.ok(!names.includes('hkl-shell-v6'), 'old cache removed');
-  assert.ok(names.includes('hkl-shell-v7'), 'current shell cache kept');
+  assert.ok(!names.includes('hkl-shell-v15'), 'old cache removed');
+  assert.ok(names.includes('hkl-shell-v16'), 'current shell cache kept');
 });
 
 test('sw.js SHELL list stays in sync with index.html <script> tags', () => {
