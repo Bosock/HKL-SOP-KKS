@@ -1,122 +1,195 @@
-# Verwaltungspolitik — grundlegende Revision (Tiefenanalyse)
+# Verwaltungspolitik — grundlegende Revision (Tiefenanalyse, v2)
 
 | | |
 |---|---|
-| **Erstellt** | 2026-07-17 |
-| **Status** | **Konzept / Entscheidungsgrundlage — noch nichts umgesetzt.** |
-| **Auftrag** | „Ich glaube, wir brauchen eine grundlegende Revision der Verwaltungspolitik in der App. Mach bitte wirklich eine tiefe Analyse … wie es am besten wäre, diese ganze Thematik zu bearbeiten." |
-| **Anlass** | Wunsch nach schnellen **Massen-Änderungen über alle Standards / Gruppen (CRM, EPU, …)** — und das Gefühl, dass das aktuelle Bearbeiten-Modell dafür nicht trägt. |
+| **Erstellt** | 2026-07-17 (v1) · **v2: erweitert um State-of-the-Art-Fundament und verbindliche Ziel-Architektur** |
+| **Status** | **Konzept / Entscheidungsgrundlage — Umsetzung erst nach Freigabe des Modells (Entscheidung E6).** |
+| **Auftrag** | „Kein Quick-Fix, sondern ein durchdachtes, nachhaltiges System der Verwaltungspolitik und der Logik dahinter — auch wenn es aufwändig ist. Was ist Best Practice / State of the Art für solche Anwendungen?" |
 
 ---
 
-## 0. Kernbefund in einem Satz
+## 0. Einordnung: Welche Problemklasse ist das eigentlich?
 
-> **Die App hat heute keine *einheitliche Vorstellung davon, was „eine Änderung" ist*. Jede Art von Änderung hat ihren eigenen Speicher, ihre eigene Reichweite und ihren eigenen Bedienweg. Genau deshalb fühlt sich vieles „doppelt" an und deshalb ist „massenhaft über Gruppen" strukturell schwer. Die Lösung ist keine neue Bulk-Funktion, sondern *ein* gemeinsamer Änderungs-Begriff mit *einer* expliziten Reichweiten-Achse — dann ist Bulk nur noch „größere Reichweite".**
+Die entscheidende Erkenntnis zuerst: **Diese App ist keine gewöhnliche Daten-App (CRUD).** Sie ist ein System für
+
+> **richtlinien-gesteuerte Anpassung unveränderlicher Stamm-Inhalte, über Reichweiten (Stelle → Standard → Gruppe → überall), mehrgeräte-synchron, offline-first, in einem regulierten (QM-/Medizin-)Umfeld.**
+
+Die Quelldaten (`DB_BASE`) sind bewusst schreibgeschützt; alles, was Nutzer ändern, ist eine *Anpassung darüber*. Genau diese Problemklasse — „Konfiguration/Policy über unveränderlicher Basis, mit Geltungsbereichen, Nachvollziehbarkeit und Vorschau" — hat die Software-Industrie mehrfach unabhängig gelöst. Ein nachhaltiges System entsteht nicht, indem wir etwas Neues erfinden, sondern indem wir die **erprobten Muster dieser Referenzsysteme** übernehmen und auf unsere Größe zuschneiden.
 
 ---
 
-## 1. Ist-Zustand: Wie „Änderungen" heute wirklich funktionieren
+## 1. State of the Art: die fünf Referenzsysteme und ihre Lektionen
 
-Die Inhalte sind: **eine schreibgeschützte Quelldatei** (`DB_BASE`, aus den Word-Daten) plus ein **Stapel von Overlay-Speichern** im geteilten Zustand, die zur Anzeigezeit darübergelegt werden. Am Code belegt:
+### 1.1 CSS-Kaskade (W3C) — *das* Modell für „Regeln mit Reichweite"
 
-| Overlay-Speicher | Was er ändert | Implizite Reichweite |
+Stylesheets ändern nie das HTML (die Basis bleibt unangetastet — wie unser `DB_BASE`). Stattdessen: **Regeln** = Selektor (Ziel + Reichweite) + Eigenschaft + Wert. Konflikte löst eine **deterministische Kaskade**: Spezifität zuerst, bei Gleichstand die spätere Regel.
+
+**Lektion 1:** Änderungen als *Regeln* formulieren, nicht als Edits am Objekt.
+**Lektion 2:** *Eine* dokumentierte, deterministische Auflösungsordnung („spezifisch schlägt allgemein, dann neuer schlägt älter") statt vieler Spezial-Resolver.
+**Lektion 3 (die wichtigste):** Der Browser-Inspector zeigt pro Element **alle greifenden Regeln, die Gewinnerin markiert, Verliererinnen durchgestrichen, jede mit Herkunft**. Diese „Computed Styles"-Ansicht ist das perfekte Vorbild für unsere Transparenz-Frage „Warum sieht dieser Eintrag so aus?".
+
+### 1.2 Windows-Gruppenrichtlinien (GPO) + RSoP — Verwaltungspolitik im Unternehmensmaßstab
+
+Das wörtliche Industrie-„Verwaltungspolitik"-System: Richtlinien hängen an **Geltungsbereichen** (Lokal → Standort → Domäne → Organisationseinheit) mit Vererbung und Präzedenz. Und: Weil das komplex werden kann, gibt es **RSoP** („Resultant Set of Policy") — ein Werkzeug, das für jedes Objekt beantwortet: *„Was gilt hier tatsächlich, und woher kommt es?"* — auch als **Simulation vor dem Anwenden**.
+
+**Lektion 4:** Gruppen (CRM, EPU, …) sind der natürliche mittlere Geltungsbereich — exakt unsere fehlende Ebene.
+**Lektion 5:** Ein „Was-gilt-hier-und-warum"-Werkzeug ist **kein Nice-to-have, sondern Pflichtbestandteil** eines Reichweiten-Systems. Ohne RSoP wird jedes Scope-System undurchschaubar.
+
+### 1.3 Feature-Flag-/Targeting-Systeme (LaunchDarkly-Klasse) — sichere Massen-Änderung
+
+Moderne Rollout-Systeme ändern Verhalten für **Segmente** (≙ Gruppen) über Targeting-Regeln. Best Practices dort: **Vorschau der Trefferzahl** („diese Regel trifft N Nutzer") *vor* dem Aktivieren, **jede Änderung journaliert mit Urheber**, und **sofortige Rücknahme** (Kill-Switch) als Grundrecht.
+
+**Lektion 6:** Massen-Änderung = Regel + Treffervorschau + Ein-Klick-Rücknahme. Nie „anwenden und hoffen".
+
+### 1.4 Event Sourcing / Ledger (Buchhaltung, Git, elektronische Patientenakte)
+
+In Buchhaltung, Git und Patientenakten wird **nie überschrieben**: Es wird **angehängt**. Der Zustand ist die *Folge* der Ereignisse; Rückgängig ist ein **kompensierendes Ereignis** (Storno / `git revert`), keine Löschung. Für Medizin-/GxP-Software ist das der Compliance-Standard (ALCOA-Prinzipien: zuordenbar, zeitnah, original, unverfälscht — 21 CFR Part 11 verlangt genau solche Audit-Trails).
+
+**Lektion 7:** Das *Schreibmodell* ist ein **append-only-Journal** (wer, wann, was, welche Reichweite), der sichtbare Zustand nur eine daraus berechnete Sicht.
+**Lektion 8 (Sync-Bonus):** Eine nur-wachsende Ereignismenge lässt sich **konfliktfrei vereinigen** (Vereinigungsmenge statt „last write wins") — zwei Geräte, die gleichzeitig Regeln anlegen, überschreiben einander *prinzipbedingt nicht mehr*. Das ist robuster als unser heutiges Key-LWW und kommt gratis mit.
+
+### 1.5 QM-Dokumentenlenkung (ISO 9001 / 13485)
+
+Gelenkte Dokumente durchlaufen Zustände (Entwurf → Prüfung → Freigabe → gültig → obsolet), Änderungen sind begründet und rückverfolgbar. Für uns relevant, **falls** die Klinik zertifiziert ist (offene Entscheidung E5): Dann brauchen *weitreichende* Regeln (🗂/🌐) perspektivisch ein Vier-Augen-Prinzip — unser vorhandenes **Vorschlagswesen mit Voting ist dafür bereits die halbe Infrastruktur**.
+
+**Lektion 9:** Governance-Stufen nach Reichweite: kleine Änderung = sofort; große Änderung = Vorschau + bewusste Bestätigung; (später optional) sehr große = zweites Paar Augen.
+
+### Was wir bewusst NICHT übernehmen
+
+- **CRDT-Frameworks (Automerge/Yjs):** Overkill und Bruch der Zero-Dependency-Politik; die Vereinigungs-Eigenschaft des Journals genügt uns.
+- **Server-seitige Event-Store-Datenbank:** Der Zero-Dep-Server bleibt; das Journal ist ein normaler geteilter Schlüssel.
+- **Volles ISO-Workflow-Modul jetzt:** hängt an E5; das Modell lässt es später andocken, ohne umzubauen.
+
+---
+
+## 2. Ist-Befund (am Code belegt): warum das heutige Modell nicht trägt
+
+Die App hat heute **keinen gemeinsamen Begriff von „einer Änderung"**. Es existieren parallel:
+
+| Overlay-Speicher | Ändert | Implizite Reichweite |
 |---|---|---|
-| `overrides[cid]` | Kategorie eines Eintrags | **📍 diese Stelle** (cid) |
-| `reassign[cid]` | Unterkategorie eines Eintrags | 📍 diese Stelle |
-| `QE.cid[cid]` | Name/Menge/Größe/Spez/Farbe/Wichtig/Ausblenden … | 📍 diese Stelle |
-| `QE.mat[material_key]` | dieselben Felder | **🧩 dieses Material — überall** |
-| `ukMap` | Unterkategorie umbenennen/zusammenführen | **🏷 überall mit diesem Namen** |
-| `ukMeta` | UK-Farbe/-Symbol/-Reihenfolge | 🏷 pro Name |
+| `overrides[cid]` | Kategorie | 📍 diese Stelle |
+| `reassign[cid]` | Unterkategorie | 📍 diese Stelle |
+| `QE.cid[cid]` | Name/Menge/Größe/Spez/Farbe/… | 📍 diese Stelle |
+| `QE.mat[key]` | dieselben Felder | 🧩 dieses Material überall |
+| `ukMap` / `ukMeta` | UK-Name/-Farbe/-Symbol | 🏷 alle mit diesem Namen |
 | `RUBICON[name]` | Rubrik-Symbol | 🏷 alle Rubriken dieses Namens |
-| `RUBE[rubKey]` | Rubrik umbenennen/ausblenden/ordnen | 📄 diese Rubrik in **einem** Standard |
-| `STDE[stdId]` | Titel/Gruppe/Version/Ausblenden eines Standards | 📄 ein Standard |
-| `NATCFG` | Kategorien (Label/Farbe/Symbol/beschaffbar) | **🌐 global** |
-| `hkl_prod`, `hkl_care`, `hkl_gtin` | Preise / Pflege / Scan-Produkte | 🧩 je Material bzw. je GTIN |
-| `RUBTPL` | Rubrik-Vorlage | **🗂 std / Gruppe(n) / alle** |
-| `NEWSTD/NEWRUB/NEW/ADDITIONS` | eigene Standards/Rubriken/Einträge | Anlage |
+| `RUBE[rubKey]` / `STDE[sid]` | Rubrik/Standard | 📄 ein Standard |
+| `NATCFG` | Kategorien | 🌐 global |
+| `RUBTPL` | Rubrik-Vorlagen | 🗂 std/Gruppen/alle ✓ |
 
-Zur Anzeigezeit lösen mehrere **Spezial-Resolver** die Schichten auf, z. B. `effNatur(e,cid)` (4-stufig: `overrides` → `QE.mat.natur` → `natur_manuell` → Quelle) und `canonUk`/`rawUk`, `qeGet`. Jeder Resolver kennt nur seine eigenen zwei bis vier Speicher.
+Vier **unausgesprochene** Reichweiten (Stelle · Material · Name · global), aufgelöst von je eigenen Spezial-Resolvern (`effNatur` 4-stufig, `canonUk`/`rawUk`, `qeGet`, …). Folgen:
 
-## 2. Die vier Wurzelprobleme
+1. **Die Gruppen-Reichweite (CRM/EPU) fehlt strukturell** — sie müsste in jeden Speicher einzeln eingebaut werden.
+2. **Doppelwege/Doppelspeicher** („alles doppelt", QM-Brainstorming §2) sind systembedingt.
+3. **Keine generische Vorschau, kein generisches Rückgängig, kein Journal** — weil „eine Änderung" kein greifbares Objekt ist.
+4. Einzige Ausnahme und **lebender Beweis für das Zielmodell**: `RUBTPL` (`{scope:'std'|'groups'|'all'}` + `rubTplMatches`-Resolver) funktioniert seit Monaten genau nach dem Prinzip, das hier vorgeschlagen wird.
 
-1. **Es gibt keine gemeinsame „Reichweiten-Achse".** Faktisch existieren heute schon **vier verschiedene, implizite Reichweiten** nebeneinander — `cid` (diese Stelle), `material_key` (dieses Material überall), `name` (alles mit diesem Namen), `global` — **plus eine fünfte, die fehlt: `Gruppe` (CRM/EPU)**. Weil die Achse nicht ausgesprochen ist, muss man sie pro Änderungsart neu lernen.
+---
 
-2. **Ein Konzept, viele Wege und Speicher (Doppelung).** „Kategorie ändern" geht über Schnellmenü *und* „Einstufung prüfen", landet mal in `overrides[cid]`, mal in `QE.mat`. Dasselbe bei Unterkategorie (`reassign` **und** `QE.mat.uk` **und** `ukMap`). Das ist der „alles doppelt"-Eindruck aus dem QM-Brainstorming §2 — er ist **real und am Code belegt**.
+## 3. Ziel-Architektur: „Regelwerk mit Kaskade, Journal und Inspektor"
 
-3. **Bulk ist strukturell teuer.** Weil jede Reichweite in einem anderen Speicher lebt, hieße „über die Gruppe CRM ändern": Gruppen-Logik in **jeden** dieser Speicher einbauen. Das skaliert nicht — daher das Gefühl „geht nicht/ist kompliziert".
+Die Synthese der fünf Referenzsysteme, zugeschnitten auf diese App. Drei Schichten, zwei Werkzeuge, eine Governance-Treppe.
 
-4. **Keine gemeinsame Vorschau, kein gemeinsames Rückgängig, kein Journal.** Weil „eine Änderung" kein greifbares Objekt ist, kann man nicht generisch sagen „das betrifft 14 Standards", sie nicht als Ganzes zurücknehmen und nicht protokollieren, wer wann was auf welcher Reichweite geändert hat.
+### 3.1 Schicht 0 — Unveränderliche Basis *(existiert)*
 
-## 3. Das Zielmodell: **Eine Änderung = Ziel · Reichweite · Wert**
+`DB_BASE` bleibt schreibgeschützt (wie das HTML unter CSS, wie der erste Commit in Git). ✓
 
-Alles wird auf **einen** Begriff zurückgeführt — eine **Regel**:
+### 3.2 Schicht 1 — Das Regel-Journal `hkl_rules` (append-only)
+
+**Eine** Änderung = **ein** unveränderliches Regel-Ereignis:
+
+```js
+{
+  id:    'r_…',                 // eindeutig (Zeit+Zufall)
+  ts:    '2026-07-17T…',        // wann
+  von:   'github:bosock'|'gerät:…', // wer (E1-Login, sonst Geräte-ID)
+  op:    'set' | 'revoke',      // setzen oder (kompensierend) zurücknehmen
+  ref:   'r_…',                 // bei revoke: welche Regel
+  ziel:  { art:'stelle'|'material'|'rubrik'|'standard'|'uk'|'kategorie', key:… },
+  wo:    { art:'stelle'|'standard'|'gruppe'|'alle', wert:… },   // die Reichweiten-Achse
+  prop:  'natur'|'name'|'uk'|'color'|'hidden'|…,
+  wert:  …,
+  notiz: '…'                    // optional: Begründung (QM)
+}
+```
+
+Grundsätze (aus 1.4):
+- **Nie löschen, nie überschreiben** — Rücknahme ist ein `revoke`-Ereignis. Vollständiger Audit-Trail (ALCOA) fällt ab.
+- **Sync als Vereinigung:** eingehende `hkl_rules` werden mit den lokalen **per `id` vereinigt** (append-only ⇒ Vereinigung ist verlustfrei und idempotent). Konfliktklasse „zwei Admins gleichzeitig" verschwindet für Regeln.
+- **Wachstum:** Regeln sind Text (~200 Bytes); selbst tausende sind kleiner als ein einziges Foto. Zunächst **keine Kompaktierung** (QM bevorzugt Vollständigkeit); Deckel ~2000 mit Archiv-Export, Server-Snapshots archivieren ohnehin.
+
+### 3.3 Schicht 2 — Der eine Resolver (die Kaskade)
+
+**Eine** reine, testbare Funktion ersetzt perspektivisch alle Spezial-Resolver:
 
 ```
-Regel = { ziel, reichweite, eigenschaft, wert, wann, von }
+effektiv(prop, eintrag, kontext):
+  basiswert
+  → überstimmt von der spezifischsten, nicht-revozierten Regel
+  → bei gleicher Spezifität gewinnt die neuere (ts)
 ```
 
-- **ziel** — worauf: ein Eintrag · ein Material · eine Rubrik · ein Standard · eine Kategorie.
-- **reichweite** — *die eine explizite Achse*, überall gleich benannt (= die Wirkungs-Chips aus §1):
-  - `📍 hier` (genau diese Stelle)
-  - `📄 dieser Standard`
-  - `🗂 diese Gruppe` (CRM, EPU, …) ← **das bisher Fehlende**
-  - `🧩 dieses Material` (jedes Vorkommen, alle Standards)
-  - `🌐 alle`
-- **eigenschaft/wert** — Kategorie, Name, Größe, Farbe, ausgeblendet, Reihenfolge …
+**Spezifitätsordnung** (verbindlich, dokumentiert — deckungsgleich mit heutigem Verhalten `QE.cid > QE.mat`):
 
-**Auflösung: spezifisch schlägt allgemein** (`hier > Standard > Gruppe > Material > alle`). Es gibt **einen** Resolver statt vieler Spezial-Resolver. `effNatur` ist heute schon ein Mini-Resolver dieser Art — er wird verallgemeinert.
+> **WO zuerst:** 📍 Stelle > 📄 Standard > 🗂 Gruppe > 🌐 alle · **dann ZIEL:** dieses Vorkommen > dieses Material · **dann Zeit:** neuer > älter.
 
-### Warum daraus alles **gratis** folgt
+Sichtbarer Zustand = berechnete Sicht (Projektion), wie heute beim Rendern — nur aus *einer* Quelle.
 
-- **Bulk** ist keine neue Funktion mehr, sondern nur eine **größere Reichweite** derselben Regel (`🗂 Gruppe` / `🌐 alle`). Kein separater „Bulk-Motor".
-- **Vorschau** fällt an: Aus `{ziel, reichweite}` kann man **vor** dem Anwenden genau ausrechnen, *welche* Einträge/Standards betroffen sind → „betrifft 23 Vorkommen in 14 Standards".
-- **Rückgängig** fällt an: Eine Regel ist **ein Objekt** — entfernen = zurücknehmen (auch für Massenänderungen als Ganzes).
-- **Transparenz (§1)** fällt an: Die Reichweite **ist** der Wirkungs-Chip.
-- **Journal (M8)** fällt an: Regeln sind zeitgestempelte Objekte → „wer/wann/was/welche Reichweite".
+### 3.4 Werkzeug 1 — Der Inspektor („Warum sieht das so aus?")
 
-## 4. Der lebende Beweis: `RUBTPL`
+Das CSS-Devtools-/RSoP-Muster als Menüpunkt in jedem Bearbeiten-Menü: **„🔍 Warum so?"** zeigt pro Eintrag/Rubrik/Standard:
 
-Die Rubrik-Vorlagen sind **heute schon genau dieses Modell**: `{ id, name, typ, scope: 'std'|'groups'|'all', groups:[…] }` mit einem `rubTplMatches(tpl, stdId, grp)`-Resolver. Sie sind der Beleg, dass das Muster in dieser App trägt — und die **Schablone** für die Migration: *„mach alles andere so wie RUBTPL."*
+- den Basiswert aus der Quelldatei,
+- **alle greifenden Regeln**, die Gewinnerin markiert, überstimmte durchgestrichen,
+- je Regel: Wirkungs-Chip (Reichweite), wer, wann, Notiz — und einen **„Zurücknehmen"-Knopf** (= revoke).
 
-## 5. Governance — der eigentliche „-politik"-Teil
+Damit sind die Punkte 1 A–E des QM-Brainstormings (Chips, Untertitel, „wo wirkt das?", Journal) **in einem Werkzeug** vereint statt vier Einzellösungen.
 
-„Verwaltungspolitik" heißt auch **wer darf was, und mit welchen Sicherungen** — im Medizinkontext nicht verhandelbar:
+### 3.5 Werkzeug 2 — Treffervorschau für weite Reichweiten (RSoP-Simulation)
 
-- **Vorschau-Pflicht bei weiter Reichweite.** `🗂 Gruppe`/`🌐 alle` zeigen immer zuerst „betrifft N Standards / M Vorkommen — anwenden?".
-- **Alles rückgängig.** Jede Regel (auch die massenhafte) ist als Ganzes rücknehmbar; „Zuletzt geändert"-Liste mit Ein-Klick-Rücknahme.
-- **Journal (wer/wann/was/Reichweite).** Baut auf der Login-Identität auf (Entscheidung **E1** — GitHub-Login) und schafft die QM-Nachvollziehbarkeit (Audit-Befund F1).
-- **Zwei Stufen im UI:** normale Einzeländerung vs. bewusst gewählte **„Sammel-Änderung"** mit größerer Bestätigung. Keine versehentliche Reichweite.
-- **Automatik bleibt übersteuerbar** (QM-Leitplanke): Regeln ändern nie stillschweigend die klinische Bedeutung; Originaltext bleibt abrufbar.
+Jede Regel mit `wo ∈ {gruppe, alle}` zeigt **vor** dem Anwenden: *„Betrifft M Vorkommen in N Standards: [Liste]"* (berechenbar, weil Ziel+Reichweite deklarativ sind). Nach dem Anwenden: Ein-Klick-Rücknahme der ganzen Massenänderung (ein `revoke`).
 
-## 6. Sicherer, gestufter Weg (Strangler — kein Big-Bang)
+### 3.6 Governance-Treppe (die eigentliche „Politik")
 
-Ein kompletter Umbau des Overlay-Systems ist das Herz der App und im Medizinkontext riskant. Deshalb **additiv** vorgehen, in Schichten:
+| Reichweite | Verfahren |
+|---|---|
+| 📍 Stelle / 📄 Standard | direkt anwenden (wie heute), erscheint im Journal |
+| 🗂 Gruppe / 🌐 alle | **immer** Treffervorschau + bewusste Bestätigung; prominente Rücknahme |
+| später, falls ISO (E5) | Vier-Augen: weite Regel entsteht als *Vorschlag* (vorhandenes Vorschlagswesen!), zweiter Admin wendet an |
 
-- **Stufe 0 — Modell festschreiben.** Reichweiten-Achse + Auflösungsreihenfolge als Kanon (dieses Dokument). Jede neue Funktion nutzt nur noch dieses Vokabular.
-- **Stufe 1 — Neue Regel-Schicht *über* dem Bestand (`hkl_rules`).** Ein neuer geteilter Speicher: Liste von Regeln `{ziel, reichweite, eigenschaft, wert, wann, von}`. Der Resolver konsultiert **zuerst** diese Regeln, dann die alten Speicher (Rückwärtskompatibilität). Damit ist **eine Gruppen-/alle-Regel EIN Objekt** — vorschaubar, rücknehmbar. **Hier entsteht die erste echte Bulk-Fähigkeit**, ohne einen einzigen alten Speicher anzufassen.
-- **Stufe 2 — Neue Änderungen durch die Regel-Schicht leiten; Altes faul migrieren** (alte Speicher lesen, beim nächsten Bearbeiten als Regel neu schreiben).
-- **Stufe 3 — Redundante Speicher zurückbauen** (`overrides`/`reassign` → Regeln; siehe Backlog N6), wenn alles über die Regel-Schicht läuft.
+Dazu: Journal-Ansicht in der Verwaltung („Letzte Änderungen", filterbar, mit Rücknahme); `von` nutzt die GitHub-Identität aus E1; QM-Leitplanken unverändert (Original bleibt abrufbar, Automatik übersteuerbar, Farbe nie alleiniger Träger).
 
-Jede Stufe ist für sich testbar (Unit + E2E) und deploybar; nichts muss auf einmal „richtig" sein.
+---
 
-## 7. Konkrete erste Sammel-Operationen (nach Stufe 1)
+## 4. Warum dieses System *nachhaltig* ist (Eigenschaften statt Versprechen)
 
-- **Material überall/gruppenweit ändern** — Material wählen → Kategorie/Farbe/Name/Lagerort einmal → Reichweite `🧩 Material` oder `🗂 Gruppe` → Vorschau „betrifft N Vorkommen in M Standards" → anwenden/rücknehmen.
-- **Rubrik über Gruppe/alle** — bereits über `RUBTPL` möglich; nur auffindbar/intuitiv machen (Teil desselben Modells).
-- **Ausblenden/Einblenden gruppenweit** — z. B. „Draht X in allen EPU-Standards ausblenden".
-- **Hinweis für eine Gruppe** — Info-Banner an alle Standards einer Gruppe.
+1. **Erweiterbar ohne Umbau:** Neue Eigenschaft = neuer `prop`-Wert. Neue Reichweite = neuer `wo.art`-Wert. Neue Massenoperation = Regel mit weiter Reichweite. Nichts davon braucht neue Speicher oder Resolver.
+2. **Erklärbar per Konstruktion:** Der Inspektor kann *jede* Darstellung lückenlos begründen — Transparenz ist keine UI-Deko mehr, sondern Systemeigenschaft.
+3. **Revidierbar per Konstruktion:** Alles (auch Massenänderungen) ist ein Objekt mit Rücknahme-Ereignis.
+4. **Auditierbar per Konstruktion:** Journal = das Datenmodell selbst (ALCOA-konform), nicht ein nachträglich angeflanschtes Log.
+5. **Sync-robuster als heute:** Vereinigung statt Überschreiben für den Regel-Schlüssel.
+6. **Testbar:** Resolver und Trefferberechnung sind reine Funktionen → Unit-Tests; Journal-Vereinigung → Unit-Tests; UI-Flüsse → vorhandene E2E-Infrastruktur.
+7. **Konsistent mit dem Bestand:** `RUBTPL` beweist das Muster im eigenen Code; die Wirkungs-Chips (bereits gebaut) *sind* die Reichweiten-Achse; das Vorschlagswesen *ist* der spätere Vier-Augen-Baustein.
 
-## 8. Risiken & Leitplanken
+## 5. Risiken und ihre Antworten
 
-- **Regel-Konflikte** (zwei Regeln, gleiche Eigenschaft, verschiedene Reichweite): klare Präzedenz (spezifisch > allgemein) + im Journal sichtbar.
-- **Verwaiste Regeln** (Material/Standard existiert nicht mehr): Resolver ignoriert, Aufräum-Hinweis in der Verwaltung.
-- **Sync/Merge:** `hkl_rules` ist ein Top-Level-Schlüssel wie die anderen (last-write-wins pro Schlüssel) → in `SHARED_KEYS`+`BACKUP_KEYS` wie gehabt.
-- **Medizinische Sicherheit:** weite Reichweite nur mit Vorschau + Rücknahme; nie Farbe/Automatik als alleiniger Bedeutungsträger.
+| Risiko | Antwort |
+|---|---|
+| Regel-Konflikte verwirren | deterministische Kaskade + Inspektor zeigt Gewinner/Verlierer |
+| Verwaiste Regeln (Ziel existiert nicht mehr) | Resolver ignoriert sie; Verwaltungs-Panel listet sie zum Aufräumen |
+| Journal wächst | Text-Regeln sind winzig; Deckel + Archiv-Export; Server-Snapshots |
+| Migration bricht Bestehendes | Strangler (unten): alte Speicher bleiben lesbar, bis alles migriert ist; jede Stufe einzeln getestet & deploybar |
+| Zwei Wahrheiten während der Migration | klare Präzedenz: Regeln **vor** Alt-Speichern; Alt wird nur noch gelesen, nie mehr neu geschrieben (ab Stufe 2) |
 
-## 9. Empfehlung
+## 6. Umsetzungs-Fahrplan (Strangler, jede Stufe für sich grün)
 
-1. **Modell annehmen** (Reichweiten-Achse + eine Regel-Schicht) als neue Verwaltungspolitik.
-2. **Stufe 1 bauen**: `hkl_rules` + gemeinsamer Resolver-Vorschalter + **eine** erste Sammel-Operation („Material gruppen-/alle-weit ändern") **mit Vorschau + Rücknahme**. Klein, additiv, risikoarm — und liefert sofort die gewünschte Bulk-Fähigkeit.
-3. Danach Stufe 2/3 schrittweise; jede Reichweite, jede neue Funktion spricht dieselbe Sprache.
+- **Stufe 0 — Modell freigeben (Entscheidung E6, ✋ Betreiber):** Reichweiten-Achse, Spezifitätsordnung, Journal-Prinzip. Dieses Dokument ist die Vorlage.
+- **Stufe 1 — Fundament (~2–3 Tage):** `hkl_rules` (SHARED+BACKUP, Vereinigungs-Merge) · Resolver-Vorschalter vor `effNatur`/`qeGet`/`canonUk` (Regeln zuerst, Alt-Speicher als Fallback) · Treffervorschau-Funktion · **erste Sammel-Operation:** „Material in Gruppe/überall ändern" (Kategorie · Farbe · Ausblenden) mit Vorschau + Rücknahme · Inspektor v1 („Warum so?" am Eintrag). Unit-Tests (Resolver, Merge, Treffer) + E2E (Bulk über 2 Geräte, Rücknahme).
+- **Stufe 2 — Ein Schreibweg (~2–3 Tage):** Schnellmenü/„Einstufung prüfen" schreiben Regeln statt `overrides`/`reassign`/`QE`; der Scope-Dialog bekommt 📄/🗂 dazu (aus „Nur hier/Überall" werden vier ehrliche Reichweiten); Alt-Einträge werden beim nächsten Bearbeiten als Regel neu geschrieben (Lazy-Migration).
+- **Stufe 3 — Konsolidierung (~2 Tage):** Verwaltungs-Panel „Regeln & Journal" (Liste, Filter, Rücknahme, verwaiste Regeln); Alt-Speicher `overrides`/`reassign` stilllegen (nur noch Lese-Fallback), Doppelwege aus §2 des QM-Brainstormings entfallen.
+- **Stufe 4 — Governance-Ausbau (nach E5):** Vier-Augen über das Vorschlagswesen; ggf. Freigabe-Workflow für Standards.
 
-> Damit wird „massenhaft über Standards/Gruppen" nicht ein Sonderfeature, sondern der **Normalfall desselben, einfachen Begriffs** — und die App wird gleichzeitig *einfacher*, weil vier implizite Reichweiten und mehrere Doppelwege zu **einer** klaren Achse verschmelzen.
+## 7. Empfehlung
+
+Das Modell **freigeben (E6)** und mit **Stufe 1** beginnen. Es ist der aufwändige, aber richtige Weg: Statt einer weiteren Funktion bekommt die App ein *Betriebssystem für Änderungen* — dieselbe Logik von der kleinsten Korrektur bis zur klinikweiten Massenänderung, erklärbar, rückverfolgbar, rücknehmbar.

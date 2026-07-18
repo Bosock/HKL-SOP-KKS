@@ -16,6 +16,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | E3 | Zweitmerkmal radial/femoral: Rahmen-Muster *(empfohlen)* / Badge / beides | QM-Konzept §5 | ✋ Betreiber |
 | E4 | Benennungs-Tabelle (u. a. „Einstufung prüfen" → „Automatische Zuordnung prüfen") | QM-Konzept §8 | ✋ Betreiber |
 | E5 | Klinik ISO-9001-zertifiziert? → entscheidet über Freigabe-Workflow | QA R3 | ✋ Betreiber |
+| E6 | **Verwaltungspolitik-Modell freigeben**: Regel-Journal (append-only) + Reichweiten-Kaskade (📍 Stelle > 📄 Standard > 🗂 Gruppe > 🌐 alle) + Inspektor + Treffervorschau — danach Umsetzung in Stufen 1–4 | `docs/konzepte/2026-07-17-verwaltungspolitik-revision.md` (v2, State-of-the-Art-Analyse) | ✋ Betreiber |
 
 ## HOCH (als Nächstes)
 
