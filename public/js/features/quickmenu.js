@@ -1,6 +1,9 @@
 /* ============ Schnellmenü (Long-Press) ============ */
 let sheetCid=null, sheetEntry=null, sheetPending=null;
-function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; } }
+/* Reichweiten-Nachfrage beim Speichern des Bearbeiten-Formulars (mehrere
+   geänderte Eigenschaften auf einmal), siehe forms.js. */
+let editScopePending=null;
+function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; editScopePending=null; } }
 function openSheet(cid){ const e=findEntry(cid); if(!e) return; sheetCid=cid; sheetEntry=e; sheetPending=null; renderSheetMain(); showSheet(true); }
 function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}" onclick="${fn}"><span class="sa-ico">${ico}</span><span>${esc(label)}<span class="sa-sub">${esc(sub)}</span></span></button>`; }
 /* Abschnitts-Überschrift im Bearbeiten-Menü (Gruppierung nach Absicht statt

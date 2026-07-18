@@ -169,6 +169,32 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('E: manuell angelegte Kategorie steht global in der UK-Liste', eg.inList);
   r.check('E: … und im „Unterkategorie wählen" eines ANDEREN Standards', !eg.diffStd || eg.picker);
 
+  // F) Bearbeiten-Formular fragt IMMER die Reichweite (Material-Eintrag)
+  const fscope = await A.page.evaluate(() => {
+    const cnt = {};
+    DB.standards.forEach(s => (s.rubriken || []).forEach(r => (r.sub_bereiche || []).forEach(sb => (sb.eintraege || []).forEach(e => { if (e.material_key && e.natur !== 'ueberschrift') { (cnt[e.material_key] = cnt[e.material_key] || new Set()).add(s.id); } }))));
+    const mk = Object.keys(cnt).find(k => cnt[k].size >= 2) || Object.keys(cnt)[0];
+    let cid = null, sid = null, ri = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((r, i) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => { if (!cid && e.material_key === mk) { cid = cidOf(s.id, i, si, ei); sid = s.id; ri = i; } }))));
+    openStandard(sid); openRubrik(ri);
+    openEntryForm({ kind: 'editBase', cid });
+    document.getElementById('fName').value = 'REICHWEITE-TEST';
+    saveEntryForm();
+    const shown = document.getElementById('sheet').classList.contains('show');
+    const sh = document.getElementById('sheet').innerHTML;
+    const four = sh.indexOf('Nur hier') >= 0 && sh.indexOf('In diesem Standard') >= 0 && sh.indexOf('In der Gruppe') >= 0 && sh.indexOf('Überall') >= 0;
+    window.confirm = () => true;
+    applyEditScope('mat');
+    let all = true, n = 0;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((r, i) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => { if (e.material_key === mk) { n++; if (qeGet(e, cidOf(s.id, i, si, ei), 'name') !== 'REICHWEITE-TEST') all = false; } }))));
+    const ruled = rulesActive(RULES).some(x => x.prop === 'name' && x.ziel && x.ziel.key === mk && x.wo && x.wo.art === 'alle');
+    return { shown, four, all, n, ruled };
+  });
+  r.check('F: Bearbeiten-Formular öffnet Reichweiten-Nachfrage', fscope.shown);
+  r.check('F: … mit allen vier Stufen (hier/Standard/Gruppe/überall)', fscope.four);
+  r.check('F: „Überall" ändert alle Vorkommen des Materials', fscope.all && fscope.n >= 1);
+  r.check('F: … als Regel journaliert (rücknehmbar)', fscope.ruled);
+
   r.check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });
