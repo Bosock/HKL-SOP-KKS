@@ -70,6 +70,9 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     });
+    /* Selbst angelegte Abschnitte („Reiter") auch dann zeigen, wenn noch kein
+       Eintrag sie trägt — als leere, befüllbare Sektion. */
+    declaredUksFor(idx).forEach(uk=>{ if(!uk) return; if(!groupsMap.has(uk)) groupsMap.set(uk,{uk:uk,first:appear++,entries:[]}); });
     let groups=[...groupsMap.values()];
     groups.forEach(g=>{ g.entries=sortByOrder(g.entries, orderKeyFor(idx,(g.uk||''))); });
     groups.sort((a,b)=>{ const oa=(a.uk&&ukMetaOf(a.uk).order!=null)?ukMetaOf(a.uk).order:a.first; const ob=(b.uk&&ukMetaOf(b.uk).order!=null)?ukMetaOf(b.uk).order:b.first; return oa-ob; });
@@ -77,12 +80,20 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     if(nullG && named.length===0){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
     else {
       if(nullG){ nullG.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); }); }
-      named.forEach((g)=>{ const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
-        const ckey=idx+':'+g.uk; const isCol=(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt */
-        /* ckey enthält den UK-Namen (Freitext) → per data-Attribut übergeben,
+      const declared=declaredUksFor(idx);
+      named.forEach((g)=>{
+        /* Leere Abschnitte nur im Verwaltungsmodus zeigen (Gerüst zum Befüllen);
+           Endnutzer sehen leere Reiter nicht. */
+        if(!g.entries.length && !ADMIN) return;
+        const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
+        const ckey=idx+':'+g.uk; const isEmpty=!g.entries.length; const isCol=isEmpty?false:(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt; leere offen */
+        const isDecl=declared.indexOf(g.uk)>=0;
+        /* ckey/UK-Name sind Freitext → per data-Attribut übergeben,
            nicht als Inline-String-Literal (esc() escaped kein Apostroph). */
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" data-k="${esc(ckey)}" onclick="toggleUk(this.dataset.k)"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
+        if(ADMIN){ html+=`<button class="add-entry-btn uksec-add" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();startAddEntryUk(+this.dataset.ri,this.dataset.uk)">＋ Eintrag in „${esc(g.uk)}"</button>`;
+          if(isDecl&&isEmpty) html+=`<button class="add-entry-btn uksec-del" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();removeUkSectionUI(+this.dataset.ri,this.dataset.uk)">Abschnitt entfernen</button>`; }
         html+=`</div></div>`;
       });
     }
@@ -93,9 +104,13 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
+  /* Eigene Abschnitte („Reiter"/Unterkategorien) direkt hier anlegen – nur bei
+     Material/Geräte-Rubriken (dort gibt es die UK-Sektionen) und nur im
+     Verwaltungsmodus. */
+  const sectionBtn=(isMatGer&&ADMIN)?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`:'';
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn;
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+sectionBtn+adoptBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */
@@ -114,6 +129,27 @@ function clearRubrikChecks(idx){ const cids=rubrikCids(idx); const set=cids.filt
 function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
   const r=curStd.rubriken[top.idx]; const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
   openEntryForm({kind:'add',sid:curStd.id,ri:top.idx,defaultNat}); }
+/* Eintrag direkt in einen bestimmten Abschnitt (Unterkategorie) anlegen –
+   das UK-Feld ist vorbelegt. */
+function startAddEntryUk(idx,uk){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return;
+  const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
+  openEntryForm({kind:'add',sid:curStd.id,ri:idx,defaultNat,defaultUk:uk}); }
+/* Eingabe-Sheet für einen neuen Abschnitt („Reiter") – bewusst KEIN prompt(),
+   das in installierten PWAs (standalone) lautlos null liefert (M1). */
+function addUkSectionUI(idx){ if(!ADMIN||!curStd) return;
+  const h=`<div class="sheet-grip"></div><div class="sheet-title">Neuer Abschnitt (Reiter)</div>
+    <input type="text" id="skNewSec" class="txtinp" style="width:100%" placeholder="Name, z. B. Material aus dem Vorbereitungsraum">
+    <div class="sheet-pick" style="margin-top:12px"><button class="sheet-pick-btn" data-ri="${idx}" onclick="addUkSectionSave(+this.dataset.ri)">Anlegen</button></div>
+    <button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
+  $('sheet').innerHTML=h; showSheet(true);
+  const inp=$('skNewSec'); if(inp){ setTimeout(()=>inp.focus(),50); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addUkSectionSave(idx); } }; }
+}
+function addUkSectionSave(idx){ const inp=$('skNewSec'); const nm=(inp&&inp.value||'').trim(); if(!nm) return;
+  if(!addUkSectionName(idx,nm)){ toast('Abschnitt nicht anlegbar',true); return; }
+  showSheet(false); reRenderDetail(); toast('Abschnitt angelegt'); }
+function removeUkSectionUI(idx,uk){ if(!ADMIN) return;
+  if(!confirm('Leeren Abschnitt „'+uk+'" entfernen?')) return;
+  removeUkSectionName(idx,uk); reRenderDetail(); toast('Abschnitt entfernt'); }
 /* Übernahme aus dem Katalog: Auswahl-Sheet öffnen, ausgewählten Eintrag als
    neuen (eigenen) Eintrag in die aktuell offene Rubrik einfügen. */
 function startAdoptCatalog(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;

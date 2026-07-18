@@ -125,6 +125,32 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('A: Drill-down zeigt Rubriken mit „＋ Eintrag"', a.drill);
   r.check('A: „＋ Eintrag" öffnet das Eintrags-Formular direkt aus der Verwaltung', a.formOpen);
 
+  // E) Eigene Abschnitte („Reiter") direkt in der Material-/Geräte-Rubrik
+  const e = await A.page.evaluate(() => {
+    setMode('use');
+    const s = DB.standards.find(st => (st.rubriken || []).some(r => r.typ === 'material' || r.typ === 'geraete'));
+    const ri = s.rubriken.findIndex(r => r.typ === 'material' || r.typ === 'geraete');
+    openStandard(s.id); openRubrik(ri);
+    const added = addUkSectionName(ri, 'E2E-Reiter');
+    openRubrik(ri, true);
+    const h1 = document.getElementById('scr-detail').innerHTML;
+    const shows = h1.indexOf('E2E-Reiter') >= 0;
+    const perSecAdd = h1.indexOf('＋ Eintrag in „E2E-Reiter"') >= 0;
+    const bottomBtn = h1.indexOf('＋ Abschnitt (Reiter)') >= 0;
+    startAddEntryUk(ri, 'E2E-Reiter');
+    const prefilled = document.getElementById('fUk') && document.getElementById('fUk').value === 'E2E-Reiter';
+    document.getElementById('fName').value = 'E2E-Eintrag-Reiter';
+    saveEntryForm(); openRubrik(ri, true);
+    const filled = document.getElementById('scr-detail').innerHTML.indexOf('E2E-Eintrag-Reiter') >= 0;
+    const persisted = (UKSEC[s.id + '|' + ri] || []).indexOf('E2E-Reiter') >= 0;
+    return { added, shows, perSecAdd, bottomBtn, prefilled, filled, persisted };
+  });
+  r.check('E: neuer Abschnitt („Reiter") wird angelegt', e.added && e.persisted);
+  r.check('E: … erscheint als Sektion in der Rubrik', e.shows);
+  r.check('E: … mit „＋ Eintrag" im Abschnitt und „＋ Abschnitt" unten', e.perSecAdd && e.bottomBtn);
+  r.check('E: „＋ Eintrag in Reiter" belegt die Unterkategorie vor', e.prefilled);
+  r.check('E: Eintrag landet im Abschnitt', e.filled);
+
   r.check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

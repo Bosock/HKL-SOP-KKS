@@ -164,6 +164,17 @@ function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.m
 function rubIdxKey(r,idx){ return r.__nrid?('nr:'+r.__nrid):idx; }
 function newEntriesFor(r,idx){ const key=rubIdxKey(r,idx); return NEW.filter(n=>n.std===curStd.id && String(n.rub)===String(key)); }
 function orderKeyFor(idx,uk){ const r=curStd.rubriken[idx]; return curStd.id+'|'+rubIdxKey(r,idx)+'|'+(uk||''); }
+/* Selbst angelegte Abschnitte („Reiter"/Unterkategorien) je Rubrik: eine
+   Unterkategorie SOLL als Sektion erscheinen, auch wenn (noch) kein Eintrag
+   sie trägt — damit man leere Reiter anlegen und danach befüllen kann. Der
+   Schlüssel ist rubrik-genau (Standard + Rubrik), der Wert eine Namensliste.
+   Wird wie jede andere Anpassung geräteübergreifend geteilt (hkl_uksections). */
+function rubDeclKey(idx){ const r=curStd.rubriken[idx]; return curStd.id+'|'+rubIdxKey(r,idx); }
+function declaredUksFor(idx){ if(!curStd) return []; return (UKSEC[rubDeclKey(idx)]||[]).slice(); }
+function addUkSectionName(idx,name){ name=(name||'').trim(); if(!name||!curStd) return false; const k=rubDeclKey(idx);
+  const arr=UKSEC[k]||(UKSEC[k]=[]); if(arr.indexOf(name)<0) arr.push(name); saveJSON('hkl_uksections',UKSEC); return true; }
+function removeUkSectionName(idx,name){ if(!curStd) return; const k=rubDeclKey(idx); if(!UKSEC[k]) return;
+  UKSEC[k]=UKSEC[k].filter(x=>x!==name); if(!UKSEC[k].length) delete UKSEC[k]; saveJSON('hkl_uksections',UKSEC); }
 function sortByOrder(list,key){ const ord=ENTORD[key]; if(!ord||!ord.length) return list;
   return list.slice().sort((a,b)=>{ let pa=ord.indexOf(a.cid), pb=ord.indexOf(b.cid); if(pa<0)pa=1e6+list.indexOf(a); if(pb<0)pb=1e6+list.indexOf(b); return pa-pb; }); }
 function collectGroupCids(idx,uk){ const r=curStd.rubriken[idx]; const isMatGer=(r.typ==='material'||r.typ==='geraete'); const out=[];
@@ -197,6 +208,7 @@ let reviewed=loadJSON('hkl_reviewed',{});
 let reassign=loadJSON('hkl_reassign',{});
 let ukMap=loadJSON('hkl_ukmap',{});
 let ukMeta=loadJSON('hkl_ukmeta',{});
+let UKSEC=loadJSON('hkl_uksections',{});
 let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
 let collapsed={};
 let UK_LIST=[];

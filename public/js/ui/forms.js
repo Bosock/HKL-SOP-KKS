@@ -26,7 +26,7 @@ function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
    optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
 function openEntryForm(desc){
   const isCatalog=(desc.kind==='catalog'||desc.kind==='editCatalog');
-  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:'',spez:'',color:''}; let title='Eintrag hinzufügen';
+  let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:desc.defaultUk||'',spez:'',color:''}; let title='Eintrag hinzufügen';
   if(desc.kind==='editAdd'){ const e=findAddEntry(desc.sid,desc.ri,desc.aid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e); title='Eintrag bearbeiten'; }
   else if(desc.kind==='editBase'){ const e=findEntry(desc.cid); if(!e){ toast('Eintrag nicht gefunden',true); return; } cur=entryToForm(e,desc.cid); title='Eintrag bearbeiten'; }
   else if(desc.kind==='editCatalog'){ const it=findCatalogItem(desc.id); if(!it){ toast('Katalog-Eintrag nicht gefunden',true); return; } cur=catalogToForm(it); title='Katalog-Eintrag bearbeiten'; }
