@@ -25,7 +25,7 @@ function confirmDeleteRubTpl(id){ const t=RUBTPL.find(x=>x.id===id); if(!t) retu
   deleteRubTpl(id); renderAdmin(); toast('Vorlage entfernt'); }
 /* Baut das „Rubriken-Vorlagen"-Panel mit der Gruppen-Matrix (Häkchentabelle). */
 function rubTplPanelHTML(){ const grps=distinctGroups();
-  let h=`<details class="vpanel"><summary>🧩 Rubriken-Vorlagen <span class="vp-hint">${RUBTPL.length}</span></summary><div class="vpanel-body">
+  let h=`<details class="vpanel" data-keys="rubriken vorlagen rubrik vorlage geltungsbereich matrix automatisch gruppe">${vsum('🧩','Rubriken-Vorlagen','Legt fest, in welchen Standards eine Rubrik automatisch erscheint',RUBTPL.length||'')}<div class="vpanel-body">
     <p class="panel-help">Rubriken, die in mehreren Standards erscheinen sollen. Ein Häkchen setzt die Rubrik für eine ganze <b>Gruppe</b> (Spalte). Zeilen = Vorlagen. „●" bedeutet: gilt für <b>alle</b> Eingriffe. Anlegen im Standard über „＋ Rubrik" (dort Geltungsbereich wählen) oder hier unten.</p>`;
   if(!RUBTPL.length){ h+=`<p class="hint">Noch keine Vorlagen vorhanden.</p>`; }
   else if(!grps.length){ h+=`<p class="hint">Keine Gruppen vorhanden.</p>`; }
@@ -51,6 +51,13 @@ function exportCostCSV(){ try{
   const a=document.createElement('a'); a.href=url; a.download='hkl-plankosten-'+today()+'.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   toast('CSV heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
 
+/* Einheitliche Panel-Kopfzeile: Symbol · Titel · Klartext „was es ändert" ·
+   optionaler Status-Badge. So sagt JEDES Menü, was es bewirkt (nicht nur eine
+   nackte Zahl). Symbol ist fest verdrahtet (nicht zu escapen), Rest escaped. */
+function vsum(icon,title,desc,badge){
+  const b=(badge!=null&&badge!=='')?`<span class="vp-badge">${esc(String(badge))}</span>`:'';
+  return `<summary><span class="vp-ico">${icon}</span><span class="vp-txt"><span class="vp-title">${esc(title)}</span><span class="vp-desc">${esc(desc)}</span></span>${b}</summary>`;
+}
 function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkList();
 
   /* Admin-Kopf: Modus verlassen */
@@ -62,7 +69,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=`<div id="admNoHit" class="empty" style="display:none"><div class="ei">🔍</div><h3>Kein Treffer</h3><p>Keine Einstellung passt zu deiner Suche.</p></div>`;
 
   /* ── Panel: Datensicherung ── */
-  const pBackup=`<details class="vpanel" data-keys="datensicherung sicherung backup export import daten datei"><summary>💾 Datensicherung <span class="vp-hint">Export / Import</span></summary><div class="vpanel-body">
+  const pBackup=`<details class="vpanel" data-keys="datensicherung sicherung backup export import daten datei">${vsum('💾','Datensicherung','Speichert alle Anpassungen als Datei — oder spielt eine Sicherung wieder ein')}<div class="vpanel-body">
     <div class="p-actions"><button class="btn btn-pri" onclick="exportBackup()">Sicherung herunterladen</button><button class="btn btn-sec" onclick="$('bkImp').click()">Sicherung einspielen</button></div>
     <input type="file" id="bkImp" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
     <p class="hint">Sichert ALLE Anpassungen dieses Geräts in einer Datei (Kategorien, Umbenennungen, Mengen, Größen, neue Einträge, Ausblendungen, Einstellungen). Nicht enthalten: die Tageshaken und der Admin-Status. Empfehlung: nach jeder größeren Pflege-Sitzung exportieren.</p>
@@ -70,14 +77,15 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Anzeige-Einstellungen ── */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
-  const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort konfidenz fließtext fliesstext badges"><summary>⚙ Anzeige-Einstellungen <span class="vp-hint">was sichtbar ist</span></summary><div class="vpanel-body">
+  const anzKeys=['menge','groessen','spez','lagerort','konfidenz','fliesstext']; const anzOn=anzKeys.filter(k=>settings[k]).length;
+  const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort konfidenz fließtext fliesstext badges">${vsum('👁','Anzeige-Einstellungen','Blendet Zusatzangaben an jedem Eintrag ein/aus (Menge, Größen, Lagerort, Warnung …)',anzOn+'/'+anzKeys.length+' an')}<div class="vpanel-body">
     ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
   </div></details>`;
 
   /* ── Panel: Kostenübersicht (Plankosten je Standard) ── */
   const costRows=DB.standards.map(s=>({s,pk:stdPlankosten(s)})).filter(x=>x.pk.items>0).sort((a,b)=>b.pk.total-a.pk.total);
   const costTotal=costRows.reduce((n,x)=>n+x.pk.total,0);
-  let pKosten=`<details class="vpanel" data-keys="kosten kostenübersicht kostenuebersicht preis plankosten euro geld csv"><summary>💶 Kostenübersicht <span class="vp-hint">Plankosten je Standard</span></summary><div class="vpanel-body">`;
+  let pKosten=`<details class="vpanel" data-keys="kosten kostenübersicht kostenuebersicht preis plankosten euro geld csv">${vsum('💶','Kostenübersicht','Zeigt die Plankosten je Standard (Menge × Stückpreis) — als CSV exportierbar',costRows.length?fmtEUR(costTotal):'')}<div class="vpanel-body">`;
   if(!costRows.length) pKosten+=`<p class="hint">Noch keine Preise erfasst. Stückpreise in „Material pflegen" eintragen – die Plankosten je Standard erscheinen dann hier und als Banner im Standard.</p>`;
   else{
     pKosten+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name"><b>Gesamt (alle Standards)</b></span><span class="uk-count">${fmtEUR(costTotal)}</span></div></div>`;
@@ -88,7 +96,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   pKosten+=`<p class="hint">Plankosten = Summe aus Menge × Stückpreis über alle beschaffbaren Materialien/Geräte eines Standards. Materialien ohne Preis zählen als 0.</p></div></details>`;
 
   /* ── Panel: Eigene Standards ── */
-  let pStd=`<details class="vpanel" data-keys="eigene standards standard neu anlegen"><summary>➕ Eigene Standards <span class="vp-hint">${ADDITIONS.standards.length}</span></summary><div class="vpanel-body">`;
+  let pStd=`<details class="vpanel" data-keys="eigene standards standard neu anlegen">${vsum('➕','Eigene Standards','Neue Standards anlegen und selbst erstellte bearbeiten oder löschen',ADDITIONS.standards.length||'')}<div class="vpanel-body">`;
   if(!ADDITIONS.standards.length) pStd+=`<p class="hint">Noch keine eigenen Standards. „＋ Neuer Standard" anlegen – er erscheint dann in der Liste unter „Nutzung".</p>`;
   ADDITIONS.standards.forEach(s=>{ pStd+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(s.titel)}</span><span class="uk-count">${esc(s.gruppe)}</span></div>
     <div class="uk-actions"><button onclick="openStandardById('${esc(s.id)}')">Öffnen</button><button onclick="openStandardForm('${esc(s.id)}')">Bearbeiten</button><button class="icon danger-btn" onclick="confirmDeleteStandard('${esc(s.id)}')">🗑</button></div></div>`; });
@@ -100,7 +108,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Design ── */
   const rb=(v,l)=>`<button class="${(DESIGN.scale||'normal')===v?'on':''}" onclick="setDesign('scale','${v}')">${l}</button>`;
-  const pDesign=`<details class="vpanel" data-keys="design farbe farben akzent größe groesse schrift schriftgröße wandmonitor aussehen"><summary>🎨 Design <span class="vp-hint">Farben & Größe</span></summary><div class="vpanel-body">
+  const pDesign=`<details class="vpanel" data-keys="design farbe farben akzent größe groesse schrift schriftgröße wandmonitor aussehen">${vsum('🎨','Design','Ändert Akzentfarbe, Größen-Badge-Farbe und Schriftgröße der ganzen App')}<div class="vpanel-body">
     <div class="tgl"><span>Akzentfarbe</span><input type="color" class="colinp" value="${DESIGN.accent||'#3d9be0'}" onchange="setDesign('accent',this.value)"></div>
     <div class="tgl"><span>Größen-Badge-Farbe</span><input type="color" class="colinp" value="${DESIGN.size||'#21c1d6'}" onchange="setDesign('size',this.value)"></div>
     <div class="flabel" style="margin:12px 0 6px">Schriftgröße / Ansicht</div>
@@ -111,14 +119,14 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Texte ── */
   const ti=(k,l)=>`<div class="flabel" style="margin-top:8px">${l}</div><input class="txtinp" style="width:100%" value="${esc(txt(k))}" onchange="setTxt('${k}',this.value)">`;
-  const pTexte=`<details class="vpanel" data-keys="texte text titel banner beschriftung benennung wörter überschrift"><summary>🔤 Texte <span class="vp-hint">Titel & Banner</span></summary><div class="vpanel-body">
+  const pTexte=`<details class="vpanel" data-keys="texte text titel banner beschriftung benennung wörter überschrift">${vsum('🔤','Texte','Ändert App-Titel und die Einleitungstexte der Pflege-Ansichten')}<div class="vpanel-body">
     ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}${ti('pruefTitle','Titel „Einstufung prüfen"')}
     <button class="reset-btn" style="margin-top:12px;width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetTxt()">Texte zurücksetzen</button>
   </div></details>`;
 
   /* ── Panel: Gruppen & Symbole ── */
   const grps=distinctGroups(); const rubs=distinctRubrics();
-  let pGruppen=`<details class="vpanel" data-keys="gruppen gruppe symbole symbol icon icons reihenfolge"><summary>🗂 Gruppen & Symbole <span class="vp-hint">Reihenfolge & Icons</span></summary><div class="vpanel-body">
+  let pGruppen=`<details class="vpanel" data-keys="gruppen gruppe symbole symbol icon icons reihenfolge startseite">${vsum('📚','Gruppen & Symbole','Ordnet die Gruppen auf der Startseite und wählt die Symbole der Rubriken')}<div class="vpanel-body">
     <div class="flabel">Gruppen-Reihenfolge (Startseite)</div>`;
   if(grps.length===0) pGruppen+=`<p class="hint">Keine Gruppen.</p>`;
   grps.forEach((g,i)=>{ pGruppen+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(g)}</span></div><div class="uk-actions"><button class="icon" onclick="moveGroup(${i},-1)">▲</button><button class="icon" onclick="moveGroup(${i},1)">▼</button></div></div>`; });
@@ -127,7 +135,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   pGruppen+=`<p class="hint">Das Symbol gilt für alle Rubriken dieses Namens (z. B. „Saal und Geräte" in jedem Standard).</p></div></details>`;
 
   /* ── Panel: Kategorien (Naturen) ── */
-  let pKat=`<details class="vpanel" data-keys="kategorien kategorie natur naturen farbe symbol material beschaffbar art"><summary>🎨 Kategorien (Naturen) <span class="vp-hint">${natList().length}</span></summary><div class="vpanel-body">`;
+  let pKat=`<details class="vpanel" data-keys="kategorien kategorie natur naturen farbe symbol material beschaffbar art">${vsum('🏷️','Kategorien','Name, Farbe und Symbol der Eintrags-Kategorien; legt fest, was als Material zählt',natList().length)}<div class="vpanel-body">`;
   natList().forEach(n=>{
     pKat+=`<div class="natrow" style="border-left-color:${n.color}">
       <div class="natrow-head"><span class="nat-ico">${n.icon}</span><input class="txtinp" value="${esc(n.label)}" onchange="setNatLabel('${esc(n.key)}',this.value)"><input type="color" class="colinp" value="${n.color}" onchange="setNatColor('${esc(n.key)}',this.value)"></div>
@@ -139,7 +147,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
 
   /* ── Panel: Unterkategorien verwalten ── */
-  let pUk=`<details class="vpanel" data-keys="unterkategorien unterkategorie untergruppe materialgruppe farbe zusammenführen zusammenfuehren"><summary>🗂 Unterkategorien verwalten <span class="vp-hint">${names.length} Gruppen</span></summary><div class="vpanel-body">`;
+  let pUk=`<details class="vpanel" data-keys="unterkategorien unterkategorie untergruppe materialgruppe farbe zusammenführen zusammenfuehren">${vsum('🗂','Unterkategorien','Material-Unterkategorien benennen, färben, sortieren und zusammenführen',names.length+' Gruppen')}<div class="vpanel-body">`;
   if(names.length===0) pUk+=`<p class="hint">Keine Unterkategorien erkannt.</p>`;
   names.forEach((name,i)=>{ const col=ukColorOf(name,i); const ico=ukIconOf(name);
     const sw=UK_PALETTE.map(c=>`<span class="uk-sw ${c===col?'sel':''}" style="background:${c}" onclick="setUkColor(${i},'${c}')"></span>`).join('');
@@ -150,7 +158,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Ausgeblendete Einträge (Wiederherstellung) ── */
   const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length+hid.byStd.length+hid.byRub.length;
-  let pHidden=`<details class="vpanel" data-keys="ausgeblendete einträge eintraege versteckt wiederherstellen papierkorb gelöscht geloescht"><summary>🗑 Ausgeblendete Einträge <span class="vp-hint">${hidTotal}</span></summary><div class="vpanel-body">`;
+  let pHidden=`<details class="vpanel" data-keys="ausgeblendete einträge eintraege versteckt wiederherstellen papierkorb gelöscht geloescht">${vsum('🗑','Ausgeblendete Einträge','Ausgeblendete Standards, Rubriken und Einträge wieder sichtbar machen',hidTotal||'')}<div class="vpanel-body">`;
   if(hidTotal===0) pHidden+=`<p class="hint">Nichts ausgeblendet.</p>`;
   hid.byStd.forEach(s=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(stdTitel(s))}</span><span class="uk-count">Standard</span></div><div class="uk-actions"><button onclick="restoreStd('${esc(s.id)}')">Wiederherstellen</button></div></div>`; });
   hid.byRub.forEach(x=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.name)}</span><span class="uk-count">Rubrik</span></div><div class="vw-ctx">${esc(stdTitel(x.std))}</div><div class="uk-actions"><button onclick="restoreRub('${esc(x.key)}')">Wiederherstellen</button></div></div>`; });
@@ -167,7 +175,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  let pPruef=`<details class="vpanel" data-keys="einstufung prüfen pruefen kategorie konfidenz zuordnung unsicher korrigieren"${openCount?' open':''}><summary>🔎 ${esc(txt('pruefTitle'))} <span class="vp-hint">${openCount} offen</span></summary><div class="vpanel-body">`;
+  let pPruef=`<details class="vpanel" data-keys="einstufung prüfen pruefen kategorie konfidenz zuordnung unsicher korrigieren"${openCount?' open':''}>${vsum('🔎',txt('pruefTitle'),'Prüft und korrigiert die automatisch vergebene Kategorie unsicherer Einträge',openCount?openCount+' offen':(all.length?'geprüft ✓':''))}<div class="vpanel-body">`;
   pPruef+=`<p class="panel-help">Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen". Korrekturen werden zentral gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div>
   <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));

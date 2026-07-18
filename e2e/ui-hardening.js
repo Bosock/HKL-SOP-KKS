@@ -94,11 +94,22 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const onlyKosten = vis.length >= 1 && vis.every(t => /Kosten/.test(t));
     adminSearch('');
     const allBack = [...document.querySelectorAll('#scr-admin .vpanel')].every(p => p.style.display !== 'none');
-    return { has3, onlyKosten, allBack };
+    // Klartext-Kopfzeilen: jedes Panel hat Titel + „was es ändert"-Beschreibung,
+    // und die Symbole sind eindeutig (kein doppeltes Icon mehr).
+    const heads = [...document.querySelectorAll('#scr-admin .vpanel > summary')];
+    const allDescribed = heads.length >= 12 && heads.every(s => {
+      const t = s.querySelector('.vp-title'), d = s.querySelector('.vp-desc');
+      return t && t.textContent.trim() && d && d.textContent.trim().length >= 10;
+    });
+    const icos = heads.map(s => (s.querySelector('.vp-ico') || {}).textContent || '');
+    const iconsUnique = new Set(icos).size === icos.length && icos.every(Boolean);
+    return { has3, onlyKosten, allBack, allDescribed, iconsUnique };
   });
   r.check('§4B Verwaltung in 3 Blöcke gegliedert', adm.has3);
   r.check('§4B Einstellungs-Suche filtert (preis → Kosten)', adm.onlyKosten);
   r.check('§4B leere Suche zeigt wieder alles', adm.allBack);
+  r.check('jedes Verwaltungs-Panel hat Titel + „was es ändert"-Beschreibung', adm.allDescribed);
+  r.check('Panel-Symbole sind eindeutig (keine Dopplung)', adm.iconsUnique);
 
   r.check('keine Konsolenfehler', errs.length === 0);
   await r.finish(browser, [srv]);

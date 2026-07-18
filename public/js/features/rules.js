@@ -157,7 +157,9 @@ function ruleDatum(ts){ return (ts||'').slice(0,10); }
 /* ===== Verwaltungs-Panel: 🧾 Regeln & Journal ===== */
 function rulesPanelHTML(){
   const act=rulesActive(RULES); const revoked=RULES.filter(r=>r.op==='revoke').length;
-  let h=`<details class="vpanel" data-keys="regeln journal historie protokoll änderungen aenderungen rückgängig rueckgaengig sammel massen bulk gruppe wer wann"><summary>🧾 Regeln & Journal <span class="vp-hint">${act.length} aktiv</span></summary><div class="vpanel-body">
+  const head=(typeof vsum==='function')?vsum('🧾','Regeln & Journal','Zeigt Sammel-Änderungen (wer, wann) und nimmt sie mit einem Tipp zurück',act.length?act.length+' aktiv':'')
+    :`<summary>🧾 Regeln & Journal <span class="vp-hint">${act.length} aktiv</span></summary>`;
+  let h=`<details class="vpanel" data-keys="regeln journal historie protokoll änderungen aenderungen rückgängig rueckgaengig sammel massen bulk gruppe wer wann">${head}<div class="vpanel-body">
     <p class="panel-help">Jede Sammel-Änderung (Standard-, Gruppen- oder Überall-Reichweite) ist eine <b>Regel</b>: sichtbar, wer sie wann angelegt hat, und mit einem Tipp <b>rücknehmbar</b>. Nichts wird gelöscht — Zurücknehmen ist ein eigener Journaleintrag (Nachvollziehbarkeit).</p>`;
   if(!act.length) h+=`<p class="hint">Noch keine Regeln. Sammel-Änderungen entstehen im Bearbeiten-Menü eines Eintrags über „Wo soll es gelten?" → <b>In diesem Standard</b>, <b>In der Gruppe</b> oder <b>Überall</b>.</p>`;
   act.slice().reverse().slice(0,50).forEach(r=>{
