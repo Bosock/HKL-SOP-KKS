@@ -64,6 +64,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 
 | Datum | Maßnahme | Quelle |
 |---|---|---|
+| 2026-07-18 | **Bugfix Verwaltungspolitik (Fehlerdiagnostik nach EIN-Schreibweg):** Zwei Lese-Pfade übersahen Regel-Änderungen und lasen weiter die Alt-Speicher. (1) **Ausblenden** über das Schnellmenü (Regel `hidden`) fehlte im Panel „Ausgeblendete Einträge" und war dort nicht wiederherstellbar — obwohl der Bestätigungsdialog es verspricht → `collectHidden`/`restoreCid`/`restoreMat` regel-bewusst (📍 Stelle→byCid, 🌐 alle→byMat, Rücknahme = revoke). (2) **Kategorie-Korrektur** über „Einstufung prüfen" (`setNatur` schreibt Regel) zählte nicht mehr als „korrigiert/erledigt" (Badge, Fortschritt, Offen/Erledigt-Filter) → neuer Helfer `hasStelleRule`/`naturKorrigiert` in `isHandled`/`isOv`/`collectUncertain`/`hasEdit`. Live-Backend-Funktionstest (alle Endpunkte + Fehler-/Sicherheitspfade) + neue Regressionssuite `rules-hidden.js`; 191 Unit + 11 E2E grün. | Funktions-/Backend-Test + Bug-Hunt |
 | 2026-07-16 | CSP/HSTS/Permissions-Policy, HMAC-Sessions, CSRF-State, Snapshots, `npm run check`, CONTRIBUTING | System-Audit-Vorarbeit |
 | 2026-07-16 | `.env`→Container (SESSION_SECRET/GITHUB_*), OAuth-Sackgasse (Button versteckt), SW-`/auth/`-Bypass, Geister-Session-Guard | PR #2 |
 | 2026-07-16 | CI auf Pull Requests (nur Test-Stufe); Sync ohne überflüssige Re-Renders | PR #2 |

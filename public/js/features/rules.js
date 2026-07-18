@@ -90,6 +90,12 @@ function ruleCandidates(e,cid,prop,legacy){
 }
 function ruleResolve(e,cid,prop,legacy){ const c=ruleCandidates(e,cid,prop,legacy); return c.length?c[0].val:undefined; }
 
+/* Gibt es eine aktive Regel der Reichweite „Stelle" an genau diesem cid?
+   (optional auf eine Eigenschaft eingegrenzt) — Signal „hier wurde bearbeitet"
+   für Prüf-Workflow und ✎-Anzeige, die früher overrides/reassign lasen. */
+function hasStelleRule(cid,prop){ if(!cid) return false;
+  return rulesActive(RULES).some(r=>r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid&&(!prop||r.prop===prop)); }
+
 /* Nimmt alle aktiven Regeln zurück, die genau an DIESER Stelle (cid) für dieses
    Material und diese Eigenschaft gelten (für „Zurücksetzen"/Toggle-zurück). */
 function revokeStelleRules(mk,cid,prop){ if(!mk) return;

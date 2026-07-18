@@ -205,7 +205,11 @@ const cidOf=(sid,ri,si,ei)=>sid+'|'+ri+'|'+si+'|'+ei;
 const effNatur=(e,cid)=>{ if(typeof ruleResolve!=='function') return overrides[cid]||(e.material_key&&QE.mat[e.material_key]&&QE.mat[e.material_key].natur)||e.natur_manuell||e.natur;
   const lg={}; if(overrides[cid]!==undefined) lg.stelle=overrides[cid]; const mk=e.material_key; if(mk&&QE.mat[mk]&&QE.mat[mk].natur!==undefined) lg.alle=QE.mat[mk].natur;
   const v=ruleResolve(e,cid,'natur',lg); return (v!==undefined&&v!==null&&v!=='')?v:(e.natur_manuell||e.natur); };
-const isHandled=(cid)=>!!reviewed[cid]||!!overrides[cid];
+/* „Erledigt" im Prüf-Workflow: geprüft-markiert ODER Kategorie korrigiert —
+   Korrektur liegt für Material-Einträge jetzt als Stelle-Regel vor (EIN
+   Schreibweg), für Alt-Einträge weiterhin in overrides. */
+const naturKorrigiert=(cid)=>overrides[cid]!==undefined||(typeof hasStelleRule==='function'&&hasStelleRule(cid,'natur'));
+const isHandled=(cid)=>!!reviewed[cid]||naturKorrigiert(cid);
 function rawUk(e,cid){ if(typeof ruleResolve!=='function'){ if(cid in reassign) return reassign[cid]; if(e.material_key&&QE.mat[e.material_key]&&('uk' in QE.mat[e.material_key])) return QE.mat[e.material_key].uk; return e.unterkategorie; }
   const lg={}; if(cid in reassign) lg.stelle=reassign[cid]; const mk=e.material_key; if(mk&&QE.mat[mk]&&('uk' in QE.mat[mk])) lg.alle=QE.mat[mk].uk;
   const v=ruleResolve(e,cid,'uk',lg); return (v!==undefined)?v:e.unterkategorie; }

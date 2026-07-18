@@ -10,7 +10,7 @@ function entryCardHTML(e,cid,isMatGer){
   const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
-  const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) );
+  const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) || (typeof hasStelleRule==='function'&&hasStelleRule(cid)) );
   const editBtn=ADMIN?`<button type="button" class="entry-edit-btn${hasEdit?' edited':''}" title="${hasEdit?'Bearbeiten (angepasst)':'Bearbeiten'}" aria-label="Eintrag bearbeiten">✎</button>`:'';
   /* Sichtbarer Aktions-Einstieg für ALLE (UX-Audit K1): Admin → Schnellmenü,
      sonst → „Änderung vorschlagen". Der Long-Press bleibt als Abkürzung. */

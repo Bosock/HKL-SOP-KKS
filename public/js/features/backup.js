@@ -12,7 +12,10 @@ function importBackupFile(ev){ const f=ev.target.files&&ev.target.files[0]; if(!
     if(!confirm('Sicherung einspielen? Die aktuellen Anpassungen auf diesem Gerät werden durch die Datei ersetzt.')) return;
     applyBackup(obj); toast('Sicherung eingespielt – App lädt neu'); setTimeout(()=>{ try{ location.reload(); }catch(e){} },700);
   }catch(e){ toast('Datei nicht lesbar',true); } }; r.readAsText(f); }
-function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; } saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
+function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.keys(QE.mat[mk]).length===0) delete QE.mat[mk]; }
+  /* „Überall"-Ausblendung als Regel mit-zurücknehmen (EIN Schreibweg). */
+  if(typeof rulesActive==='function') rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===mk&&r.prop==='hidden'&&r.wert===true&&r.wo&&r.wo.art==='alle') revokeRule(r.id); });
+  saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 
 /* Kategorie als „beschaffbar" markieren (fließt in Pflege/Preise/Katalog/Kosten). */
 function setNatBeschaffbar(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].beschaffbar=!!val; saveNatCfg(); buildMaterialIndex(); renderAdmin(); }
@@ -170,7 +173,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
   pPruef+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
   if(list.length===0) pPruef+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
-  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=!!overrides[x.cid]; const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
+  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=naturKorrigiert(x.cid); const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
     const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
     const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).join('');
     pPruef+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
