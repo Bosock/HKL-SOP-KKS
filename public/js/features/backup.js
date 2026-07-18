@@ -203,9 +203,21 @@ function adminSearch(q){ q=(q||'').trim().toLowerCase(); const toks=q.split(/\s+
 function setSetting(k,v){ settings[k]=v; saveJSON('hkl_settings',settings); }
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }
-function setNatur(cid,nat){ const e=findEntry(cid); if(e&&e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
+/* „Einstufung prüfen" schreibt jetzt denselben Regel-Weg (📍 Stelle) wie das
+   Schnellmenü — statt in die Alt-Speicher overrides/reassign. So gibt es EINEN
+   Schreibweg (journaliert, rücknehmbar). Nicht-Material-Einträge (kein
+   material_key als Regel-Ziel) fallen auf den Alt-Pfad zurück. */
+function setNatur(cid,nat){ const e=findEntry(cid); if(!e) return;
+  if(e.material_key && typeof addRule==='function'){
+    if(e.natur===nat){ revokeStelleRules(e.material_key,cid,'natur'); clearLegacyAt(e,cid,'stelle','natur'); }
+    else { addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'natur',nat); clearLegacyAt(e,cid,'stelle','natur'); }
+    buildMaterialIndex(); renderAdmin(); return; }
+  if(e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
 function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else reviewed[cid]=true; saveJSON('hkl_reviewed',reviewed); renderAdmin(); }
-function reassignEntry(cid,val){ if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
+function reassignEntry(cid,val){ const e=findEntry(cid);
+  if(e&&e.material_key && typeof addRule==='function'){
+    addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'uk',(val===''?'':val)); clearLegacyAt(e,cid,'stelle','uk'); computeUkList(); renderAdmin(); return; }
+  if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
 function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>('new|'+x.id)===cid); return n?newToEntry(n):null; } const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
 
 /* ─── Kategorien-Editor: schreibt in die Konfiguration + speichert ─── */

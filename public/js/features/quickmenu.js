@@ -152,21 +152,35 @@ function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ appl
   h+=`<button class="sheet-pick-btn" onclick="applyPending('mat')">🌐 Überall <span class="ps-sub">· betrifft ${ha.vorkommen}× in ${ha.standards.length} Standards</span></button>`;
   h+=`</div><button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
   $('sheet').innerHTML=h; }
+/* EIN Schreibweg (Verwaltungspolitik Stufe 2/3): jede Reichweite eines
+   MATERIAL-Eintrags wird zur Regel im Journal (📍 Stelle · 📄 Standard ·
+   🗂 Gruppe · 🌐 alle) — rückverfolgbar, rücknehmbar, im Inspektor sichtbar.
+   Der abgelöste Alt-Wert wird migriert (clearLegacyAt). Weite Reichweiten
+   (Gruppe/alle) werden mit Trefferzahl bestätigt (Governance-Treppe).
+   Einträge OHNE material_key haben kein Regel-Ziel → Alt-Pfad („nur hier"). */
 function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
-  /* 📄 Standard / 🗂 Gruppe → Regel im Journal (rückverfolgbar + rücknehmbar).
-     Gruppen-Reichweite bestätigt der Nutzer mit Trefferzahl (Governance). */
-  if(scope==='std'||scope==='grp'){
+  const mk=e.material_key;
+  if(mk){
     const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
-    if(!sid||(scope==='grp'&&!grp)){ toast('Reichweite nicht bestimmbar',true); return; }
-    const wo=(scope==='std')?{art:'standard',wert:sid}:{art:'gruppe',wert:grp};
-    if(scope==='grp'){ const hits=ruleHits(e.material_key,wo);
-      if(!confirm('Sammel-Änderung für die Gruppe „'+grp+'" anwenden?\n\nBetrifft '+hits.vorkommen+' Vorkommen in '+hits.standards.length+' Standard(s).\nRückgängig: Verwaltung → 🧾 Regeln & Journal.')) return; }
-    addRule({art:'material',key:e.material_key}, wo, p.kind, p.value);
-    sheetPending=null; showSheet(false); toast('Übernommen — rückgängig unter Verwaltung → 🧾 Regeln & Journal'); reRenderDetail(); return;
+    let wo=null;
+    if(scope==='cid') wo={art:'stelle',wert:cid};
+    else if(scope==='std'){ if(!sid){ toast('Standard nicht bestimmbar',true); return; } wo={art:'standard',wert:sid}; }
+    else if(scope==='grp'){ if(!grp){ toast('Gruppe nicht bestimmbar',true); return; } wo={art:'gruppe',wert:grp}; }
+    else wo={art:'alle'};
+    if(scope==='grp'||scope==='mat'){ const hits=ruleHits(mk,wo);
+      const ziel=(scope==='grp')?('die Gruppe „'+grp+'"'):'ALLE Standards';
+      if(!confirm('Sammel-Änderung für '+ziel+' anwenden?\n\nBetrifft '+hits.vorkommen+' Vorkommen in '+hits.standards.length+' Standard(s).\nRückgängig jederzeit: Verwaltung → 🧾 Regeln & Journal.')) return; }
+    addRule({art:'material',key:mk}, wo, p.kind, p.value);
+    if(wo.art==='stelle') clearLegacyAt(e,cid,'stelle',p.kind);
+    else if(wo.art==='alle') clearLegacyAt(e,cid,'alle',p.kind);
+    buildMaterialIndex(); if(p.kind==='uk') computeUkList();
+    sheetPending=null; showSheet(false);
+    toast((scope==='cid')?'Übernommen':'Sammel-Änderung übernommen — rücknehmbar unter 🧾 Regeln & Journal'); reRenderDetail(); return;
   }
-  if(p.kind==='natur'){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).natur=p.value; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); } saveQE(); buildMaterialIndex(); }
-  else if(p.kind==='uk'){ const val=(p.value===''?'':p.value); if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).uk=val; if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } } else { reassign[cid]=(val===''?null:val); saveJSON('hkl_reassign',reassign); } saveQE(); computeUkList(); }
-  else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
+  /* Kein material_key → Alt-Pfad (nur „hier" möglich) */
+  if(p.kind==='natur'){ overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); }
+  else if(p.kind==='uk'){ reassign[cid]=(p.value===''?null:p.value); saveJSON('hkl_reassign',reassign); computeUkList(); }
+  else { qeSet('cid',e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
   sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
 function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||''; const nn=prompt('Neue Menge (z. B. 2x — leer lassen = keine Menge):',cur); if(nn==null) return; const val=nn.trim()===''?null:nn.trim(); sheetPending={kind:'mengeVal',value:val}; askScope(); }
 function guessSizeTyp(t){ const s=t.toLowerCase(); if(/f(r|rench)?$/.test(s)&&/\d/.test(s)) return 'french'; if(/cm$/.test(s)) return 'laenge'; if(/mm$/.test(s)) return 'durchmesser'; if(/(ml|l)$/.test(s)&&/\d/.test(s)) return 'volumen'; if(/\dx\d/.test(s)) return 'dimension'; if(/er$/.test(s)) return 'naht'; return 'typcode'; }
@@ -184,7 +198,13 @@ function sheetDelete(){
     if(QE.cid[sheetCid]) delete QE.cid[sheetCid]; if(overrides[sheetCid]){ delete overrides[sheetCid]; saveJSON('hkl_overrides',overrides); }
     saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); return; }
   if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
-function sheetResetEntry(){ const cid=sheetCid; if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } saveQE(); buildMaterialIndex(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
+/* Setzt NUR die Änderungen an dieser Stelle zurück: 📍-Regeln (revoke) + die
+   Alt-Speicher an diesem cid. Standard-/Gruppen-/Überall-Regeln bleiben — die
+   sind bewusste Sammel-Entscheidungen und werden im 🧾 Journal zurückgenommen. */
+function sheetResetEntry(){ const cid=sheetCid, e=sheetEntry;
+  if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]!==undefined){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); }
+  if(e&&e.material_key&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===e.material_key&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
+  saveQE(); buildMaterialIndex(); computeUkList(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
 function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));
 

@@ -62,22 +62,52 @@ function stdGruppeById(sid){ if(!sid||!DB||!DB.standards) return null; const s=D
 function ruleActor(){ try{ if(typeof currentGithubUser!=='undefined'&&currentGithubUser&&currentGithubUser.login) return 'github:'+currentGithubUser.login; }catch(e){}
   let v=store.get('hkl_voterid'); if(!v){ v='d'+Math.random().toString(36).slice(2,10); store.set('hkl_voterid',v); } return 'gerät:'+v; }
 
-/* ===== Der Kaskaden-Vorschalter =====
-   Liefert den Regel-Wert für (Eintrag, Stelle, Eigenschaft) oder undefined.
-   Wird von qeGet/effNatur/rawUk ZWISCHEN Stelle (Alt) und „alle" (Alt)
-   konsultiert — genau die Kaskadenposition von Standard-/Gruppen-Regeln. */
-function ruleGet(e,cid,prop){
-  if(!RULES_IDX||!e||!e.material_key) return undefined;
-  const lst=RULES_IDX.get(e.material_key+'|'+prop); if(!lst||!lst.length) return undefined;
-  const sid=cidStd(cid); if(!sid) return undefined;
-  let grp=null, grpKnown=false, best=null;
-  for(const r of lst){
-    if(r.wo.art==='standard'){ if(r.wo.wert!==sid) continue; }
-    else if(r.wo.art==='gruppe'){ if(!grpKnown){ grp=stdGruppeById(sid); grpKnown=true; } if(!grp||r.wo.wert!==grp) continue; }
-    else if(r.wo.art!=='alle') continue; /* 'stelle'-Regeln kommen erst in Stufe 2 */
-    if(!best||ruleBeats(r,best)) best=r;
+/* ===== Der EINE Kaskaden-Resolver =====
+   Sammelt für (Eintrag, Stelle, Eigenschaft) alle Kandidaten — Regeln JEDER
+   Reichweite UND die Alt-Speicher (als Rand der Kaskade) — und sortiert sie
+   nach der verbindlichen Ordnung: Reichweite (📍4 > 📄3 > 🗂2 > 🌐1), dann
+   neuer (ts), dann id. Der erste ist der Gewinner. legacy = {stelle?,alle?}
+   liefert der Aufrufer (prop-spezifisch: natur→overrides/QE.mat.natur,
+   uk→reassign/QE.mat.uk, sonst QE.cid/QE.mat). Alt-Werte tragen ts='' → sie
+   sind „am ältesten" und werden von jeder echten Regel gleicher Reichweite
+   überstimmt (Lazy-Migration: neue Regel schlägt Alt-Wert). */
+function ruleCandidates(e,cid,prop,legacy){
+  const mk=e&&e.material_key; const out=[];
+  if(mk&&RULES_IDX){ const lst=RULES_IDX.get(mk+'|'+prop);
+    if(lst){ const sid=cidStd(cid); let grp=null,gk=false;
+      lst.forEach(r=>{ let rank=0,ok=false;
+        if(r.wo.art==='stelle'){ ok=(r.wo.wert===cid); rank=4; }
+        else if(r.wo.art==='standard'){ ok=(r.wo.wert===sid); rank=3; }
+        else if(r.wo.art==='gruppe'){ if(!gk){ grp=sid?stdGruppeById(sid):null; gk=true; } ok=(!!grp&&r.wo.wert===grp); rank=2; }
+        else if(r.wo.art==='alle'){ ok=true; rank=1; }
+        if(ok) out.push({rank, ts:r.ts, id:r.id, val:r.wert, rule:r, src:ruleWoLabel(r.wo)});
+      }); }
   }
-  return best?best.wert:undefined;
+  if(legacy){ if('stelle' in legacy) out.push({rank:4, ts:'', id:'', val:legacy.stelle, src:'📍 nur hier'});
+              if('alle'   in legacy) out.push({rank:1, ts:'', id:'', val:legacy.alle,   src:'🌐 überall'}); }
+  out.sort((a,b)=> (a.rank!==b.rank)?b.rank-a.rank : (a.ts!==b.ts)?((a.ts<b.ts)?1:-1) : ((a.id<b.id)?1:-1) );
+  return out;
+}
+function ruleResolve(e,cid,prop,legacy){ const c=ruleCandidates(e,cid,prop,legacy); return c.length?c[0].val:undefined; }
+
+/* Nimmt alle aktiven Regeln zurück, die genau an DIESER Stelle (cid) für dieses
+   Material und diese Eigenschaft gelten (für „Zurücksetzen"/Toggle-zurück). */
+function revokeStelleRules(mk,cid,prop){ if(!mk) return;
+  rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.art==='material'&&r.ziel.key===mk&&r.prop===prop&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
+
+/* Entfernt den Alt-Speicher-Wert, den eine neue Regel gleicher Reichweite
+   ablöst (Lazy-Migration → die Alt-Speicher leeren sich mit der Zeit). Nur
+   Stelle/„alle" haben Alt-Entsprechungen; Standard/Gruppe hatten nie welche. */
+function clearLegacyAt(e,cid,scope,prop){ const mk=e&&e.material_key;
+  if(scope==='stelle'){
+    if(prop==='natur'){ if(overrides[cid]!==undefined){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } }
+    else if(prop==='uk'){ if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } }
+    else if(QE.cid[cid]&&QE.cid[cid][prop]!==undefined){ delete QE.cid[cid][prop]; if(!Object.keys(QE.cid[cid]).length) delete QE.cid[cid]; saveQE(); }
+  } else if(scope==='alle'&&mk&&QE.mat[mk]){
+    if(prop==='uk'){ if('uk' in QE.mat[mk]){ delete QE.mat[mk].uk; } }
+    else if(QE.mat[mk][prop]!==undefined){ delete QE.mat[mk][prop]; }
+    if(!Object.keys(QE.mat[mk]).length) delete QE.mat[mk]; saveQE();
+  }
 }
 
 /* ===== Regeln anlegen / zurücknehmen ===== */
@@ -135,35 +165,25 @@ function rulesPanelHTML(){
 /* ===== Inspektor: „Warum so?" (CSS-Computed-Styles-/RSoP-Prinzip) =====
    Zeigt je Eigenschaft die komplette Kaskade: Gewinner markiert, überstimmte
    Quellen durchgestrichen, Regeln mit Urheber/Datum + Rücknahme. */
+/* Sammelt die prop-spezifischen Alt-Werte (Stelle/„alle") als legacy-Objekt —
+   dieselbe Quelle, die auch die Resolver an ruleResolve übergeben. */
+function propLegacy(e,cid,prop){ const mk=e&&e.material_key; const lg={};
+  if(prop==='natur'){ if(overrides[cid]!==undefined) lg.stelle=overrides[cid]; if(mk&&QE.mat[mk]&&QE.mat[mk].natur!==undefined) lg.alle=QE.mat[mk].natur; }
+  else if(prop==='uk'){ if(cid in reassign) lg.stelle=reassign[cid]; if(mk&&QE.mat[mk]&&('uk' in QE.mat[mk])) lg.alle=QE.mat[mk].uk; }
+  else { const c=QE.cid[cid]; if(c&&c[prop]!==undefined) lg.stelle=c[prop]; const m=mk&&QE.mat[mk]; if(m&&m[prop]!==undefined) lg.alle=m[prop]; }
+  return lg; }
+function propBasis(e,prop){
+  if(prop==='natur') return e.natur_manuell||e.natur;
+  if(prop==='uk') return e.unterkategorie;
+  if(prop==='name') return e.anzeige_text;
+  if(prop==='mengeVal') return e.menge;
+  if(prop==='groessen') return e.groessen;
+  if(prop==='spez') return Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation;
+  return undefined; }
+/* Die volle Kaskade als Anzeige-Zeilen (Gewinner zuerst, Quelldatei zuletzt). */
 function whyChain(e,cid,prop){
-  const rows=[]; const mk=e.material_key;
-  /* 📍 Stelle (Alt-Speicher) */
-  let hier;
-  if(prop==='natur') hier=overrides[cid];
-  else if(prop==='uk') hier=(cid in reassign)?(reassign[cid]==null?'':reassign[cid]):undefined;
-  else hier=(QE.cid[cid]||{})[prop];
-  if(hier!==undefined) rows.push({src:'📍 nur hier', wert:hier});
-  /* 📄/🗂/🌐 Regeln */
-  const lst=(mk&&RULES_IDX&&RULES_IDX.get(mk+'|'+prop))||[]; const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
-  lst.filter(r=>(r.wo.art==='standard'&&r.wo.wert===sid)||(r.wo.art==='gruppe'&&grp&&r.wo.wert===grp)||(r.wo.art==='alle'))
-     .sort((a,b)=>ruleBeats(a,b)?-1:1)
-     .forEach(r=>rows.push({src:ruleWoLabel(r.wo), wert:r.wert, rule:r}));
-  /* 🌐 „überall" (Alt-Speicher) */
-  let alle;
-  if(prop==='natur') alle=mk&&QE.mat[mk]&&QE.mat[mk].natur;
-  else if(prop==='uk') alle=(mk&&QE.mat[mk]&&('uk' in QE.mat[mk]))?QE.mat[mk].uk:undefined;
-  else alle=mk?((QE.mat[mk]||{})[prop]):undefined;
-  if(alle!==undefined&&alle!==null||(prop==='uk'&&alle!==undefined)) rows.push({src:'🌐 überall (Alt)', wert:alle});
-  /* Quelldatei */
-  let basis;
-  if(prop==='natur') basis=e.natur_manuell||e.natur;
-  else if(prop==='uk') basis=e.unterkategorie;
-  else if(prop==='name') basis=e.anzeige_text;
-  else if(prop==='mengeVal') basis=e.menge;
-  else if(prop==='groessen') basis=e.groessen;
-  else if(prop==='spez') basis=Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation;
-  else basis=undefined;
-  rows.push({src:'Quelldatei', wert:basis, basis:true});
+  const rows=ruleCandidates(e,cid,prop,propLegacy(e,cid,prop)).map(c=>({src:c.src, wert:c.val, rule:c.rule}));
+  rows.push({src:'Quelldatei', wert:propBasis(e,prop), basis:true});
   return rows; }
 function openWhySheet(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const props=['name','natur','uk','color','mengeVal','hidden'];

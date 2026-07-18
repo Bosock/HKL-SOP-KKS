@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Erstellt** | 2026-07-17 (v1) · **v2: erweitert um State-of-the-Art-Fundament und verbindliche Ziel-Architektur** |
-| **Status** | **Konzept / Entscheidungsgrundlage — Umsetzung erst nach Freigabe des Modells (Entscheidung E6).** |
+| **Status** | **Freigegeben (E6, 2026-07-18). Stufen 1–3 umgesetzt + Stufe-4-Governance; offen nur Stufe-4-Vier-Augen (hängt an E5).** |
 | **Auftrag** | „Kein Quick-Fix, sondern ein durchdachtes, nachhaltiges System der Verwaltungspolitik und der Logik dahinter — auch wenn es aufwändig ist. Was ist Best Practice / State of the Art für solche Anwendungen?" |
 
 ---
