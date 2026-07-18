@@ -43,7 +43,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 | M7 | Admin-Rendering aus `features/backup.js` nach `ui/admin.js` verschieben | System-Audit T1 | ☐ |
 | M8 | Journal light (wer/wann je Änderung) + Aufräumen erledigter Vorschläge | QA V10 / QM §1E | ☐ |
 | M9 | Combobox-Baustein mit „＋ Hinzufügen" (Status, Gruppen, Lagerorte, …) | QM §7 | ☐ |
-| M10 | Mengen-Hervorhebung automatisch bei ≠1x (mit Übersteuerung) | QM §9 | ☐ |
+| M10 | Mengen-Hervorhebung automatisch bei ≠1x (mit Übersteuerung) | QM §9 | ☑ (2026-07-18) |
 | M11 | Bedingungs-Kennzeichen „⚡ nur wenn: …" + Erkennungs-Assistent | QM §10 | ☐ |
 | M12 | Norm-Farbprofile Material (nach E2/E3) | QM §5 | ✋ E2/E3 |
 
@@ -64,6 +64,7 @@ Stand: 2026-07-17 · Status: ☐ offen · ◐ in Arbeit · ☑ erledigt · ✋ w
 
 | Datum | Maßnahme | Quelle |
 |---|---|---|
+| 2026-07-18 | **M10 Mengen-Hervorhebung automatisch bei ≠1x:** `mengeHiEff(e,cid,mengeEff)` — automatisch hervorgehoben, wenn die Menge gesetzt UND ≠„1x" ist (fehlende Menge bleibt ausgeschlossen); manuelles 🔢-Umschalten im Schnellmenü ist jetzt eine **Übersteuerung** (schreibt explizit an/aus, gewinnt immer gegen die Automatik) statt eines reinen Ein/Aus-Schalters ohne Grundzustand. Betrifft Eintragskarten (`.mbox.hi`) und das Bearbeiten-Menü-Label. +5 Unit-Tests (`mengeHiAuto`) + Live-Beweis (Screenshot: 2x hervorgehoben, 1x neutral). War seit dem QM-Brainstorming offen (M10, ☐) — jetzt nachgeholt. | Nutzer-Rückmeldung („Hervorhebung fehlt") |
 | 2026-07-18 | **Verwaltungs-Menü verständlicher (klar „was es ändert"):** einheitliche Panel-Kopfzeile `vsum()` — Symbol · Titel · **Klartext-Beschreibung der Wirkung** · Status-Badge · Aufklapp-Pfeil — statt uneinheitlicher Kurz-Hinweise (mal Beschreibung, mal nackte Zahl). Jargon entschärft („Kategorien (Naturen)" → **Kategorien**), doppelte Symbole entkoppelt (🏷️ Kategorien · 🗂 Unterkategorien · 📚 Gruppen & Symbole · 🎨 Design · 👁 Anzeige), Badges vereinheitlicht (z. B. „6/6 an", „223 offen", „27 Gruppen", Gesamt-€). Rubriken-Vorlagen jetzt suchbar (data-keys). +2 E2E-Checks (jedes Panel hat Titel+Beschreibung, Symbole eindeutig). | Nutzer-Feedback (Menü unklar) / H7 |
 | 2026-07-18 | **Bugfix Verwaltungspolitik (Fehlerdiagnostik nach EIN-Schreibweg):** Zwei Lese-Pfade übersahen Regel-Änderungen und lasen weiter die Alt-Speicher. (1) **Ausblenden** über das Schnellmenü (Regel `hidden`) fehlte im Panel „Ausgeblendete Einträge" und war dort nicht wiederherstellbar — obwohl der Bestätigungsdialog es verspricht → `collectHidden`/`restoreCid`/`restoreMat` regel-bewusst (📍 Stelle→byCid, 🌐 alle→byMat, Rücknahme = revoke). (2) **Kategorie-Korrektur** über „Einstufung prüfen" (`setNatur` schreibt Regel) zählte nicht mehr als „korrigiert/erledigt" (Badge, Fortschritt, Offen/Erledigt-Filter) → neuer Helfer `hasStelleRule`/`naturKorrigiert` in `isHandled`/`isOv`/`collectUncertain`/`hasEdit`. Live-Backend-Funktionstest (alle Endpunkte + Fehler-/Sicherheitspfade) + neue Regressionssuite `rules-hidden.js`; 191 Unit + 11 E2E grün. | Funktions-/Backend-Test + Bug-Hunt |
 | 2026-07-16 | CSP/HSTS/Permissions-Policy, HMAC-Sessions, CSRF-State, Snapshots, `npm run check`, CONTRIBUTING | System-Audit-Vorarbeit |

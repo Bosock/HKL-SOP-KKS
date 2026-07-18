@@ -15,9 +15,11 @@ function sChips(arr){ return `<div class="sheet-chips">`+arr.map(c=>`<span class
    Unterkategorie, Katalog) erscheint nur bei beschaffbaren Einträgen. */
 function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
-  const imp=qeGet(e,cid,'important')===true; const mHi=qeGet(e,cid,'mengeHi')===true; const cur=natOf(effNatur(e,cid));
+  const imp=qeGet(e,cid,'important')===true; const cur=natOf(effNatur(e,cid));
   const isMat=!!cur.beschaffbar;
-  const menge=(qeGet(e,cid,'mengeVal')!==undefined?qeGet(e,cid,'mengeVal'):e.menge)||'keine Menge';
+  const mengeEffRaw=(qeGet(e,cid,'mengeVal')!==undefined?qeGet(e,cid,'mengeVal'):e.menge);
+  const mHi=mengeHiEff(e,cid,mengeEffRaw);
+  const menge=mengeEffRaw||'keine Menge';
   const groessen=(function(){const g=qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen; return (g&&g.length)?g.map(x=>x.wert).join(', '):'keine';})();
   const spez=(function(){const s=qeGet(e,cid,'spez'); const v=(s!==undefined)?s:(Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation); return v||'keine';})();
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Bearbeiten · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
@@ -38,7 +40,7 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   /* ── Darstellung (Hervorheben gebündelt) ── */
   h+=sGroup('Darstellung','Wie er auffällt');
   h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
-  h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',e.menge?('Menge '+e.menge):'keine Menge',"sheetToggle('mengeHi')");
+  h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',(qeGet(e,cid,'mengeHi')!==undefined?'manuell übersteuert · ':'automatisch bei ≠1x · ')+(mengeEffRaw?'Menge '+mengeEffRaw:'keine Menge'),"sheetToggle('mengeHi')");
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
 
   /* ── Organisation ── */
@@ -135,7 +137,13 @@ function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sh
   $('sheet').innerHTML=h; }
 function sheetSetColor(val){ sheetPending={kind:'color',value:val}; askScope(); }
 function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text); const nn=prompt('Neuer Anzeigename:',cur); if(nn==null||!nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }
-function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid; const cur=qeGet(e,cid,prop)===true; sheetPending={kind:prop,value:!cur}; askScope(); }
+function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
+  /* mengeHi hat einen automatischen Grundzustand (≠1x); der Umschalter muss
+     IMMER den gerade angezeigten (effektiven) Zustand umkehren — sonst
+     bleibt „Zahl normal anzeigen" bei automatisch hervorgehobenen Einträgen
+     wirkungslos (M10, Übersteuerung). */
+  const cur=(prop==='mengeHi')?mengeHiEff(e,cid,(qeGet(e,cid,'mengeVal')!==undefined?qeGet(e,cid,'mengeVal'):e.menge)):qeGet(e,cid,prop)===true;
+  sheetPending={kind:prop,value:!cur}; askScope(); }
 /* Reichweiten-Wahl (Verwaltungspolitik-Kaskade): vier ehrliche Stufen mit
    TREFFERVORSCHAU direkt an jeder Option — Sammel-Änderung ist kein eigenes
    Werkzeug, sondern zwei weitere Knöpfe im vertrauten Dialog. */

@@ -93,6 +93,7 @@ function loadHelpers() {
     extractFn('gtinGroups'),
     extractFn('gtinBadges'),
     extractFn('extractLabelFields'),
+    extractFn('mengeHiAuto'),
     extractFn('rulesActive'),
     extractFn('rulesUnion'),
     extractFn('ruleRank'),
@@ -104,7 +105,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, mengeHiAuto, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1008,6 +1009,26 @@ test('extractLabelFields: French auch ausgeschrieben, Dezimalkomma', () => {
   const f = fns.extractLabelFields('Cordis\n7.5 French');
   assert.equal(f.french, '7.5F');
   assert.equal(f.hersteller, 'Cordis');
+});
+
+// --- mengeHiAuto: automatische Mengen-Hervorhebung bei ≠1x (M10/QM §9) -----
+test('mengeHiAuto: 1x wird NICHT automatisch hervorgehoben', () => {
+  assert.equal(fns.mengeHiAuto('1x'), false);
+});
+test('mengeHiAuto: 2x/3x/etc. werden automatisch hervorgehoben', () => {
+  assert.equal(fns.mengeHiAuto('2x'), true);
+  assert.equal(fns.mengeHiAuto('3x'), true);
+  assert.equal(fns.mengeHiAuto('12x'), true);
+});
+test('mengeHiAuto: fehlende Menge wird NICHT hervorgehoben (ausgeschlossen)', () => {
+  assert.equal(fns.mengeHiAuto(null), false);
+  assert.equal(fns.mengeHiAuto(undefined), false);
+  assert.equal(fns.mengeHiAuto(''), false);
+});
+test('mengeHiAuto: Groß-/Kleinschreibung und Leerraum tolerant', () => {
+  assert.equal(fns.mengeHiAuto('1X'), false);
+  assert.equal(fns.mengeHiAuto(' 1x '), false);
+  assert.equal(fns.mengeHiAuto('2X'), true);
 });
 
 // --- Verwaltungspolitik: Regel-Journal (Kaskade + Vereinigung) --------------

@@ -15,7 +15,7 @@ function entryCardHTML(e,cid,isMatGer){
   /* Sichtbarer Aktions-Einstieg für ALLE (UX-Audit K1): Admin → Schnellmenü,
      sonst → „Änderung vorschlagen". Der Long-Press bleibt als Abkürzung. */
   const menuBtn=`<button type="button" class="entry-menu-btn" title="${ADMIN?'Aktionen':'Änderung vorschlagen'}" aria-label="${ADMIN?'Aktionen zu diesem Eintrag':'Änderung zu diesem Eintrag vorschlagen'}">⋯</button>`;
-  const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=qeGet(e,cid,'mengeHi')===true;
+  const important=qeGet(e,cid,'important')===true; const accent=qeGet(e,cid,'color'); const mHi=mengeHiEff(e,cid,mengeEff);
   /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular und das Schnellmenü überschreibbar. */
   const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
   const sv=qeGet(e,cid,'spez'); const spezEff=(sv!==undefined)?(sv?sv:null):e.spezifikation;

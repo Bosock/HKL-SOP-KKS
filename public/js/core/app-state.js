@@ -214,6 +214,11 @@ function rawUk(e,cid){ if(typeof ruleResolve!=='function'){ if(cid in reassign) 
   const lg={}; if(cid in reassign) lg.stelle=reassign[cid]; const mk=e.material_key; if(mk&&QE.mat[mk]&&('uk' in QE.mat[mk])) lg.alle=QE.mat[mk].uk;
   const v=ruleResolve(e,cid,'uk',lg); return (v!==undefined)?v:e.unterkategorie; }
 function canonUk(e,cid){ const r=rawUk(e,cid); if(r==null||r==='') return null; return ukMap[r]||r; }
+/* Mengen-Hervorhebung AUTOMATISCH bei ≠1x, ausgeschlossen wo die Menge fehlt
+   (M10/QM §9). Manuelles Setzen (Schnellmenü „🔢") ist eine ÜBERSTEUERUNG:
+   sobald jemand explizit hervorheben/normal gewählt hat, gewinnt das. */
+function mengeHiAuto(mengeEff){ if(mengeEff==null) return false; const v=String(mengeEff).trim().toLowerCase(); return v!==''&&v!=='1x'; }
+function mengeHiEff(e,cid,mengeEff){ const ov=qeGet(e,cid,'mengeHi'); return (ov!==undefined)?(ov===true):mengeHiAuto(mengeEff); }
 function ukMetaOf(name){ return ukMeta[name]||{}; }
 function ukColorOf(name,idx){ const m=ukMetaOf(name); if(m.color) return m.color; return UK_PALETTE[(idx>=0?idx:0)%UK_PALETTE.length]; }
 function ukIconOf(name){ const m=ukMetaOf(name); return m.icon||ukKeywordIcon(name); }
