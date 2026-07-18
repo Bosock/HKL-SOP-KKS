@@ -18,7 +18,9 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Inhalte & Anpassungen aus dem Verwaltungsmodus (vom Kollegen) – jetzt ebenfalls zentral geteilt */
   'hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw',
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) */
-  'hkl_gtin'];
+  'hkl_gtin',
+  /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
+  'hkl_rules'];
 
 /* Übernimmt die (ggf. vom Server aktualisierten) Store-Werte in die
    laufenden Zustandsvariablen. */
@@ -34,6 +36,7 @@ function hydrateVars(){
   careMem=loadJSON('hkl_care',{});
   PROD=loadJSON('hkl_prod',{});
   GTINDB=loadJSON('hkl_gtin',{});
+  RULES=loadJSON('hkl_rules',[]); rebuildRulesIndex();
   HINTS=loadHints();
   GLOSSARY=loadGlossary();
   SUGGESTIONS=loadSuggestions();
@@ -94,7 +97,19 @@ const sync=(()=>{
      hydrateVars()/refreshView() aus (kein Flackern/Fokusverlust beim Tippen).
      Client wie Server serialisieren über JSON.stringify, daher sind die Strings
      vergleichbar; im Zweifel (String ungleich) wird geschrieben – nie zu wenig. */
-  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return; const next=JSON.stringify(st[k]); if(store.get(k)===next) return; storeSetQuiet(k, next); changed=true; }); return changed; }
+  function adopt(st,skipDirty){ let changed=false; Object.keys(st||{}).forEach(k=>{ if(!SHARED_KEYS.includes(k)) return; if(skipDirty&&dirty.has(k)) return;
+    /* Regel-Journal: append-only ⇒ VEREINIGUNG statt Ersetzen. Zwei Geräte,
+       die gleichzeitig Regeln anlegen, verlieren so keine Ereignisse. Fehlen
+       dem Server lokale Ereignisse, wird der vereinigte Stand zurückgespielt. */
+    if(k==='hkl_rules'){
+      let inc=st[k]; if(!Array.isArray(inc)) inc=[];
+      const merged=rulesUnion(loadJSON('hkl_rules',[]), inc);
+      const nextS=JSON.stringify(merged);
+      if(store.get(k)!==nextS){ storeSetQuiet(k,nextS); changed=true; }
+      if(merged.length>inc.length){ dirty.add(k); clearTimeout(timer); timer=setTimeout(flush,800); }
+      return;
+    }
+    const next=JSON.stringify(st[k]); if(store.get(k)===next) return; storeSetQuiet(k, next); changed=true; }); return changed; }
 
   async function pull(){
     const r=await fetch(URL,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
@@ -155,6 +170,7 @@ const sync=(()=>{
     }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
   }
   function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
+    if(dirty.size) setTimeout(flush,500); /* z. B. Journal-Vereinigung aus init() nachspielen */
     window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
   }

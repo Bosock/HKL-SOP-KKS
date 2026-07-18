@@ -11,7 +11,11 @@ let overrides=loadJSON('hkl_overrides',{});
 /* QE = Schnellmenü-Änderungen. cid = nur dieser Eintrag; mat = dieses Material überall. */
 let QE=loadJSON('hkl_qedits',{cid:{},mat:{}}); if(!QE.cid)QE.cid={}; if(!QE.mat)QE.mat={};
 function saveQE(){ saveJSON('hkl_qedits',QE); }
-function qeGet(e,cid,prop){ const c=QE.cid[cid]; if(c&&c[prop]!==undefined) return c[prop]; const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; } return undefined; }
+/* Kaskade (Verwaltungspolitik): 📍 Stelle (QE.cid) > 📄/🗂 Regel (ruleGet) >
+   🌐 überall (QE.mat). Regeln sitzen bewusst ZWISCHEN den Alt-Speichern. */
+function qeGet(e,cid,prop){ const c=QE.cid[cid]; if(c&&c[prop]!==undefined) return c[prop];
+  const rv=(typeof ruleGet==='function')?ruleGet(e,cid,prop):undefined; if(rv!==undefined) return rv;
+  const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; } return undefined; }
 function qeSet(scope,e,cid,prop,val){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{})[prop]=val; } else { (QE.cid[cid]=QE.cid[cid]||{})[prop]=val; } saveQE(); }
 /* Rollentrennung per Anmeldung (Hamburger-Menü). Sitzung überlebt bis 1 h Inaktivität. */
 let ADMIN=authValid();
@@ -195,9 +199,11 @@ function loadChecks(){ try{ const raw=store.get('hkl_checks'); if(!raw) return {
 function saveChecks(){ store.set('hkl_checks',JSON.stringify({date:today(),checks:checks})); }
 
 const cidOf=(sid,ri,si,ei)=>sid+'|'+ri+'|'+si+'|'+ei;
-const effNatur=(e,cid)=>overrides[cid]||(e.material_key&&QE.mat[e.material_key]&&QE.mat[e.material_key].natur)||e.natur_manuell||e.natur;
+const effNatur=(e,cid)=>overrides[cid]||(typeof ruleGet==='function'?ruleGet(e,cid,'natur'):undefined)||(e.material_key&&QE.mat[e.material_key]&&QE.mat[e.material_key].natur)||e.natur_manuell||e.natur;
 const isHandled=(cid)=>!!reviewed[cid]||!!overrides[cid];
-function rawUk(e,cid){ if(cid in reassign) return reassign[cid]; if(e.material_key&&QE.mat[e.material_key]&&('uk' in QE.mat[e.material_key])) return QE.mat[e.material_key].uk; return e.unterkategorie; }
+function rawUk(e,cid){ if(cid in reassign) return reassign[cid];
+  const rv=(typeof ruleGet==='function')?ruleGet(e,cid,'uk'):undefined; if(rv!==undefined) return rv;
+  if(e.material_key&&QE.mat[e.material_key]&&('uk' in QE.mat[e.material_key])) return QE.mat[e.material_key].uk; return e.unterkategorie; }
 function canonUk(e,cid){ const r=rawUk(e,cid); if(r==null||r==='') return null; return ukMap[r]||r; }
 function ukMetaOf(name){ return ukMeta[name]||{}; }
 function ukColorOf(name,idx){ const m=ukMetaOf(name); if(m.color) return m.color; return UK_PALETTE[(idx>=0?idx:0)%UK_PALETTE.length]; }

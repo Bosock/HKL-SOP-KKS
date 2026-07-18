@@ -93,6 +93,10 @@ function loadHelpers() {
     extractFn('gtinGroups'),
     extractFn('gtinBadges'),
     extractFn('extractLabelFields'),
+    extractFn('rulesActive'),
+    extractFn('rulesUnion'),
+    extractFn('ruleRank'),
+    extractFn('ruleBeats'),
     extractFn('rubTplMatches'),
     extractFn('hexToRgb'),
     extractFn('_lin'),
@@ -100,7 +104,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1004,4 +1008,36 @@ test('extractLabelFields: French auch ausgeschrieben, Dezimalkomma', () => {
   const f = fns.extractLabelFields('Cordis\n7.5 French');
   assert.equal(f.french, '7.5F');
   assert.equal(f.hersteller, 'Cordis');
+});
+
+// --- Verwaltungspolitik: Regel-Journal (Kaskade + Vereinigung) --------------
+test('rulesActive: revoke blendet die referenzierte Regel aus, Journal bleibt', () => {
+  const j = [
+    { id: 'r1', ts: '2026-01-01T00:00:00Z', op: 'set', prop: 'color', wert: '#111' },
+    { id: 'r2', ts: '2026-01-02T00:00:00Z', op: 'set', prop: 'color', wert: '#222' },
+    { id: 'r3', ts: '2026-01-03T00:00:00Z', op: 'revoke', ref: 'r1' },
+  ];
+  const act = fns.rulesActive(j);
+  assert.equal(act.length, 1);
+  assert.equal(act[0].id, 'r2');
+});
+test('rulesUnion: verlustfrei, idempotent, kommutativ, ts-sortiert', () => {
+  const a = [{ id: 'rA', ts: '2026-01-02T00:00:00Z', op: 'set' }];
+  const b = [{ id: 'rB', ts: '2026-01-01T00:00:00Z', op: 'set' }];
+  const u1 = fns.rulesUnion(a, b), u2 = fns.rulesUnion(b, a);
+  assert.equal(u1.length, 2);
+  assert.equal(JSON.stringify(u1.map(r => r.id)), JSON.stringify(u2.map(r => r.id))); // kommutativ
+  assert.equal(u1[0].id, 'rB'); // älteste zuerst (deterministisch)
+  assert.equal(fns.rulesUnion(u1, u1).length, 2); // idempotent
+});
+test('ruleBeats: spezifischere Reichweite gewinnt, sonst die neuere Regel', () => {
+  const std = { id: 'r1', ts: '2026-01-01T00:00:00Z', wo: { art: 'standard', wert: 's1' } };
+  const grp = { id: 'r2', ts: '2026-01-05T00:00:00Z', wo: { art: 'gruppe', wert: 'CRM' } };
+  const alle = { id: 'r3', ts: '2026-01-09T00:00:00Z', wo: { art: 'alle' } };
+  assert.ok(fns.ruleBeats(std, grp), 'Standard schlägt Gruppe (auch wenn älter)');
+  assert.ok(fns.ruleBeats(grp, alle), 'Gruppe schlägt überall');
+  const grpNeu = { id: 'r4', ts: '2026-02-01T00:00:00Z', wo: { art: 'gruppe', wert: 'CRM' } };
+  assert.ok(fns.ruleBeats(grpNeu, grp), 'gleiche Reichweite: neuere gewinnt');
+  assert.equal(fns.ruleRank({ art: 'stelle' }), 4);
+  assert.equal(fns.ruleRank({ art: 'alle' }), 1);
 });

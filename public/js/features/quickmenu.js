@@ -22,6 +22,8 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const spez=(function(){const s=qeGet(e,cid,'spez'); const v=(s!==undefined)?s:(Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation); return v||'keine';})();
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Bearbeiten · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
   h+=sChips(['📍 dieser Eintrag', '👥 alle Geräte']);
+  /* Inspektor (Kaskade sichtbar machen): warum sieht dieser Eintrag so aus? */
+  h+=sAct('🔍','Warum so?','zeigt, woher Name, Kategorie, Farbe & Co. kommen','openWhySheet()');
 
   /* ── Inhalt ── */
   h+=sGroup('Inhalt','Was der Eintrag ist');
@@ -134,13 +136,34 @@ function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sh
 function sheetSetColor(val){ sheetPending={kind:'color',value:val}; askScope(); }
 function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text); const nn=prompt('Neuer Anzeigename:',cur); if(nn==null||!nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }
 function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid; const cur=qeGet(e,cid,prop)===true; sheetPending={kind:prop,value:!cur}; askScope(); }
-function askScope(){ const e=sheetEntry; if(!e.material_key){ applyPending('cid'); return; }
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div><div class="sheet-pick">`;
-  h+=`<button class="sheet-pick-btn" onclick="applyPending('cid')">📍 Nur hier <span class="ps-sub">· an dieser Stelle</span></button>`;
-  h+=`<button class="sheet-pick-btn" onclick="applyPending('mat')">🌐 Überall <span class="ps-sub">· jedes Vorkommen dieses Materials</span></button>`;
+/* Reichweiten-Wahl (Verwaltungspolitik-Kaskade): vier ehrliche Stufen mit
+   TREFFERVORSCHAU direkt an jeder Option — Sammel-Änderung ist kein eigenes
+   Werkzeug, sondern zwei weitere Knöpfe im vertrauten Dialog. */
+function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ applyPending('cid'); return; }
+  const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
+  const hs=sid?ruleHits(e.material_key,{art:'standard',wert:sid}):null;
+  const hg=grp?ruleHits(e.material_key,{art:'gruppe',wert:grp}):null;
+  const ha=ruleHits(e.material_key,{art:'alle'});
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div>`;
+  h+=`<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
+  h+=`<button class="sheet-pick-btn" onclick="applyPending('cid')">📍 Nur hier <span class="ps-sub">· nur an dieser Stelle</span></button>`;
+  if(sid&&hs) h+=`<button class="sheet-pick-btn" onclick="applyPending('std')">📄 In diesem Standard <span class="ps-sub">· betrifft ${hs.vorkommen}× hier</span></button>`;
+  if(grp&&hg) h+=`<button class="sheet-pick-btn" onclick="applyPending('grp')">🗂 In der Gruppe „${esc(grp)}" <span class="ps-sub">· betrifft ${hg.vorkommen}× in ${hg.standards.length} Standards</span></button>`;
+  h+=`<button class="sheet-pick-btn" onclick="applyPending('mat')">🌐 Überall <span class="ps-sub">· betrifft ${ha.vorkommen}× in ${ha.standards.length} Standards</span></button>`;
   h+=`</div><button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
   $('sheet').innerHTML=h; }
 function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
+  /* 📄 Standard / 🗂 Gruppe → Regel im Journal (rückverfolgbar + rücknehmbar).
+     Gruppen-Reichweite bestätigt der Nutzer mit Trefferzahl (Governance). */
+  if(scope==='std'||scope==='grp'){
+    const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
+    if(!sid||(scope==='grp'&&!grp)){ toast('Reichweite nicht bestimmbar',true); return; }
+    const wo=(scope==='std')?{art:'standard',wert:sid}:{art:'gruppe',wert:grp};
+    if(scope==='grp'){ const hits=ruleHits(e.material_key,wo);
+      if(!confirm('Sammel-Änderung für die Gruppe „'+grp+'" anwenden?\n\nBetrifft '+hits.vorkommen+' Vorkommen in '+hits.standards.length+' Standard(s).\nRückgängig: Verwaltung → 🧾 Regeln & Journal.')) return; }
+    addRule({art:'material',key:e.material_key}, wo, p.kind, p.value);
+    sheetPending=null; showSheet(false); toast('Übernommen — rückgängig unter Verwaltung → 🧾 Regeln & Journal'); reRenderDetail(); return;
+  }
   if(p.kind==='natur'){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).natur=p.value; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } } else { overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); } saveQE(); buildMaterialIndex(); }
   else if(p.kind==='uk'){ const val=(p.value===''?'':p.value); if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{}).uk=val; if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); } } else { reassign[cid]=(val===''?null:val); saveJSON('hkl_reassign',reassign); } saveQE(); computeUkList(); }
   else { qeSet(scope,e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
