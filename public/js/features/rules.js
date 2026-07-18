@@ -136,12 +136,13 @@ function ruleHits(materialKey,wo){ const stds=new Set(); let n=0;
   return { vorkommen:n, standards:[...stds] }; }
 
 /* ===== Anzeige-Helfer ===== */
-function rulePropLabel(p){ return ({name:'Name',natur:'Kategorie',uk:'Unterkategorie',color:'Farbe',important:'Wichtig-Markierung',mengeHi:'Zahl-Hervorhebung',mengeVal:'Menge',groessen:'Größen',spez:'Spezifikation',hidden:'Sichtbarkeit'})[p]||p; }
+function rulePropLabel(p){ return ({name:'Name',natur:'Kategorie',uk:'Unterkategorie',color:'Farbe',important:'Wichtig-Markierung',mengeHi:'Zahl-Hervorhebung',mengeVal:'Menge',groessen:'Größen',spez:'Spezifikation',hidden:'Sichtbarkeit',zusatz:'Eigene Felder'})[p]||p; }
 function ruleWertLabel(prop,wert){
   if(prop==='natur') return natOf(wert).label;
   if(prop==='hidden') return wert?'ausgeblendet':'sichtbar';
   if(prop==='uk') return (wert===''||wert==null)?'— ohne —':String(wert);
   if(prop==='groessen') return (Array.isArray(wert)&&wert.length)?wert.map(g=>g.wert).join(', '):'keine';
+  if(prop==='zusatz') return (Array.isArray(wert)&&wert.length)?wert.map(f=>f.n+(f.w?': '+f.w:'')).join(' · '):'keine';
   if(prop==='color') return wert?String(wert):'keine Farbe';
   if(wert==null||wert==='') return 'entfernt';
   if(wert===true) return 'an'; if(wert===false) return 'aus';
@@ -194,7 +195,7 @@ function whyChain(e,cid,prop){
   rows.push({src:'Quelldatei', wert:propBasis(e,prop), basis:true});
   return rows; }
 function openWhySheet(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
-  const props=['name','natur','uk','color','mengeVal','hidden'];
+  const props=['name','natur','uk','color','mengeVal','hidden','zusatz'];
   let h=`<div class="sheet-grip"></div><div class="sheet-title">🔍 Warum so?</div><div class="sheet-name">${esc(qeGet(e,cid,'name')!==undefined?qeGet(e,cid,'name'):e.anzeige_text)}</div>
     <p class="why-help">Je Eigenschaft von oben nach unten: die erste Zeile <b>gewinnt</b>, durchgestrichene werden überstimmt. Regeln lassen sich hier direkt zurücknehmen.</p>`;
   props.forEach(p=>{

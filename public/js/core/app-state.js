@@ -6,6 +6,8 @@ let ADDITIONS=loadAdditions();
 let CATALOG=loadCatalog();
 let admNat='alle', admState='offen';
 let admNewNatOpen=false; /* Eingabezeile „＋ Neue Kategorie" im Verwaltungs-Panel auf/zu */
+let admNewUkFor=null;    /* cid, für den in „Einstufung prüfen" gerade eine neue Unterkategorie getippt wird */
+let admContSid=null;     /* Inhalte-&-Aufbau-Panel: aufgeklappter Standard (null = Übersicht) */
 let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
 let overrides=loadJSON('hkl_overrides',{});

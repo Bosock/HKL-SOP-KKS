@@ -47,6 +47,8 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sGroup('Organisation','Wohin er gehört');
   h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
   if(isMat){ h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
+  h+=sAct('🧩','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
+  h+=sAct('📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   h+=sAct('⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
   h+=sAct('⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
   if(isMat){ h+=sAct('📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
@@ -114,7 +116,69 @@ function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; c
   const dup=CATALOG.items.some(it=>(it.name||'').trim().toLowerCase()===f.name.trim().toLowerCase()&&(it.nat||'material')===(f.nat||'material'));
   if(dup){ showSheet(false); toast('Schon im Katalog',true); return; }
   CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); showSheet(false); toast('In Katalog aufgenommen'); }
-function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); }
+function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); else if(state==='zusatz') renderSheetZusatz(); }
+
+/* ── Verschieben (Souveränität): Eintrag in andere Rubrik/anderen Standard ──
+   Eigene Einträge (additions/NEW) werden ECHT umgehängt; Basis-Einträge aus
+   der Quelldatei können nicht wandern → Kopie als eigener Eintrag am Ziel +
+   Original ausblenden (beides rücknehmbar: Ausgeblendete Einträge/Journal). */
+function renderSheetMove(sid){ const e=sheetEntry; if(!e) return;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">📦 Verschieben — ${sid?'Rubrik wählen':'Standard wählen'}</div><div class="sheet-pick">`;
+  if(!sid){
+    DB.standards.forEach(s=>{ if(stdHidden(s)) return;
+      h+=`<button class="sheet-pick-btn" data-sid="${esc(s.id)}" onclick="renderSheetMove(this.dataset.sid)">${esc(stdTitel(s))} <span class="ps-sub">· ${esc(stdGruppe(s))}</span></button>`; });
+  } else {
+    const s=DB.standards.find(x=>x.id===sid);
+    (s?s.rubriken:[]).forEach((r,ri)=>{
+      const cnt=(r.sub_bereiche||[]).reduce((n,sb)=>n+((sb.eintraege||[]).filter(x=>x.natur!=='ueberschrift').length),0);
+      h+=`<button class="sheet-pick-btn" data-sid="${esc(sid)}" data-ri="${ri}" onclick="moveEntryTo(this.dataset.sid,+this.dataset.ri)">${esc(r.name)} <span class="ps-sub">· ${cnt} Einträge</span></button>`; });
+  }
+  h+=`</div><button class="sheet-close" onclick="${sid?'renderSheetMove()':'renderSheetMain()'}">Zurück</button>`;
+  $('sheet').innerHTML=h; }
+function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!e||!cid) return;
+  const tgt=DB.standards.find(s=>s.id===targetSid); if(!tgt||!tgt.rubriken[targetRi]){ toast('Ziel nicht gefunden',true); return; }
+  if(cid.indexOf('new|')===0){
+    const n=NEW.find(x=>('new|'+x.id)===cid);
+    if(n){ n.std=targetSid; n.rub=String(rubIdxKey(tgt.rubriken[targetRi],targetRi)); saveNEW(); }
+  } else if(e._added&&e._aid){
+    const p=cid.split('|'); const oldKey=p[0]+'|'+p[1];
+    const arr=ADDITIONS.entries[oldKey]||[]; const i=arr.findIndex(x=>x._aid===e._aid);
+    if(i>=0){ const obj=arr.splice(i,1)[0]; if(!arr.length) delete ADDITIONS.entries[oldKey];
+      const nk=targetSid+'|'+targetRi; (ADDITIONS.entries[nk]=ADDITIONS.entries[nk]||[]).push(obj); saveAdditions(); }
+  } else {
+    /* Basis-Eintrag: Kopie mit den EFFEKTIVEN Werten (inkl. deiner Regeln) */
+    const name=(qeGet(e,cid,'name')!==undefined?qeGet(e,cid,'name'):e.anzeige_text)||'';
+    const clone=makeAddEntry({ aid:newAid(), name,
+      menge:(qeGet(e,cid,'mengeVal')!==undefined?qeGet(e,cid,'mengeVal'):e.menge)||'',
+      nat:effNatur(e,cid), uk:canonUk(e,cid)||'',
+      spez:(function(){const s=qeGet(e,cid,'spez'); if(s!==undefined) return s||''; return (Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation)||'';})(),
+      color:(qeGet(e,cid,'color')||''), why:e.why||'', synonyms:e.synonyms||[] });
+    clone.groessen=((qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen)||[]).slice();
+    const nk=targetSid+'|'+targetRi; (ADDITIONS.entries[nk]=ADDITIONS.entries[nk]||[]).push(clone); saveAdditions();
+    if(e.material_key&&typeof addRule==='function') addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'hidden',true);
+    else { (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); }
+  }
+  rebuildDB(); buildMaterialIndex(); computeUkList(); showSheet(false);
+  toast('Verschoben nach „'+stdTitel(tgt)+' → '+tgt.rubriken[targetRi].name+'" — rücknehmbar'); reRenderDetail(); }
+
+/* ── Eigene Felder (Souveränität): beliebige Zusatz-Infos am Eintrag ──
+   Gespeichert als Regel-Eigenschaft 'zusatz' (Liste {n,w}) → volle
+   Reichweiten-Wahl, Journal, „Warum so?" und Geräte-Sync inklusive. */
+function renderSheetZusatz(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
+  const cur=(qeGet(e,cid,'zusatz')||[]);
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">🧩 Eigene Felder</div>
+    <p class="why-help">Eigene Zusatz-Infos (z. B. „Schrank: B3" oder „nur bei ICD"), die als Badge am Eintrag erscheinen. Du wählst gleich, wo sie gelten.</p>`;
+  cur.forEach((f,i)=>{ h+=`<div class="why-row"><span class="why-src">${esc(f.n)}</span><span class="why-val">${esc(f.w||'')}</span><button class="why-undo" data-i="${i}" onclick="sheetZusatzDel(+this.dataset.i)">✕</button></div>`; });
+  h+=`<input type="text" id="zfName" class="txtinp" style="width:100%;margin-top:10px" placeholder="Feldname, z. B. Schrank">
+    <input type="text" id="zfWert" class="txtinp" style="width:100%;margin-top:8px" placeholder="Wert, z. B. B3 (optional)">
+    <div class="sheet-pick" style="margin-top:12px"><button class="sheet-pick-btn" onclick="sheetZusatzAdd()">＋ Feld hinzufügen</button></div>
+    <button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  $('sheet').innerHTML=h; const inp=$('zfName'); if(inp) setTimeout(()=>inp.focus(),50); }
+function sheetZusatzAdd(){ const n=($('zfName')&&$('zfName').value||'').trim(); const w=($('zfWert')&&$('zfWert').value||'').trim();
+  if(!n) return; const arr=(qeGet(sheetEntry,sheetCid,'zusatz')||[]).slice(); arr.push({n,w});
+  sheetPending={kind:'zusatz',value:arr}; askScope(); }
+function sheetZusatzDel(i){ const arr=(qeGet(sheetEntry,sheetCid,'zusatz')||[]).slice(); arr.splice(i,1);
+  sheetPending={kind:'zusatz',value:arr}; askScope(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
   h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;

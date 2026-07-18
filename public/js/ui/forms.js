@@ -94,7 +94,8 @@ function deleteAddEntry(sid,ri,aid){ const key=sid+'|'+ri; const arr=ADDITIONS.e
 function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id):null; const title=s?'Standard bearbeiten':'Neuer Standard';
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Titel</div><input class="loc-input" id="sTitel" placeholder="z. B. Koronarangiografie" value="${esc(s?s.titel:'')}"></div>
-    <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" placeholder="z. B. HKL" value="${esc(s?s.gruppe:'Eigene')}"></div>
+    <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" list="grpList" placeholder="z. B. HKL — vorhandene wählen oder neue tippen" value="${esc(s?s.gruppe:'Eigene')}">
+    <datalist id="grpList">${distinctGroups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>
     <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik über „＋ Eintrag hinzufügen" hinzu.</p>
     <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStandardForm(${s?`'${esc(s.id)}'`:'null'})">Speichern</button></div>
   </div>`;

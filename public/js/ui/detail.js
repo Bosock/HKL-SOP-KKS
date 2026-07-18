@@ -23,6 +23,7 @@ function entryCardHTML(e,cid,isMatGer){
   if(ADMIN&&e.__new) meta+=`<span class="tag" style="color:var(--accent);background:rgba(61,155,224,.13)">neu</span>`;
   if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
+  const zus=qeGet(e,cid,'zusatz'); if(Array.isArray(zus)) zus.forEach(f=>{ if(f&&f.n) meta+=`<span class="tag tag-zusatz">${esc(f.n)}${f.w?': '+esc(f.w):''}</span>`; });
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';

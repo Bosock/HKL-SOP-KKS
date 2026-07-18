@@ -186,18 +186,41 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(list.length===0) pPruef+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
   list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=naturKorrigiert(x.cid); const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
     const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
-    const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).join('');
+    const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).concat(['<option value="__neu__">＋ Neue Unterkategorie…</option>']).join('');
+    const newUkRow=(admNewUkFor===x.cid)?`<div class="p-actions" style="margin-top:6px"><input type="text" class="txtinp" id="admUkNewInp" placeholder="Name der neuen Unterkategorie" style="flex:1;min-width:120px"><button class="add-btn" data-c="${esc(x.cid)}" onclick="admUkNewSave(this.dataset.c)">Anlegen</button></div>`:'';
     pPruef+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
       ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
       <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
-      <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" onchange="reassignEntry('${esc(x.cid)}',this.value)">${opts}</select>
+      <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" data-c="${esc(x.cid)}" onchange="admUkChange(this.dataset.c,this)">${opts}</select>${newUkRow}
       <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button><button onclick="hideCid('${esc(x.cid)}')">🗑 Ausblenden</button></div></div>`; });
   if(list.length>300) pPruef+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
   pPruef+=`</div></details>`;
 
+  /* ── Panel: Inhalte & Aufbau (Souveränität: der ganze Baum zentral) ── */
+  let pInhalt=`<details class="vpanel" data-keys="inhalte aufbau struktur baum standards rubriken einträge eintraege anlegen verschieben hinzufügen hinzufuegen"${admContSid?' open':''}>${vsum('🧱','Inhalte & Aufbau','Alle Standards und Rubriken zentral durchgehen — überall anlegen, öffnen, ergänzen',DB.standards.filter(s=>!stdHidden(s)).length+' Standards')}<div class="vpanel-body">`;
+  if(!admContSid){
+    pInhalt+=`<p class="panel-help">Standard antippen → seine Rubriken (dort: Einträge hinzufügen oder direkt hineinspringen). Ausblenden/Bearbeiten einzelner Einträge: in der Ansicht per langem Tippen bzw. ⋯.</p>`;
+    DB.standards.forEach(s=>{ const hid=stdHidden(s);
+      pInhalt+=`<div class="ukrow"${hid?' style="opacity:.55"':''}><div class="ukrow-head"><span class="uk-name">${hid?'🚫 ':''}${esc(stdTitel(s))}</span><span class="uk-count">${esc(stdGruppe(s))}</span></div>
+        <div class="uk-actions"><button data-k="${esc(s.id)}" onclick="admContSid=this.dataset.k;renderAdmin()">Rubriken ▸</button><button data-k="${esc(s.id)}" onclick="openStandardById(this.dataset.k)">Öffnen</button></div></div>`; });
+    pInhalt+=`<div class="nat-foot"><button class="add-btn" onclick="openStandardForm(null)">＋ Neuer Standard</button></div>`;
+  } else {
+    const cs=DB.standards.find(x=>x.id===admContSid);
+    if(!cs){ admContSid=null; pInhalt+=`<p class="hint">Standard nicht gefunden.</p>`; }
+    else {
+      pInhalt+=`<div class="p-actions"><button class="btn btn-sec" onclick="admContSid=null;renderAdmin()">← Alle Standards</button></div>
+        <p class="panel-help"><b>${esc(stdTitel(cs))}</b> — „＋ Eintrag" legt direkt in der Rubrik an; „Öffnen" springt hinein (dort Bearbeiten/Verschieben/Löschen je Eintrag).</p>`;
+      (cs.rubriken||[]).forEach((r,ri)=>{
+        const cnt=(r.sub_bereiche||[]).reduce((n,sb)=>n+((sb.eintraege||[]).filter(x=>x.natur!=='ueberschrift').length),0);
+        pInhalt+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(r.name)}</span><span class="uk-count">${cnt} Einträge</span></div>
+          <div class="uk-actions"><button data-i="${ri}" onclick="admContAddEntry(+this.dataset.i)">＋ Eintrag</button><button data-i="${ri}" onclick="admContOpenRub(+this.dataset.i)">Öffnen</button></div></div>`; });
+    }
+  }
+  pInhalt+=`</div></details>`;
+
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pStd+pRubTpl+pKat+pUk+pPruef+rulesPanelHTML()+pHidden;
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+pKat+pUk+pPruef+rulesPanelHTML()+pHidden;
   html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
@@ -218,6 +241,13 @@ function adminSearch(q){ q=(q||'').trim().toLowerCase(); const toks=q.split(/\s+
 function setSetting(k,v){ settings[k]=v; saveJSON('hkl_settings',settings); }
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }
+/* UK-Auswahl in „Einstufung prüfen": „＋ Neue Unterkategorie…" öffnet eine
+   Eingabezeile direkt unter dem Select (statt prompt(), s. addNat). */
+function admUkChange(cid,sel){ if(sel.value==='__neu__'){ admNewUkFor=cid; renderAdmin(); const i=$('admUkNewInp'); if(i){ i.focus(); i.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); admUkNewSave(cid); } }; } return; } reassignEntry(cid,sel.value); }
+function admUkNewSave(cid){ const inp=$('admUkNewInp'); const v=(inp&&inp.value||'').trim(); if(!v){ if(inp) inp.focus(); return; } admNewUkFor=null; reassignEntry(cid,v); toast('Unterkategorie „'+v+'" angelegt'); }
+/* Inhalte-&-Aufbau-Panel: in die Rubrik springen bzw. direkt anlegen. */
+function admContOpenRub(ri){ if(!admContSid) return; const sid=admContSid; openStandardById(sid); openRubrik(ri); }
+function admContAddEntry(ri){ if(!admContSid) return; openEntryForm({kind:'add', sid:admContSid, ri}); }
 /* „Einstufung prüfen" schreibt jetzt denselben Regel-Weg (📍 Stelle) wie das
    Schnellmenü — statt in die Alt-Speicher overrides/reassign. So gibt es EINEN
    Schreibweg (journaliert, rücknehmbar). Nicht-Material-Einträge (kein

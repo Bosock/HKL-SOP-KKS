@@ -22,7 +22,8 @@ function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; c
   $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
     <input type="file" id="fileInp" accept="image/*" style="display:none" data-k="${esc(key)}" onchange="onPhoto(event,this.dataset.k)">
-    <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
+    <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" list="locList" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
+    <datalist id="locList">${[...new Set(Object.values(careMem).map(x=>x&&x.loc).filter(Boolean))].sort().map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
     <div class="flabel" style="margin-top:14px">HERSTELLER (optional)</div><input class="loc-input" id="prodHersteller" placeholder="z. B. Terumo" value="${esc(pd.hersteller||'')}">
     <div class="flabel">REF / BESTELLNR. (optional)</div><input class="loc-input" id="prodRef" placeholder="z. B. RM*RG5J40" value="${esc(pd.ref||'')}">
     <div class="flabel">VERWENDUNG (optional)</div><input class="loc-input" id="prodVerw" placeholder="z. B. femoraler Zugang" value="${esc(pd.verwendung||'')}">
