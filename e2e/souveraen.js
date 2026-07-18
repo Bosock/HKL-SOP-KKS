@@ -151,6 +151,24 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('E: „＋ Eintrag in Reiter" belegt die Unterkategorie vor', e.prefilled);
   r.check('E: Eintrag landet im Abschnitt', e.filled);
 
+  // E2) Manuell angelegte Kategorie ist in ALLEN Standards verfügbar
+  const eg = await A.page.evaluate(() => {
+    const sA = DB.standards.find(st => (st.rubriken || []).some(r => r.typ === 'material' || r.typ === 'geraete'));
+    const riA = sA.rubriken.findIndex(r => r.typ === 'material' || r.typ === 'geraete');
+    const sB = DB.standards.find(st => st.id !== sA.id && (st.rubriken || []).some(r => r.typ === 'material' || r.typ === 'geraete'));
+    const riB = sB.rubriken.findIndex(r => r.typ === 'material' || r.typ === 'geraete');
+    openStandard(sA.id); openRubrik(riA); addUkSectionName(riA, 'GLOBAL-Kat'); computeUkList();
+    const inList = UK_LIST.indexOf('GLOBAL-Kat') >= 0;
+    openStandard(sB.id); openRubrik(riB);
+    let cid = null;
+    (sB.rubriken[riB].sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => { if (!cid && e.natur !== 'ueberschrift') cid = cidOf(sB.id, riB, si, ei); }));
+    let picker = false;
+    if (cid) { openSheet(cid); renderSheetUk(); picker = document.getElementById('sheet').innerHTML.indexOf('GLOBAL-Kat') >= 0; showSheet(false); }
+    return { diffStd: sA.id !== sB.id, inList, picker };
+  });
+  r.check('E: manuell angelegte Kategorie steht global in der UK-Liste', eg.inList);
+  r.check('E: … und im „Unterkategorie wählen" eines ANDEREN Standards', !eg.diffStd || eg.picker);
+
   r.check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

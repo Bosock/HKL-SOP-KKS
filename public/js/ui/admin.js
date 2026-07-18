@@ -2,6 +2,12 @@
 function allMatGerEntries(){ const out=[]; DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((r,ri)=>{ if(r.typ!=='material'&&r.typ!=='geraete') return; (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{ if(e.natur==='ueberschrift') return; out.push({e,cid:cidOf(std.id,ri,si,ei),std,rubrik:r.name}); }); }); }); }); return out; }
 function computeUkList(){ const cnt=new Map(); const first=new Map(); let i=0;
   allMatGerEntries().forEach(x=>{ const uk=canonUk(x.e,x.cid); if(!uk) return; cnt.set(uk,(cnt.get(uk)||0)+1); if(!first.has(uk)) first.set(uk,i++); });
+  /* Selbst angelegte Abschnitte („Reiter") sind GLOBAL verfügbar: sobald eine
+     Kategorie irgendwo manuell angelegt wurde, erscheint sie im UK-Picker und
+     in der Datalist JEDES Standards — auch wenn sie dort (noch) keinen Eintrag
+     trägt. Das war das Betreiber-Anliegen: eine manuell angelegte Kategorie
+     soll für alle Standards zur Auswahl stehen. */
+  if(typeof UKSEC==='object'&&UKSEC) Object.keys(UKSEC).forEach(k=>{ (UKSEC[k]||[]).forEach(nm=>{ nm=(ukMap[nm]||nm); if(nm&&!cnt.has(nm)){ cnt.set(nm,0); first.set(nm,i++); } }); });
   let names=[...cnt.keys()]; names.sort((a,b)=>{ const oa=ukMetaOf(a).order!=null?ukMetaOf(a).order:first.get(a); const ob=ukMetaOf(b).order!=null?ukMetaOf(b).order:first.get(b); return oa-ob; });
   UK_LIST=names; return {names,cnt}; }
 function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ if(qeGet(x.e,x.cid,'hidden')===true) return; const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||naturKorrigiert(x.cid)) out.push(x); }); return out; }
