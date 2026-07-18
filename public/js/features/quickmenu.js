@@ -120,7 +120,19 @@ function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="shee
   h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetNatur(key){ sheetPending={kind:'natur',value:key}; askScope(); }
-function sheetNewNatur(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length]; NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); sheetPending={kind:'natur',value:key}; askScope(); }
+/* Eingabe-Sheet statt prompt() — gleicher Grund wie sheetNewUk (M1). */
+function sheetNewNatur(){
+  const h=`<div class="sheet-grip"></div><div class="sheet-title">Neue Kategorie</div>
+    <input type="text" id="skNewNat" class="txtinp" style="width:100%" placeholder="Name, z. B. Verbrauchsmaterial">
+    <div class="sheet-pick" style="margin-top:12px"><button class="sheet-pick-btn" onclick="sheetNewNaturSave()">Anlegen</button></div>
+    <button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
+  $('sheet').innerHTML=h;
+  const inp=$('skNewNat'); if(inp){ setTimeout(()=>inp.focus(),50); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); sheetNewNaturSave(); } }; }
+}
+function sheetNewNaturSave(){ const inp=$('skNewNat'); const label=(inp&&inp.value||'').trim(); if(!label) return;
+  const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
+  NATCFG.items[key]={key,label,color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig();
+  sheetPending={kind:'natur',value:key}; askScope(); }
 function renderSheetUk(){ computeUkList(); let h=`<div class="sheet-grip"></div><div class="sheet-title">Unterkategorie wählen</div><div class="sheet-pick">`;
   /* Per INDEX in UK_LIST (−1 = ohne): UK-Namen sind Freitext und gehören
      nicht in onclick-String-Literale (esc() escaped kein Apostroph). */
@@ -129,7 +141,19 @@ function renderSheetUk(){ computeUkList(); let h=`<div class="sheet-grip"></div>
   h+=`<button class="sheet-pick-btn" onclick="sheetNewUk()">＋ Neue Unterkategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetUk(i){ const val=(i<0)?'':(UK_LIST[i]!=null?UK_LIST[i]:''); sheetPending={kind:'uk',value:val}; askScope(); }
-function sheetNewUk(){ const nm=prompt('Name der neuen Unterkategorie:',''); if(nm==null||!nm.trim()) return; sheetPending={kind:'uk',value:nm.trim()}; askScope(); }
+/* Eingabe-Sheet statt prompt(): in installierten PWA-Fenstern (manifest
+   display:"standalone") liefert window.prompt() auf manchen Android-Chrome-
+   Versionen KEINEN Dialog, sondern sofort null — „Neue Unterkategorie"
+   schlug dadurch lautlos fehl. Eigenes Eingabefeld statt nativem Dialog (M1). */
+function sheetNewUk(){
+  const h=`<div class="sheet-grip"></div><div class="sheet-title">Neue Unterkategorie</div>
+    <input type="text" id="skNewUk" class="txtinp" style="width:100%" placeholder="Name, z. B. Katheter">
+    <div class="sheet-pick" style="margin-top:12px"><button class="sheet-pick-btn" onclick="sheetNewUkSave()">Anlegen</button></div>
+    <button class="sheet-close" onclick="renderSheetUk()">Abbrechen</button>`;
+  $('sheet').innerHTML=h;
+  const inp=$('skNewUk'); if(inp){ setTimeout(()=>inp.focus(),50); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); sheetNewUkSave(); } }; }
+}
+function sheetNewUkSave(){ const inp=$('skNewUk'); const nm=(inp&&inp.value||'').trim(); if(!nm) return; sheetPending={kind:'uk',value:nm}; askScope(); }
 function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Farbe wählen</div><div class="sheet-colorrow">`;
   UK_PALETTE.forEach(c=>{ h+=`<span class="sheet-sw" style="background:${c}" onclick="sheetSetColor('${c}')"></span>`; });
   h+=`<input type="color" class="sheet-colorinp" value="#e8b34a" onchange="sheetSetColor(this.value)"></div>`;

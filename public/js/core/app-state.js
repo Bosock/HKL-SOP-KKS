@@ -5,6 +5,7 @@ let formCtx=null; /* aktuell offenes Hinzufügen-/Bearbeiten-Formular (Rückspru
 let ADDITIONS=loadAdditions();
 let CATALOG=loadCatalog();
 let admNat='alle', admState='offen';
+let admNewNatOpen=false; /* Eingabezeile „＋ Neue Kategorie" im Verwaltungs-Panel auf/zu */
 let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
 let overrides=loadJSON('hkl_overrides',{});

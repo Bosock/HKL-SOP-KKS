@@ -52,7 +52,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, location: { protocol: 'https:', hostname: 'example.com' } };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -94,6 +94,7 @@ function loadHelpers() {
     extractFn('gtinBadges'),
     extractFn('extractLabelFields'),
     extractFn('mengeHiAuto'),
+    extractFn('camErrorMessage'),
     extractFn('rulesActive'),
     extractFn('rulesUnion'),
     extractFn('ruleRank'),
@@ -105,7 +106,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, mengeHiAuto, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1029,6 +1030,21 @@ test('mengeHiAuto: Groß-/Kleinschreibung und Leerraum tolerant', () => {
   assert.equal(fns.mengeHiAuto('1X'), false);
   assert.equal(fns.mengeHiAuto(' 1x '), false);
   assert.equal(fns.mengeHiAuto('2X'), true);
+});
+
+// --- camErrorMessage: unterscheidbare Kamera-Fehlermeldungen ----------------
+test('camErrorMessage: NotAllowedError -> Hinweis auf Website-Einstellungen', () => {
+  assert.match(fns.camErrorMessage({ name: 'NotAllowedError' }), /Website-Einstellungen/);
+});
+test('camErrorMessage: NotFoundError/OverconstrainedError -> keine Kamera gefunden', () => {
+  assert.match(fns.camErrorMessage({ name: 'NotFoundError' }), /Keine passende Kamera/);
+  assert.match(fns.camErrorMessage({ name: 'OverconstrainedError' }), /Keine passende Kamera/);
+});
+test('camErrorMessage: NotReadableError -> Kamera anderweitig belegt', () => {
+  assert.match(fns.camErrorMessage({ name: 'NotReadableError' }), /anderen App/);
+});
+test('camErrorMessage: unbekannter Fehler nennt den Namen (kein stiller Catch-All)', () => {
+  assert.match(fns.camErrorMessage({ name: 'WeirdError' }), /WeirdError/);
 });
 
 // --- Verwaltungspolitik: Regel-Journal (Kaskade + Vereinigung) --------------

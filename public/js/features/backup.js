@@ -143,7 +143,10 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
       <label class="tgl natbesch"><span>zählt als Material (Pflege · Preise · Katalog)</span><input type="checkbox" ${n.beschaffbar?'checked':''} onchange="setNatBeschaffbar('${esc(n.key)}',this.checked)"></label>
     </div>`;
   });
-  pKat+=`<div class="nat-foot"><button class="add-btn" onclick="addNat()">＋ Neue Kategorie</button><button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
+  pKat+=`<div class="nat-foot">${admNewNatOpen
+      ? `<input type="text" id="admNewNatInp" class="txtinp" placeholder="Name der neuen Kategorie" style="flex:1;min-width:140px">
+         <button class="add-btn" onclick="addNat()">Anlegen</button><button class="reset-btn" onclick="admNewNatOpen=false;renderAdmin()">Abbrechen</button>`
+      : `<button class="add-btn" onclick="admNewNatOpen=true;renderAdmin()">＋ Neue Kategorie</button>`}<button class="reset-btn" onclick="resetNatCfg()">Zurücksetzen</button></div>
     <p class="hint">Farbe: auf das Farbfeld tippen (Farbwähler öffnet sich). Name: Feld antippen und tippen. Symbol: Knopf antippen und ein Emoji eingeben. Deine Änderungen wirken sofort überall in der App und werden zentral auf dem Server gespeichert (auf allen Geräten geteilt).</p></div></details>`;
 
   /* ── Panel: Unterkategorien verwalten ── */
@@ -198,6 +201,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
+  if(admNewNatOpen){ const inp=$('admNewNatInp'); if(inp){ inp.focus(); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addNat(); } }; } }
 }
 /* Filtert die Verwaltungs-Panels live nach Titel/Stichwörtern (§4B). Alle
    Suchbegriffe müssen vorkommen; Abschnitts-Überschriften ohne sichtbares
@@ -235,8 +239,17 @@ function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>(
 function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); renderAdmin(); }
 function setNatColor(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].color=val; saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); }
 function editNatIcon(key){ if(!NATCFG.items[key]) return; const cur=NATCFG.items[key].icon||''; const v=prompt('Symbol (Emoji) für diese Kategorie:',cur); if(v==null) return; NATCFG.items[key].icon=(v.trim()||cur); saveNatCfg(); renderAdmin(); }
-function addNat(){ const label=prompt('Name der neuen Kategorie:',''); if(label==null||!label.trim()) return; const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
-  NATCFG.items[key]={key,label:label.trim(),color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig(); renderAdmin(); toast('Kategorie angelegt'); }
+/* Eingabezeile statt prompt() (M1): window.prompt() liefert in installierten
+   PWA-Fenstern (manifest display:"standalone") auf manchen Android-Chrome-
+   Versionen keinen Dialog, sondern sofort null — das Anlegen schlug dadurch
+   lautlos fehl. Der "＋ Neue Kategorie"-Button öffnet die Zeile direkt
+   (admNewNatOpen=true); addNat() liest hier nur noch das Feld aus. */
+function addNat(){
+  const inp=$('admNewNatInp'); const label=(inp&&inp.value||'').trim();
+  if(!label){ if(inp) inp.focus(); return; }
+  const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
+  NATCFG.items[key]={key,label,color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig();
+  admNewNatOpen=false; renderAdmin(); toast('Kategorie angelegt'); }
 function deleteNat(key){ if(!NATCFG.items[key]||NATCFG.items[key].builtin) return; if(!confirm('Kategorie „'+NATCFG.items[key].label+'" löschen? Einträge, die du ihr manuell zugewiesen hast, fallen auf ihre ursprüngliche Kategorie zurück.')) return;
   delete NATCFG.items[key]; NATCFG.order=NATCFG.order.filter(k=>k!==key);
   Object.keys(overrides).forEach(cid=>{ if(overrides[cid]===key) delete overrides[cid]; }); saveJSON('hkl_overrides',overrides);

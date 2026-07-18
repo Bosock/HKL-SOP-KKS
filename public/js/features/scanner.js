@@ -169,6 +169,19 @@ function scannerSupported(){
   return typeof window!=='undefined' && 'BarcodeDetector' in window
     && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia==='function';
 }
+/* Ordnet den DOMException-Namen von getUserMedia() einer konkreten,
+   handlungsleitenden Meldung zu — der vorherige Catch-All („nicht freigegeben
+   oder nicht verfügbar") verschluckte die eigentliche Ursache und ließ weder
+   Nutzer noch Support erkennen, ob Berechtigung, Hardware oder Belegung das
+   Problem war. */
+function camErrorMessage(e){
+  const n=e&&e.name;
+  if(n==='NotAllowedError'||n==='SecurityError') return 'Kamerazugriff blockiert. In den Website-Einstellungen des Browsers (🔒-Symbol neben der Adresse bzw. „Website-Einstellungen“) Kamera erlauben und erneut versuchen.';
+  if(n==='NotFoundError'||n==='OverconstrainedError') return 'Keine passende Kamera gefunden. Gerät ohne Rückkamera? Unten manuell suchen/anlegen.';
+  if(n==='NotReadableError'||n==='TrackStartError') return 'Kamera wird gerade von einer anderen App oder einem anderen Tab benutzt. Diese schließen und erneut versuchen.';
+  if(!location.protocol.startsWith('https')&&location.hostname!=='localhost') return 'Kamera braucht eine sichere Verbindung (https). Bitte über https aufrufen.';
+  return 'Kamera nicht freigegeben oder nicht verfügbar (' + (n||'unbekannter Fehler') + ').';
+}
 async function startCam(){
   if(!scannerSupported()){ toast('Live-Scanner auf diesem Gerät nicht verfügbar. Bitte Produkt unten suchen oder (als Admin) manuell anlegen.',true); return; }
   let formats=SCAN_FORMATS.slice();
@@ -176,7 +189,15 @@ async function startCam(){
   try{ scanDetector=new window.BarcodeDetector({formats}); }
   catch(e){ try{ scanDetector=new window.BarcodeDetector(); }catch(e2){ toast('Scanner-Start fehlgeschlagen.',true); return; } }
   try{ scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}); }
-  catch(e){ toast('Kamera nicht freigegeben oder nicht verfügbar.',true); return; }
+  catch(e){
+    /* Manche Geräte werfen OverconstrainedError schon bei "ideal" (z. B. nur
+       eine Kamera vorhanden) — mit gelockerten Constraints erneut versuchen,
+       bevor endgültig aufgegeben wird. */
+    if(e&&e.name==='OverconstrainedError'){
+      try{ scanStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); }
+      catch(e2){ toast(camErrorMessage(e2),true); return; }
+    } else { toast(camErrorMessage(e),true); return; }
+  }
   const v=$('scanVideo'); if(!v){ stopCam(); return; }
   v.srcObject=scanStream; v.setAttribute('playsinline','true'); v.muted=true;
   try{ await v.play(); }catch(e){}
