@@ -6,13 +6,16 @@
    den letzten Stand lokal (localStorage), siehe js/core/sync.js.
 
    Update-Modell: CACHE_VERSION erhöhen (oder Shell-Liste ändern) → beim
-   nächsten Laden installiert der Browser die neue Version, activate löscht
-   die alten Caches atomar. Kein erzwungener Reload → keine verlorenen
-   Eingaben; die frische Shell greift beim nächsten App-Start.
+   nächsten Laden installiert der Browser die neue Version, skipWaiting +
+   clients.claim übernehmen sofort, activate löscht die alten Caches atomar.
+   Der Client lädt danach GENAU EINMAL neu (controllerchange-Handler in
+   js/core/pwa.js), damit der neue Code sofort greift – sonst liefe in
+   installierten PWAs weiter der alte, gecachte Stand. Alle Eingaben liegen
+   im localStorage, ein Reload verliert daher nichts.
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v18';
+const CACHE_VERSION = 'v19';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 

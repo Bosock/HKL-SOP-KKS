@@ -44,6 +44,7 @@ function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-titl
     h+=sAct('🔑','Passwort ändern','',"changePw()");
     h+=sAct('🚪','Abmelden','Verwaltungsmodus beenden',"adminLogout()"); }
   else { h+=sAct('🔒','Anmelden','Verwaltung freischalten',"promptLogin()"); }
+  h+=sAct('↺','Alle Häkchen zurücksetzen','Abhaken dieses Geräts leeren',"resetAllChecks()");
   h+=sAct('◐','Ansicht hell/dunkel','',"toggleTheme();showSheet(false)");
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h; showSheet(true); }
@@ -215,6 +216,17 @@ let UK_LIST=[];
 
 function loadChecks(){ try{ const raw=store.get('hkl_checks'); if(!raw) return {}; const o=JSON.parse(raw); if(o.date!==today()){ store.set('hkl_checks',JSON.stringify({date:today(),checks:{}})); return {}; } return o.checks||{}; }catch(e){ return {}; } }
 function saveChecks(){ store.set('hkl_checks',JSON.stringify({date:today(),checks:checks})); }
+/* Alle Häkchen auf DIESEM Gerät leeren. Häkchen sind gerätelokal (hkl_checks)
+   und setzen sich ohnehin täglich zurück; diese Aktion räumt sie sofort weg —
+   z. B. Test-/Demo-Häkchen auf dem Verwaltungsgerät. */
+function resetAllChecks(){ const n=Object.keys(checks).length;
+  if(!n){ toast('Keine Häkchen gesetzt'); showSheet(false); return; }
+  if(!confirm('Alle '+n+' Häkchen auf diesem Gerät zurücksetzen?')) return;
+  checks={}; saveChecks(); showSheet(false);
+  const top=nav[nav.length-1];
+  if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); }
+  else if($('scr-rubriken').classList.contains('active')&&curStd){ openStandard(curStd.id,true); }
+  toast(n+' Häkchen zurückgesetzt'); }
 
 const cidOf=(sid,ri,si,ei)=>sid+'|'+ri+'|'+si+'|'+ei;
 const effNatur=(e,cid)=>{ if(typeof ruleResolve!=='function') return overrides[cid]||(e.material_key&&QE.mat[e.material_key]&&QE.mat[e.material_key].natur)||e.natur_manuell||e.natur;
