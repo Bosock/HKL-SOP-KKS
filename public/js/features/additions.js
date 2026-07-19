@@ -24,14 +24,19 @@ function parseSyn(str){ if(Array.isArray(str)) return str.map(s=>String(s).trim(
    (kein DOM/Store) – daher testbar. `f.aid` muss übergeben werden. */
 function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||'').trim();
   const mz=menge?parseInt(menge,10):null;
+  /* Merkmale-Editor liefert die Größen als LISTE; die Ein-Feld-Form
+     (sizeTyp/sizeVal, z. B. Katalog-Übernahme) bleibt als Fallback. */
   const val=(f.sizeVal||'').trim();
-  const groessen=val?[{typ:(f.sizeTyp||'dimension'),wert:val,roh:val}]:[];
+  const groessen=(Array.isArray(f.groessen)&&f.groessen.length)
+    ?f.groessen.map(g=>({typ:(g.typ||'dimension'),wert:g.wert,roh:g.roh||g.wert}))
+    :(val?[{typ:(f.sizeTyp||'dimension'),wert:val,roh:val}]:[]);
+  const zusatz=(Array.isArray(f.zusatz)&&f.zusatz.length)?f.zusatz.map(x=>({n:x.n,w:x.w||''})):null;
   const uk=(f.uk||'').trim()||null; const spez=(f.spez||'').trim()||null;
   const syn=parseSyn(f.synonyms);
   return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
     natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
     spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
-    color:(f.color||'').trim()||null, why:(f.why||'').trim()||null, synonyms:syn.length?syn:null,
+    color:(f.color||'').trim()||null, why:(f.why||'').trim()||null, synonyms:syn.length?syn:null, zusatz,
     ist_fliesstext:false, _added:true, _aid:f.aid }; }
 /* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
 function mergeAdditions(base,add){

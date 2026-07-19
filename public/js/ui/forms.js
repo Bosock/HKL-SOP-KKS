@@ -8,7 +8,11 @@ function sizeTypOptionsHTML(sel){ return `<option value="">— keine Größe —
 /* Liest die effektiven (ggf. per Overlay bearbeiteten) Feldwerte eines
    Eintrags in ein Formular-Objekt. Bei Basis-Einträgen `cid` mitgeben. */
 function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
-  const gv=hasCid?qeGet(e,cid,'groessen'):undefined; const groessen=(gv!==undefined?gv:e.groessen)||[]; const g=groessen[0]||null;
+  /* Größen VOLLSTÄNDIG als Liste (nicht nur groessen[0]): die Maske zeigte
+     früher nur die erste Größe und überschrieb beim Speichern den Rest —
+     Datenverlust bei Einträgen mit mehreren Größen (z. B. 6F + 260cm). */
+  const gv=hasCid?qeGet(e,cid,'groessen'):undefined; const groessen=((gv!==undefined?gv:e.groessen)||[]).slice(); const g=groessen[0]||null;
+  const zv=hasCid?qeGet(e,cid,'zusatz'):undefined; const zusatz=(((zv!==undefined&&zv!==null)?zv:e.zusatz)||[]).slice();
   const nv=hasCid?qeGet(e,cid,'name'):undefined; const name=(nv!==undefined?nv:e.anzeige_text)||'';
   const mvv=hasCid?qeGet(e,cid,'mengeVal'):undefined; const menge=(mvv!==undefined?mvv:e.menge)||'';
   const nat=hasCid?effNatur(e,cid):(e.natur||'material');
@@ -19,7 +23,35 @@ function entryToForm(e,cid){ const hasCid=(cid!==undefined&&cid!==null);
   const wv=hasCid?qeGet(e,cid,'why'):undefined; const why=(wv!==undefined&&wv!==null)?wv:(e.why||'');
   const yv=hasCid?qeGet(e,cid,'synonyms'):undefined; const synRaw=(yv!==undefined&&yv!==null)?yv:e.synonyms;
   const synonyms=Array.isArray(synRaw)?synRaw.join(', '):(synRaw||'');
-  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',uk,spez,color,why,synonyms}; }
+  return {name,menge,nat,sizeTyp:g?g.typ:'',sizeVal:g?g.wert:'',groessen,zusatz,uk,spez,color,why,synonyms}; }
+
+/* ── Merkmale-Editor (Konzept docs/KONZEPT-MERKMALE.md): zwei dynamische
+   Listen in der Eintrag-Maske — typisierte GRÖSSEN (beliebig viele) und
+   frei benannte EIGENE MERKMALE (Name+Wert, z. B. Struktur: geflochten,
+   Nadel: 5/8). Speicherung über die BESTEHENDEN Bausteine groessen/zusatz. */
+function merkSizeRowHTML(g){ const opts=SIZE_TYPES.map(t=>`<option value="${esc(t)}" ${g&&g.typ===t?'selected':''}>${esc(sizeLabel(t))}</option>`).join('');
+  return `<div class="form-row merk-row" style="margin-bottom:8px"><select class="form-sel merk-typ" style="flex:0 0 96px">${opts}</select><input class="loc-input merk-wert" placeholder="z. B. 6F, 45cm, 4-0" value="${esc(g?g.wert:'')}"><button type="button" class="merk-del" style="flex:0 0 44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)" onclick="this.closest('.merk-row').remove()" aria-label="Größe entfernen">✕</button></div>`; }
+function merkZusRowHTML(f){
+  return `<div class="form-row merk-row" style="margin-bottom:8px"><input class="loc-input merk-name" list="zusNameList" placeholder="Name, z. B. Nadel" value="${esc(f?f.n:'')}"><input class="loc-input merk-zwert" placeholder="Wert, z. B. 5/8" value="${esc((f&&f.w)||'')}"><button type="button" class="merk-del" style="flex:0 0 44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)" onclick="this.closest('.merk-row').remove()" aria-label="Merkmal entfernen">✕</button></div>`; }
+function merkAddSize(){ const box=$('fSizes'); if(box) box.insertAdjacentHTML('beforeend',merkSizeRowHTML(null)); }
+function merkAddZus(){ const box=$('fZus'); if(box) box.insertAdjacentHTML('beforeend',merkZusRowHTML(null)); }
+/* Alle bereits verwendeten Merkmal-Namen (Regeln, Stellen-Overlays, eigene
+   Einträge) — Datalist: wählen ODER frei tippen (Souveränitäts-Muster). */
+function usedZusatzNames(){ const s=new Set();
+  try{ if(typeof rulesActive==='function') rulesActive(RULES).forEach(r=>{ if(r.prop==='zusatz'&&Array.isArray(r.wert)) r.wert.forEach(f=>{ if(f&&f.n) s.add(f.n); }); }); }catch(_){ }
+  try{ Object.values(QE.cid).forEach(o=>{ if(o&&Array.isArray(o.zusatz)) o.zusatz.forEach(f=>{ if(f&&f.n) s.add(f.n); }); }); }catch(_){ }
+  try{ DB.standards.forEach(st=>(st.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{ if(Array.isArray(e.zusatz)) e.zusatz.forEach(f=>{ if(f&&f.n) s.add(f.n); }); })))); }catch(_){ }
+  return [...s].sort((a,b)=>a.localeCompare(b,'de')); }
+function merkmaleBlockHTML(cur){
+  const sizeRows=(cur.groessen&&cur.groessen.length?cur.groessen:[]).map(merkSizeRowHTML).join('');
+  const zusRows=(cur.zusatz&&cur.zusatz.length?cur.zusatz:[]).map(merkZusRowHTML).join('');
+  const dl=`<datalist id="zusNameList">${usedZusatzNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
+  return `<div class="form-grp"><div class="flabel">Größen (beliebig viele)</div><div id="fSizes">${sizeRows}</div>
+      <button type="button" class="add-btn" onclick="merkAddSize()">＋ Größe</button>
+      <p class="hint">Messbares mit Typ-Kürzel: Fr, Länge, Ø, Vol, Maß, Stärke … — erscheint als Größen-Badge.</p></div>
+    <div class="form-grp"><div class="flabel">Eigene Merkmale (Name + Wert)</div><div id="fZus">${zusRows}</div>
+      <button type="button" class="add-btn" onclick="merkAddZus()">＋ Merkmal</button>${dl}
+      <p class="hint">Alles Übrige frei benennbar — z. B. Struktur: geflochten · Nadel: 5/8 · Nadelform: Rundkörper. Erscheint als Badge am Eintrag.</p></div>`; }
 
 /* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
         | {kind:'catalog'} | {kind:'editCatalog',id}
@@ -38,11 +70,17 @@ function openEntryForm(desc){
   const knowledge=isCatalog?'':`
     <div class="form-grp"><div class="flabel">Warum? (optional)</div><textarea class="loc-input" id="fWhy" rows="3" placeholder="Hintergrund/Begründung – z. B. „Wischdesinfektion mit Kompressen, weil bei Implantaten vorgeschrieben."">${esc(cur.why||'')}</textarea><p class="hint">Erscheint als aufklappbares 💡-Detail am Eintrag – gut für Einarbeitung & Nachvollziehbarkeit.</p></div>
     <div class="form-grp"><div class="flabel">Synonyme (optional)</div><input class="loc-input" id="fSyn" placeholder="z. B. Schleuse, Introducer, Sheath" value="${esc(cur.synonyms||'')}"><p class="hint">Komma-getrennt. Werden bei der globalen Suche mitgefunden.</p></div>`;
+  /* Katalog: einfache Ein-Größen-Zeile (Schnell-Auswahlliste); Einträge:
+     voller Merkmale-Editor (mehrere Größen + eigene Merkmale, Konzept
+     docs/KONZEPT-MERKMALE.md). */
+  const sizeBlock=isCatalog
+    ?`<div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>`
+    :merkmaleBlockHTML(cur);
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
     <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
     <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog)}</div>
-    <div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>
+    ${sizeBlock}
     <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
     <div class="form-grp"><div class="flabel">Spezifikation / Hinweis (optional)</div><input class="loc-input" id="fSpez" placeholder="z. B. femoral · für CS-Katheter" value="${esc(cur.spez||'')}"><p class="hint">Erscheint als farbige Markierung am Eintrag – z. B. „femoral" oder „für CS-Katheter".</p></div>
     ${knowledge}
@@ -64,7 +102,16 @@ function openCatalogForm(id){ const back=()=>{ renderCatalog(); show('scr-catalo
 function pickEntryColor(el,val){ const w=$('fColorWrap'); if(!w) return; w.dataset.color=val||'';
   w.querySelectorAll('.cp-sw,.cp-none').forEach(b=>b.classList.remove('sel'));
   if(el&&el.classList&&(el.classList.contains('cp-sw')||el.classList.contains('cp-none'))) el.classList.add('sel'); }
-function readEntryForm(){ return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp:$('fSizeTyp').value, sizeVal:$('fSizeVal').value, uk:$('fUk').value, spez:$('fSpez').value, color:($('fColorWrap').dataset.color||''),
+function readEntryForm(){
+  /* Merkmale-Editor (Einträge) ODER Ein-Größen-Zeile (Katalog) auslesen. */
+  let groessen=[], zusatz=[], sizeTyp='', sizeVal='';
+  const sizesEl=$('fSizes');
+  if(sizesEl){
+    groessen=[...sizesEl.querySelectorAll('.merk-row')].map(r=>({typ:(r.querySelector('.merk-typ').value||'dimension'),wert:r.querySelector('.merk-wert').value.trim()})).filter(g=>g.wert).map(g=>({typ:g.typ,wert:g.wert,roh:g.wert}));
+    zusatz=[...$('fZus').querySelectorAll('.merk-row')].map(r=>({n:r.querySelector('.merk-name').value.trim(),w:r.querySelector('.merk-zwert').value.trim()})).filter(f=>f.n);
+    const g0=groessen[0]; if(g0){ sizeTyp=g0.typ; sizeVal=g0.wert; }
+  } else { sizeTyp=$('fSizeTyp').value; sizeVal=$('fSizeVal').value; }
+  return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp, sizeVal, groessen, zusatz, uk:$('fUk').value, spez:$('fSpez').value, color:($('fColorWrap').dataset.color||''),
   why:($('fWhy')?$('fWhy').value:''), synonyms:($('fSyn')?$('fSyn').value:'') }; }
 function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
   const d=formCtx&&formCtx.desc; if(!d) return;
@@ -87,7 +134,8 @@ function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bi
 function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
   qeSet('cid',e,cid,'name',f.name.trim());
   const menge=f.menge.trim(); qeSet('cid',e,cid,'mengeVal',menge||null);
-  const val=f.sizeVal.trim(); qeSet('cid',e,cid,'groessen', val?[{typ:f.sizeTyp||'dimension',wert:val,roh:val}]:[]);
+  qeSet('cid',e,cid,'groessen', (f.groessen||[]).slice());
+  qeSet('cid',e,cid,'zusatz', (f.zusatz&&f.zusatz.length)?f.zusatz.slice():null);
   const spez=(f.spez||'').trim(); qeSet('cid',e,cid,'spez', spez||null);
   const color=(f.color||'').trim(); qeSet('cid',e,cid,'color', color||null);
   const why=(f.why||'').trim(); qeSet('cid',e,cid,'why', why||null);
@@ -103,9 +151,11 @@ function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
 function entryFormChanges(cid,f){ const e=findEntry(cid); if(!e) return []; const cur=entryToForm(e,cid); const ch=[];
   const nName=(f.name||'').trim(); if(nName!==(cur.name||'')) ch.push({prop:'name',value:nName});
   const nMenge=(f.menge||'').trim()||null; if((nMenge||'')!==(cur.menge||'')) ch.push({prop:'mengeVal',value:nMenge});
-  const nSizeVal=(f.sizeVal||'').trim(); const nGro=nSizeVal?[{typ:f.sizeTyp||'dimension',wert:nSizeVal,roh:nSizeVal}]:[];
-  const curGroStr=cur.sizeVal?((cur.sizeTyp||'dimension')+'|'+cur.sizeVal):''; const nGroStr=nSizeVal?((f.sizeTyp||'dimension')+'|'+nSizeVal):'';
-  if(nGroStr!==curGroStr) ch.push({prop:'groessen',value:nGro});
+  /* Größen & eigene Merkmale als GANZE Listen vergleichen (Merkmale-Editor). */
+  const groKey=a=>(a||[]).map(g=>(g.typ||'dimension')+'|'+g.wert).join(',');
+  if(groKey(f.groessen)!==groKey(cur.groessen)) ch.push({prop:'groessen',value:(f.groessen||[]).slice()});
+  const zusKey=a=>(a||[]).map(x=>x.n+'|'+(x.w||'')).join(',');
+  if(zusKey(f.zusatz)!==zusKey(cur.zusatz)) ch.push({prop:'zusatz',value:(f.zusatz&&f.zusatz.length)?f.zusatz.slice():null});
   const nSpez=(f.spez||'').trim()||null; if((nSpez||'')!==(cur.spez||'')) ch.push({prop:'spez',value:nSpez});
   const nColor=(f.color||'').trim()||null; if((nColor||'')!==(cur.color||'')) ch.push({prop:'color',value:nColor});
   const nNat=f.nat||'material'; if(nNat!==cur.nat) ch.push({prop:'natur',value:nNat});
