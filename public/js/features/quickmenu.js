@@ -307,19 +307,35 @@ function sheetResetEntry(){ const cid=sheetCid, e=sheetEntry;
 function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));
 
+/* ── Geister-Klick-Schutz (Ursache der Bugs „springt beim Standard-Wählen
+   direkt in eine Rubrik" und „Häkchen erscheinen von selbst"): Android feuert
+   nach jedem Finger-Tipp zusätzlich Kompatibilitäts-MAUS-Ereignisse an
+   derselben Bildschirmposition. Rendert der Tap eine neue Ansicht, treffen
+   diese Maus-Ereignisse die NEUE Liste (Standard→Rubrik→Eintrag) und lösten
+   dort ein zweites Tippen aus. Der frühere Schutz (lastTouch) war pro
+   Container privat und griff deshalb container-übergreifend nicht.
+   Zwei Schichten: (1) EIN geteilter Zeitstempel für ALLE Halte-Detektoren —
+   nach jedem Touch werden Maus-Ereignisse überall 700 ms ignoriert;
+   (2) preventDefault auf dem konsumierten touchend unterdrückt die
+   Kompatibilitäts-Ereignisse (inkl. click auf onclick-Elemente) an der
+   Quelle. Nicht konsumierte Touches (Scroll, Buttons via ignoreSel) bleiben
+   unangetastet, deren native Klicks funktionieren weiter. */
+let touchGuardTs=0;
+function ghostMouse(){ return Date.now()-touchGuardTs<700; }
+
 /* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
-(function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false,lastTouch=0;
+(function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false;
   function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
   function down(x,y,t){ if(t&&t.closest&&(t.closest('.entry-edit-btn')||t.closest('.entry-why-btn')||t.closest('.entry-menu-btn'))) return; const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(ADMIN){ refreshAuth(); openSheet(curCid); } else { openProposeForm(curCid); } },500); }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
   function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
-  el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
+  el.addEventListener('touchstart',e=>{ touchGuardTs=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
   el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
-  el.addEventListener('touchend',()=>{ lastTouch=Date.now(); up(); });
+  el.addEventListener('touchend',e=>{ touchGuardTs=Date.now(); const consumed=active; up(); if(consumed&&e.cancelable){ try{ e.preventDefault(); }catch(_){} } });
   el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
-  el.addEventListener('mousedown',e=>{ if(Date.now()-lastTouch<700) return; down(e.clientX,e.clientY,e.target); });
-  el.addEventListener('mousemove',e=>{ if(Date.now()-lastTouch<700) return; move(e.clientX,e.clientY); });
-  el.addEventListener('mouseup',()=>{ if(Date.now()-lastTouch<700) return; up(); });
+  el.addEventListener('mousedown',e=>{ if(ghostMouse()) return; down(e.clientX,e.clientY,e.target); });
+  el.addEventListener('mousemove',e=>{ if(ghostMouse()) return; move(e.clientX,e.clientY); });
+  el.addEventListener('mouseup',()=>{ if(ghostMouse()) return; up(); });
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
   /* Sichtbarer ✎-Button: öffnet direkt das Bearbeiten-Formular (kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-edit-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); editEntry(cid); } else { promptLoginThen(()=>editEntry(cid)); } });
@@ -334,19 +350,19 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
    = öffnen, langes Halten (≈500 ms) = Bearbeiten-Menü. Damit ist das gegliederte
    Menü auf JEDER Ebene per Long-Press erreichbar — Standard-Übersicht, Rubriken-
    Liste und (separat) Einträge. Delegation am persistenten Container. */
-function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired=false,cur=null,active=false,lastTouch=0;
+function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired=false,cur=null,active=false;
   function row(t){ if(!t||!t.closest) return null; if(opts.ignoreSel && t.closest(opts.ignoreSel)) return null; return t.closest(opts.rowSel); }
   function down(x,y,t){ const rw=row(t); if(!rw) return; cur=rw; sx=x; sy=y; fired=false; active=true; clearTimeout(timer);
     timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(opts.onHold) opts.onHold(cur); },500); }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
   function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(cur&&opts.onTap) opts.onTap(cur); }
-  el.addEventListener('touchstart',e=>{ lastTouch=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
+  el.addEventListener('touchstart',e=>{ touchGuardTs=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
   el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
-  el.addEventListener('touchend',()=>{ lastTouch=Date.now(); up(); });
+  el.addEventListener('touchend',e=>{ touchGuardTs=Date.now(); const consumed=active; up(); if(consumed&&e.cancelable){ try{ e.preventDefault(); }catch(_){} } });
   el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
-  el.addEventListener('mousedown',e=>{ if(Date.now()-lastTouch<700) return; down(e.clientX,e.clientY,e.target); });
-  el.addEventListener('mousemove',e=>{ if(Date.now()-lastTouch<700) return; move(e.clientX,e.clientY); });
-  el.addEventListener('mouseup',()=>{ if(Date.now()-lastTouch<700) return; up(); });
+  el.addEventListener('mousedown',e=>{ if(ghostMouse()) return; down(e.clientX,e.clientY,e.target); });
+  el.addEventListener('mousemove',e=>{ if(ghostMouse()) return; move(e.clientX,e.clientY); });
+  el.addEventListener('mouseup',()=>{ if(ghostMouse()) return; up(); });
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
 }
 (function attachListHolds(){

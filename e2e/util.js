@@ -59,8 +59,8 @@ async function startServer(extraEnv = {}) {
 
 /* Seite laden und auf vollständigen Boot warten (DB + aktiver Sync-Hook).
    Sammelt Konsolen-/Seitenfehler; Dialoge werden automatisch bestätigt. */
-async function bootPage(browser, base, { viewport = { width: 390, height: 844 }, dialogText = 'E2E' } = {}) {
-  const ctx = await browser.newContext({ viewport });
+async function bootPage(browser, base, { viewport = { width: 390, height: 844 }, dialogText = 'E2E', hasTouch = false } = {}) {
+  const ctx = await browser.newContext({ viewport, hasTouch });
   const page = await ctx.newPage();
   const errs = [];
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
