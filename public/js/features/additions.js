@@ -35,8 +35,12 @@ function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||
   const syn=parseSyn(f.synonyms);
   return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
     natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
-    spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:name?name.toLowerCase():null,
+    /* Überschriften sind Gliederung, kein Material — kein material_key,
+       sonst griffen Material-Regeln auf Abschnittstitel. */
+    spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:(f.nat==='ueberschrift')?null:(name?name.toLowerCase():null),
     color:(f.color||'').trim()||null, why:(f.why||'').trim()||null, synonyms:syn.length?syn:null, zusatz,
+    /* Abschnitts-Zuordnung in Ablauf-Rubriken („＋ Eintrag in <Abschnitt>"). */
+    seg:(f.seg||null),
     ist_fliesstext:false, _added:true, _aid:f.aid }; }
 /* Legt die Ergänzungen über die Basis. Rein (base+add rein, neues DB raus). */
 function mergeAdditions(base,add){

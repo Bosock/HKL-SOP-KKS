@@ -1,8 +1,19 @@
 /* ============ Formulare: Hinzufügen / Bearbeiten ============ */
 const SIZE_TYPES=['french','laenge','durchmesser','volumen','dimension','naht','groesse_kuerzel','typcode','durchmesser+french'];
 function closeForm(){ if(!formCtx) return; const b=formCtx.back; formCtx=null; if(b) b(); }
-function natPickHTML(sel,onlyProc){ const items=onlyProc?natList().filter(n=>n.beschaffbar):natList(); return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+items.map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+`</div>`; }
+function natPickHTML(sel,onlyProc,allowNew){ const items=onlyProc?natList().filter(n=>n.beschaffbar):natList();
+  const newBtn=allowNew?`<button type="button" onclick="natFormNew()" style="color:var(--accent)">＋ Neu…</button>`:'';
+  return `<div class="natpick" id="fNatWrap" data-nat="${esc(sel)}">`+items.map(n=>`<button type="button" data-nat="${esc(n.key)}" style="color:${n.color}" class="${n.key===sel?'sel':''}" onclick="pickNat(this)">${esc(n.icon||'•')} ${esc(n.label)}</button>`).join('')+newBtn+`</div>`; }
 function pickNat(btn){ const p=btn.parentElement; p.querySelectorAll('button').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); p.dataset.nat=btn.dataset.nat; }
+/* „＋ Neue Kategorie" direkt im Formular (Souveränität: überall anlegen) —
+   Eingabezeile statt prompt() (in installierten PWAs lautlos kaputt, M1). */
+function natFormNew(){ const row=$('natNewRow'); if(!row) return; row.style.display=''; const inp=$('natNewInp'); if(inp){ inp.focus(); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); natFormNewSave(); } }; } }
+function natFormNewSave(){ const inp=$('natNewInp'); const label=(inp&&inp.value||'').trim(); if(!label) return;
+  const key=natSlug(label); const color=UK_PALETTE[NATCFG.order.length%UK_PALETTE.length];
+  NATCFG.items[key]={key,label,color,icon:'🏷️',builtin:false,beschaffbar:false}; NATCFG.order.push(key); saveNatCfg(); applyNatConfig();
+  const wrap=$('fNatWrap'); if(wrap) wrap.outerHTML=natPickHTML(key,false,true);
+  const row=$('natNewRow'); if(row){ row.style.display='none'; if(inp) inp.value=''; }
+  toast('Kategorie „'+label+'" angelegt'); }
 function sizeTypOptionsHTML(sel){ return `<option value="">— keine Größe —</option>`+SIZE_TYPES.map(t=>`<option value="${esc(t)}" ${t===sel?'selected':''}>${esc(sizeLabel(t))}</option>`).join(''); }
 
 /* Liest die effektiven (ggf. per Overlay bearbeiteten) Feldwerte eines
@@ -79,7 +90,7 @@ function openEntryForm(desc){
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
     <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
-    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog)}</div>
+    <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog,!isCatalog)}${isCatalog?'':`<div class="form-row" id="natNewRow" style="display:none;margin-top:8px"><input class="loc-input" id="natNewInp" placeholder="Name der neuen Kategorie"><button type="button" class="add-btn" onclick="natFormNewSave()">Anlegen</button></div>`}</div>
     ${sizeBlock}
     <div class="form-grp"><div class="flabel">Unterkategorie (optional)</div><input class="loc-input" id="fUk" list="fUkList" placeholder="z. B. Material auf Ansage" value="${esc(cur.uk)}"><datalist id="fUkList">${ukOpts}</datalist></div>
     <div class="form-grp"><div class="flabel">Spezifikation / Hinweis (optional)</div><input class="loc-input" id="fSpez" placeholder="z. B. femoral · für CS-Katheter" value="${esc(cur.spez||'')}"><p class="hint">Erscheint als farbige Markierung am Eintrag – z. B. „femoral" oder „für CS-Katheter".</p></div>
@@ -115,8 +126,8 @@ function readEntryForm(){
   why:($('fWhy')?$('fWhy').value:''), synonyms:($('fSyn')?$('fSyn').value:'') }; }
 function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
   const d=formCtx&&formCtx.desc; if(!d) return;
-  if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid()}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
-  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
+  if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid(),seg:(d.defaultSeg||null)}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
+  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid,seg:(e.seg||null)}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
   else if(d.kind==='editBase'){
     /* Reichweiten-Nachfrage (Betreiber-Wunsch: IMMER gefragt werden): bei
        Material-/Geräte-Einträgen (geteiltes material_key) fragen, ob die

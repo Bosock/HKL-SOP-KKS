@@ -186,13 +186,25 @@ function collectGroupCids(idx,uk){ const r=curStd.rubriken[idx]; const isMatGer=
     if(isMatGer){ if((canonUk(e,cid)||'')!==(uk||'')) return; } out.push({e,cid}); });
   return sortByOrder(out, orderKeyFor(idx,uk)); }
 function ablaufSegments(idx){ const r=curStd.rubriken[idx]; const blocks=[]; const segOf={}; let seg=-1; let cur=null;
-  const startSeg=(head)=>{ seg++; cur={head:head||null, segId:'seg'+seg, items:[]}; blocks.push(cur); };
+  /* Eigene Überschriften (added ueberschrift-Einträge) tragen headAid, damit
+     die Verwaltung sie umbenennen/löschen kann. Eigene Einträge mit
+     Abschnitts-Zuordnung (e.seg = Überschriften-Text) werden NICHT positionell
+     einsortiert, sondern dem passenden Abschnitt zugeschlagen — so ist
+     „＋ Eintrag in <Abschnitt>" auch in Ablauf-Rubriken möglich (bei Material/
+     Geräte übernimmt das die Unterkategorie). */
+  const startSeg=(head,headAid)=>{ seg++; cur={head:head||null, headAid:headAid||null, segId:'seg'+seg, items:[]}; blocks.push(cur); };
+  const defer={};
   (r.sub_bereiche||[]).forEach((sb,si)=>{ if(sb.name) startSeg(sb.name);
     (sb.eintraege||[]).forEach((e,ei)=>{ const cid=cidOf(curStd.id,idx,si,ei);
-      if(e.natur==='ueberschrift'){ startSeg(e.anzeige_text||e.roh_text); return; }
+      if(e.natur==='ueberschrift'){ startSeg(e.anzeige_text||e.roh_text, e._added?e._aid:null); return; }
       if(settings.fliesstext===false&&e.ist_fliesstext) return;
       if(qeGet(e,cid,'hidden')===true) return;
+      if(e._added&&e.seg){ (defer[e.seg]=defer[e.seg]||[]).push({e,cid}); return; }
       if(!cur) startSeg(null); cur.items.push({e,cid}); segOf[cid]=cur.segId; }); });
+  /* Zugeordnete Einträge in ihren Abschnitt legen; Abschnitt weg (umbenannt/
+     gelöscht) → ans Ende, damit nichts verschwindet. */
+  Object.keys(defer).forEach(head=>{ const b=blocks.find(x=>x.head===head)||cur||(startSeg(null),cur);
+    defer[head].forEach(x=>{ b.items.push(x); segOf[x.cid]=b.segId; }); });
   const news=newEntriesFor(r,idx);
   if(news.length){ const nb={head:null,segId:'segnew',items:[]};
     news.forEach(n=>{ const cid='new|'+n.id; const e=newToEntry(n); if(qeGet(e,cid,'hidden')===true) return; nb.items.push({e,cid}); segOf[cid]='segnew'; });

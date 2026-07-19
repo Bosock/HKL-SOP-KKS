@@ -102,15 +102,24 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     }
   } else {
     const {blocks}=ablaufSegments(idx);
-    blocks.forEach(b=>{ if(b.head) html+=`<div class="sub-head">${esc(b.head)}</div>`;
-      b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); }); });
+    blocks.forEach(b=>{ if(b.head){
+        /* Eigene Überschriften bekommen ein ⋯ (umbenennen/löschen). */
+        const tools=(ADMIN&&b.headAid)?`<button type="button" class="icon-btn" style="width:30px;height:30px;font-size:15px;margin-left:8px;vertical-align:middle" data-ri="${idx}" data-aid="${esc(b.headAid)}" onclick="openSegHeadSheet(+this.dataset.ri,this.dataset.aid)" aria-label="Abschnitt bearbeiten">⋯</button>`:'';
+        html+=`<div class="sub-head">${esc(b.head)}${tools}</div>`; }
+      b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); });
+      /* „＋ Eintrag in <Abschnitt>" für JEDEN benannten Abschnitt — auch die
+         aus der Quelldatei (Souveränität: überall hinzufügen können). */
+      if(ADMIN&&b.head) html+=`<button class="add-entry-btn uksec-add" data-ri="${idx}" data-seg="${esc(b.head)}" onclick="startAddEntrySeg(+this.dataset.ri,this.dataset.seg)">＋ Eintrag in „${esc(b.head)}"</button>`;
+    });
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
-  /* Eigene Abschnitte („Reiter"/Unterkategorien) direkt hier anlegen – nur bei
-     Material/Geräte-Rubriken (dort gibt es die UK-Sektionen) und nur im
-     Verwaltungsmodus. */
-  const sectionBtn=(isMatGer&&ADMIN)?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`:'';
+  /* Eigene Abschnitte in JEDER Rubrik anlegbar (Souveränität): bei Material/
+     Geräte als Unterkategorie-Sektion (UKSEC), in Ablauf-Rubriken als eigene
+     Überschrift — nur im Verwaltungsmodus. */
+  const sectionBtn=ADMIN?(isMatGer
+    ?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`
+    :`<button class="add-entry-btn" onclick="addSegSectionUI(${idx})">＋ Abschnitt (Überschrift)</button>`):'';
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
   $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+sectionBtn+adoptBtn;
@@ -153,6 +162,42 @@ function addUkSectionSave(idx){ const inp=$('skNewSec'); const nm=(inp&&inp.valu
 function removeUkSectionUI(idx,uk){ if(!ADMIN) return;
   if(!confirm('Leeren Abschnitt „'+uk+'" entfernen?')) return;
   removeUkSectionName(idx,uk); reRenderDetail(); toast('Abschnitt entfernt'); }
+
+/* ── Abschnitte in ABLAUF-Rubriken: eigene Überschriften (Konzept
+   „Abschnitte überall"). Eine eigene Überschrift ist ein added Eintrag mit
+   natur 'ueberschrift'; ablaufSegments macht daraus einen Abschnitt. */
+function startAddEntrySeg(idx,seg){ if(!ADMIN||!curStd) return;
+  openEntryForm({kind:'add',sid:curStd.id,ri:idx,defaultNat:'hinweis',defaultSeg:seg}); }
+function addSegSectionUI(idx){ if(!ADMIN||!curStd) return;
+  const h=`<div class="sheet-grip"></div><div class="sheet-title">Neuer Abschnitt (Überschrift)</div>
+    <input type="text" id="skNewSeg" class="txtinp" style="width:100%" placeholder="Name, z. B. Nachbereitung">
+    <div class="sheet-pick" style="margin-top:12px"><button class="sheet-pick-btn" data-ri="${idx}" onclick="addSegSectionSave(+this.dataset.ri)">Anlegen</button></div>
+    <button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
+  $('sheet').innerHTML=h; showSheet(true);
+  const inp=$('skNewSeg'); if(inp){ setTimeout(()=>inp.focus(),50); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addSegSectionSave(idx); } }; }
+}
+function addSegSectionSave(idx){ const inp=$('skNewSeg'); const nm=(inp&&inp.value||'').trim(); if(!nm) return;
+  const key=curStd.id+'|'+idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
+  arr.push(makeAddEntry({name:nm,nat:'ueberschrift',aid:newAid()}));
+  saveAdditions(); rebuildDB(); showSheet(false); reRenderDetail(); toast('Abschnitt angelegt'); }
+function openSegHeadSheet(idx,aid){ if(!ADMIN||!curStd) return; const e=findAddEntry(curStd.id,idx,aid); if(!e) return;
+  const h=`<div class="sheet-grip"></div><div class="sheet-title">Abschnitt „${esc(e.anzeige_text)}"</div>
+    <input type="text" id="segRenInp" class="txtinp" style="width:100%" value="${esc(e.anzeige_text)}">
+    <div class="sheet-pick" style="margin-top:12px">
+      <button class="sheet-pick-btn" data-ri="${idx}" data-aid="${esc(aid)}" onclick="segHeadRename(+this.dataset.ri,this.dataset.aid)">Umbenennen</button>
+      <button class="sheet-pick-btn" data-ri="${idx}" data-aid="${esc(aid)}" onclick="segHeadDelete(+this.dataset.ri,this.dataset.aid)">🗑 Abschnitt löschen</button>
+    </div><button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
+  $('sheet').innerHTML=h; showSheet(true); }
+function segHeadRename(idx,aid){ const e=findAddEntry(curStd.id,idx,aid); const inp=$('segRenInp'); const nm=(inp&&inp.value||'').trim(); if(!e||!nm) return;
+  const old=e.anzeige_text; e.anzeige_text=nm; e.roh_text=nm;
+  /* Zuordnungen der Abschnitts-Einträge mit umziehen. */
+  (ADDITIONS.entries[curStd.id+'|'+idx]||[]).forEach(x=>{ if(x.seg===old) x.seg=nm; });
+  saveAdditions(); rebuildDB(); showSheet(false); reRenderDetail(); toast('Abschnitt umbenannt'); }
+function segHeadDelete(idx,aid){ const e=findAddEntry(curStd.id,idx,aid); if(!e) return;
+  if(!confirm('Abschnitt „'+e.anzeige_text+'" löschen? Die Einträge darin bleiben erhalten und rücken ans Ende der Rubrik.')) return;
+  const key=curStd.id+'|'+idx; ADDITIONS.entries[key]=(ADDITIONS.entries[key]||[]).filter(x=>x._aid!==aid);
+  if(!ADDITIONS.entries[key].length) delete ADDITIONS.entries[key];
+  saveAdditions(); rebuildDB(); showSheet(false); reRenderDetail(); toast('Abschnitt gelöscht'); }
 /* Übernahme aus dem Katalog: Auswahl-Sheet öffnen, ausgewählten Eintrag als
    neuen (eigenen) Eintrag in die aktuell offene Rubrik einfügen. */
 function startAdoptCatalog(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
