@@ -927,6 +927,72 @@ test('parseScan: sonstiger Text als text', () => {
   assert.equal(fns.parseScan('Hallo Welt', 'qr_code').kind, 'text');
 });
 
+// --- ECHTE KLINIK-ETIKETTEN (HKL Klinikum Kassel) --------------------------
+// GS1-Nutzdaten von 12 realen Produkten (aus den vom Betreiber gescannten
+// Etiketten abgelesen). Prüft, dass der App-Parser GTIN/Verfall/LOT/Serie
+// exakt so herauszieht, wie es der BarcodeDetector am Gerät liefert. Variable
+// Felder (10 LOT, 21 Serie), die von einem weiteren AI gefolgt werden, sind
+// per FNC1/GS getrennt — genau wie im echten Barcode.
+const realLabels = [
+  { name: 'St. Jude Supreme CRD-2 (GS1-128)', fmt: 'code_128',
+    raw: '0105414734201513' + '17270430' + '1010344273',
+    gtin: '05414734201513', expiry: '2027-04-30', lot: '10344273' },
+  { name: 'Baylis SureFlex M 8.5F', fmt: 'code_128',
+    raw: '0100685447018551' + '17260720' + '1034330778',
+    gtin: '00685447018551', expiry: '2026-07-20', lot: '34330778' },
+  { name: 'Baylis SureFlex L 8.5F (LOT alphanumerisch)', fmt: 'code_128',
+    raw: '0100685447018568' + '17250803' + '10SSFA170723',
+    gtin: '00685447018568', expiry: '2025-08-03', lot: 'SSFA170723' },
+  { name: 'VANGUARD Blazer II (DataMatrix, 11/17/10/21)', fmt: 'data_matrix',
+    raw: '0104038134335268' + '11240628' + '17250628' + '1022503824' + GS + '212110475587',
+    gtin: '04038134335268', expiry: '2025-06-28', lot: '22503824', serial: '2110475587' },
+  { name: 'VANGUARD SJG (DataMatrix, 11/17/10/21)', fmt: 'data_matrix',
+    raw: '0104038134350971' + '11231215' + '17241214' + '1021905704' + GS + '212109747947',
+    gtin: '04038134350971', expiry: '2024-12-14', lot: '21905704', serial: '2109747947' },
+  { name: 'Boston Blazer II XP', fmt: 'code_128',
+    raw: '0108714729268406' + '17270411' + '1033808664',
+    gtin: '08714729268406', expiry: '2027-04-11', lot: '33808664' },
+  { name: 'Abbott/SJM Ablation A701158', fmt: 'code_128',
+    raw: '0105415067011503' + '17251130' + '108802563',
+    gtin: '05415067011503', expiry: '2025-11-30', lot: '8802563' },
+  { name: 'St. Jude Supreme JSN 5F', fmt: 'code_128',
+    raw: '0105414734201377' + '17270531' + '1010381369',
+    gtin: '05414734201377', expiry: '2027-05-31', lot: '10381369' },
+  { name: 'St. Jude 1910-SA Kabel', fmt: 'code_128',
+    raw: '0105414734309332' + '17270531' + '1010368889',
+    gtin: '05414734309332', expiry: '2027-05-31', lot: '10368889' },
+  { name: 'Abbott Inquiry 6F', fmt: 'code_128',
+    raw: '0105414734302975' + '17270731' + '1010457660',
+    gtin: '05414734302975', expiry: '2027-07-31', lot: '10457660' },
+  { name: 'Boston IntellaNav MiFi XP (ohne Verfall im Code)', fmt: 'data_matrix',
+    raw: '0108714729906117' + '1033781593',
+    gtin: '08714729906117', lot: '33781593' },
+  { name: 'Masimo LNCS Neo-L (nur GTIN)', fmt: 'code_128',
+    raw: '0100843997000314',
+    gtin: '00843997000314' },
+];
+realLabels.forEach((L) => {
+  test('echtes Etikett: ' + L.name, () => {
+    // 1) Roh-String wie vom Scanner
+    let p = fns.parseScan(L.raw, L.fmt);
+    // 2) Mit AIM-Symbologie-Präfix (DataMatrix ]d2 / GS1-128 ]C1) muss es identisch sein
+    const prefix = L.fmt === 'data_matrix' ? ']d2' : ']C1';
+    const p2 = fns.parseScan(prefix + L.raw, L.fmt);
+    assert.equal(p.kind, 'gs1', 'als GS1 erkannt');
+    assert.equal(fns.gtinKey(p.gtin), fns.gtinKey(L.gtin), 'GTIN');
+    assert.equal(fns.gtinKey(p2.gtin), fns.gtinKey(L.gtin), 'GTIN auch mit AIM-Präfix');
+    if (L.expiry) assert.equal(fns.formatGs1Date(p.expiry), L.expiry, 'Verfall');
+    if (L.lot) assert.equal(p.lot, L.lot, 'LOT');
+    if (L.serial) assert.equal(p.serial, L.serial, 'Serie');
+  });
+});
+test('echte Etiketten: Verfallsstatus wird korrekt eingestuft', () => {
+  // VANGUARD SJG lief 2024-12-14 ab → relativ zu einem späteren „heute" abgelaufen
+  assert.equal(fns.expiryStatus('2024-12-14', '2026-07-19'), 'expired');
+  // St. Jude JSN 2027-05-31 → ok
+  assert.equal(fns.expiryStatus('2027-05-31', '2026-07-19'), 'ok');
+});
+
 test('mergeGtinRecord: legt an, pflegt Zeitstempel, überschreibt Felder', () => {
   const a = fns.mergeGtinRecord(null, { gtin: '1', ref: 'R1' }, 'T1');
   assert.equal(a.createdAt, 'T1');

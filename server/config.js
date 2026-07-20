@@ -102,10 +102,13 @@ const SECURITY_HEADERS = {
   // gefahrlos immer mitzusenden. Ohne includeSubDomains, um andere
   // (evtl. http-only) Subdomains von kardio.wiki nicht mitzureißen.
   'Strict-Transport-Security': 'max-age=15552000',
-  // Ungenutzte, sensible Browser-Features abschalten. Kamera bleibt bewusst
-  // unerwähnt (= Default self), damit die Foto-Pflege via <input type=file
-  // capture> unangetastet bleibt.
-  'Permissions-Policy': 'geolocation=(), microphone=(), payment=()',
+  // Ungenutzte, sensible Browser-Features abschalten. Kamera wird EXPLIZIT für
+  // die eigene Herkunft erlaubt (camera=(self)) — für den Etikett-Scanner
+  // (getUserMedia) und die Foto-Pflege (<input type=file capture>). Explizit
+  // statt implizit (Default wäre ebenfalls self), damit ein Zwischen-Proxy
+  // oder eine strengere Browser-Voreinstellung den Kamerazugriff nicht
+  // unbeabsichtigt sperrt.
+  'Permissions-Policy': 'camera=(self), geolocation=(), microphone=(), payment=()',
 };
 
 module.exports = { PORT, PUBLIC_DIR, STATE_DIR, STATE_FILE, MAX_BODY, BACKUP_DIR, BACKUP_INTERVAL_MS, BACKUP_KEEP, MIME, COMPRESSIBLE, SECURITY_HEADERS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL, SESSION_SECRET, COOKIE_SECURE };

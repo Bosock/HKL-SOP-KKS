@@ -184,20 +184,29 @@ function camErrorMessage(e){
 }
 async function startCam(){
   if(!scannerSupported()){ toast('Live-Scanner auf diesem Gerät nicht verfügbar. Bitte Produkt unten suchen oder (als Admin) manuell anlegen.',true); return; }
-  let formats=SCAN_FORMATS.slice();
-  try{ const supp=await window.BarcodeDetector.getSupportedFormats(); if(supp&&supp.length){ const inter=SCAN_FORMATS.filter(f=>supp.indexOf(f)>=0); formats=inter.length?inter:supp; } }catch(e){}
-  try{ scanDetector=new window.BarcodeDetector({formats}); }
-  catch(e){ try{ scanDetector=new window.BarcodeDetector(); }catch(e2){ toast('Scanner-Start fehlgeschlagen.',true); return; } }
-  try{ scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}); }
+  /* WICHTIG (Ursache „Kamerazugriff blockiert" trotz Freigabe): getUserMedia()
+     MUSS die ERSTE asynchrone Aktion nach dem Tippen sein. Ein vorheriges
+     `await` (z. B. BarcodeDetector.getSupportedFormats()) verbraucht die
+     transiente Nutzer-Aktivierung — Android-Chrome bricht getUserMedia dann
+     ohne Berechtigungs-Dialog mit NotAllowedError ab. Also erst die Kamera
+     anfordern, den Detektor DANACH einrichten. */
+  let stream=null;
+  try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}); }
   catch(e){
     /* Manche Geräte werfen OverconstrainedError schon bei "ideal" (z. B. nur
        eine Kamera vorhanden) — mit gelockerten Constraints erneut versuchen,
        bevor endgültig aufgegeben wird. */
     if(e&&e.name==='OverconstrainedError'){
-      try{ scanStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); }
+      try{ stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); }
       catch(e2){ toast(camErrorMessage(e2),true); return; }
     } else { toast(camErrorMessage(e),true); return; }
   }
+  scanStream=stream;
+  /* Detektor jetzt einrichten (Formate erst nach erteilter Berechtigung). */
+  let formats=SCAN_FORMATS.slice();
+  try{ const supp=await window.BarcodeDetector.getSupportedFormats(); if(supp&&supp.length){ const inter=SCAN_FORMATS.filter(f=>supp.indexOf(f)>=0); formats=inter.length?inter:supp; } }catch(e){}
+  try{ scanDetector=new window.BarcodeDetector({formats}); }
+  catch(e){ try{ scanDetector=new window.BarcodeDetector(); }catch(e2){ stopCam(); toast('Scanner-Start fehlgeschlagen.',true); return; } }
   const v=$('scanVideo'); if(!v){ stopCam(); return; }
   v.srcObject=scanStream; v.setAttribute('playsinline','true'); v.muted=true;
   try{ await v.play(); }catch(e){}

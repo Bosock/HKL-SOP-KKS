@@ -89,6 +89,40 @@ const GS1_AGAIN = '01' + GTIN + '17270101';            // derselbe Artikel, ande
   const onB = await B.page.evaluate((gtin) => !!(GTINDB && GTINDB[gtin] && GTINDB[gtin].ref === 'RG5J40'), GTIN);
   r.check('Gerät B sieht das gescannte Produkt', onB);
 
+  // 7) Kamera-Start: getUserMedia MUSS die erste asynchrone Aktion sein.
+  //    Ein vorheriges await (z. B. getSupportedFormats) verbräuchte die
+  //    transiente Nutzer-Aktivierung → Android-Chrome bräche mit
+  //    NotAllowedError ab („Kamerazugriff blockiert" trotz Freigabe).
+  const camOrder = await A.page.evaluate(async () => {
+    HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+    const calls = [];
+    const stream = document.createElement('canvas').captureStream(0);
+    navigator.mediaDevices.getUserMedia = async () => { calls.push('gum'); return stream; };
+    window.BarcodeDetector = Object.assign(function () { this.detect = async () => []; }, { getSupportedFormats: async () => { calls.push('fmt'); return ['qr_code', 'data_matrix']; } });
+    openScanHub(); await startCam(); stopCam();
+    return calls;
+  });
+  r.check('Kamera: getUserMedia läuft VOR getSupportedFormats (User-Aktivierung erhalten)', camOrder[0] === 'gum' && camOrder.indexOf('fmt') > 0);
+
+  // 8) OverconstrainedError → gelockerter Zweitversuch (video:true), startet doch.
+  const camRelaxed = await A.page.evaluate(async () => {
+    HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+    let n = 0; const seen = []; const stream = document.createElement('canvas').captureStream(0);
+    navigator.mediaDevices.getUserMedia = async (c) => { n++; seen.push(String(c.video)); if (n === 1) { const e = new Error('o'); e.name = 'OverconstrainedError'; throw e; } return stream; };
+    window.BarcodeDetector = Object.assign(function () { this.detect = async () => []; }, { getSupportedFormats: async () => ['qr_code'] });
+    openScanHub(); await startCam(); const started = !!scanStream; stopCam();
+    return { n, started, secondPlain: seen[1] === 'true' };
+  });
+  r.check('Kamera: OverconstrainedError → 2. Versuch (video:true) startet doch', camRelaxed.n === 2 && camRelaxed.secondPlain && camRelaxed.started);
+
+  // 9) Fehlerdiagnostik ordnet die DOMException-Namen korrekt zu.
+  const diag = await A.page.evaluate(() => ({
+    notAllowed: /blockiert/.test(camErrorMessage({ name: 'NotAllowedError' })),
+    inUse: /andere/i.test(camErrorMessage({ name: 'NotReadableError' })),
+    none: /Kamera gefunden/.test(camErrorMessage({ name: 'NotFoundError' })),
+  }));
+  r.check('Kamera-Fehlerdiagnostik trennt Berechtigung / Belegung / Hardware', diag.notAllowed && diag.inUse && diag.none);
+
   r.check('keine Konsolenfehler (A+B)', A.errs.length + B.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });
