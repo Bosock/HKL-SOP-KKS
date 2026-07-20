@@ -93,6 +93,7 @@ function loadHelpers() {
     extractFn('gtinGroups'),
     extractFn('gtinBadges'),
     extractFn('extractLabelFields'),
+    extractFn('photoCropDims'),
     extractFn('mengeHiAuto'),
     extractFn('camErrorMessage'),
     extractFn('rulesActive'),
@@ -106,7 +107,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, photoCropDims, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1151,6 +1152,28 @@ test('OCR echt: reiner Rechtsform-Fallback (unbekannte Marke), EC REP ausgeschlo
     'EC REP  MDSS GmbH', 'REF XY-9',
   ].join('\n'));
   assert.equal(f.hersteller, 'Musterfirma GmbH');  // erste Rechtsform-Zeile, NICHT die EC-REP-Zeile
+});
+
+// --- photoCropDims: Zuschneide-/Dreh-Geometrie (Foto-Editor) ----------------
+test('photoCropDims: ohne Rotation = volle Größe', () => {
+  const d = fns.photoCropDims(1200, 800, 0, { x: 0, y: 0, w: 1, h: 1 });
+  assert.equal(d.rw, 1200); assert.equal(d.rh, 800);
+  assert.equal(d.sw, 1200); assert.equal(d.sh, 800);
+});
+test('photoCropDims: 90° dreht die Ausmaße', () => {
+  const d = fns.photoCropDims(1200, 800, 90, { x: 0, y: 0, w: 1, h: 1 });
+  assert.equal(d.rw, 800); assert.equal(d.rh, 1200);
+});
+test('photoCropDims: Zuschnitt liefert die Teilfläche in Pixeln', () => {
+  const d = fns.photoCropDims(1000, 1000, 0, { x: 0.25, y: 0.5, w: 0.5, h: 0.5 });
+  assert.equal(d.sx, 250); assert.equal(d.sy, 500);
+  assert.equal(d.sw, 500); assert.equal(d.sh, 500);
+});
+test('photoCropDims: Auswahl über den Rand wird begrenzt (nie negativ/über 1)', () => {
+  const d = fns.photoCropDims(400, 400, 0, { x: 0.8, y: 0.9, w: 0.5, h: 0.5 });
+  assert.ok(d.sx + d.sw <= 400);
+  assert.ok(d.sy + d.sh <= 400);
+  assert.ok(d.sw >= 1 && d.sh >= 1);
 });
 
 // --- mengeHiAuto: automatische Mengen-Hervorhebung bei ≠1x (M10/QM §9) -----

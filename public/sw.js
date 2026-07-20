@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v27';
+const CACHE_VERSION = 'v28';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -43,6 +43,7 @@ const SHELL = [
   'js/ui/standards.js',
   'js/ui/rubriken.js',
   'js/ui/detail.js',
+  'js/features/photoedit.js',
   'js/features/care.js',
   'js/ui/catalog.js',
   'js/ui/admin.js',

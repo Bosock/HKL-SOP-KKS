@@ -22,7 +22,8 @@ function openCare(key){ const m=MAT_INDEX.find(x=>x.key===key); if(!m) return; c
   $('scr-care-item').innerHTML=`<div class="pcard"><div class="pc-name">${esc(m.name)}</div><div class="pc-ctx">Kommt in ${m.vorkommen} Standard(s) vor · ${esc(natOf(m.typ).label)}</div>${sizes}
     <div class="flabel">FOTO</div><div class="photo-zone" onclick="$('fileInp').click()" id="photoZone">${photoInner}</div>
     <input type="file" id="fileInp" accept="image/*" style="display:none" data-k="${esc(key)}" onchange="onPhoto(event,this.dataset.k)">
-    <div class="flabel">LAGERORT</div><input class="loc-input" id="locInp" list="locList" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
+    <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="$('fileInp').click()">📷 Foto wählen</button><button type="button" class="btn btn-sec" id="careCropBtn" onclick="careEditPhoto()" style="${c.photo?'':'display:none'}">✂ Zuschneiden / drehen</button></div>
+    <div class="flabel" style="margin-top:14px">LAGERORT</div><input class="loc-input" id="locInp" list="locList" placeholder="z. B. Vorbereitungsraum · Regal A" value="${esc(c.loc||'')}">
     <datalist id="locList">${[...new Set(Object.values(careMem).map(x=>x&&x.loc).filter(Boolean))].sort().map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
     <div class="flabel" style="margin-top:14px">HERSTELLER (optional)</div><input class="loc-input" id="prodHersteller" placeholder="z. B. Terumo" value="${esc(pd.hersteller||'')}">
     <div class="flabel">REF / BESTELLNR. (optional)</div><input class="loc-input" id="prodRef" placeholder="z. B. RM*RG5J40" value="${esc(pd.ref||'')}">
@@ -50,9 +51,17 @@ function shrinkPhoto(dataUrl,cb){ const MAX=1280; const img=new Image();
     }catch(e){ cb(dataUrl); } };
   img.onerror=()=>cb(dataUrl);
   img.src=dataUrl; }
-function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{ shrinkPhoto(r.result,(photo)=>{ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; } }); };
-  r.readAsDataURL(f); }
+/* Setzt das (bearbeitete) Foto in die Vorschau und merkt es fürs Speichern. */
+function careSetPhoto(photo){ const z=$('photoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; }
+  const b=$('careCropBtn'); if(b) b.style.display=''; }
+function onPhoto(ev,key){ const f=ev.target.files&&ev.target.files[0]; if(!f){ return; } const r=new FileReader();
+  /* Nach der Aufnahme direkt in den Zuschneiden/Drehen-Editor, dann verkleinern. */
+  r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; shrinkPhoto(edited,(photo)=>careSetPhoto(photo)); }); };
+  r.readAsDataURL(f); try{ ev.target.value=''; }catch(e){} }
+/* Vorhandenes Foto erneut zuschneiden/drehen (oder Auswahl öffnen, wenn keins). */
+function careEditPhoto(){ const z=$('photoZone'); const cur=(z&&z.dataset.photo)||(z&&z.querySelector('img')&&z.querySelector('img').getAttribute('src'))||'';
+  if(!cur){ $('fileInp').click(); return; }
+  openPhotoEditor(cur,(edited)=>{ if(edited==null) return; shrinkPhoto(edited,(photo)=>careSetPhoto(photo)); }); }
 
 /* Verkleinert einmalig ALT-Fotos, die vor Einführung der automatischen
    Verkleinerung in Originalgröße gespeichert wurden (QA-Befund P1: solche

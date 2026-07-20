@@ -23,7 +23,7 @@
    Geteilter Zustand: `hkl_gtin` (in SHARED_KEYS + BACKUP_KEYS).
      GTINDB[gtin] = { gtin, hersteller, ref, name, verwendung,
                       french, laenge, dAussen, dInnen, weitere,
-                      lagerort, preis, createdAt, updatedAt }
+                      lagerort, preis, photo, createdAt, updatedAt }
    ───────────────────────────────────────────────────────────── */
 
 /* ===== Reine, testbare Helfer (kein DOM/Store) ===== */
@@ -355,7 +355,8 @@ function badgeSpans(pairs){ return pairs.map(b=>`<span class="size-badge"><span 
 function scanRowHTML(r){
   const badges=badgeSpans(gtinBadges(r));
   const sub=[r.ref?('REF '+r.ref):'', r.gtin?('GTIN '+r.gtin):''].filter(Boolean).join(' · ');
-  return `<div class="mat-row" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)"><div class="mat-thumb">🏷️</div><div class="mat-main"><div class="mat-name">${esc(r.name||r.ref||r.gtin||'Produkt')}</div><div class="mat-sub"><span class="gtin-mono">${esc(sub)}</span></div>${badges?`<div class="e-meta" style="margin-top:6px">${badges}</div>`:''}</div></div>`;
+  const thumb=r.photo?`<div class="mat-thumb"><img src="${esc(r.photo)}" alt=""></div>`:`<div class="mat-thumb">🏷️</div>`;
+  return `<div class="mat-row" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)">${thumb}<div class="mat-main"><div class="mat-name">${esc(r.name||r.ref||r.gtin||'Produkt')}</div><div class="mat-sub"><span class="gtin-mono">${esc(sub)}</span></div>${badges?`<div class="e-meta" style="margin-top:6px">${badges}</div>`:''}</div></div>`;
 }
 function openScanItem(gArg, edit){
   if(edit && !ADMIN){ promptLoginThen(()=>openScanItem(gArg,true)); return; }
@@ -378,6 +379,7 @@ function renderScanItemView(r){
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${esc(r.name||r.ref||'Produkt')}</div>
     <div class="pc-ctx"><span class="gtin-mono">GTIN ${esc(r.gtin)}</span></div>
+    ${r.photo?`<div style="margin:10px 0;border-radius:12px;overflow:hidden;max-height:240px;background:#000"><img src="${esc(r.photo)}" style="width:100%;max-height:240px;object-fit:contain" alt=""></div>`:''}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Zur Liste</button><button class="btn btn-pri" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,true)">Bearbeiten</button></div>
@@ -393,6 +395,10 @@ function renderScanItemForm(r){
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
     <button type="button" class="scan-cta ocr-cta" onclick="ocrCaptureAndFill()">📸 Etikett fotografieren – Felder automatisch ausfüllen</button>
     <div class="ocr-hint">Liest REF, Hersteller und Maße direkt vom Etikett (läuft auf dem Gerät). Bitte die erkannten Werte prüfen.</div>
+    <div class="flabel" style="margin-top:12px">PRODUKTFOTO</div>
+    <div class="photo-zone" onclick="$('scanFileInp').click()" id="scanPhotoZone">${r.photo?`<img src="${esc(r.photo)}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Produktfoto aufnehmen oder wählen</div>`}</div>
+    <input type="file" id="scanFileInp" accept="image/*" style="display:none" onchange="scanOnPhoto(event)">
+    <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="$('scanFileInp').click()">📷 Foto wählen</button><button type="button" class="btn btn-sec" id="scanCropBtn" onclick="scanEditPhoto()" style="${r.photo?'':'display:none'}">✂ Zuschneiden / drehen</button></div>
     <div class="flabel" style="margin-top:12px">HERSTELLER *</div><input class="loc-input" id="scHersteller" placeholder="z. B. Terumo" value="${esc(r.hersteller||'')}">
     <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}">
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
@@ -409,6 +415,17 @@ function renderScanItemForm(r){
   </div>
   <div class="foot">Die GTIN kommt aus dem Barcode und ist der Schlüssel: REF, Hersteller und Maße einmal erfassen — bei jedem weiteren Scan sind sie sofort da. Alles wird zentral gespeichert und auf allen Geräten geteilt.</div>`;
 }
+/* Produktfoto (Editor-Ergebnis) in die Vorschau setzen + fürs Speichern merken. */
+function scanSetPhoto(photo){ const z=$('scanPhotoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; }
+  const b=$('scanCropBtn'); if(b) b.style.display=''; }
+function _scanShrink(d,cb){ if(typeof shrinkPhoto==='function') shrinkPhoto(d,cb); else cb(d); }
+function scanOnPhoto(ev){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; _scanShrink(edited,(photo)=>scanSetPhoto(photo)); }); };
+  r.readAsDataURL(f); try{ ev.target.value=''; }catch(e){} }
+function scanEditPhoto(){ const z=$('scanPhotoZone'); const cur=(z&&z.dataset.photo)||(z&&z.querySelector('img')&&z.querySelector('img').getAttribute('src'))||'';
+  if(!cur){ $('scanFileInp').click(); return; }
+  openPhotoEditor(cur,(edited)=>{ if(edited==null) return; _scanShrink(edited,(photo)=>scanSetPhoto(photo)); }); }
+function scanCurrentPhoto(){ const z=$('scanPhotoZone'); return (z&&z.dataset.photo)||(z&&z.querySelector('img')&&z.querySelector('img').getAttribute('src'))||null; }
 function saveScanItem(gArg){
   if(!ADMIN){ promptLoginThen(()=>saveScanItem(gArg)); return; }
   let g=gArg?gtinKey(gArg):'';
@@ -420,7 +437,7 @@ function saveScanItem(gArg){
   const preis=parsePreis(val('scPreis'));
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
     french:val('scFrench')||null, laenge:val('scLaenge')||null, dAussen:val('scDAussen')||null, dInnen:val('scDInnen')||null, weitere:val('scWeitere')||null,
-    lagerort:val('scLoc')||null, preis:(preis==null?null:preis) };
+    lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto() };
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();
   toast('Produkt gespeichert');
