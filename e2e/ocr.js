@@ -23,6 +23,28 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('extractLabelFields (Browser): Hersteller', pure.hersteller === 'Terumo');
   r.check('extractLabelFields (Browser): French', pure.french === '6F');
 
+  // 1b) Reicheres Etikett: Verwendung + Eigenschaften + Formular-Befüllung.
+  const rich = await A.page.evaluate(() => {
+    doLogin('1234567');
+    const f = extractLabelFields([
+      'Boston Scientific', 'IntellaNav MiFi™ XP', 'LARGE CURVE',
+      'Temperature Ablation Catheter', 'REF Catalog No. M004EMR4500K20',
+      'LOT 33781593', '8F 110cm',
+    ].join('\n'));
+    // Formular öffnen und NUR leere Felder füllen lassen
+    openScanItem('08714729906117', true);
+    const filled = ocrFillForm(f);
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+    return { f, filled, form: { ref: val('scRef'), herst: val('scHersteller'), name: val('scName'), verw: val('scVerw'), french: val('scFrench'), laenge: val('scLaenge'), weit: val('scWeitere') } };
+  });
+  r.check('reiches Etikett: REF trotz „Catalog No."', rich.f.ref === 'M004EMR4500K20');
+  r.check('reiches Etikett: Verwendung (Gerätetyp) erkannt', rich.f.verwendung === 'Temperature Ablation Catheter');
+  r.check('reiches Etikett: Eigenschaft „Large Curve"', /Large Curve/.test(rich.f.weitere || ''));
+  r.check('Formular: REF + Hersteller gefüllt', rich.form.ref === 'M004EMR4500K20' && rich.form.herst === 'Boston Scientific');
+  r.check('Formular: Verwendung gefüllt (scVerw)', rich.form.verw === 'Temperature Ablation Catheter');
+  r.check('Formular: Eigenschaften gefüllt (scWeitere)', /Large Curve/.test(rich.form.weit || ''));
+  r.check('Formular: French + Länge gefüllt', rich.form.french === '8F' && rich.form.laenge === '110 cm');
+
   // 2) Echte Engine laden + Text aus einem gerenderten Etikett lesen.
   const ocr = await A.page.evaluate(async () => {
     // Etikett als hochkontrastiges Canvas-Bild rendern (klarer Text → gut lesbar)

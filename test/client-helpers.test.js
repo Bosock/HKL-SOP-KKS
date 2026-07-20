@@ -1078,6 +1078,87 @@ test('extractLabelFields: French auch ausgeschrieben, Dezimalkomma', () => {
   assert.equal(f.hersteller, 'Cordis');
 });
 
+// --- OCR an ECHTEN Klinik-Etiketten (repräsentativer Etikett-Text) ----------
+// Prüft, dass die Foto-Extraktion die WICHTIGSTEN Felder (REF, Hersteller) und
+// möglichst viel mehr (Name, Verwendung, French/Länge, Eigenschaften) selbst
+// aus dem Etikett-Text zieht.
+test('OCR echt: St. Jude Supreme CRD-2 (Katheter)', () => {
+  const f = fns.extractLabelFields([
+    'Supreme™', 'Electrophysiology Catheter', '5F 1.70 mm', 'CRD-2™',
+    'LOT 10344273  REF 401860', 'GTIN: 05414734201513', 'St. Jude Medical',
+  ].join('\n'));
+  assert.equal(f.ref, '401860');
+  assert.equal(f.hersteller, 'St. Jude Medical');
+  assert.equal(f.name, 'Supreme');
+  assert.equal(f.verwendung, 'Electrophysiology Catheter');
+  assert.equal(f.french, '5F');
+  assert.equal(f.lot, '10344273');
+});
+test('OCR echt: Boston IntellaNav MiFi XP — REF Catalog No. + Large Curve', () => {
+  const f = fns.extractLabelFields([
+    'Boston Scientific', '8mm x8F (2.67mm)', 'IntellaNav MiFi™ XP', 'LARGE CURVE',
+    'Temperature Ablation Catheter', 'GTIN 08714729906117',
+    'REF Catalog No. M004EMR4500K20', 'LOT 33781593', '110cm',
+  ].join('\n'));
+  assert.equal(f.ref, 'M004EMR4500K20');    // „Catalog No." als Rauschen übersprungen
+  assert.equal(f.hersteller, 'Boston Scientific');
+  assert.equal(f.name, 'IntellaNav MiFi XP');
+  assert.equal(f.verwendung, 'Temperature Ablation Catheter');
+  assert.equal(f.laenge, '110 cm');
+  assert.ok(/Large Curve/.test(f.weitere), 'Kurventyp als Eigenschaft: ' + f.weitere);
+});
+test('OCR echt: Baylis SureFlex — steuerbare Schleuse, 8.5F', () => {
+  const f = fns.extractLabelFields([
+    'Baylis MEDICAL', 'SureFlex™', 'Steerable Guiding Sheath', 'M 8.5F',
+    'REF TSK3003   LOT 34330778', 'Use By 2026-07-20',
+  ].join('\n'));
+  assert.equal(f.ref, 'TSK3003');
+  assert.equal(f.hersteller, 'Baylis Medical');
+  assert.equal(f.name, 'SureFlex');
+  assert.equal(f.verwendung, 'Steerable Guiding Sheath');
+  assert.equal(f.french, '8.5F');
+  assert.ok(/steuerbar/.test(f.weitere), 'steuerbar erkannt: ' + f.weitere);
+});
+test('OCR echt: VANGUARD Blazer II — REF OEM / LOT OEM, EP-Ablationskatheter', () => {
+  const f = fns.extractLabelFields([
+    'Blazer II XP Large 7F 110cm 4p', 'EP-Ablationskatheter',
+    'REF OEM: M004EPT4500THK20', 'LOT OEM: 33288164', 'VANGUARD AG',
+  ].join('\n'));
+  assert.equal(f.ref, 'M004EPT4500THK20');  // „OEM:" übersprungen
+  assert.equal(f.lot, '33288164');          // „LOT OEM:" übersprungen
+  assert.equal(f.hersteller, 'Vanguard');
+  assert.equal(f.verwendung, 'EP-Ablationskatheter');
+  assert.equal(f.french, '7F');
+  assert.equal(f.laenge, '110 cm');
+  assert.ok(/4-polig/.test(f.weitere), 'Polzahl erkannt: ' + f.weitere);
+});
+test('OCR echt: Masimo LNCS Neo-L — Hersteller ohne Rechtsform-Suffix', () => {
+  const f = fns.extractLabelFields([
+    'Masimo SET®', 'LNCS® Neo-L SpO2', 'Neonatal/Adult Pulse Oximeter Adhesive Sensor',
+    'Masimo reference number 1862', '(01) 00843997000314',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Masimo');
+  assert.equal(f.verwendung, 'Neonatal/Adult Pulse Oximeter Adhesive Sensor');
+});
+test('OCR echt: Hersteller-Fallback über Rechtsform (Osypka AG), kein EC-REP', () => {
+  const f = fns.extractLabelFields([
+    'TX-HAT500-MDT', 'Verbindungskabel Marinr', 'Osypka AG',
+    'REF 82011', 'LOT P313668-00',
+    'EC REP  MDSS GmbH, Hannover',   // EC-REP-Zeile darf NICHT als Hersteller zählen
+  ].join('\n'));
+  assert.equal(f.ref, '82011');
+  assert.equal(f.lot, 'P313668-00');
+  assert.equal(f.hersteller, 'Osypka');   // Marke gewinnt; MDSS GmbH (EC REP) ignoriert
+  assert.equal(f.verwendung, 'Verbindungskabel Marinr');
+});
+test('OCR echt: reiner Rechtsform-Fallback (unbekannte Marke), EC REP ausgeschlossen', () => {
+  const f = fns.extractLabelFields([
+    'Acme Steuerkatheter', 'Catheter', 'Musterfirma GmbH',
+    'EC REP  MDSS GmbH', 'REF XY-9',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Musterfirma GmbH');  // erste Rechtsform-Zeile, NICHT die EC-REP-Zeile
+});
+
 // --- mengeHiAuto: automatische Mengen-Hervorhebung bei ≠1x (M10/QM §9) -----
 test('mengeHiAuto: 1x wird NICHT automatisch hervorgehoben', () => {
   assert.equal(fns.mengeHiAuto('1x'), false);
