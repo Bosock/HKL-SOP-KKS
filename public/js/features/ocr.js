@@ -218,6 +218,7 @@ async function ocrProcess(dataUrl){
     const got=Object.keys(filled);
     if(got.length){ toast('Erkannt: '+got.map(ocrFieldLabel).join(', ')+' – bitte prüfen.'); }
     else { toast('Kein Text sicher erkannt. Bitte näher/schärfer fotografieren oder manuell eingeben.', true); }
-    if(fields.lot){ toast('Charge/LOT erkannt: '+fields.lot); }
+    /* Charge/LOT wird bewusst NICHT gemeldet: reine Identifikations- &
+       Eigenschaftssammlung, keine Chargenverfolgung. */
   }catch(e){ ocrBusy(false); toast('OCR fehlgeschlagen: '+((e&&e.message)||e), true); }
 }

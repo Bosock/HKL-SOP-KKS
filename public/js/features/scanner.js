@@ -1,10 +1,14 @@
 /* ─────────────────────────────────────────────────────────────
    BAUSTEIN — ETIKETT-SCANNER & PRODUKTDATENBANK
-   „Kamera hinhalten → Barcode/UDI-DataMatrix wird erkannt". Aus dem Code
-   kommen exakt und offline: GTIN (weltweit eindeutige Produkt-Nummer),
-   Charge/LOT, Verfallsdatum, Serie. Die GTIN ist der DB-Schlüssel: derselbe
-   Artikel liefert immer dieselbe GTIN → die Produktdatenbank gruppiert und
-   organisiert sich von selbst.
+   Zweck: eine INFORMATIONSSAMMLUNG, die das im Standard verwendete Material
+   möglichst eindeutig identifiziert und seine Eigenschaften schnell greifbar
+   macht — KEINE Materialwirtschaft/Chargenverfolgung. Charge/LOT und
+   Verfallsdatum sind daher bewusst irrelevant (werden aus dem Code zwar
+   geparst, aber nicht gespeichert/angezeigt).
+   „Kamera hinhalten → Barcode/UDI-DataMatrix wird erkannt": aus dem Code kommt
+   exakt und offline die GTIN (weltweit eindeutige Produkt-Nummer) als
+   DB-Schlüssel — derselbe Artikel liefert immer dieselbe GTIN → die
+   Produktdatenbank gruppiert und organisiert sich von selbst.
 
    Aufteilung:
      - Der Barcode (native BarcodeDetector-API, Android-Chrome) trägt die GTIN,
@@ -259,7 +263,12 @@ function onDecode(raw, fmt){
   }
   const gtin = parsed.gtin ? gtinKey(parsed.gtin) : '';
   if(!gtin){ toast('Kein Produkt-Barcode erkannt (keine GTIN). Bitte erneut scannen.',true); return; }
-  lastScanInfo={ gtin, lot:parsed.lot||'', expiry:(parsed.expiry?formatGs1Date(parsed.expiry):''), serial:parsed.serial||'', itemRef:parsed.itemRef||'' };
+  /* Diese App ist eine Material-Informationssammlung, KEINE Chargen-/Verfalls-
+     verwaltung: Charge/LOT und Verfallsdatum aus dem Code sind hier bewusst
+     irrelevant und werden nicht gespeichert/angezeigt. Aus dem Scan behalten
+     wir nur die GTIN (Identität) und eine evtl. mitcodierte Hersteller-REF (240)
+     als Vorbefüllhilfe fürs Formular. */
+  lastScanInfo={ gtin, itemRef:parsed.itemRef||'' };
   if(GTINDB[gtin]) openScanItem(gtin,false);       /* bekannt → Datensatz zeigen */
   else openScanItem(gtin,true);                    /* neu → Formular vorbefüllt */
 }
@@ -294,15 +303,6 @@ function scanRowHTML(r){
   const sub=[r.ref?('REF '+r.ref):'', r.gtin?('GTIN '+r.gtin):''].filter(Boolean).join(' · ');
   return `<div class="mat-row" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)"><div class="mat-thumb">🏷️</div><div class="mat-main"><div class="mat-name">${esc(r.name||r.ref||r.gtin||'Produkt')}</div><div class="mat-sub"><span class="gtin-mono">${esc(sub)}</span></div>${badges?`<div class="e-meta" style="margin-top:6px">${badges}</div>`:''}</div></div>`;
 }
-function scanInfoHTML(info){
-  if(!info) return '';
-  const parts=[];
-  if(info.lot) parts.push(`Charge / LOT: <b>${esc(info.lot)}</b>`);
-  if(info.expiry){ const st=expiryStatus(info.expiry, today()); const cls=st==='expired'?'exp-expired':(st==='soon'?'exp-soon':''); const tag=st==='expired'?' (abgelaufen!)':(st==='soon'?' (läuft bald ab)':''); parts.push(`Verfall: <b class="${cls}">${esc(info.expiry)}${tag}</b>`); }
-  if(info.serial) parts.push(`Serie: <b>${esc(info.serial)}</b>`);
-  if(!parts.length) return '';
-  return `<div class="scan-this"><b>Dieser Scan:</b><br>${parts.join('<br>')}</div>`;
-}
 function openScanItem(gArg, edit){
   if(edit && !ADMIN){ promptLoginThen(()=>openScanItem(gArg,true)); return; }
   const key=gArg?gtinKey(gArg):'';
@@ -313,7 +313,6 @@ function openScanItem(gArg, edit){
 }
 function renderScanItemView(r){
   const badges=badgeSpans(gtinBadges(r));
-  const scan=(lastScanInfo&&lastScanInfo.gtin===r.gtin)?scanInfoHTML(lastScanInfo):'';
   const rows=[
     ['Hersteller', r.hersteller],
     ['REF / Bestellnr.', r.ref],
@@ -327,7 +326,6 @@ function renderScanItemView(r){
     <div class="pc-ctx"><span class="gtin-mono">GTIN ${esc(r.gtin)}</span></div>
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
-    ${scan}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Zur Liste</button><button class="btn btn-pri" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,true)">Bearbeiten</button></div>
     ${rescan}
   </div>`;
@@ -335,7 +333,6 @@ function renderScanItemView(r){
 function renderScanItemForm(r){
   const g=r.gtin||'';
   const refHint=(!r.ref && lastScanInfo && lastScanInfo.gtin===g && lastScanInfo.itemRef)?lastScanInfo.itemRef:'';
-  const scan=(lastScanInfo&&lastScanInfo.gtin===g)?scanInfoHTML(lastScanInfo):'';
   const del=(g && GTINDB[g])?`<div class="p-actions" style="margin-top:10px"><button class="btn btn-sec" style="color:#d64545" data-g="${esc(g)}" onclick="deleteScanItem(this.dataset.g)">Aus Datenbank löschen</button></div>`:'';
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${g?('GTIN '+esc(g)):'Neues Produkt'}</div>
@@ -353,7 +350,6 @@ function renderScanItemForm(r){
     <div class="flabel">WEITERE MASSE</div><input class="loc-input" id="scWeitere" placeholder="frei, z. B. Draht 0,035 Zoll" value="${esc(r.weitere||'')}">
     <div class="flabel" style="margin-top:12px">LAGERORT</div><input class="loc-input" id="scLoc" placeholder="z. B. Regal A · Fach 3" value="${esc(r.lagerort||'')}">
     <div class="flabel">STÜCKPREIS € (optional)</div><input class="loc-input" id="scPreis" inputmode="decimal" placeholder="z. B. 12,50" value="${esc(r.preis!=null?String(r.preis).replace('.',','):'')}">
-    ${scan}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Abbrechen</button><button class="btn btn-pri" data-g="${esc(g)}" onclick="saveScanItem(this.dataset.g)">Speichern</button></div>
     ${del}
   </div>

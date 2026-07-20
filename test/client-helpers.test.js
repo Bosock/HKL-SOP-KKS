@@ -986,12 +986,6 @@ realLabels.forEach((L) => {
     if (L.serial) assert.equal(p.serial, L.serial, 'Serie');
   });
 });
-test('echte Etiketten: Verfallsstatus wird korrekt eingestuft', () => {
-  // VANGUARD SJG lief 2024-12-14 ab → relativ zu einem späteren „heute" abgelaufen
-  assert.equal(fns.expiryStatus('2024-12-14', '2026-07-19'), 'expired');
-  // St. Jude JSN 2027-05-31 → ok
-  assert.equal(fns.expiryStatus('2027-05-31', '2026-07-19'), 'ok');
-});
 
 test('mergeGtinRecord: legt an, pflegt Zeitstempel, überschreibt Felder', () => {
   const a = fns.mergeGtinRecord(null, { gtin: '1', ref: 'R1' }, 'T1');

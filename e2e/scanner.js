@@ -39,12 +39,14 @@ const GS1_AGAIN = '01' + GTIN + '17270101';            // derselbe Artikel, ande
       hubActive: hub,
       formActive: document.getElementById('scr-scan-item').classList.contains('active'),
       hasRefField: !!document.getElementById('scRef'),
-      showsScan: /LOT9/.test(html) && /2026-11-30/.test(html),
+      // Diese App ist reine Identifikations-/Eigenschaftssammlung: Charge/LOT
+      // und Verfall dürfen NICHT im Formular auftauchen.
+      showsBatch: /LOT9/.test(html) || /2026-11-30/.test(html) || /Charge/i.test(html) || /Verfall/i.test(html),
     };
   }, GS1_NEW);
   r.check('openScanHub zeigt den Hub', step2.hubActive);
   r.check('unbekannter Scan öffnet das Formular', step2.formActive && step2.hasRefField);
-  r.check('Scan-Infos (LOT/Verfall) im Formular sichtbar', step2.showsScan);
+  r.check('KEINE Charge/Verfall im Formular (nur Identifikation & Eigenschaften)', step2.showsBatch === false);
 
   // 3) Ausfüllen + Speichern → Produktdatensatz unter GTIN-Schlüssel.
   const saved = await A.page.evaluate((gtin) => {
