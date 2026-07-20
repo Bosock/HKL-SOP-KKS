@@ -117,13 +117,33 @@ const GS1_AGAIN = '01' + GTIN + '17270101';            // derselbe Artikel, ande
   });
   r.check('Kamera: OverconstrainedError → 2. Versuch (video:true) startet doch', camRelaxed.n === 2 && camRelaxed.secondPlain && camRelaxed.started);
 
-  // 9) Fehlerdiagnostik ordnet die DOMException-Namen korrekt zu.
-  const diag = await A.page.evaluate(() => ({
-    notAllowed: /blockiert/.test(camErrorMessage({ name: 'NotAllowedError' })),
-    inUse: /andere/i.test(camErrorMessage({ name: 'NotReadableError' })),
-    none: /Kamera gefunden/.test(camErrorMessage({ name: 'NotFoundError' })),
-  }));
+  // 9) Fehlerdiagnostik ordnet die DOMException-Namen korrekt zu — und die
+  //    NotAllowed-Meldung verweist NICHT mehr auf ein festes 🔒-Symbol
+  //    (Samsung Internet zeigt keins; die Schritte stehen im Hilfe-Block).
+  const diag = await A.page.evaluate(() => {
+    const na = camErrorMessage({ name: 'NotAllowedError' });
+    return {
+      notAllowed: /blockiert/.test(na), noLock: !/🔒/.test(na),
+      inUse: /andere/i.test(camErrorMessage({ name: 'NotReadableError' })),
+      none: /Kamera gefunden/.test(camErrorMessage({ name: 'NotFoundError' })),
+    };
+  });
   r.check('Kamera-Fehlerdiagnostik trennt Berechtigung / Belegung / Hardware', diag.notAllowed && diag.inUse && diag.none);
+  r.check('NotAllowed-Meldung ohne festen 🔒-Symbol-Verweis (browsergerecht)', diag.noLock);
+
+  // 10) Blockierte Kamera (NotAllowedError) → dauerhafter, browsergerechter
+  //     Freigabe-Hilfe-Block im Scan-Hub (statt nur flüchtigem Toast).
+  const help = await A.page.evaluate(async () => {
+    navigator.mediaDevices.getUserMedia = async () => { const e = new Error('x'); e.name = 'NotAllowedError'; throw e; };
+    try { navigator.permissions.query = async () => ({ state: 'denied' }); } catch (e) {}
+    window.BarcodeDetector = Object.assign(function () { this.detect = async () => []; }, { getSupportedFormats: async () => ['qr_code'] });
+    openScanHub(); await startCam();
+    await new Promise(r => setTimeout(r, 200));
+    const html = document.getElementById('scanHelp').innerHTML;
+    return { shown: html.length > 0, blocked: /blockiert/i.test(html), retry: /Erneut versuchen/.test(html), steps: /Einstellungen|Menü/i.test(html) };
+  });
+  r.check('blockierte Kamera → dauerhafter Hilfe-Block erscheint', help.shown && help.blocked);
+  r.check('… mit browsergerechten Freigabe-Schritten + „Erneut versuchen"', help.steps && help.retry);
 
   r.check('keine Konsolenfehler (A+B)', A.errs.length + B.errs.length === 0);
   await r.finish(browser, [srv]);

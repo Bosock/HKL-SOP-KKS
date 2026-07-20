@@ -180,11 +180,64 @@ function scannerSupported(){
    Problem war. */
 function camErrorMessage(e){
   const n=e&&e.name;
-  if(n==='NotAllowedError'||n==='SecurityError') return 'Kamerazugriff blockiert. In den Website-Einstellungen des Browsers (🔒-Symbol neben der Adresse bzw. „Website-Einstellungen“) Kamera erlauben und erneut versuchen.';
+  if(n==='NotAllowedError'||n==='SecurityError') return 'Kamerazugriff blockiert – so gibst du die Kamera frei (Schritte unten).';
   if(n==='NotFoundError'||n==='OverconstrainedError') return 'Keine passende Kamera gefunden. Gerät ohne Rückkamera? Unten manuell suchen/anlegen.';
   if(n==='NotReadableError'||n==='TrackStartError') return 'Kamera wird gerade von einer anderen App oder einem anderen Tab benutzt. Diese schließen und erneut versuchen.';
   if(!location.protocol.startsWith('https')&&location.hostname!=='localhost') return 'Kamera braucht eine sichere Verbindung (https). Bitte über https aufrufen.';
   return 'Kamera nicht freigegeben oder nicht verfügbar (' + (n||'unbekannter Fehler') + ').';
+}
+/* Echten Berechtigungs-Zustand abfragen (Chromium/Samsung: unterstützt;
+   Firefox kennt „camera" nicht → null). Damit lässt sich „einmal blockiert"
+   von „noch nie gefragt" unterscheiden und die Hilfe passend formulieren. */
+function cameraPermissionState(){
+  try{ if(navigator.permissions&&navigator.permissions.query)
+    return navigator.permissions.query({name:'camera'}).then(s=>s&&s.state).catch(()=>null); }catch(e){}
+  return Promise.resolve(null);
+}
+function isSamsungBrowser(){ return /SamsungBrowser/i.test((navigator&&navigator.userAgent)||''); }
+/* Browsergerechte Freigabe-Schritte. Bewusst OHNE Verweis auf ein bestimmtes
+   Symbol (Samsung Internet zeigt kein 🔒), sondern über das Menü — das gibt es
+   in jedem Browser. */
+function camHelpSteps(){
+  const host=location.hostname;
+  if(isSamsungBrowser()) return [
+    'Samsung Internet: unten auf das Menü ☰ tippen → „Einstellungen".',
+    '„Websites und Downloads" → „Website-Berechtigungen" → „Kamera".',
+    '„'+host+'" auf „Erlauben" stellen (bzw. aus „Blockiert" entfernen).',
+    'Diese Seite neu laden und erneut „📷 Etikett scannen" tippen.'
+  ];
+  return [
+    'Chrome: oben rechts ⋮-Menü → „Einstellungen" → „Website-Einstellungen" → „Kamera".',
+    'Unter „Blockiert" den Eintrag „'+host+'" antippen → „Zulassen".',
+    '(Oder in der Adressleiste links auf das Seiten-Info-/Schloss-Symbol → „Berechtigungen" → „Kamera" → „Zulassen".)',
+    'Seite neu laden und erneut „📷 Etikett scannen" tippen.'
+  ];
+}
+/* Dauerhaft sichtbarer Hilfe-Block im Scan-Hub (statt flüchtigem Toast), damit
+   man die Schritte in Ruhe befolgen kann. */
+function showCamHelp(reason){
+  const box=$('scanHelp'); if(!box) return;
+  const steps=camHelpSteps().map(s=>`<li style="margin:4px 0">${esc(s)}</li>`).join('');
+  box.innerHTML=`<div style="border:1px solid var(--warn);background:rgba(224,90,90,.12);border-radius:14px;padding:14px 16px;margin:12px 0">
+    <div style="font-weight:800;color:var(--warn);margin-bottom:6px">📷 Kamera für diese Seite blockiert</div>
+    <p style="margin:0 0 8px;color:var(--text)">${esc(reason)} Der Browser fragt nicht erneut, solange die Kamera blockiert ist — sie muss einmal manuell freigegeben werden:</p>
+    <ol style="margin:0 0 10px;padding-left:20px;color:var(--text)">${steps}</ol>
+    <button class="btn btn-pri" onclick="startCam()">📷 Erneut versuchen</button>
+  </div>`;
+  try{ box.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+}
+/* Kamera-Fehler behandeln: kurzer Toast + (bei Berechtigungssperre) dauerhafte,
+   browsergerechte Anleitung. */
+function camFail(e){
+  toast(camErrorMessage(e),true);
+  const n=e&&e.name;
+  if(n==='NotAllowedError'||n==='SecurityError'){
+    cameraPermissionState().then(st=>{
+      showCamHelp(st==='denied'
+        ? 'Die Kamera-Berechtigung steht auf „blockiert".'
+        : 'Der Kamerazugriff wurde abgelehnt.');
+    });
+  }
 }
 async function startCam(){
   if(!scannerSupported()){ toast('Live-Scanner auf diesem Gerät nicht verfügbar. Bitte Produkt unten suchen oder (als Admin) manuell anlegen.',true); return; }
@@ -202,8 +255,8 @@ async function startCam(){
        bevor endgültig aufgegeben wird. */
     if(e&&e.name==='OverconstrainedError'){
       try{ stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); }
-      catch(e2){ toast(camErrorMessage(e2),true); return; }
-    } else { toast(camErrorMessage(e),true); return; }
+      catch(e2){ camFail(e2); return; }
+    } else { camFail(e); return; }
   }
   scanStream=stream;
   /* Detektor jetzt einrichten (Formate erst nach erteilter Berechtigung). */
@@ -287,7 +340,8 @@ function renderScanHub(q){
     : `<div class="scan-this">Der Live-Scanner braucht Android-Chrome mit Kamerafreigabe und ist auf diesem Gerät nicht verfügbar. Die Produktdatenbank lässt sich hier trotzdem durchsuchen${ADMIN?' und manuell pflegen':''}.</div>`;
   const manual = ADMIN ? `<button class="add-entry-btn" onclick="openScanItem('',true)">＋ Produkt ohne Scan anlegen</button>` : '';
   const search = `<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gtinSearchInput" placeholder="Produkt, REF, Hersteller, GTIN …" value="${esc(q||'')}" oninput="scanSearch(this.value)" autocomplete="off"></div>`;
-  $('scr-scan').innerHTML = cta + manual + search + `<div id="gtinList">${scanListHTML(q)}</div>`;
+  /* Slot für die dauerhafte Kamera-Freigabe-Hilfe (showCamHelp bei Sperre). */
+  $('scr-scan').innerHTML = cta + `<div id="scanHelp"></div>` + manual + search + `<div id="gtinList">${scanListHTML(q)}</div>`;
 }
 function scanListHTML(q){
   const all=Object.keys(GTINDB).map(k=>GTINDB[k]);

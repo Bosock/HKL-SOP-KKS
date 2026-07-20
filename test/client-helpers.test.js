@@ -1174,8 +1174,10 @@ test('mengeHiAuto: Groß-/Kleinschreibung und Leerraum tolerant', () => {
 });
 
 // --- camErrorMessage: unterscheidbare Kamera-Fehlermeldungen ----------------
-test('camErrorMessage: NotAllowedError -> Hinweis auf Website-Einstellungen', () => {
-  assert.match(fns.camErrorMessage({ name: 'NotAllowedError' }), /Website-Einstellungen/);
+test('camErrorMessage: NotAllowedError -> „blockiert", ohne festen 🔒-Symbol-Verweis', () => {
+  const m = fns.camErrorMessage({ name: 'NotAllowedError' });
+  assert.match(m, /blockiert/);
+  assert.doesNotMatch(m, /🔒/);   // Samsung Internet zeigt kein Schloss – Schritte kommen im Hilfe-Block
 });
 test('camErrorMessage: NotFoundError/OverconstrainedError -> keine Kamera gefunden', () => {
   assert.match(fns.camErrorMessage({ name: 'NotFoundError' }), /Keine passende Kamera/);
