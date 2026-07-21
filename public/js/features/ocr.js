@@ -46,6 +46,11 @@ function extractLabelFields(text){
   m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG)?\.?\s*(?:NO\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
    || raw.match(/\b(?:CAT(?:ALOG)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
   if(m) out.ref=m[1].replace(/[.,]+$/,'');
+  /* Fallback: manche Etiketten führen die Bestell-/Katalognummer nur mit „#"
+     (z. B. Edwards „# S3UCM223"). Nur ein Buchstaben+Ziffern-Code, damit keine
+     Fußnoten-„#" o. Ä. hängen bleiben. */
+  if(!out.ref){ m = raw.match(/(?:^|[\n\s])#\s*([A-Za-z][A-Za-z0-9][A-Za-z0-9\-]{2,})/);
+    if(m && /\d/.test(m[1])) out.ref=m[1].replace(/[.,]+$/,''); }
   /* LOT / Charge (auch „LOT OEM:") */
   m = raw.match(/\b(?:LOT|CHARGE|BATCH)\b\s*(?:OEM\b\s*)?[:.]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})/i);
   if(m) out.lot=m[1].replace(/[.,]+$/,'');
@@ -89,18 +94,28 @@ function extractLabelFields(text){
      „IntellaNav MiFi™ XP") — außer sie ist selbst der Hersteller; sonst erste
      „wortreiche" Zeile ohne Feld-Marker/reine Nummer. Wird VOR der Verwendung
      bestimmt, damit eine kombinierte „Name + Gerätetyp"-Zeile als Name zählt. */
+  /* Führenden Markennamen aus einer Namenszeile entfernen („ETHICON MONOCRYL
+     PLUS" → „MONOCRYL PLUS"), damit der Produktname übrig bleibt. */
+  const stripBrand=(s)=>{ let t=s; if(best) t=t.replace(new RegExp('^'+reEsc(best)+'[\\s,:®™-]*','i'),'').trim(); return t; };
   let nm='';
   for(const ln of lines){
-    if(/[™®]/.test(ln)){ const c=ln.replace(/[™®]/g,'').replace(/\s+/g,' ').trim();
-      if(c.length>=3 && !/\b(REF|LOT|GTIN|UDI|STERILE?)\b/i.test(c) && !(best && c.toUpperCase().indexOf(best.toUpperCase())>=0)){ nm=c; break; } }
+    if(/[™®]/.test(ln)){ let c=ln.replace(/[™®]/g,'').replace(/\s+/g,' ').trim();
+      /* Feld-Tails auf derselben Zeile abschneiden („MONOCRYL PLUS REF MCP496"
+         → „MONOCRYL PLUS") und danach den führenden Markennamen entfernen. */
+      c=c.replace(/\b(REF|LOT|GTIN|UDI|SN|CE)\b.*$/i,'').trim();
+      c=stripBrand(c).replace(/[.,;:]+$/,'').trim();
+      if(c.length>=3 && !(best && c.toUpperCase()===best.toUpperCase())){ nm=c; break; } }
   }
   if(!nm){
     for(const ln of lines){
       if(/\b(REF|LOT|CHARGE|BATCH|SN|GTIN|EC\s?REP|STERILE?|LATEX|QTY|MD|UDI|CAT(?:ALOG)?|MODEL|P\/N|PN|REV)\b/i.test(ln)) continue;
+      /* Naht-Zeilen ausschließen: „# Katalognr.", USP-Stärke „1 (4 Ph. Eur.)",
+         Nadelzeile mit Krümmung „5/8c" — das ist nicht der Produktname. */
+      if(/^\s*#/.test(ln) || /\bPh\.?\s*Eur/i.test(ln) || /\b[1-9]\/[1-9]\s?c?\b/.test(ln) || /^\s*\d{1,2}(?:-0)?\s*\(/.test(ln)) continue;
       const letters=(ln.match(/[A-Za-zÄÖÜäöü]/g)||[]).length;
       /* Marken-™/® vor dem Vergleich entfernen — sonst rutscht „Bioptimal™"
          (= Hersteller mit ™) fälschlich als Produktname durch. */
-      const cc=ln.replace(/[™®]/g,'').replace(/\s+/g,' ').trim();
+      const cc=stripBrand(ln.replace(/[™®]/g,'').replace(/\s+/g,' ').trim());
       if(letters>=4 && cc.length>=5 && !/^[\d\s.,\-]+$/.test(cc)){
         if(best && cc.toUpperCase()===best.toUpperCase()) continue;
         nm=cc.replace(/[.,;:]+$/,''); break;
@@ -122,6 +137,19 @@ function extractLabelFields(text){
   /* Besondere Eigenschaften: Kurventyp, Spitzentyp, Elektroden-Muster/-Zahl,
      Pyrogenität. Mehrere per „ · " zusammengefasst. */
   const props=[]; let pm;
+  /* Naht-Stärke (USP), erkennbar am „(… Ph. Eur.)"-Zusatz: „1 (4 Ph. Eur.)",
+     „4-0 (1.5 Ph. Eur.)". Als erste Eigenschaft (wichtigste Größe der Naht). */
+  if((pm=raw.match(/\b(\d{1,2}(?:-0)?|\d\/0)\s*\(\s*[\d.,]+\s*(?:Ph\.?\s*Eur|metric)/i))) props.push('Stärke '+pm[1]);
+  /* Faden-Struktur & Resorbierbarkeit (Nahtmaterial). */
+  if(/\bMONOFIL/i.test(raw)) props.push('monofil');
+  else if(/\bBRAIDED\b/i.test(raw)||/\bGEFLOCHTEN\b/i.test(raw)||/\btress[eé]/i.test(raw)) props.push('geflochten');
+  if(/\bNON[-\s]?ABSORB/i.test(raw)||/\bNICHT\s+RESORB/i.test(raw)||/\bNON\s+R[eé]SORB/i.test(raw)) props.push('nicht resorbierbar');
+  else if(/\bABSORBABLE\b/i.test(raw)||/\bRESORBIERBAR\b/i.test(raw)||/\br[eé]sorbable\b/i.test(raw)) props.push('resorbierbar');
+  /* Nadel: Krümmung (½, ⅜, ⅝ …) und – wenn am Zeilenanfang – der Nadelcode
+     (PS-2, UR-5 …). Nur auf der Nadelzeile (Krümmung + „mm"). */
+  for(const ln of lines){ const cv=ln.match(/\b([1-9]\/[1-9])\s?c?\b/);
+    if(cv && /\d+\s?mm\b/i.test(ln)){ const nd=ln.match(/^\s*([A-Za-z]{1,4}(?:[- ]?\d{1,2})?)\b/);
+      props.push('Nadel '+((nd&&nd[1]&&!/^\d/.test(nd[1]))?nd[1].trim()+' ':'')+cv[1]); break; } }
   if((pm=raw.match(/\b((?:EXTRA[- ]?LARGE|LARGE|MEDIUM|SMALL|STANDARD)\s+CURVE)\b/i))) props.push(titleCase(pm[1]));
   if(/\bF[-\s]?TYPE\b/i.test(raw)) props.push('F-Type');
   if(/\bJ[-\s]?TIP\b/i.test(raw) || /\bJ-?SPITZE\b/i.test(raw)) props.push('J-Tip');

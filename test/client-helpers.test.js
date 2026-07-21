@@ -1222,6 +1222,69 @@ test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () =>
   assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
 });
 
+// --- OCR an echten Etiketten (Nutzer-Fotos, Runde 3: Implantate & Nähte) ----
+test('OCR echt: Medtronic Micra — Ø aus „Outer diameter (23 French)"', () => {
+  const f = fns.extractLabelFields([
+    'Medtronic', 'Micra™ MC1VR01', 'Single chamber transcatheter pacing system',
+    'Outer diameter 7.8 mm (23 French)', '105 cm', 'REF MC1VR01', 'SN MCR805011S',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Medtronic');
+  assert.equal(f.ref, 'MC1VR01');
+  assert.equal(f.french, '23F');
+  assert.equal(f.laenge, '105 cm');
+  assert.equal(f.dAussen, '7,8 mm');
+  assert.equal(f.name, 'Micra MC1VR01');
+});
+test('OCR echt: Edwards SAPIEN 3 — Katalognummer nur mit „#"', () => {
+  const f = fns.extractLabelFields([
+    'Edwards', '23 mm', 'Edwards SAPIEN 3 Ultra System - Edwards Commander Kit',
+    '# S3UCM223', 'QTY 1', 'Edwards Lifesciences LLC',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Edwards');
+  assert.equal(f.ref, 'S3UCM223');   // „#"-Fallback
+});
+test('OCR echt: Merit Prelude SNAP — 7F, Draht .038, kein OD-Fehlgriff', () => {
+  const f = fns.extractLabelFields([
+    'MERIT MEDICAL', 'REF PLS-1007', 'LOT I3189493', 'Prelude SNAP™',
+    'Splittable Sheath Introducer', 'Size 7F STANDARD Length: 13 cm',
+    '0.038" (0.97 mm ) x 50 cm',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Merit Medical');
+  assert.equal(f.ref, 'PLS-1007');
+  assert.equal(f.french, '7F');
+  assert.equal(f.laenge, '13 cm');
+  assert.equal(f.name, 'Prelude SNAP');
+  assert.equal(f.dAussen, '');                 // 0.97 mm ist Draht, nicht OD
+  assert.ok(/0,038″/.test(f.weitere), 'Draht: ' + f.weitere);
+});
+test('OCR echt: Ethicon Ethibond Excel — Naht: Stärke/geflochten/Nadel', () => {
+  const f = fns.extractLabelFields([
+    '1 (4 Ph. Eur.)', 'UR-5 36 mm 5/8c Taperpoint', 'ETHICON® ETHIBOND EXCEL™',
+    'green braided non-absorbable suture', 'REF X7909H', '30" (75 cm)', 'LOT 10907A',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Ethicon');
+  assert.equal(f.ref, 'X7909H');
+  assert.equal(f.name, 'ETHIBOND EXCEL');       // nicht die Stärke-/Beschreibungszeile
+  assert.equal(f.laenge, '75 cm');
+  assert.ok(/Stärke 1\b/.test(f.weitere), 'USP-Stärke: ' + f.weitere);
+  assert.ok(/geflochten/.test(f.weitere), 'Struktur: ' + f.weitere);
+  assert.ok(/nicht resorbierbar/.test(f.weitere), 'Resorbierbarkeit: ' + f.weitere);
+  assert.ok(/Nadel UR-5 5\/8/.test(f.weitere), 'Nadel: ' + f.weitere);
+});
+test('OCR echt: Ethicon Monocryl Plus — Produktname trotz REF auf derselben Zeile', () => {
+  const f = fns.extractLabelFields([
+    '4-0 (1.5 Ph. Eur.)', 'PS-2 19 mm 3/8c Reverse Cutting',
+    'ETHICON® MONOCRYL™ PLUS REF MCP496', 'undyed monofilament absorbable suture', '18" (45 cm)',
+  ].join('\n'));
+  assert.equal(f.ref, 'MCP496');
+  assert.equal(f.name, 'MONOCRYL PLUS');        // nicht „undyed monofilament …"
+  assert.equal(f.laenge, '45 cm');
+  assert.ok(/Stärke 4-0/.test(f.weitere), 'Stärke: ' + f.weitere);
+  assert.ok(/monofil/.test(f.weitere), 'monofil: ' + f.weitere);
+  assert.ok(/resorbierbar/.test(f.weitere) && !/nicht resorbierbar/.test(f.weitere), 'resorbierbar: ' + f.weitere);
+  assert.ok(/Nadel PS-2 3\/8/.test(f.weitere), 'Nadel: ' + f.weitere);
+});
+
 // --- photoCropDims: Zuschneide-/Dreh-Geometrie (Foto-Editor) ----------------
 test('photoCropDims: ohne Rotation = volle Größe', () => {
   const d = fns.photoCropDims(1200, 800, 0, { x: 0, y: 0, w: 1, h: 1 });
