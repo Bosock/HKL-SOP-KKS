@@ -54,3 +54,23 @@ Die JSON-Basis wird nie angefasst; die Zuordnung ist jederzeit lösbar
 - „Generisch vs. konkret" als harte Regel (offene Frage des Betreibers) —
   v1 lässt Zuordnung optional, Vorkommen dürfen unverknüpft/generisch bleiben.
 - Automatisches Verschmelzen ohne Bestätigung — es gibt nur Vorschläge.
+
+## v2 — Eine zentrale Materialverwaltung (materialhub.js)
+Die früher getrennten Material-Menüs sind zu EINEM Ort verschmolzen:
+- „Material pflegen" (Foto/Lagerort/Preis, hkl_care+hkl_prod),
+- „Etikett-Scanner" (Barcode-Stammsatz mit Maßen & eigenen Eigenschaften, GTINDB),
+- „Materialzusammenführung" (Destillation, hkl_matlink).
+
+`renderMaterialHub()` (im „care"-Modus, ☰ → „🧬 Material verwalten") listet jedes
+Material mit Foto, Vorkommen (in welchen Standards) und Status; ein Tipp öffnet
+EINEN Editor — den reichen Stammsatz-Editor (`renderScanItemForm`) mit Scan 📷,
+OCR, Foto-Zuschnitt, Maßen, eigenen Eigenschaften, Preis, Lagerort. Duplikate
+werden im Hub direkt zusammengeführt (`matHubMerge`). Aus einem Standard-Eintrag
+öffnet „🧬 Material verwalten" (`matManage` → `openMaterial`) denselben Editor.
+
+Der Stammsatz (GTINDB, inkl. manueller „m:…") ist die EINZIGE Quelle der
+Identität. `openMaterial(key)` legt bei Bedarf einen Stammsatz an und übernimmt
+Alt-Pflegedaten (Foto, Lagerort, Hersteller, REF, Verwendung, Preis) verlustfrei
+via `matSeedFromCare` — nicht-destruktiv (hkl_care/hkl_prod bleiben als Fallback).
+Der klassische Etikett-Scanner bleibt für den Nutzungs-Modus (Produkt-Identifikation
+ohne Anmeldung) erhalten; `renderCareLegacy` bleibt als Fallback im Code.

@@ -118,6 +118,57 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   }, r2);
   check('matAdminLink verknüpft/löst ein Material im Panel', r8.linked && r8.unlinked);
 
+  // 9) Zentrale Materialverwaltung (materialhub): ein Bildschirm, ein Editor
+  const r9 = await A.page.evaluate(() => {
+    setMode('care'); renderMaterialHub();
+    const box = document.getElementById('scr-care');
+    const html = box.innerHTML;
+    return {
+      title: html.indexOf('>Material<') >= 0,
+      // Scan-CTA bei BarcodeDetector-Support, sonst Fallback-Hinweis (scan-this)
+      scanBtn: html.indexOf('scan-cta') >= 0 || html.indexOf('scan-this') >= 0,
+      newBtn: html.indexOf('Material ohne Barcode anlegen') >= 0,
+      search: !!box.querySelector('#matHubSearch'),
+      rows: box.querySelectorAll('#matHubList .mat-row').length,
+      rowsShowWhere: (matHubRows()[0] && Array.isArray(matHubRows()[0].stds)),
+    };
+  });
+  check('Material-Hub: EIN Bildschirm mit Titel „Material"', r9.title);
+  check('… mit Scan-Knopf, „ohne Barcode anlegen" und Suche', r9.scanBtn && r9.newBtn && r9.search);
+  check('… listet Materialien (' + r9.rows + ') inkl. Vorkommen (wo benutzt)', r9.rows > 0 && r9.rowsShowWhere);
+
+  // 10) openMaterial: legt bei Bedarf Stammsatz an, öffnet den EINEN Editor;
+  //     übernimmt Alt-Pflegedaten (Foto/Lagerort) in den Stammsatz
+  const r10 = await A.page.evaluate(() => {
+    // ein unverknüpftes Material mit Alt-Pflegedaten simulieren
+    const key = matDistinctList().find(x => !canonId(x.key)).key;
+    careMem[key] = { photo: 'data:image/png;base64,AAAA', loc: 'Regal Z' };
+    PROD[key] = { hersteller: 'SeedCorp', ref: 'SEED-1', verwendung: null, preis: 9.5 };
+    openMaterial(key);
+    const id = canonId(key);
+    const c = id ? GTINDB[id] : null;
+    const onEditor = document.getElementById('scr-scan-item').classList.contains('active');
+    return {
+      created: !!id,
+      seeded: !!(c && c.hersteller === 'SeedCorp' && c.ref === 'SEED-1' && c.lagerort === 'Regal Z' && c.photo === 'data:image/png;base64,AAAA' && c.preis === 9.5),
+      onEditor,
+    };
+  });
+  check('openMaterial legt Stammsatz an und öffnet den EINEN Editor', r10.created && r10.onEditor);
+  check('… übernimmt Alt-Pflegedaten (Foto, Lagerort, Hersteller, REF, Preis)', r10.seeded);
+
+  // 11) In-Standard-Zugang: matManage öffnet denselben zentralen Editor
+  const r11 = await A.page.evaluate(() => {
+    let cid = null, mk = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((r, ri) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => {
+      if (!cid && e.material_key) { cid = cidOf(s.id, ri, si, ei); mk = e.material_key; }
+    }))));
+    openSheet(cid); // Schnellmenü öffnen → sheetEntry/sheetCid gesetzt
+    matManage();
+    return { onEditor: document.getElementById('scr-scan-item').classList.contains('active'), linked: canonId(mk) !== null };
+  });
+  check('Standard → „Material verwalten" öffnet den zentralen Editor', r11.onEditor && r11.linked);
+
   check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

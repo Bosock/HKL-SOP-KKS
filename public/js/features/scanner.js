@@ -328,7 +328,15 @@ function onDecode(raw, fmt){
 
 /* ===== Ansichten ===== */
 function openScanHub(){
-  showSheet(false); formCtx=null; mode='use'; nav=[];
+  showSheet(false); formCtx=null;
+  /* Aus der zentralen Materialverwaltung (mode 'care') heraus geöffnet →
+     dorthin zurück (Editor „Abbrechen"/„Speichern" landet wieder im Hub). */
+  if(mode==='care' && typeof renderMaterialHub==='function'){
+    renderMaterialHub(); show('scr-care');
+    setBar('Material', (typeof MAT_INDEX!=='undefined'?MAT_INDEX.length:0)+' Materialien', false);
+    const sw=$('searchWrap'); if(sw) sw.style.display='none'; return;
+  }
+  mode='use'; nav=[];
   renderScanHub('');
   show('scr-scan');
   setBar('Etikett-Scanner', Object.keys(GTINDB).length+' Produkte', true);

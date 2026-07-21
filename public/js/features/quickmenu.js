@@ -151,6 +151,7 @@ function renderSheetLink(){ const e=sheetEntry; if(!e||!e.material_key){ showShe
   const mk=e.material_key; const curIdv=(typeof canonId==='function')?canonId(mk):null; const cur=(typeof canonOf==='function')?canonOf(mk):null;
   let h=`<div class="sheet-grip"></div><div class="sheet-title">🔗 Mit Produkt verknüpfen</div>`;
   h+=`<p class="why-help">Ordne dieses Material seinem echten Produkt-Stammsatz zu (Name, Foto, Maße, Eigenschaften). Der Eintrag im Standard bleibt — er bekommt die destillierte Identität. Jederzeit lösbar.</p>`;
+  h+=`<button class="scan-cta" style="margin:2px 0 10px" onclick="matManage()">🧬 Material verwalten — scannen, Foto, Maße, Eigenschaften</button>`;
   if(cur){ h+=`<div class="why-row"><span class="why-src">Aktuell</span><span class="why-val">${esc(cur.name||cur.ref||cur.gtin)}</span></div>
     <div class="sheet-pick"><button class="sheet-pick-btn" data-g="${esc(curIdv)}" onclick="matLinkShow(this.dataset.g)">Produkt anzeigen</button><button class="sheet-pick-btn" onclick="matLinkClear()">Verknüpfung lösen</button></div>`; }
   h+=`<div class="sheet-title" style="font-size:14px;margin-top:6px">Produkt wählen</div>
@@ -159,6 +160,9 @@ function renderSheetLink(){ const e=sheetEntry; if(!e||!e.material_key){ showShe
     <button class="sheet-pick-btn" onclick="matLinkNew()">＋ Neuer Stammsatz aus diesem Material</button>
     <button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
+/* Öffnet aus dem Standard heraus den EINEN zentralen Material-Editor
+   (materialhub.js) für dieses Vorkommen — legt bei Bedarf den Stammsatz an. */
+function matManage(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; } const mk=e.material_key; showSheet(false); if(typeof openMaterial==='function') openMaterial(mk); }
 function matLinkFilter(q){ const box=$('matLinkList'); if(box) box.innerHTML=matLinkListHTML(_matProdList(),q); }
 function matLinkPick(id){ const e=sheetEntry; if(!e||!e.material_key||!id) return; matLinkTo(e.material_key,id); showSheet(false); if(typeof buildMaterialIndex==='function') buildMaterialIndex(); toast('Verknüpft — destilliert'); reRenderDetail(); }
 function matLinkClear(){ const e=sheetEntry; if(!e||!e.material_key) return; matUnlink(e.material_key); showSheet(false); toast('Verknüpfung gelöst'); reRenderDetail(); }

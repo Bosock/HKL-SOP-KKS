@@ -2,7 +2,7 @@
 function setBar(t,c,b){ $('barTitle').textContent=t; $('barCrumb').textContent=c; $('backBtn').hidden=!b; }
 function updateBar(){ const total=DB.standards.length;
   if(mode==='use'&&nav.length===0) setBar(txt('appTitle'),total+' Standards',false);
-  else if(mode==='care'&&!$('scr-care-item').classList.contains('active')){ const d=MAT_INDEX.filter(m=>careMem[m.key]).length; setBar('Material pflegen',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
+  else if(mode==='care'&&!$('scr-care-item').classList.contains('active')){ const d=MAT_INDEX.filter(m=>(typeof canonId==='function'&&canonId(m.key))||careMem[m.key]).length; setBar('Material',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
   else if(mode==='catalog'){ setBar('Katalog',CATALOG.items.length+' Geräte & Materialien',false); }
   else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }

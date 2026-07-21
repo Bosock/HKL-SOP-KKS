@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v29';
+const CACHE_VERSION = 'v30';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -57,6 +57,7 @@ const SHELL = [
   'js/features/suggestions.js',
   'js/features/materials.js',
   'js/features/scanner.js',
+  'js/features/materialhub.js',
   'js/features/ocr.js',
   'js/core/sync.js',
   'js/core/pwa.js',

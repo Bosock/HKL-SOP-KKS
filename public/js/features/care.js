@@ -1,5 +1,9 @@
 /* ============ Pflege ============ */
-function renderCare(){ const box=$('scr-care'); let list=MAT_INDEX;
+/* Der „care"-Modus rendert jetzt die zentrale Materialverwaltung (materialhub.js),
+   die „Material pflegen", „Etikett-Scanner" und „Materialzusammenführung" an
+   EINEM Ort bündelt. renderCareLegacy bleibt als Fallback erhalten. */
+function renderCare(){ if(typeof renderMaterialHub==='function'){ renderMaterialHub(); return; } renderCareLegacy(); }
+function renderCareLegacy(){ const box=$('scr-care'); let list=MAT_INDEX;
   if(careFilter==='offen') list=MAT_INDEX.filter(m=>!careMem[m.key]);
   if(careFilter==='material') list=MAT_INDEX.filter(m=>m.typ==='material');
   if(careFilter==='geraet') list=MAT_INDEX.filter(m=>m.typ==='geraet');
