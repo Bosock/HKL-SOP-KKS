@@ -1222,6 +1222,65 @@ test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () =>
   assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
 });
 
+// --- OCR an echten Etiketten (Runde 4: Draht, Occluder, Mapping, Vanguard) --
+test('OCR echt: Boston IntellaMap Orion — REF trotz „Catalog Number"', () => {
+  const f = fns.extractLabelFields([
+    'Boston Scientific', 'IntellaMap Orion™', 'High Resolution Mapping Catheter',
+    '8.5F (2.84mm) x115 cm', 'REF Catalog Number M004RC64S0', 'LOT 34360300', 'Non-Pyrogenic',
+  ].join('\n'));
+  assert.equal(f.ref, 'M004RC64S0');   // „Catalog Number" NICHT als Wert
+  assert.equal(f.french, '8.5F');
+  assert.equal(f.dAussen, '2,84 mm');
+  assert.equal(f.laenge, '115 cm');
+  assert.equal(f.name, 'IntellaMap Orion');
+});
+test('OCR echt: Amplatzer Occluder — „does not contain latex" ist KEIN Latex', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'Amplatzer™ Septal Occluder', '8 mm', 'REF 9-ASD-008',
+    'Does not contain natural rubber latex components',
+  ].join('\n'));
+  assert.equal(f.ref, '9-ASD-008');
+  assert.equal(f.hersteller, 'Abbott');
+  assert.ok(!/Latex/.test(f.weitere), 'kein falsches Latex-Flag: ' + JSON.stringify(f.weitere));
+});
+test('OCR: echter Latex-Hinweis wird sehr wohl erkannt', () => {
+  const f = fns.extractLabelFields('This product contains natural rubber Latex which may cause allergic reactions');
+  assert.ok(/Latex/.test(f.weitere), 'Latex vorhanden: ' + f.weitere);
+});
+test('OCR echt: Abbott BMW Universal II — Führungsdraht, hydrophil', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'BALANCE MIDDLEWEIGHT UNIVERSAL II™',
+    'Guide Wire with TURBOCOAT™ Hydrophilic Coating', '0.014" (0.36 mm) 300 cm', 'REF 1009665',
+  ].join('\n'));
+  assert.equal(f.ref, '1009665');
+  assert.equal(f.laenge, '300 cm');
+  assert.equal(f.name, 'BALANCE MIDDLEWEIGHT UNIVERSAL II');
+  assert.ok(/hydrophil/.test(f.weitere), 'hydrophil: ' + f.weitere);
+  assert.ok(/0,014″/.test(f.weitere), 'Drahtstärke: ' + f.weitere);
+});
+test('OCR echt: Vanguard SJA — aufbereitet, 6F, Elektroden 2-5-2, 10-polig', () => {
+  const f = fns.extractLabelFields([
+    'VANGUARD', 'Steerable Diagnostic Catheter SJA', 'L-Type 6F 110cm 10p 2-5-2 mm TE1 RE1',
+    'Remanufactured', 'REF 34429', 'SN 2111063950', 'Vanguard AG',
+  ].join('\n'));
+  assert.equal(f.ref, '34429');
+  assert.equal(f.hersteller, 'Vanguard');
+  assert.equal(f.french, '6F');
+  assert.equal(f.laenge, '110 cm');
+  assert.ok(/aufbereitet/.test(f.weitere), 'Remanufactured → aufbereitet: ' + f.weitere);
+  assert.ok(/steuerbar/.test(f.weitere), 'steuerbar: ' + f.weitere);
+  assert.ok(/10-polig/.test(f.weitere), '10-polig: ' + f.weitere);
+});
+test('OCR echt: Amplatzer Amulet Delivery Sheath — 12F, REF mit Strichen', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'Amplatzer™ Amulet™ Delivery Sheath', '12F 80 cm', 'REF DS-TV45X45-12F-080',
+  ].join('\n'));
+  assert.equal(f.ref, 'DS-TV45X45-12F-080');
+  assert.equal(f.french, '12F');
+  assert.equal(f.laenge, '80 cm');
+  assert.equal(f.name, 'Amplatzer Amulet Delivery Sheath');
+});
+
 // --- OCR an echten Etiketten (Nutzer-Fotos, Runde 3: Implantate & Nähte) ----
 test('OCR echt: Medtronic Micra — Ø aus „Outer diameter (23 French)"', () => {
   const f = fns.extractLabelFields([

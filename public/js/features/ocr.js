@@ -43,7 +43,7 @@ function extractLabelFields(text){
 
   /* REF: „REF", „REF OEM:", „REF Catalog No.", „Cat.-Nr." … — Rauschwörter
      (OEM / Catalog No.) zwischen Marke und Wert überspringen. */
-  m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG)?\.?\s*(?:NO\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
+  m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
    || raw.match(/\b(?:CAT(?:ALOG)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
   if(m) out.ref=m[1].replace(/[.,]+$/,'');
   /* Fallback: manche Etiketten führen die Bestell-/Katalognummer nur mit „#"
@@ -156,7 +156,11 @@ function extractLabelFields(text){
   if(/\bNON[-\s]?PYROGEN/i.test(raw)) props.push('non-pyrogen');
   if(/\bSTEERABLE\b/i.test(raw) || /\bSTEUERBAR/i.test(raw) || /\bLENKBAR/i.test(raw)) props.push('steuerbar');
   if(/\bWITH\s+BALLOON\b/i.test(raw) || /\bMIT\s+BALLON/i.test(raw) || /\bBALLON(?:KATHETER)?\b/i.test(raw)) props.push('mit Ballon');
-  if(/\bLATEX\b/i.test(raw) && !/\bLATEX[-\s]?FREE\b/i.test(raw) && !/\bLATEXFREI\b/i.test(raw)) props.push('Latex');
+  /* Latex nur bei POSITIVEM Hinweis — „does not contain … latex", „latex-free",
+     „non-latex", „latexfrei" dürfen NICHT als Latex zählen. */
+  if(/\bLATEX\b/i.test(raw) && !/(LATEX[-\s]?FREE|LATEXFREI|NON[-\s]?LATEX|(?:NOT|DOES\s+NOT|KEIN|NO|OHNE)\b[^.\n]{0,30}LATEX)/i.test(raw)) props.push('Latex');
+  if(/\bHYDROPHIL/i.test(raw)) props.push('hydrophil');
+  if(/\bREMANUFACTURED\b/i.test(raw) || /\bREPROCESSED\b/i.test(raw) || /\bAUFBEREITET\b/i.test(raw) || /\bWIEDERAUFBEREITET\b/i.test(raw)) props.push('aufbereitet');
   if((pm=raw.match(/\b(\d(?:[-–]\d){1,3})\s?mm\b/))) props.push('Abstand '+pm[1].replace(/–/g,'-')+' mm');   /* 1-4-1 mm */
   /* Elektrodenabstand als Einzelwert („Electrode spacing (10mm)"). */
   if((pm=raw.match(/ELECTRODE\s+SPACING[^0-9]{0,8}(\d{1,2})\s?mm/i)) || (pm=raw.match(/ELEKTRODEN?[-\s]?ABSTAND[^0-9]{0,8}(\d{1,2})\s?mm/i))) props.push('Elektrodenabstand '+pm[1]+' mm');
