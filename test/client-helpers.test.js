@@ -94,6 +94,9 @@ function loadHelpers() {
     extractFn('gtinBadges'),
     extractFn('extractLabelFields'),
     extractFn('photoCropDims'),
+    extractFn('matPropSlug'),
+    extractFn('matNormName'),
+    extractFn('matSuggestGroups'),
     extractFn('mengeHiAuto'),
     extractFn('camErrorMessage'),
     extractFn('rulesActive'),
@@ -107,7 +110,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, photoCropDims, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1194,6 +1197,52 @@ test('mengeHiAuto: Groß-/Kleinschreibung und Leerraum tolerant', () => {
   assert.equal(fns.mengeHiAuto('1X'), false);
   assert.equal(fns.mengeHiAuto(' 1x '), false);
   assert.equal(fns.mengeHiAuto('2X'), true);
+});
+
+// --- Material-Destillation: reine Helfer -----------------------------------
+test('matPropSlug: erzeugt [a-z0-9_]-Schlüssel aus einem Label', () => {
+  assert.equal(fns.matPropSlug('Tip Load', []), 'tip_load');
+  assert.equal(fns.matPropSlug('French (F)', []), 'french_f');
+  assert.match(fns.matPropSlug('Außen-Ø (mm)', []), /^[a-z0-9_]+$/);
+});
+test('matPropSlug: leeres/symbolisches Label fällt auf „prop" zurück', () => {
+  assert.equal(fns.matPropSlug('', []), 'prop');
+  assert.equal(fns.matPropSlug('###', []), 'prop');
+});
+test('matPropSlug: kollidierende Schlüssel werden durchnummeriert', () => {
+  const taken = [{ key: 'tip_load' }, { key: 'tip_load_2' }];
+  assert.equal(fns.matPropSlug('Tip Load', taken), 'tip_load_3');
+});
+test('matNormName: entfernt Größen/Einheiten und normalisiert Tokens', () => {
+  // Gleiches Material, unterschiedlich geschriebene Maße → gleiche Normalform.
+  const a = fns.matNormName('Führungsdraht 0.035 inch 260 cm');
+  const b = fns.matNormName('Führungsdraht 260cm 0,035in');
+  assert.equal(a, b);
+  assert.ok(a.length > 0);
+});
+test('matNormName: Stoppwörter und kurze Tokens fallen weg, Reihenfolge egal', () => {
+  assert.equal(fns.matNormName('Schleuse für die Leiste'), fns.matNormName('Leiste Schleuse'));
+});
+test('matNormName: leere/nutzlose Eingabe -> leerer String', () => {
+  assert.equal(fns.matNormName(''), '');
+  assert.equal(fns.matNormName('5 F'), '');
+});
+test('matSuggestGroups: gruppiert gleiche Normalform (Größe >= 2)', () => {
+  const groups = fns.matSuggestGroups([
+    { key: 'a', name: 'Führungsdraht 0.035 260cm' },
+    { key: 'b', name: 'Führungsdraht 260 cm 0,035in' },
+    { key: 'c', name: 'Ballonkatheter 3.0 mm' },
+  ]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].length, 2);
+  assert.ok(groups[0].includes('a') && groups[0].includes('b'));
+});
+test('matSuggestGroups: keine Duplikate -> leere Liste', () => {
+  const groups = fns.matSuggestGroups([
+    { key: 'a', name: 'Schleuse 6F' },
+    { key: 'b', name: 'Draht 0.035' },
+  ]);
+  assert.equal(groups.length, 0);
 });
 
 // --- camErrorMessage: unterscheidbare Kamera-Fehlermeldungen ----------------

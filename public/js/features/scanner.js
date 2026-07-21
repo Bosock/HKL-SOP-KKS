@@ -372,13 +372,15 @@ function renderScanItemView(r){
     ['Hersteller', r.hersteller],
     ['REF / Bestellnr.', r.ref],
     ['Verwendung', r.verwendung],
+  ].concat((typeof MATPROPS!=='undefined'?MATPROPS:[]).map(p=>[p.label, r.props&&r.props[p.key]]))
+   .concat([
     ['Lagerort', r.lagerort],
     ['Stückpreis', (r.preis!=null?fmtEUR(r.preis):'')],
-  ].filter(x=>x[1]).map(x=>`<div class="info-field"><div class="if-l">${esc(x[0])}</div><div class="if-v">${esc(x[1])}</div></div>`).join('');
+  ]).filter(x=>x[1]).map(x=>`<div class="info-field"><div class="if-l">${esc(x[0])}</div><div class="if-v">${esc(x[1])}</div></div>`).join('');
   const rescan = scannerSupported()?`<div class="p-actions" style="margin-top:10px"><button class="btn btn-sec" onclick="startCam()">📷 Nächstes scannen</button></div>`:'';
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${esc(r.name||r.ref||'Produkt')}</div>
-    <div class="pc-ctx"><span class="gtin-mono">GTIN ${esc(r.gtin)}</span></div>
+    <div class="pc-ctx">${r.manual?'Manueller Stammsatz':`<span class="gtin-mono">GTIN ${esc(r.gtin)}</span>`}</div>
     ${r.photo?`<div style="margin:10px 0;border-radius:12px;overflow:hidden;max-height:240px;background:#000"><img src="${esc(r.photo)}" style="width:100%;max-height:240px;object-fit:contain" alt=""></div>`:''}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
@@ -391,7 +393,7 @@ function renderScanItemForm(r){
   const refHint=(!r.ref && lastScanInfo && lastScanInfo.gtin===g && lastScanInfo.itemRef)?lastScanInfo.itemRef:'';
   const del=(g && GTINDB[g])?`<div class="p-actions" style="margin-top:10px"><button class="btn btn-sec" style="color:#d64545" data-g="${esc(g)}" onclick="deleteScanItem(this.dataset.g)">Aus Datenbank löschen</button></div>`:'';
   $('scr-scan-item').innerHTML=`<div class="pcard">
-    <div class="pc-name">${g?('GTIN '+esc(g)):'Neues Produkt'}</div>
+    <div class="pc-name">${r.manual?'Material-Stammsatz (ohne Barcode)':(g?('GTIN '+esc(g)):'Neues Produkt')}</div>
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
     <button type="button" class="scan-cta ocr-cta" onclick="ocrCaptureAndFill()">📸 Etikett fotografieren – Felder automatisch ausfüllen</button>
     <div class="ocr-hint">Liest REF, Hersteller und Maße direkt vom Etikett (läuft auf dem Gerät). Bitte die erkannten Werte prüfen.</div>
@@ -408,6 +410,9 @@ function renderScanItemForm(r){
     <div class="flabel">Ø AUSSEN</div><input class="loc-input" id="scDAussen" placeholder="z. B. 2,6 mm" value="${esc(r.dAussen||'')}">
     <div class="flabel">Ø INNEN</div><input class="loc-input" id="scDInnen" placeholder="z. B. 1,8 mm" value="${esc(r.dInnen||'')}">
     <div class="flabel">WEITERE MASSE</div><input class="loc-input" id="scWeitere" placeholder="frei, z. B. Draht 0,035 Zoll" value="${esc(r.weitere||'')}">
+    <div id="scProps">${MATPROPS.map(p=>`<div class="flabel">${esc((p.label||'').toUpperCase())}</div><input class="loc-input" data-pk="${esc(p.key)}" value="${esc((r.props&&r.props[p.key])||'')}">`).join('')}</div>
+    <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="scanAddPropUI()">＋ Eigenschaft (z. B. Tip Load)</button></div>
+    <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>
     <div class="flabel" style="margin-top:12px">LAGERORT</div><input class="loc-input" id="scLoc" placeholder="z. B. Regal A · Fach 3" value="${esc(r.lagerort||'')}">
     <div class="flabel">STÜCKPREIS € (optional)</div><input class="loc-input" id="scPreis" inputmode="decimal" placeholder="z. B. 12,50" value="${esc(r.preis!=null?String(r.preis).replace('.',','):'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Abbrechen</button><button class="btn btn-pri" data-g="${esc(g)}" onclick="saveScanItem(this.dataset.g)">Speichern</button></div>
@@ -415,6 +420,16 @@ function renderScanItemForm(r){
   </div>
   <div class="foot">Die GTIN kommt aus dem Barcode und ist der Schlüssel: REF, Hersteller und Maße einmal erfassen — bei jedem weiteren Scan sind sie sofort da. Alles wird zentral gespeichert und auf allen Geräten geteilt.</div>`;
 }
+/* Eigene Eigenschaft (Schema-erweiternd, z. B. „Tip Load") anlegen — erscheint
+   danach bei JEDEM Produkt als Feld. Inline-Zeile statt prompt(). */
+function scanAddPropUI(){ const r=$('scNewPropRow'); if(!r) return; r.style.display='';
+  const i=$('scNewPropInp'); if(i){ i.focus(); i.onkeydown=(e)=>{ if(e.key==='Enter'){ e.preventDefault(); scanAddPropSave(); } }; } }
+function scanAddPropSave(){ const i=$('scNewPropInp'); const label=(i&&i.value||'').trim(); if(!label) return;
+  const key=matPropAdd(label); const box=$('scProps');
+  if(box && !box.querySelector('[data-pk="'+key+'"]')){ box.insertAdjacentHTML('beforeend', `<div class="flabel">${esc(label.toUpperCase())}</div><input class="loc-input" data-pk="${esc(key)}" value="">`); }
+  const row=$('scNewPropRow'); if(row){ row.style.display='none'; if(i) i.value=''; }
+  toast('Eigenschaft „'+label+'" angelegt – erscheint jetzt bei jedem Produkt'); }
+function scanReadProps(){ const props={}; document.querySelectorAll('#scProps input[data-pk]').forEach(el=>{ const v=(el.value||'').trim(); if(v) props[el.dataset.pk]=v; }); return props; }
 /* Produktfoto (Editor-Ergebnis) in die Vorschau setzen + fürs Speichern merken. */
 function scanSetPhoto(photo){ const z=$('scanPhotoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; }
   const b=$('scanCropBtn'); if(b) b.style.display=''; }
@@ -430,14 +445,18 @@ function saveScanItem(gArg){
   if(!ADMIN){ promptLoginThen(()=>saveScanItem(gArg)); return; }
   let g=gArg?gtinKey(gArg):'';
   if(!g){ const gi=$('scGtin'); g=gi?gtinKey(gi.value.trim()):''; }
-  if(!g || !/^\d{8,}$/.test(g)){ toast('Bitte eine gültige GTIN (Barcode-Nummer, nur Ziffern) angeben.',true); return; }
+  /* Manueller Stammsatz (Schlüssel „m:…") braucht keine GTIN — er wird über
+     Name/REF identifiziert (Material-Destillation ohne Barcode). */
+  const manual=/^m:/.test(g);
+  if(!manual && (!g || !/^\d{8,}$/.test(g))){ toast('Bitte eine gültige GTIN (Barcode-Nummer, nur Ziffern) angeben.',true); return; }
   const val=(id)=>{ const el=$(id); return el?el.value.trim():''; };
   const hersteller=val('scHersteller'), ref=val('scRef');
-  if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
+  if(manual){ if(!val('scName') && !hersteller && !ref){ toast('Bitte mindestens einen Produktnamen (oder Hersteller/REF) angeben.',true); return; } }
+  else if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
   const preis=parsePreis(val('scPreis'));
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
     french:val('scFrench')||null, laenge:val('scLaenge')||null, dAussen:val('scDAussen')||null, dInnen:val('scDInnen')||null, weitere:val('scWeitere')||null,
-    lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto() };
+    lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto(), props:scanReadProps() };
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();
   toast('Produkt gespeichert');

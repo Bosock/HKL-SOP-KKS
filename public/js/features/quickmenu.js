@@ -50,6 +50,8 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sGroup('Organisation','Wohin er gehört');
   h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
   if(isMat){ h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
+  if(isMat&&e.material_key){ const cn=(typeof canonOf==='function')?canonOf(e.material_key):null;
+    h+=sAct('🔗', cn?('Verknüpft: '+(cn.name||cn.ref||cn.gtin)):'Mit Produkt verknüpfen', cn?'Stammsatz zeigen / lösen':'Etikett-Produkt zuordnen (destillieren)','renderSheetLink()'); }
   h+=sAct('🧩','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
   h+=sAct('📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   h+=sAct('⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
@@ -138,6 +140,34 @@ function renderSheetMove(sid){ const e=sheetEntry; if(!e) return;
   }
   h+=`</div><button class="sheet-close" onclick="${sid?'renderSheetMove()':'renderSheetMain()'}">Zurück</button>`;
   $('sheet').innerHTML=h; }
+
+/* ── Material-Destillation: Vorkommen im Standard einem Produkt-Stammsatz
+   zuordnen (siehe docs/KONZEPT-MATERIALSTAMM.md). Nicht-destruktiv & lösbar. */
+function _matProdList(){ return (typeof GTINDB==='object'&&GTINDB)?Object.keys(GTINDB).map(k=>GTINDB[k]):[]; }
+function matLinkListHTML(prods,q){ const list=(typeof filterGtin==='function')?filterGtin(prods,q):prods;
+  if(!list.length) return `<div class="why-help">Noch keine Produkte in der Datenbank — unten neu anlegen.</div>`;
+  return list.slice(0,40).map(r=>`<button class="sheet-pick-btn" data-g="${esc(r.gtin)}" onclick="matLinkPick(this.dataset.g)">${r.photo?'🖼 ':'🏷️ '}${esc(r.name||r.ref||r.gtin)}<span class="ps-sub">${esc([r.hersteller,(r.ref?('REF '+r.ref):'')].filter(Boolean).join(' · ')||'—')}</span></button>`).join(''); }
+function renderSheetLink(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; }
+  const mk=e.material_key; const curIdv=(typeof canonId==='function')?canonId(mk):null; const cur=(typeof canonOf==='function')?canonOf(mk):null;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">🔗 Mit Produkt verknüpfen</div>`;
+  h+=`<p class="why-help">Ordne dieses Material seinem echten Produkt-Stammsatz zu (Name, Foto, Maße, Eigenschaften). Der Eintrag im Standard bleibt — er bekommt die destillierte Identität. Jederzeit lösbar.</p>`;
+  if(cur){ h+=`<div class="why-row"><span class="why-src">Aktuell</span><span class="why-val">${esc(cur.name||cur.ref||cur.gtin)}</span></div>
+    <div class="sheet-pick"><button class="sheet-pick-btn" data-g="${esc(curIdv)}" onclick="matLinkShow(this.dataset.g)">Produkt anzeigen</button><button class="sheet-pick-btn" onclick="matLinkClear()">Verknüpfung lösen</button></div>`; }
+  h+=`<div class="sheet-title" style="font-size:14px;margin-top:6px">Produkt wählen</div>
+    <input type="text" id="matLinkQ" class="txtinp" style="width:100%" placeholder="Produkt suchen (Name, REF, Hersteller …)" oninput="matLinkFilter(this.value)">
+    <div class="sheet-pick" id="matLinkList" style="margin-top:8px">${matLinkListHTML(_matProdList(),'')}</div>
+    <button class="sheet-pick-btn" onclick="matLinkNew()">＋ Neuer Stammsatz aus diesem Material</button>
+    <button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  $('sheet').innerHTML=h; }
+function matLinkFilter(q){ const box=$('matLinkList'); if(box) box.innerHTML=matLinkListHTML(_matProdList(),q); }
+function matLinkPick(id){ const e=sheetEntry; if(!e||!e.material_key||!id) return; matLinkTo(e.material_key,id); showSheet(false); if(typeof buildMaterialIndex==='function') buildMaterialIndex(); toast('Verknüpft — destilliert'); reRenderDetail(); }
+function matLinkClear(){ const e=sheetEntry; if(!e||!e.material_key) return; matUnlink(e.material_key); showSheet(false); toast('Verknüpfung gelöst'); reRenderDetail(); }
+function matLinkShow(id){ showSheet(false); if(typeof openScanItem==='function') openScanItem(id,false); }
+function matLinkNew(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; }
+  const nm=(qeGet(e,sheetCid,'name')!==undefined?qeGet(e,sheetCid,'name'):e.anzeige_text)||'';
+  const id=matCreateStamm(nm); if(!id){ showSheet(false); return; }
+  matLinkTo(e.material_key,id); showSheet(false);
+  if(typeof openScanItem==='function') openScanItem(id,true);   /* direkt zum Ausfüllen öffnen */ }
 function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!e||!cid) return;
   const tgt=DB.standards.find(s=>s.id===targetSid); if(!tgt||!tgt.rubriken[targetRi]){ toast('Ziel nicht gefunden',true); return; }
   if(cid.indexOf('new|')===0){
@@ -344,6 +374,8 @@ function ghostMouse(){ return Date.now()-touchGuardTs<700; }
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-menu-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } });
   /* 💡-Button: klappt das „Warum"-Detail auf/zu (für alle, kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-why-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry) return; const open=entry.classList.toggle('show-why'); b.setAttribute('aria-expanded',open?'true':'false'); });
+  /* 🔗-Badge: öffnet den verknüpften Produkt-Stammsatz (kein Abhaken). */
+  el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-canon-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const g=b.dataset.g; if(g&&typeof openScanItem==='function') openScanItem(g,false); });
 })();
 
 /* Generischer Halte-Detektor für Listen mit eigener Navigation: kurzes Tippen

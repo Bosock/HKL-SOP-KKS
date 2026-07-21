@@ -220,12 +220,65 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+pKat+pUk+pPruef+rulesPanelHTML()+pHidden;
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
   html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
   if(admNewNatOpen){ const inp=$('admNewNatInp'); if(inp){ inp.focus(); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addNat(); } }; } }
 }
+/* ── Panel: Materialzusammenführung (Destillation) ──────────────────────
+   Ordnet jedes Material-Vorkommen im Standard seinem echten Produkt-Stammsatz
+   (GTINDB-Produkt bzw. manueller Stammsatz) zu und schlägt Duplikate vor
+   (gleiche Normalform des Namens). Siehe docs/KONZEPT-MATERIALSTAMM.md. */
+function matMergePanelHTML(){
+  const list=(typeof matDistinctList==='function')?matDistinctList():[];
+  const cId=(k)=>(typeof canonId==='function')?canonId(k):null;
+  const cOf=(k)=>(typeof canonOf==='function')?canonOf(k):null;
+  const linked=list.filter(x=>cId(x.key)).length;
+  const groups=(typeof matSuggestGroups==='function')?matSuggestGroups(list):[];
+  const prods=(typeof GTINDB==='object'&&GTINDB)?Object.keys(GTINDB).map(k=>GTINDB[k]):[];
+  let p=`<details class="vpanel" data-keys="material zusammenführen zusammenfuehren zusammenführung destillieren destillation stammsatz verknüpfen verknuepfen duplikate produkt scanner etikett">${vsum('🧬','Materialzusammenführung','Gleiche Materialien einem Produkt-Stammsatz zuordnen (destillieren) und Duplikate zusammenführen',list.length?linked+'/'+list.length+' verknüpft':'')}<div class="vpanel-body">`;
+  p+=`<p class="panel-help">Materialien aus dem JSON-Import und selbst angelegte sind oft dasselbe. Ordne jedes Vorkommen seinem echten Produkt-Stammsatz zu (Name, Foto, Maße, Eigenschaften) — der Standard bleibt unverändert, bekommt aber die destillierte Identität. Alles rücknehmbar.</p>`;
+  if(groups.length){
+    p+=`<div class="flabel">Mögliche Duplikate (${groups.length})</div>`;
+    groups.forEach((g,gi)=>{ const names=g.map(k=>{ const it=list.find(x=>x.key===k); return it?it.name:k; });
+      p+=`<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(names[0])}</span><span class="uk-count">${g.length}×</span></div>
+        <div class="vw-ctx">${names.slice(1).map(esc).join(' · ')||'—'}</div>
+        <div class="uk-actions"><button data-i="${gi}" onclick="matMergeGroup(+this.dataset.i)">Zu einem Stammsatz zusammenführen</button></div></div>`; });
+  }
+  p+=`<div class="flabel" style="margin-top:14px">Alle Materialien (${list.length})</div>`;
+  if(!list.length) p+=`<p class="hint">Keine Materialien in den Standards gefunden.</p>`;
+  const optsFor=(sel)=>['<option value="">— nicht verknüpft —</option>']
+     .concat(prods.map(r=>`<option value="${esc(r.gtin)}" ${sel===r.gtin?'selected':''}>${esc(r.name||r.ref||r.gtin)}</option>`))
+     .concat([`<option value="__neu__">＋ Neuer Stammsatz aus diesem Material</option>`]).join('');
+  list.slice(0,300).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
+    p+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${c&&c.photo?'🖼 ':''}${esc(x.name)}</span><span class="uk-count">${x.count}×</span></div>
+      ${id?`<div class="vw-ctx">🔗 ${esc(c?(c.name||c.ref||c.gtin):id)}</div>`:''}
+      <select class="vw-sel" data-k="${esc(x.key)}" onchange="matAdminLink(this.dataset.k,this.value)">${optsFor(id)}</select></div>`; });
+  if(list.length>300) p+=`<div class="foot">Zeige erste 300 von ${list.length}. Für weitere zuerst zusammenführen.</div>`;
+  p+=`<p class="hint">„Zusammenführen" legt bei Bedarf einen Stammsatz an und verknüpft alle gleichen Vorkommen damit. Über den Etiketten-Scanner reicherst du den Stammsatz danach mit Foto, REF, Maßen und eigenen Eigenschaften an.</p></div></details>`;
+  return p;
+}
+/* Verknüpft/löst ein einzelnes Material-Vorkommen mit einem Stammsatz. */
+function matAdminLink(key,val){ if(!key) return;
+  if(val===''){ if(typeof matUnlink==='function') matUnlink(key); }
+  else if(val==='__neu__'){ const it=(typeof matDistinctList==='function'?matDistinctList():[]).find(x=>x.key===key);
+    const id=(typeof matCreateStamm==='function')?matCreateStamm(it?it.name:key):null;
+    if(id&&typeof matLinkTo==='function'){ matLinkTo(key,id); buildMaterialIndex(); renderAdmin();
+      if(typeof openScanItem==='function') openScanItem(id,true); return; } }
+  else if(typeof matLinkTo==='function'){ matLinkTo(key,val); }
+  buildMaterialIndex(); renderAdmin(); }
+/* Führt eine Duplikat-Gruppe zu EINEM Stammsatz zusammen: nimmt einen bereits
+   verknüpften Stammsatz der Gruppe (falls vorhanden), sonst legt einen manuellen
+   an, und verknüpft alle Vorkommen der Gruppe damit. */
+function matMergeGroup(gi){ const list=(typeof matDistinctList==='function')?matDistinctList():[];
+  const groups=(typeof matSuggestGroups==='function')?matSuggestGroups(list):[]; const g=groups[gi]; if(!g||!g.length) return;
+  let id=null; for(const k of g){ const c=(typeof canonId==='function')?canonId(k):null; if(c){ id=c; break; } }
+  if(!id){ const first=list.find(x=>x.key===g[0]); id=(typeof matCreateStamm==='function')?matCreateStamm(first?first.name:g[0]):null; }
+  if(!id) return;
+  g.forEach(k=>{ if(typeof matLinkTo==='function') matLinkTo(k,id); });
+  buildMaterialIndex(); renderAdmin(); toast(g.length+' Vorkommen zusammengeführt'); }
+
 /* Filtert die Verwaltungs-Panels live nach Titel/Stichwörtern (§4B). Alle
    Suchbegriffe müssen vorkommen; Abschnitts-Überschriften ohne sichtbares
    Panel werden mit ausgeblendet. Kein Re-Render → Panel-Zustände bleiben. */

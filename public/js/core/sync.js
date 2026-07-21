@@ -18,7 +18,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Inhalte & Anpassungen aus dem Verwaltungsmodus (vom Kollegen) – jetzt ebenfalls zentral geteilt */
   'hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_uksections',
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) */
-  'hkl_gtin',
+  'hkl_gtin','hkl_matlink','hkl_matprops',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -37,6 +37,8 @@ function hydrateVars(){
   careMem=loadJSON('hkl_care',{});
   PROD=loadJSON('hkl_prod',{});
   GTINDB=loadJSON('hkl_gtin',{});
+  MATLINK=loadJSON('hkl_matlink',{});
+  MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
   RULES=loadJSON('hkl_rules',[]); rebuildRulesIndex();
   HINTS=loadHints();
   GLOSSARY=loadGlossary();

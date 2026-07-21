@@ -7,7 +7,11 @@ function entryCardHTML(e,cid,isMatGer){
   const nat=effNatur(e,cid); const info=natOf(nat); const done=checks[cid]?'done':'';
   const showThumb=!!info.beschaffbar;
   const care=showThumb?careMem[e.material_key]:null;
-  const thumb=care&&care.photo?`<div class="e-thumb"><img src="${care.photo}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
+  /* Destillation: ist das Material einem Produkt-Stammsatz zugeordnet, gewinnt
+     dessen Foto/Identität (canonOf). Der Eintragstext bleibt unverändert. */
+  const canon=(showThumb&&e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
+  const thumbSrc=(canon&&canon.photo)||(care&&care.photo)||'';
+  const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
   const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
   const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) || (typeof hasStelleRule==='function'&&hasStelleRule(cid)) );
@@ -22,6 +26,8 @@ function entryCardHTML(e,cid,isMatGer){
   let meta=''; meta+=sizeBadges(groessenEff); meta+=specTags(spezEff);
   if(ADMIN&&e.__new) meta+=`<span class="tag" style="color:var(--accent);background:rgba(61,155,224,.13)">neu</span>`;
   if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
+  /* Verknüpfter Stammsatz als antippbarer Badge (öffnet die Produktkarte). */
+  if(canon){ const cn=canon.name||canon.ref||canon.gtin; meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🔗 ${esc(cn)}</button>`; }
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   /* Eigene Merkmale: Regel/Overlay hat Vorrang, eigene Einträge tragen sie
      direkt am Eintrag (e.zusatz). */
