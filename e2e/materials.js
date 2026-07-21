@@ -137,25 +137,34 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('… mit Scan-Knopf, „ohne Barcode anlegen" und Suche', r9.scanBtn && r9.newBtn && r9.search);
   check('… listet Materialien (' + r9.rows + ') inkl. Vorkommen (wo benutzt)', r9.rows > 0 && r9.rowsShowWhere);
 
-  // 10) openMaterial: legt bei Bedarf Stammsatz an, öffnet den EINEN Editor;
-  //     übernimmt Alt-Pflegedaten (Foto/Lagerort) in den Stammsatz
+  // 10) openMaterial: bereitet Stammsatz aus Alt-Pflegedaten VOR (Editor zeigt
+  //     die Werte), legt ihn aber erst BEIM SPEICHERN an und verknüpft dann.
   const r10 = await A.page.evaluate(() => {
-    // ein unverknüpftes Material mit Alt-Pflegedaten simulieren
     const key = matDistinctList().find(x => !canonId(x.key)).key;
     careMem[key] = { photo: 'data:image/png;base64,AAAA', loc: 'Regal Z' };
     PROD[key] = { hersteller: 'SeedCorp', ref: 'SEED-1', verwendung: null, preis: 9.5 };
     openMaterial(key);
+    const onEditor = document.getElementById('scr-scan-item').classList.contains('active');
+    // Bloßes Öffnen darf noch NICHTS anlegen/verknüpfen (kein DB-Müll)
+    const notYetLinked = canonId(key) === null;
+    // Editor ist mit den Alt-Pflegedaten vorbefüllt
+    const formSeeded = document.getElementById('scHersteller').value === 'SeedCorp'
+      && document.getElementById('scRef').value === 'SEED-1'
+      && document.getElementById('scLoc').value === 'Regal Z';
+    // Jetzt speichern → Stammsatz wird angelegt und verknüpft
+    const g = document.querySelector('#scr-scan-item .btn-pri[data-g]').dataset.g;
+    saveScanItem(g);
     const id = canonId(key);
     const c = id ? GTINDB[id] : null;
-    const onEditor = document.getElementById('scr-scan-item').classList.contains('active');
     return {
-      created: !!id,
+      onEditor, notYetLinked, formSeeded,
+      linkedAfterSave: !!id,
       seeded: !!(c && c.hersteller === 'SeedCorp' && c.ref === 'SEED-1' && c.lagerort === 'Regal Z' && c.photo === 'data:image/png;base64,AAAA' && c.preis === 9.5),
-      onEditor,
     };
   });
-  check('openMaterial legt Stammsatz an und öffnet den EINEN Editor', r10.created && r10.onEditor);
-  check('… übernimmt Alt-Pflegedaten (Foto, Lagerort, Hersteller, REF, Preis)', r10.seeded);
+  check('openMaterial öffnet den EINEN Editor, ohne beim Öffnen DB-Müll anzulegen', r10.onEditor && r10.notYetLinked);
+  check('… Editor mit Alt-Pflegedaten vorbefüllt (Hersteller, REF, Lagerort)', r10.formSeeded);
+  check('… erst Speichern legt Stammsatz an, verknüpft und übernimmt alle Felder', r10.linkedAfterSave && r10.seeded);
 
   // 11) In-Standard-Zugang: matManage öffnet denselben zentralen Editor
   const r11 = await A.page.evaluate(() => {
@@ -165,9 +174,11 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     }))));
     openSheet(cid); // Schnellmenü öffnen → sheetEntry/sheetCid gesetzt
     matManage();
-    return { onEditor: document.getElementById('scr-scan-item').classList.contains('active'), linked: canonId(mk) !== null };
+    const onEditor = document.getElementById('scr-scan-item').classList.contains('active');
+    const sheetClosed = !document.getElementById('sheet').classList.contains('show');
+    return { onEditor, sheetClosed, mk };
   });
-  check('Standard → „Material verwalten" öffnet den zentralen Editor', r11.onEditor && r11.linked);
+  check('Standard → „Material verwalten" öffnet den zentralen Editor', r11.onEditor && r11.sheetClosed);
 
   check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);

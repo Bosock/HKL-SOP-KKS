@@ -165,6 +165,7 @@ function gtinBadges(r){
 /* ===== Zustand ===== */
 let GTINDB=loadJSON('hkl_gtin',{}); function saveGtinDB(){ saveJSON('hkl_gtin',GTINDB); }
 let lastScanInfo=null;                              /* transiente Info des letzten Scans (LOT/Verfall/Serie) */
+let scanPendingLinkKey=null;                        /* material_key, der beim nächsten Speichern mit dem Stammsatz verknüpft wird (Materialverwaltung) */
 let scanStream=null, scanTimer=null, scanDetector=null, scanBusy=false, scanTorchOn=false;
 const SCAN_FORMATS=['data_matrix','qr_code','code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf','codabar'];
 
@@ -328,7 +329,7 @@ function onDecode(raw, fmt){
 
 /* ===== Ansichten ===== */
 function openScanHub(){
-  showSheet(false); formCtx=null;
+  showSheet(false); formCtx=null; scanPendingLinkKey=null;   /* Abbrechen/Zurück verwirft eine offene Neuanlage-Verknüpfung */
   /* Aus der zentralen Materialverwaltung (mode 'care') heraus geöffnet →
      dorthin zurück (Editor „Abbrechen"/„Speichern" landet wieder im Hub). */
   if(mode==='care' && typeof renderMaterialHub==='function'){
@@ -368,6 +369,7 @@ function scanRowHTML(r){
 }
 function openScanItem(gArg, edit){
   if(edit && !ADMIN){ promptLoginThen(()=>openScanItem(gArg,true)); return; }
+  scanPendingLinkKey=null;   /* direkter Aufruf ist keine „lege-neu-und-verknüpfe"-Aktion */
   const key=gArg?gtinKey(gArg):'';
   const r = key ? (GTINDB[key]||{gtin:key}) : {gtin:''};
   if(edit) renderScanItemForm(r); else renderScanItemView(r);
@@ -467,6 +469,9 @@ function saveScanItem(gArg){
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto(), props:scanReadProps() };
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();
+  /* Aus der Materialverwaltung „neu angelegt" → jetzt (erst beim Speichern, nicht
+     schon beim Öffnen) das Vorkommen mit dem Stammsatz verknüpfen. */
+  if(scanPendingLinkKey && typeof matLinkTo==='function'){ matLinkTo(scanPendingLinkKey, g); scanPendingLinkKey=null; if(typeof buildMaterialIndex==='function') buildMaterialIndex(); }
   toast('Produkt gespeichert');
   setTimeout(()=>{ openScanHub(); }, 500);
 }

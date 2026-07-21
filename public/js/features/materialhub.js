@@ -17,6 +17,7 @@
 
 let matHubQ='';                    /* aktuelle Suche im Hub */
 let matHubFilterVal='alle';        /* alle | offen | material | geraet */
+let matHubCache=null;              /* einmal je Vollrender berechnete Zeilen (Suche/Filter arbeiten darauf, kein DB-Durchlauf je Tastendruck) */
 
 /* material_key → Set der Standard-Titel, in denen es vorkommt (ein Durchlauf). */
 function matStdMap(){ const m={};
@@ -71,7 +72,7 @@ function matHubStatusTag(s){
   return `<span class="mat-sub open"><span class="dot dot-open"></span>offen</span>`;
 }
 function matHubListHTML(){
-  let list=matHubRows();
+  let list=(matHubCache||(matHubCache=matHubRows())).slice();
   const f=matHubFilterVal;
   if(f==='offen') list=list.filter(x=>x.status==='open'||x.status==='part');
   else if(f==='material') list=list.filter(x=>x.typ==='material');
@@ -95,7 +96,7 @@ function matHubListHTML(){
 /* Der zentrale Material-Bildschirm (rendert in den „care"-Screen). */
 function renderMaterialHub(){
   const box=$('scr-care'); if(!box) return;
-  const rows=matHubRows();
+  const rows=matHubCache=matHubRows();
   const total=rows.filter(x=>x.kind==='mat').length;
   const linked=rows.filter(x=>x.kind==='mat'&&x.status==='linked').length;
   const groups=(typeof matSuggestGroups==='function'&&typeof matDistinctList==='function')
@@ -109,7 +110,10 @@ function renderMaterialHub(){
       return `<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(names[0])}</span><span class="uk-count">${g.length}×</span></div>
         <div class="vw-ctx">${names.slice(1).map(esc).join(' · ')||'—'}</div>
         <div class="uk-actions"><button data-i="${gi}" onclick="matHubMerge(+this.dataset.i)">Zusammenführen</button></div></div>`; }).join('');
-    dup=`<details class="vpanel" style="margin:10px 0"><summary class="vsum"><span class="vs-ico">🧬</span><span class="vs-txt"><b>${groups.length} mögliche Duplikate</b><span class="vs-sub">gleiche Materialien zu einem Stammsatz zusammenführen</span></span></summary><div class="vpanel-body">${items}</div></details>`;
+    const dsum=(typeof vsum==='function')
+      ? vsum('🧬', groups.length+' mögliche Duplikate', 'gleiche Materialien zu einem Stammsatz zusammenführen')
+      : `<summary>🧬 ${groups.length} mögliche Duplikate</summary>`;
+    dup=`<details class="vpanel" style="margin:10px 0">${dsum}<div class="vpanel-body">${items}</div></details>`;
   }
   const fb=(k,l)=>`<button class="${matHubFilterVal===k?'on':''}" onclick="setMatHubFilter('${k}')">${l}</button>`;
   box.innerHTML=`<div class="banner"><h2>Material</h2><p>Alle Materialien an einem Ort: scannen, fotografieren, Maße & eigene Eigenschaften erfassen, Preise pflegen und gleiche Materialien zusammenführen. Ein Tipp aufs Material öffnet den Editor.<br><b>Hinweis:</b> Alles wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p>
@@ -125,16 +129,23 @@ function renderMaterialHub(){
 function matHubSearch(q){ matHubQ=q||''; const box=$('matHubList'); if(box) box.innerHTML=matHubListHTML(); }
 function setMatHubFilter(f){ matHubFilterVal=f; renderMaterialHub(); }
 
-/* Öffnet den EINEN Editor für ein Vorkommen (material_key). Legt bei Bedarf
-   einen Stammsatz an (aus Name + Alt-Pflegedaten) und verknüpft ihn. */
+/* Öffnet den EINEN Editor für ein Vorkommen (material_key). Ist das Material
+   schon verknüpft → dessen Stammsatz bearbeiten. Sonst einen NEUEN Stammsatz
+   transient vorbereiten (aus Name + Alt-Pflegedaten) — er wird erst BEIM
+   SPEICHERN angelegt und verknüpft (scanPendingLinkKey), damit bloßes Öffnen
+   die Datenbank nicht mit leeren Stammsätzen füllt. */
 function openMaterial(key){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>openMaterial(key)); return; } }
-  let id=(typeof canonId==='function')?canonId(key):null;
-  if(!id){ const m=(typeof MAT_INDEX!=='undefined'?MAT_INDEX:[]).find(x=>x.key===key);
-    const name=(m&&m.name)||key;
-    id=(typeof matCreateStamm==='function')?matCreateStamm(name, matSeedFromCare(key,name)):null;
-    if(id&&typeof matLinkTo==='function'){ matLinkTo(key,id); if(typeof buildMaterialIndex==='function') buildMaterialIndex(); } }
-  if(id&&typeof openScanItem==='function') openScanItem(id,true);
+  const id=(typeof canonId==='function')?canonId(key):null;
+  if(id){ if(typeof openScanItem==='function') openScanItem(id,true); return; }
+  const m=(typeof MAT_INDEX!=='undefined'?MAT_INDEX:[]).find(x=>x.key===key);
+  const name=(m&&m.name)||key;
+  const gid='m:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  if(typeof scanPendingLinkKey!=='undefined') scanPendingLinkKey=key;
+  if(typeof renderScanItemForm==='function'){
+    renderScanItemForm(Object.assign({ gtin:gid, manual:true, props:{} }, matSeedFromCare(key,name)));
+    show('scr-scan-item'); if(typeof setBar==='function') setBar(name,'Bearbeiten',true);
+  }
 }
 /* Neues Material ohne Barcode: manuellen Stammsatz-Editor öffnen (persistiert
    erst beim Speichern — die m:-ID wird schon vergeben). */
