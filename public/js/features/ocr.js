@@ -68,6 +68,13 @@ function extractLabelFields(text){
       if(mm){ out.hersteller=mm[1].replace(/\s+/g,' ').trim(); break; }
     }
   }
+  /* … sonst: Hersteller aus dem GTIN-Präfix ableiten (manche Etiketten – z. B.
+     Boston-EP-Kabel – nennen die Marke nur im Barcode). Nur bekannte, eindeutige
+     GS1-Präfixe, direkt an „GTIN"/„(01)". */
+  if(!out.hersteller){ const gm=raw.match(/(?:GTIN|\(01\))\D{0,3}0?(\d{12,13})/i);
+    if(gm){ const g=gm[1];
+      if(/^8714729/.test(g)) out.hersteller='Boston Scientific';
+      else if(/^5414734/.test(g)) out.hersteller='Abbott'; } }
 
   /* French: Zahl + F/Fr/French (z. B. 6F, 6 Fr, 7.5 French, x8F) */
   m = raw.match(/(\d{1,2}(?:[.,]\d)?)\s?F(?:r|rench)?\b/i);
@@ -75,6 +82,10 @@ function extractLabelFields(text){
   /* Länge in cm */
   m = raw.match(/(\d{1,3}(?:[.,]\d+)?)\s?cm\b/i);
   if(m) out.laenge=m[1].replace('.', ',')+' cm';
+  /* … sonst in Metern („3 m (10ft)") → in cm umrechnen. „mm" schließt der
+     Look-ahead aus; plausibler Bereich 0,5–6 m, damit keine Streuwerte greifen. */
+  if(!out.laenge){ m = raw.match(/\b(\d(?:[.,]\d+)?)\s?m\b(?!m)/i);
+    if(m){ const cm=Math.round(parseFloat(m[1].replace(',','.'))*100); if(cm>=50&&cm<=600) out.laenge=cm+' cm'; } }
   /* Außendurchmesser: Ø / OD / AD / außen + mm */
   m = raw.match(/(?:Ø|\bOD\b|\bA\.?D\.?|AUSSEN|AUßEN)\D{0,4}(\d{1,2}(?:[.,]\d+)?)\s?mm/i);
   if(m) out.dAussen=m[1].replace('.', ',')+' mm';
@@ -155,6 +166,7 @@ function extractLabelFields(text){
   if(/\bJ[-\s]?TIP\b/i.test(raw) || /\bJ-?SPITZE\b/i.test(raw)) props.push('J-Tip');
   if(/\bNON[-\s]?PYROGEN/i.test(raw)) props.push('non-pyrogen');
   if(/\bSTEERABLE\b/i.test(raw) || /\bSTEUERBAR/i.test(raw) || /\bLENKBAR/i.test(raw)) props.push('steuerbar');
+  if(/\bIRRIGATED\b/i.test(raw) || /\bGESP[ÜU]LT\b/i.test(raw) || /\bIRRIGIERT\b/i.test(raw)) props.push('gespült');
   if(/\bWITH\s+BALLOON\b/i.test(raw) || /\bMIT\s+BALLON/i.test(raw) || /\bBALLON(?:KATHETER)?\b/i.test(raw)) props.push('mit Ballon');
   /* Latex nur bei POSITIVEM Hinweis — „does not contain … latex", „latex-free",
      „non-latex", „latexfrei" dürfen NICHT als Latex zählen. */
@@ -170,7 +182,8 @@ function extractLabelFields(text){
   if((pm=raw.match(/(\.0\d{2})\s?["″”’'`]/))) props.push('Draht ' + pm[1].replace('.', '0,') + '″');
   /* Kurvenwinkel in Grad (z. B. 50°) bei steuerbaren/geformten Kathetern. */
   if((pm=raw.match(/\b(\d{2,3})\s?°/))) props.push(pm[1]+'° Kurve');
-  if((pm=raw.match(/\b(\d{1,2})\s?p\b/))) props.push(pm[1]+'-polig');                                         /* 4p */
+  /* Polzahl: „4p", „10-polig", „10 pin/pins", „Anzahl Pins 10". */
+  if((pm=raw.match(/\b(\d{1,2})[-\s]?(?:polig|pol|pins?)\b/i)) || (pm=raw.match(/\bANZAHL\s+PINS?\D{0,4}(\d{1,2})\b/i)) || (pm=raw.match(/\b(\d{1,2})\s?p\b/))) props.push(pm[1]+'-polig');
   if(props.length) out.weitere=props.join(' · ');
 
   return out;

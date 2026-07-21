@@ -1222,6 +1222,53 @@ test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () =>
   assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
 });
 
+// --- OCR an echten Etiketten (Runde 5: Ablation, Kabel, TREK) --------------
+test('OCR echt: Vanguard SJG Ablation — gespült, aufbereitet, Abstand, polig', () => {
+  const f = fns.extractLabelFields([
+    'VANGUARD', 'Irrigated Ablation Catheter uni SJG', 'F-Type 8F 115cm 4p 1-4-1 mm TC TE4',
+    'Remanufactured', 'REF 35097', 'SN 2109747947',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Vanguard');
+  assert.equal(f.ref, '35097');
+  assert.equal(f.french, '8F');
+  assert.equal(f.laenge, '115 cm');
+  assert.ok(/gespült/.test(f.weitere), 'irrigated → gespült: ' + f.weitere);
+  assert.ok(/aufbereitet/.test(f.weitere), 'aufbereitet: ' + f.weitere);
+  assert.ok(/Abstand 1-4-1 mm/.test(f.weitere), 'Elektrodenabstand: ' + f.weitere);
+  assert.ok(/4-polig/.test(f.weitere), 'Polzahl: ' + f.weitere);
+});
+test('OCR echt: Vanguard SureLink Kabel — 10-polig aus „Anzahl Pins"', () => {
+  const f = fns.extractLabelFields([
+    'SureLink 125 cm 10-polig', 'Verbindungskabel, elektrisch', 'Anzahl Pins 10',
+    'Boston Scientific', 'REF M004560004A0', 'Aufbereitet durch VANGUARD AG',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Boston Scientific');   // Originalhersteller
+  assert.equal(f.ref, 'M004560004A0');
+  assert.equal(f.laenge, '125 cm');
+  assert.ok(/10-polig/.test(f.weitere), 'Polzahl: ' + f.weitere);
+  assert.ok(/aufbereitet/.test(f.weitere), 'aufbereitet: ' + f.weitere);
+});
+test('OCR echt: Boston EP-Kabel — Hersteller aus GTIN, Länge aus „3m"', () => {
+  const f = fns.extractLabelFields([
+    'Electrophysiology Cable', 'THERMISTOR CATHETER TO POD / APM', '3m (10ft)',
+    'GTIN 08714729084570', 'REF Catalog No. M0046130',
+  ].join('\n'));
+  assert.equal(f.ref, 'M0046130');
+  assert.equal(f.hersteller, 'Boston Scientific');   // aus GTIN-Präfix 8714729
+  assert.equal(f.laenge, '300 cm');                  // 3 m → 300 cm
+});
+test('OCR echt: Abbott TREK — Ballonkatheter, REF, French, Länge', () => {
+  const f = fns.extractLabelFields([
+    'REF 1012405-08', 'Coronary Dilatation Catheter', 'TREK™',
+    '2.50 mm x 8 mm, 145 cm', '2.4F / 0.81 mm', 'Abbott Vascular',
+  ].join('\n'));
+  assert.equal(f.ref, '1012405-08');
+  assert.equal(f.hersteller, 'Abbott');
+  assert.equal(f.name, 'TREK');
+  assert.equal(f.french, '2.4F');
+  assert.equal(f.laenge, '145 cm');                  // cm gewinnt vor „mm"-Ballonmaßen
+});
+
 // --- OCR an echten Etiketten (Runde 4: Draht, Occluder, Mapping, Vanguard) --
 test('OCR echt: Boston IntellaMap Orion — REF trotz „Catalog Number"', () => {
   const f = fns.extractLabelFields([
