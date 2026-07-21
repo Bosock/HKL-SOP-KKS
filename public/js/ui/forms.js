@@ -64,6 +64,25 @@ function merkmaleBlockHTML(cur){
       <button type="button" class="add-btn" onclick="merkAddZus()">＋ Merkmal</button>${dl}
       <p class="hint">Alles Übrige frei benennbar — z. B. Struktur: geflochten · Nadel: 5/8 · Nadelform: Rundkörper. Erscheint als Badge am Eintrag.</p></div>`; }
 
+/* Produkt-gebundener Block im Eintrag-Formular: ist das Material einem Produkt
+   zugeordnet, werden Maße & Eigenschaften NICHT mehr am Eintrag abgefragt —
+   sie kommen vom Material (EINE Quelle). Der Block zeigt sie an und führt zum
+   Material-Editor; ein verstecktes Feld bewahrt die bestehenden Eintragswerte,
+   damit beim Speichern nichts (ungewollt) geändert wird. */
+function productLinkedBlockHTML(cur,canon,mk){
+  const sizes=(typeof matSizeList==='function')?matSizeList(canon):((canon&&canon.groessen)||[]);
+  const sb=(typeof sizeBadges==='function')?sizeBadges(sizes):'';
+  const props=(typeof MATPROPS!=='undefined'?MATPROPS:[]).filter(p=>canon&&canon.props&&canon.props[p.key]).map(p=>`<span class="tag tag-zusatz">${esc(p.label)}: ${esc(canon.props[p.key])}</span>`).join('');
+  const nm=(canon&&(canon.name||canon.ref||canon.gtin))||'Material';
+  const hold=`<input type="hidden" id="matEntryHold" data-groessen='${esc(JSON.stringify(cur.groessen||[]))}' data-zusatz='${esc(JSON.stringify(cur.zusatz||[]))}'>`;
+  return `<div class="form-grp"><div class="flabel">Maße &amp; Eigenschaften</div>
+    <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px">
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">🧬 Kommen vom Material „<b>${esc(nm)}</b>" — dort einmal gepflegt, erscheinen an jedem Eintrag dieses Materials.</div>
+      <div class="e-meta">${sb}${props}${(!sb&&!props)?'<span class="tag">noch keine Maße/Eigenschaften</span>':''}</div>
+      <button type="button" class="add-btn" style="margin-top:10px" data-mk="${esc(mk)}" onclick="openMaterialFromForm(this.dataset.mk)">🧬 Material verwalten (Foto, Etikett, Maße …)</button>
+    </div>${hold}</div>`; }
+function openMaterialFromForm(mk){ if(mk&&typeof openMaterial==='function') openMaterial(mk); }
+
 /* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
         | {kind:'catalog'} | {kind:'editCatalog',id}
    optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
@@ -84,11 +103,22 @@ function openEntryForm(desc){
   /* Katalog: einfache Ein-Größen-Zeile (Schnell-Auswahlliste); Einträge:
      voller Merkmale-Editor (mehrere Größen + eigene Merkmale, Konzept
      docs/KONZEPT-MERKMALE.md). */
+  /* Ist der Eintrag einem Produkt-Stammsatz zugeordnet? Dann Maße/Eigenschaften
+     dort pflegen (nicht doppelt am Eintrag). */
+  let linkMk=null, linkedCanon=null;
+  if(!isCatalog){
+    let eObj=null;
+    if(desc.kind==='editBase') eObj=findEntry(desc.cid);
+    else if(desc.kind==='editAdd') eObj=findAddEntry(desc.sid,desc.ri,desc.aid);
+    linkMk=eObj?eObj.material_key:null;
+    if(linkMk && typeof canonOf==='function') linkedCanon=canonOf(linkMk);
+  }
   const sizeBlock=isCatalog
     ?`<div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>`
-    :merkmaleBlockHTML(cur);
+    :(linkedCanon?productLinkedBlockHTML(cur,linkedCanon,linkMk):merkmaleBlockHTML(cur));
+  const nameHint=linkedCanon?`<p class="hint">Produkt: „${esc(linkedCanon.name||linkedCanon.ref||linkedCanon.gtin)}". Nur ändern, wenn im Standard ein abweichender Name stehen soll.</p>`:'';
   const h=`<div class="pcard">
-    <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}"></div>
+    <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}">${nameHint}</div>
     <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
     <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog,!isCatalog)}${isCatalog?'':`<div class="form-row" id="natNewRow" style="display:none;margin-top:8px"><input class="loc-input" id="natNewInp" placeholder="Name der neuen Kategorie"><button type="button" class="add-btn" onclick="natFormNewSave()">Anlegen</button></div>`}</div>
     ${sizeBlock}
@@ -117,9 +147,16 @@ function readEntryForm(){
   /* Merkmale-Editor (Einträge) ODER Ein-Größen-Zeile (Katalog) auslesen. */
   let groessen=[], zusatz=[], sizeTyp='', sizeVal='';
   const sizesEl=$('fSizes');
+  const holdEl=$('matEntryHold');
   if(sizesEl){
     groessen=[...sizesEl.querySelectorAll('.merk-row')].map(r=>({typ:(r.querySelector('.merk-typ').value||'dimension'),wert:r.querySelector('.merk-wert').value.trim()})).filter(g=>g.wert).map(g=>({typ:g.typ,wert:g.wert,roh:g.wert}));
     zusatz=[...$('fZus').querySelectorAll('.merk-row')].map(r=>({n:r.querySelector('.merk-name').value.trim(),w:r.querySelector('.merk-zwert').value.trim()})).filter(f=>f.n);
+    const g0=groessen[0]; if(g0){ sizeTyp=g0.typ; sizeVal=g0.wert; }
+  } else if(holdEl){
+    /* Produkt-gebunden: Maße/Eigenschaften kommen vom Material → die bestehenden
+       Eintragswerte unverändert durchreichen (keine Schein-Änderung). */
+    try{ groessen=JSON.parse(holdEl.dataset.groessen||'[]')||[]; }catch(_){ groessen=[]; }
+    try{ zusatz=JSON.parse(holdEl.dataset.zusatz||'[]')||[]; }catch(_){ zusatz=[]; }
     const g0=groessen[0]; if(g0){ sizeTyp=g0.typ; sizeVal=g0.wert; }
   } else { sizeTyp=$('fSizeTyp').value; sizeVal=$('fSizeVal').value; }
   return { name:$('fName').value, menge:$('fMenge').value, nat:($('fNatWrap').dataset.nat||'material'), sizeTyp, sizeVal, groessen, zusatz, uk:$('fUk').value, spez:$('fSpez').value, color:($('fColorWrap').dataset.color||''),

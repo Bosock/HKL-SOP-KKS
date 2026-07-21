@@ -161,6 +161,21 @@ function gtinBadges(r){
   if(r.weitere) b.push(['Maß', r.weitere]);
   return b;
 }
+/* EIN einheitliches Maß-System für das Material: liefert die typisierten Größen
+   als Liste {typ,wert} — aus der neuen `groessen`-Liste PLUS den alten festen
+   Feldern (french/laenge/Ø/weitere), solange diese noch existieren (OCR/Import).
+   So gibt es genau EINE Maßliste (wie beim Eintrag), ohne Altbestand zu
+   verlieren. Rein/testbar. */
+function matSizeList(r){
+  const out=[]; if(!r) return out;
+  if(Array.isArray(r.groessen)) r.groessen.forEach(g=>{ if(g&&g.wert) out.push({typ:g.typ||'dimension',wert:g.wert}); });
+  const add=(typ,wert)=>{ if(wert) out.push({typ,wert:String(wert)}); };
+  add('french', r.french); add('laenge', r.laenge);
+  if(r.dAussen) add('durchmesser', 'außen '+r.dAussen);
+  if(r.dInnen) add('durchmesser', 'innen '+r.dInnen);
+  add('dimension', r.weitere);
+  return out;
+}
 
 /* ===== Zustand ===== */
 let GTINDB=loadJSON('hkl_gtin',{}); function saveGtinDB(){ saveJSON('hkl_gtin',GTINDB); }
@@ -362,7 +377,7 @@ function scanListHTML(q){
 function scanSearch(q){ const box=$('gtinList'); if(box) box.innerHTML=scanListHTML(q); }
 function badgeSpans(pairs){ return pairs.map(b=>`<span class="size-badge"><span class="st">${esc(b[0])}</span>${esc(b[1])}</span>`).join(''); }
 function scanRowHTML(r){
-  const badges=badgeSpans(gtinBadges(r));
+  const badges=(typeof sizeBadges==='function')?sizeBadges(matSizeList(r)):badgeSpans(gtinBadges(r));
   const sub=[r.ref?('REF '+r.ref):'', r.gtin?('GTIN '+r.gtin):''].filter(Boolean).join(' · ');
   const thumb=r.photo?`<div class="mat-thumb"><img src="${esc(r.photo)}" alt=""></div>`:`<div class="mat-thumb">🏷️</div>`;
   return `<div class="mat-row" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)">${thumb}<div class="mat-main"><div class="mat-name">${esc(r.name||r.ref||r.gtin||'Produkt')}</div><div class="mat-sub"><span class="gtin-mono">${esc(sub)}</span></div>${badges?`<div class="e-meta" style="margin-top:6px">${badges}</div>`:''}</div></div>`;
@@ -377,7 +392,7 @@ function openScanItem(gArg, edit){
   setBar(r.name||r.ref||(key?('GTIN '+key):'Neues Produkt'), edit?'Bearbeiten':'Produkt', true);
 }
 function renderScanItemView(r){
-  const badges=badgeSpans(gtinBadges(r));
+  const badges=(typeof sizeBadges==='function')?sizeBadges(matSizeList(r)):badgeSpans(gtinBadges(r));
   const rows=[
     ['Hersteller', r.hersteller],
     ['REF / Bestellnr.', r.ref],
@@ -415,11 +430,10 @@ function renderScanItemForm(r){
     <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}">
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
     <div class="flabel">VERWENDUNG</div><input class="loc-input" id="scVerw" placeholder="z. B. radialer Zugang" value="${esc(r.verwendung||'')}">
-    <div class="flabel" style="margin-top:12px">GRÖSSE (French)</div><input class="loc-input" id="scFrench" placeholder="z. B. 6F" value="${esc(r.french||'')}">
-    <div class="flabel">LÄNGE</div><input class="loc-input" id="scLaenge" placeholder="z. B. 110 cm" value="${esc(r.laenge||'')}">
-    <div class="flabel">Ø AUSSEN</div><input class="loc-input" id="scDAussen" placeholder="z. B. 2,6 mm" value="${esc(r.dAussen||'')}">
-    <div class="flabel">Ø INNEN</div><input class="loc-input" id="scDInnen" placeholder="z. B. 1,8 mm" value="${esc(r.dInnen||'')}">
-    <div class="flabel">WEITERE MASSE</div><input class="loc-input" id="scWeitere" placeholder="frei, z. B. Draht 0,035 Zoll" value="${esc(r.weitere||'')}">
+    <div class="flabel" style="margin-top:12px">MASSE / GRÖSSEN</div>
+    <div id="scSizes">${matSizeList(r).map(scSizeRowHTML).join('')}</div>
+    <button type="button" class="add-btn" onclick="scanAddSize()">＋ Maß</button>
+    <p class="hint">Alle Maße frei mit Typ — z. B. Stärke 4-0 · Länge 45 cm · Fr 6 · Ø 2,6 mm. Ersetzt die früheren Einzelfelder; gilt für das ganze Material.</p>
     <div id="scProps">${MATPROPS.map(p=>`<div class="flabel">${esc((p.label||'').toUpperCase())}</div><input class="loc-input" data-pk="${esc(p.key)}" value="${esc((r.props&&r.props[p.key])||'')}">`).join('')}</div>
     <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="scanAddPropUI()">＋ Eigenschaft (z. B. Tip Load)</button></div>
     <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>
@@ -440,6 +454,14 @@ function scanAddPropSave(){ const i=$('scNewPropInp'); const label=(i&&i.value||
   const row=$('scNewPropRow'); if(row){ row.style.display='none'; if(i) i.value=''; }
   toast('Eigenschaft „'+label+'" angelegt – erscheint jetzt bei jedem Produkt'); }
 function scanReadProps(){ const props={}; document.querySelectorAll('#scProps input[data-pk]').forEach(el=>{ const v=(el.value||'').trim(); if(v) props[el.dataset.pk]=v; }); return props; }
+/* Maß-Zeilen des Material-Editors (eine typisierte Größenliste — dasselbe Muster
+   wie beim Eintrag, damit es EIN Maß-System gibt). */
+function scSizeRowHTML(g){ const types=(typeof SIZE_TYPES!=='undefined')?SIZE_TYPES:['dimension'];
+  const opts=types.map(t=>`<option value="${esc(t)}" ${g&&g.typ===t?'selected':''}>${esc(typeof sizeLabel==='function'?sizeLabel(t):t)}</option>`).join('');
+  return `<div class="form-row merk-row" style="margin-bottom:8px"><select class="form-sel merk-typ" style="flex:0 0 96px">${opts}</select><input class="loc-input merk-wert" placeholder="z. B. 6F, 45cm, 4-0" value="${esc(g?g.wert:'')}"><button type="button" class="merk-del" style="flex:0 0 44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)" onclick="this.closest('.merk-row').remove()" aria-label="Maß entfernen">✕</button></div>`; }
+function scanAddSize(){ const box=$('scSizes'); if(box) box.insertAdjacentHTML('beforeend', scSizeRowHTML(null)); }
+function scanReadSizes(){ const box=$('scSizes'); if(!box) return [];
+  return [...box.querySelectorAll('.merk-row')].map(r=>({typ:(r.querySelector('.merk-typ').value||'dimension'),wert:r.querySelector('.merk-wert').value.trim()})).filter(g=>g.wert).map(g=>({typ:g.typ,wert:g.wert,roh:g.wert})); }
 /* Produktfoto (Editor-Ergebnis) in die Vorschau setzen + fürs Speichern merken. */
 function scanSetPhoto(photo){ const z=$('scanPhotoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; }
   const b=$('scanCropBtn'); if(b) b.style.display=''; }
@@ -465,7 +487,9 @@ function saveScanItem(gArg){
   else if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
   const preis=parsePreis(val('scPreis'));
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
-    french:val('scFrench')||null, laenge:val('scLaenge')||null, dAussen:val('scDAussen')||null, dInnen:val('scDInnen')||null, weitere:val('scWeitere')||null,
+    groessen:scanReadSizes(),
+    /* Alt-Einzelfelder auf null: sie sind jetzt in der Maßliste (matSizeList) aufgegangen. */
+    french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto(), props:scanReadProps() };
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();

@@ -180,6 +180,36 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   });
   check('Standard → „Material verwalten" öffnet den zentralen Editor', r11.onEditor && r11.sheetClosed);
 
+  // 12) Entkopplung: ein verknüpftes Material trägt Maße/Eigenschaften; der
+  //     Eintrag-Editor fragt sie NICHT mehr ab (kommen vom Material), und die
+  //     Eintragskarte zeigt sie aus dieser EINEN Quelle.
+  const r12 = await A.page.evaluate(() => {
+    // Material-Vorkommen finden und mit einem Stammsatz verknüpfen
+    let cid = null, mk = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((r, ri) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => {
+      if (!cid && e.material_key) { cid = cidOf(s.id, ri, si, ei); mk = e.material_key; }
+    }))));
+    const id = matCreateStamm('Testprodukt XY', { groessen: [{ typ: 'naht', wert: '4-0' }], props: {} });
+    matLinkTo(mk, id); buildMaterialIndex();
+    // Eintrag-Formular öffnen → Produkt-Block statt Größen/Merkmale-Editor
+    const sid = cidStd(cid); openStandard(sid); openRubrik(+cid.split('|')[1]);
+    openEntryForm({ kind: 'editBase', cid });
+    const html = document.getElementById('scr-form').innerHTML;
+    const hasProductBlock = html.indexOf('Kommen vom Material') >= 0 && !!document.getElementById('matEntryHold');
+    const noSizeEditor = !document.getElementById('fSizes');
+    // Speichern ohne Änderung darf keine Schein-Regel erzeugen
+    const rulesBefore = rulesActive(RULES).length;
+    saveEntryForm();
+    const noSheet = !document.getElementById('sheet').classList.contains('show');
+    const rulesAfter = rulesActive(RULES).length;
+    // Karte zeigt die Maße des Materials
+    const e = findEntry(cid); const card = entryCardHTML(e, cid, true);
+    return { hasProductBlock, noSizeEditor, noPhantomRule: rulesAfter === rulesBefore, noSheet, cardShowsMatSize: /4-0/.test(card) };
+  });
+  check('Verknüpfter Eintrag: Formular zeigt Produkt-Block statt Größen/Merkmale-Editor', r12.hasProductBlock && r12.noSizeEditor);
+  check('… Speichern ohne Änderung erzeugt keine Schein-Regel', r12.noPhantomRule && r12.noSheet);
+  check('… Eintragskarte zeigt die Maße aus der EINEN Quelle (Material)', r12.cardShowsMatSize);
+
   check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

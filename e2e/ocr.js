@@ -35,15 +35,17 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     openScanItem('08714729906117', true);
     const filled = ocrFillForm(f);
     const val = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
-    return { f, filled, form: { ref: val('scRef'), herst: val('scHersteller'), name: val('scName'), verw: val('scVerw'), french: val('scFrench'), laenge: val('scLaenge'), weit: val('scWeitere') } };
+    // Maße landen jetzt in der EINEN Maßliste (#scSizes) statt in Einzelfeldern.
+    const sizeVals = [...document.querySelectorAll('#scSizes .merk-wert')].map(i => i.value);
+    return { f, filled, form: { ref: val('scRef'), herst: val('scHersteller'), name: val('scName'), verw: val('scVerw'), sizeVals } };
   });
   r.check('reiches Etikett: REF trotz „Catalog No."', rich.f.ref === 'M004EMR4500K20');
   r.check('reiches Etikett: Verwendung (Gerätetyp) erkannt', rich.f.verwendung === 'Temperature Ablation Catheter');
   r.check('reiches Etikett: Eigenschaft „Large Curve"', /Large Curve/.test(rich.f.weitere || ''));
   r.check('Formular: REF + Hersteller gefüllt', rich.form.ref === 'M004EMR4500K20' && rich.form.herst === 'Boston Scientific');
   r.check('Formular: Verwendung gefüllt (scVerw)', rich.form.verw === 'Temperature Ablation Catheter');
-  r.check('Formular: Eigenschaften gefüllt (scWeitere)', /Large Curve/.test(rich.form.weit || ''));
-  r.check('Formular: French + Länge gefüllt', rich.form.french === '8F' && rich.form.laenge === '110 cm');
+  r.check('Formular: Eigenschaften in Maßliste (Large Curve)', rich.form.sizeVals.some(v => /Large Curve/.test(v)));
+  r.check('Formular: French + Länge in Maßliste', rich.form.sizeVals.includes('8F') && rich.form.sizeVals.includes('110 cm'));
 
   // 2) Echte Engine laden + Text aus einem gerenderten Etikett lesen.
   const ocr = await A.page.evaluate(async () => {

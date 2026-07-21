@@ -23,16 +23,24 @@ function entryCardHTML(e,cid,isMatGer){
   /* Menge/Größen/Spezifikation sind über das Bearbeiten-Formular und das Schnellmenü überschreibbar. */
   const gv=qeGet(e,cid,'groessen'); const groessenEff=(gv!==undefined?gv:e.groessen);
   const sv=qeGet(e,cid,'spez'); const spezEff=(sv!==undefined)?(sv?sv:null):e.spezifikation;
-  let meta=''; meta+=sizeBadges(groessenEff); meta+=specTags(spezEff);
+  /* Ist das Material einem Produkt zugeordnet (canon), liefert DIESES die Maße
+     und Eigenschaften — EINE Quelle, keine Doppelung mit den Eintragswerten.
+     Der Standard-Hinweis (Spezifikation) bleibt am Eintrag. */
+  let meta='';
+  if(canon){ meta+=sizeBadges((typeof matSizeList==='function')?matSizeList(canon):(canon.groessen||[])); }
+  else { meta+=sizeBadges(groessenEff); }
+  meta+=specTags(spezEff);
   if(ADMIN&&e.__new) meta+=`<span class="tag" style="color:var(--accent);background:rgba(61,155,224,.13)">neu</span>`;
-  if(settings.lagerort&&showThumb) meta+= care&&care.loc?`<span class="tag tag-loc">📍 ${esc(care.loc)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
+  const locEff=(canon&&canon.lagerort)||(care&&care.loc)||'';
+  if(settings.lagerort&&showThumb) meta+= locEff?`<span class="tag tag-loc">📍 ${esc(locEff)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   /* Verknüpfter Stammsatz als antippbarer Badge (öffnet die Produktkarte). */
   if(canon){ const cn=canon.name||canon.ref||canon.gtin; meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🔗 ${esc(cn)}</button>`; }
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
-  /* Eigene Merkmale: Regel/Overlay hat Vorrang, eigene Einträge tragen sie
-     direkt am Eintrag (e.zusatz). */
-  const zvv=qeGet(e,cid,'zusatz'); const zus=(zvv!==undefined&&zvv!==null)?zvv:e.zusatz;
-  if(Array.isArray(zus)) zus.forEach(f=>{ if(f&&f.n) meta+=`<span class="tag tag-zusatz">${esc(f.n)}${f.w?': '+esc(f.w):''}</span>`; });
+  /* Eigenschaften: ist das Material zugeordnet (canon), kommen sie vom Produkt
+     (EINE Quelle). Sonst die Eintrags-Merkmale (e.zusatz / Overlay). */
+  if(canon){ (typeof MATPROPS!=='undefined'?MATPROPS:[]).forEach(p=>{ const v=canon.props&&canon.props[p.key]; if(v) meta+=`<span class="tag tag-zusatz">${esc(p.label)}: ${esc(v)}</span>`; }); }
+  else { const zvv=qeGet(e,cid,'zusatz'); const zus=(zvv!==undefined&&zvv!==null)?zvv:e.zusatz;
+    if(Array.isArray(zus)) zus.forEach(f=>{ if(f&&f.n) meta+=`<span class="tag tag-zusatz">${esc(f.n)}${f.w?': '+esc(f.w):''}</span>`; }); }
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';

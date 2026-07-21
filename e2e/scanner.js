@@ -53,10 +53,15 @@ const GS1_AGAIN = '01' + GTIN + '17270101';            // derselbe Artikel, ande
     document.getElementById('scHersteller').value = 'Terumo';
     document.getElementById('scRef').value = 'RG5J40';
     document.getElementById('scName').value = 'Radialschleuse 6F';
-    document.getElementById('scFrench').value = '6F';
+    // Neue EINE Maßliste statt fester Einzelfelder: eine Maß-Zeile ergänzen.
+    scanAddSize();
+    const row = document.querySelector('#scSizes .merk-row');
+    row.querySelector('.merk-typ').value = 'french';
+    row.querySelector('.merk-wert').value = '6F';
     saveScanItem(gtin);
     const rec = GTINDB[gtin];
-    return !!(rec && rec.ref === 'RG5J40' && rec.hersteller === 'Terumo' && rec.french === '6F');
+    const hasSize = Array.isArray(rec.groessen) && rec.groessen.some(g => g.wert === '6F' && g.typ === 'french');
+    return !!(rec && rec.ref === 'RG5J40' && rec.hersteller === 'Terumo' && hasSize);
   }, GTIN);
   r.check('Speichern legt Datensatz unter GTIN an', saved);
 

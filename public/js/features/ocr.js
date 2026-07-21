@@ -173,10 +173,19 @@ function ocrBusy(on, msg){
 /* Füllt NUR leere Formularfelder mit den OCR-Kandidaten (nichts wird
    überschrieben). Gibt die tatsächlich gefüllten Felder zurück. */
 function ocrFillForm(f){
-  const map={ scRef:'ref', scHersteller:'hersteller', scName:'name', scVerw:'verwendung', scFrench:'french', scLaenge:'laenge', scDAussen:'dAussen', scDInnen:'dInnen', scWeitere:'weitere' };
+  const textMap={ scRef:'ref', scHersteller:'hersteller', scName:'name', scVerw:'verwendung' };
   const filled={};
-  Object.keys(map).forEach(id=>{ const el=$(id); const val=f[map[id]];
-    if(el && val && !el.value.trim()){ el.value=val; filled[map[id]]=val; el.classList.add('ocr-filled'); } });
+  Object.keys(textMap).forEach(id=>{ const el=$(id); const val=f[textMap[id]];
+    if(el && val && !el.value.trim()){ el.value=val; filled[textMap[id]]=val; el.classList.add('ocr-filled'); } });
+  /* Maße gehen jetzt in die EINE Maßliste (#scSizes) als Zeilen — nicht mehr in
+     feste Einzelfelder. Bestehende Werte werden nicht gedoppelt. */
+  const sizeMap=[['french','french',''],['laenge','laenge',''],['dAussen','durchmesser','außen '],['dInnen','durchmesser','innen '],['weitere','dimension','']];
+  const box=$('scSizes');
+  if(box){ const existing=[...box.querySelectorAll('.merk-wert')].map(i=>(i.value||'').trim().toLowerCase());
+    sizeMap.forEach(([key,typ,prefix])=>{ const val=f[key]; if(!val) return; const wert=prefix+val;
+      if(existing.indexOf(wert.toLowerCase())>=0) return;
+      if(typeof scanAddSize==='function'){ scanAddSize(); const rows=box.querySelectorAll('.merk-row'); const row=rows[rows.length-1];
+        if(row){ row.querySelector('.merk-typ').value=typ; row.querySelector('.merk-wert').value=wert; row.querySelector('.merk-wert').classList.add('ocr-filled'); filled[key]=val; } } }); }
   return filled;
 }
 /* Öffnet die Kamera (natives Foto), liest das Etikett und füllt das Formular. */

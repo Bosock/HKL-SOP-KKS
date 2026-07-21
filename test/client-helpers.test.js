@@ -92,6 +92,7 @@ function loadHelpers() {
     extractFn('filterGtin'),
     extractFn('gtinGroups'),
     extractFn('gtinBadges'),
+    extractFn('matSizeList'),
     extractFn('extractLabelFields'),
     extractFn('photoCropDims'),
     extractFn('matPropSlug'),
@@ -110,7 +111,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, extractLabelFields, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1197,6 +1198,27 @@ test('mengeHiAuto: Groß-/Kleinschreibung und Leerraum tolerant', () => {
   assert.equal(fns.mengeHiAuto('1X'), false);
   assert.equal(fns.mengeHiAuto(' 1x '), false);
   assert.equal(fns.mengeHiAuto('2X'), true);
+});
+
+// --- matSizeList: EIN Maß-System (Liste + Alt-Einzelfelder) -----------------
+test('matSizeList: nimmt die typisierte groessen-Liste', () => {
+  const l = fns.matSizeList({ groessen: [{ typ: 'naht', wert: '4-0' }, { typ: 'laenge', wert: '45cm' }] });
+  assert.equal(l.length, 2);
+  assert.equal(l[0].typ, 'naht');
+  assert.equal(l[0].wert, '4-0');
+});
+test('matSizeList: migriert Alt-Einzelfelder (french/laenge/Ø/weitere)', () => {
+  const l = fns.matSizeList({ french: '6F', laenge: '110 cm', dAussen: '2,6 mm', dInnen: '1,8 mm', weitere: 'Draht 0,035' });
+  const has = (typ, wert) => l.some(x => x.typ === typ && x.wert === wert);
+  assert.ok(has('french', '6F'));
+  assert.ok(has('laenge', '110 cm'));
+  assert.ok(has('durchmesser', 'außen 2,6 mm'));
+  assert.ok(has('durchmesser', 'innen 1,8 mm'));
+  assert.ok(has('dimension', 'Draht 0,035'));
+});
+test('matSizeList: leeres/fehlendes Objekt -> leere Liste', () => {
+  assert.equal(fns.matSizeList(null).length, 0);
+  assert.equal(fns.matSizeList({}).length, 0);
 });
 
 // --- Material-Destillation: reine Helfer -----------------------------------
