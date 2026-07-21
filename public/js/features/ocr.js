@@ -31,13 +31,14 @@ function extractLabelFields(text){
   /* Bekannte Hersteller (Kardiologie/EP + allgemein). Längster Treffer gewinnt,
      damit „Boston Scientific" vor „Cook" sticht; wort-genau (kein Teilstring). */
   const BRANDS=['Boston Scientific','St. Jude Medical','St. Jude','St Jude',
-    'Abbott','Medtronic','Biotronik','Biosense Webster','Johnson & Johnson',
+    'Abbott Medical','Abbott','Medtronic','Biotronik','Biosense Webster','Johnson & Johnson',
     'Baylis Medical','Baylis','Masimo','Osypka','Vanguard','Irvine Biomedical',
-    'Terumo','Cordis','Merit Medical','Merit','Cook Medical','Cook',
+    'Terumo','Cordis','Merit Medical','Merit','Cook Medical','Cook Incorporated','Cook',
     'B. Braun','B.Braun','Braun','Teleflex','Penumbra','Asahi','Nipro','Edwards',
     'Biosensors','MicroPort','Japan Lifeline','Lifetech','Cardinal Health','Cardinal',
     'Argon','Optimed','Balt','Andramed','Angiokard','pfm medical','pfm','Vygon',
-    'Rontis','iVascular','Acandis','Gore','Bard'];
+    'Rontis','iVascular','Acandis','Gore','Bard','Bioptimal','Biomerics','Biosense',
+    'Sterimed','Peter Surgical','Ethicon','Johnson','Natec','MedAlliance'];
   let m;
 
   /* REF: „REF", „REF OEM:", „REF Catalog No.", „Cat.-Nr." … — Rauschwörter
@@ -72,6 +73,14 @@ function extractLabelFields(text){
   /* Außendurchmesser: Ø / OD / AD / außen + mm */
   m = raw.match(/(?:Ø|\bOD\b|\bA\.?D\.?|AUSSEN|AUßEN)\D{0,4}(\d{1,2}(?:[.,]\d+)?)\s?mm/i);
   if(m) out.dAussen=m[1].replace('.', ',')+' mm';
+  /* Durchmesser direkt am French: „6F 2.00 mm", „5F(1.7mm)", „8.5F 2.80 mm"
+     bzw. „2.9 mm (8.6F)" — die mm-Angabe ist dann der (Außen-)Durchmesser.
+     Nur ergänzen, wenn nicht schon über Ø/OD erkannt. */
+  if(!out.dAussen){
+    let dm = raw.match(/\d{1,2}(?:[.,]\d)?\s?F(?:r|rench)?\b[\s(]{0,3}(\d(?:[.,]\d+)?)\s?mm/i)
+          || raw.match(/(\d(?:[.,]\d+)?)\s?mm\s*\(\s*\d{1,2}(?:[.,]\d)?\s?F/i);
+    if(dm) out.dAussen=dm[1].replace('.', ',')+' mm';
+  }
   /* Innendurchmesser: ID / innen + mm */
   m = raw.match(/(?:\bID\b|\bI\.?D\.?|INNEN)\D{0,4}(\d{1,2}(?:[.,]\d+)?)\s?mm/i);
   if(m) out.dInnen=m[1].replace('.', ',')+' mm';
@@ -87,11 +96,14 @@ function extractLabelFields(text){
   }
   if(!nm){
     for(const ln of lines){
-      if(/\b(REF|LOT|CHARGE|BATCH|SN|GTIN|EC\s?REP|STERILE?|LATEX|QTY|MD|UDI|CAT(?:ALOG)?|MODEL)\b/i.test(ln)) continue;
+      if(/\b(REF|LOT|CHARGE|BATCH|SN|GTIN|EC\s?REP|STERILE?|LATEX|QTY|MD|UDI|CAT(?:ALOG)?|MODEL|P\/N|PN|REV)\b/i.test(ln)) continue;
       const letters=(ln.match(/[A-Za-zÄÖÜäöü]/g)||[]).length;
-      if(letters>=4 && ln.length>=5 && !/^[\d\s.,\-]+$/.test(ln)){
-        if(best && ln.toUpperCase()===best.toUpperCase()) continue;
-        nm=ln.replace(/[.,;:]+$/,''); break;
+      /* Marken-™/® vor dem Vergleich entfernen — sonst rutscht „Bioptimal™"
+         (= Hersteller mit ™) fälschlich als Produktname durch. */
+      const cc=ln.replace(/[™®]/g,'').replace(/\s+/g,' ').trim();
+      if(letters>=4 && cc.length>=5 && !/^[\d\s.,\-]+$/.test(cc)){
+        if(best && cc.toUpperCase()===best.toUpperCase()) continue;
+        nm=cc.replace(/[.,;:]+$/,''); break;
       }
     }
   }
@@ -115,7 +127,17 @@ function extractLabelFields(text){
   if(/\bJ[-\s]?TIP\b/i.test(raw) || /\bJ-?SPITZE\b/i.test(raw)) props.push('J-Tip');
   if(/\bNON[-\s]?PYROGEN/i.test(raw)) props.push('non-pyrogen');
   if(/\bSTEERABLE\b/i.test(raw) || /\bSTEUERBAR/i.test(raw) || /\bLENKBAR/i.test(raw)) props.push('steuerbar');
+  if(/\bWITH\s+BALLOON\b/i.test(raw) || /\bMIT\s+BALLON/i.test(raw) || /\bBALLON(?:KATHETER)?\b/i.test(raw)) props.push('mit Ballon');
+  if(/\bLATEX\b/i.test(raw) && !/\bLATEX[-\s]?FREE\b/i.test(raw) && !/\bLATEXFREI\b/i.test(raw)) props.push('Latex');
   if((pm=raw.match(/\b(\d(?:[-–]\d){1,3})\s?mm\b/))) props.push('Abstand '+pm[1].replace(/–/g,'-')+' mm');   /* 1-4-1 mm */
+  /* Elektrodenabstand als Einzelwert („Electrode spacing (10mm)"). */
+  if((pm=raw.match(/ELECTRODE\s+SPACING[^0-9]{0,8}(\d{1,2})\s?mm/i)) || (pm=raw.match(/ELEKTRODEN?[-\s]?ABSTAND[^0-9]{0,8}(\d{1,2})\s?mm/i))) props.push('Elektrodenabstand '+pm[1]+' mm');
+  /* Führungsdraht-Kompatibilität in Zoll (z. B. .038″, .035″, .014″) — häufig
+     die „MAX. GUIDEWIRE O.D.". Nur .0xx″ (echte Drahtstärken) — so wird ein
+     Schleusen-Außenmaß wie .318″ NICHT fälschlich als Draht gelesen. */
+  if((pm=raw.match(/(\.0\d{2})\s?["″”’'`]/))) props.push('Draht ' + pm[1].replace('.', '0,') + '″');
+  /* Kurvenwinkel in Grad (z. B. 50°) bei steuerbaren/geformten Kathetern. */
+  if((pm=raw.match(/\b(\d{2,3})\s?°/))) props.push(pm[1]+'° Kurve');
   if((pm=raw.match(/\b(\d{1,2})\s?p\b/))) props.push(pm[1]+'-polig');                                         /* 4p */
   if(props.length) out.weitere=props.join(' · ');
 

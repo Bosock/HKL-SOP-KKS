@@ -1158,6 +1158,70 @@ test('OCR echt: reiner Rechtsform-Fallback (unbekannte Marke), EC REP ausgeschlo
   assert.equal(f.hersteller, 'Musterfirma GmbH');  // erste Rechtsform-Zeile, NICHT die EC-REP-Zeile
 });
 
+// --- OCR an weiteren echten Etiketten (Nutzer-Fotos, Runde 2) ---------------
+test('OCR echt: Abbott Fast-Cath Hemostasis Introducer — French+Ø, Draht', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'Fast-Cath™', 'Hemostasis Introducer', '6F 2.00 mm 12 cm',
+    '2028-07-31', 'REF 406103', 'LOT 10983927', 'Sheath 6F  Dilator 6F',
+    'MAX. GUIDEWIRE O.D. .038" (.965 mm)',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Abbott');
+  assert.equal(f.ref, '406103');
+  assert.equal(f.french, '6F');
+  assert.equal(f.laenge, '12 cm');
+  assert.equal(f.dAussen, '2,00 mm');           // mm direkt am French = Außendurchmesser
+  assert.ok(/0,038″/.test(f.weitere), 'Draht-Kompatibilität: ' + f.weitere);
+});
+test('OCR echt: Bioptimal Bipolar Pacing Catheter — Marke, Ballon, Elektrodenabstand', () => {
+  const f = fns.extractLabelFields([
+    'Bioptimal™', '5F(1.7mm) BIPOLAR PACING CATHETER WITH BALLOON',
+    'REF BP2502-10', 'P/N BP-0002-017 REV.A8', 'QTY 1/PKG', 'LOT H231200139',
+    'Length 110 cm', 'Electrode spacing (10mm)',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Bioptimal');       // neue Marke erkannt
+  assert.equal(f.ref, 'BP2502-10');              // REF, nicht P/N
+  assert.equal(f.french, '5F');
+  assert.equal(f.laenge, '110 cm');
+  assert.equal(f.name, '5F(1.7mm) BIPOLAR PACING CATHETER WITH BALLOON'); // nicht „Bioptimal™"
+  assert.ok(/mit Ballon/.test(f.weitere), 'Ballon: ' + f.weitere);
+  assert.ok(/Elektrodenabstand 10 mm/.test(f.weitere), 'Elektrodenabstand: ' + f.weitere);
+});
+test('OCR echt: Abbott Perclose ProStyle — French in Klammern (8.6F), Ø davor', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'Perclose™ ProStyle™', 'Suture-Mediated Closure and Repair System',
+    'REF 12773-02 LOT 5120841', '2.9 mm (8.6F)',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Abbott');
+  assert.equal(f.ref, '12773-02');
+  assert.equal(f.french, '8.6F');
+  assert.equal(f.dAussen, '2,9 mm');
+  assert.equal(f.name, 'Perclose ProStyle');
+});
+test('OCR echt: Cook Extra Large Check-Flo — 24Fr, Draht .035 (nicht .318)', () => {
+  const f = fns.extractLabelFields([
+    'Extra Large Check-Flo® Introducer', 'REF XVCFW-24.0-35-25', 'REF G12896',
+    '24Fr', '25cm', '24Fr (.318"/8.08mm)  .035" (0.89mm)', 'LOT 15583034', 'COOK MEDICAL',
+  ].join('\n'));
+  assert.equal(f.ref, 'XVCFW-24.0-35-25');       // erster (Katalog-)REF, mit Punkten/Strichen
+  assert.equal(f.french, '24F');
+  assert.equal(f.laenge, '25 cm');
+  assert.equal(f.name, 'Extra Large Check-Flo Introducer');
+  assert.ok(/0,035″/.test(f.weitere), 'Draht = .035, nicht Schleusen-.318: ' + f.weitere);
+  assert.ok(!/0,318/.test(f.weitere), 'kein Fehlgriff auf .318: ' + f.weitere);
+});
+test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () => {
+  const f = fns.extractLabelFields([
+    'Abbott', 'Fast-Cath™', 'Guiding Introducer SR0™', '8.5F 2.80 mm 63 cm',
+    'REF 406853 LOT 10861486', '50°', '.038" (.97 mm) 145 cm',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Abbott');
+  assert.equal(f.ref, '406853');
+  assert.equal(f.french, '8.5F');
+  assert.equal(f.laenge, '63 cm');               // Geräte-Länge, nicht Draht-145cm
+  assert.equal(f.dAussen, '2,80 mm');
+  assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
+});
+
 // --- photoCropDims: Zuschneide-/Dreh-Geometrie (Foto-Editor) ----------------
 test('photoCropDims: ohne Rotation = volle Größe', () => {
   const d = fns.photoCropDims(1200, 800, 0, { x: 0, y: 0, w: 1, h: 1 });
