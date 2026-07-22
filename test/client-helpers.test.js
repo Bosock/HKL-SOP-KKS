@@ -1222,6 +1222,52 @@ test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () =>
   assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
 });
 
+// --- OCR an echten Etiketten (Runde 6: F-Präfix, Catalogue, Abiomed …) -----
+test('OCR echt: B. Braun Corodyn — French als „F5" (F-Präfix)', () => {
+  const f = fns.extractLabelFields([
+    '5 CORODYN P1 F5 110CM PUR', 'REF 5011590', 'LOT 24K0484401', 'B. Braun Melsungen AG',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'B. Braun');
+  assert.equal(f.ref, '5011590');
+  assert.equal(f.french, '5F');      // „F5" korrekt als 5 French
+  assert.equal(f.laenge, '110 cm');
+});
+test('OCR echt: Cordis Biopsy Forceps — REF trotz „Catalogue number" (UE)', () => {
+  const f = fns.extractLabelFields([
+    'BIOPSY FORCEPS™', 'Maximum Shaft O.D. 5.5 F (1.85 mm)', 'Usable Shaft Length 104 cm',
+    'REF Catalogue number 504-300', 'Cordis',
+  ].join('\n'));
+  assert.equal(f.ref, '504-300');    // nicht „ue"
+  assert.equal(f.hersteller, 'Cordis');
+  assert.equal(f.french, '5.5F');
+  assert.equal(f.laenge, '104 cm');
+  assert.equal(f.name, 'BIOPSY FORCEPS');
+});
+test('OCR echt: Abiomed Impella Companion Sheath — neue Marke', () => {
+  const f = fns.extractLabelFields([
+    'ABIOMED', 'Impella Low Profile Companion Sheath', 'REF 1000440',
+    '7F 0.101" (2.6 mm) 30 cm', 'MAX GUIDE WIRE 0.038" (0.97 mm)', 'Non-pyrogenic',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'Abiomed');
+  assert.equal(f.ref, '1000440');
+  assert.equal(f.french, '7F');
+  assert.equal(f.laenge, '30 cm');
+  assert.ok(/0,038″/.test(f.weitere), 'Draht: ' + f.weitere);
+});
+test('OCR echt: St. Jude EP-Kabel 1924-S — Länge aus „1.5 m/5 ft"', () => {
+  const f = fns.extractLabelFields([
+    'ST. JUDE MEDICAL', 'Electrophysiology Cable', '1924-S', '1.5 m/5 ft',
+    'LOT 10416251 REF IBI-85931', 'GTIN 05414734309172',
+  ].join('\n'));
+  assert.equal(f.hersteller, 'St. Jude Medical');
+  assert.equal(f.ref, 'IBI-85931');
+  assert.equal(f.laenge, '150 cm');   // 1.5 m → 150 cm
+});
+test('OCR: „F5"-Präfix greift NICHT in „REF 5011590" (kein Fehlgriff)', () => {
+  const f = fns.extractLabelFields('REF 5011590\nSteriles Kabel');
+  assert.equal(f.french, '');         // keine French aus „REF 5…"
+});
+
 // --- OCR an echten Etiketten (Runde 5: Ablation, Kabel, TREK) --------------
 test('OCR echt: Vanguard SJG Ablation — gespült, aufbereitet, Abstand, polig', () => {
   const f = fns.extractLabelFields([

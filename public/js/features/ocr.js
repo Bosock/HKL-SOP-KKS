@@ -38,13 +38,14 @@ function extractLabelFields(text){
     'Biosensors','MicroPort','Japan Lifeline','Lifetech','Cardinal Health','Cardinal',
     'Argon','Optimed','Balt','Andramed','Angiokard','pfm medical','pfm','Vygon',
     'Rontis','iVascular','Acandis','Gore','Bard','Bioptimal','Biomerics','Biosense',
+    'Abiomed',
     'Sterimed','Peter Surgical','Ethicon','Johnson','Natec','MedAlliance'];
   let m;
 
   /* REF: „REF", „REF OEM:", „REF Catalog No.", „Cat.-Nr." … — Rauschwörter
      (OEM / Catalog No.) zwischen Marke und Wert überspringen. */
-  m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
-   || raw.match(/\b(?:CAT(?:ALOG)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
+  m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
+   || raw.match(/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
   if(m) out.ref=m[1].replace(/[.,]+$/,'');
   /* Fallback: manche Etiketten führen die Bestell-/Katalognummer nur mit „#"
      (z. B. Edwards „# S3UCM223"). Nur ein Buchstaben+Ziffern-Code, damit keine
@@ -79,6 +80,11 @@ function extractLabelFields(text){
   /* French: Zahl + F/Fr/French (z. B. 6F, 6 Fr, 7.5 French, x8F) */
   m = raw.match(/(\d{1,2}(?:[.,]\d)?)\s?F(?:r|rench)?\b/i);
   if(m) out.french=m[1].replace(',', '.')+'F';
+  /* … sonst F-Präfix („F5" = 5 French, z. B. B. Braun „CORODYN P1 F5"). F muss
+     ein eigenständiges Token sein (Wortanfang, direkt Ziffer), damit „REF 5…"
+     o. Ä. nicht getroffen wird. */
+  if(!out.french){ m = raw.match(/(?:^|\s)F(\d{1,2}(?:[.,]\d)?)(?=\s|$)/);
+    if(m) out.french=m[1].replace(',', '.')+'F'; }
   /* Länge in cm */
   m = raw.match(/(\d{1,3}(?:[.,]\d+)?)\s?cm\b/i);
   if(m) out.laenge=m[1].replace('.', ',')+' cm';
