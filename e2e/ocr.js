@@ -60,13 +60,15 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const dataUrl = c.toDataURL('image/png');
 
     const t0 = Date.now();
-    let text = '';
-    try { text = await runLabelOCR(dataUrl, () => {}); }
+    let ocrRes = { text: '', confidence: 0 };
+    try { ocrRes = await runLabelOCR(dataUrl, () => {}); }
     catch (e) { return { error: String((e && e.message) || e) }; }
+    const text = (ocrRes && ocrRes.text) || '';
     const fields = extractLabelFields(text);
     return {
       loaded: !!window.Tesseract,
       textLen: text.length,
+      confidence: ocrRes.confidence,
       upper: text.toUpperCase(),
       ref: fields.ref, french: fields.french,
       ms: Date.now() - t0,

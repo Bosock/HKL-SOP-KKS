@@ -21,6 +21,23 @@
    bewusst konservativ (lieber Feld leer lassen als Falsches raten).
    Selbstenthaltend (alle Helfer lokal), damit die Unit-Tests die Funktion
    isoliert prüfen können. */
+/* Levenshtein-Distanz (Anzahl Editier-Schritte zwischen zwei Wörtern). Für
+   OCR-tolerante Marken-Erkennung („Medironic" → „Medtronic"). Rein & testbar. */
+function levenshtein(a,b){ a=a||''; b=b||''; const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  let prev=new Array(n+1); for(let j=0;j<=n;j++) prev[j]=j;
+  for(let i=1;i<=m;i++){ const cur=[i];
+    for(let j=1;j<=n;j++){ const cost=a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1;
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost); }
+    prev=cur; }
+  return prev[n]; }
+/* Typische OCR-Zeichenverwechslungen in EINEM Ziffern-Kontext (z. B. GTIN)
+   glätten: O/Q→0, I/l/|→1, S→5, B→8, Z→2, g/q→9. Rein & testbar. NUR auf reine
+   Zahlenfelder anwenden — bei alphanumerischer REF wäre das falsch. */
+function ocrFixDigits(s){ return String(s==null?'':s)
+  .replace(/[OoQ]/g,'0').replace(/[Il|]/g,'1').replace(/[Ss]/g,'5')
+  .replace(/B/g,'8').replace(/[Zz]/g,'2').replace(/[gq]/g,'9'); }
+
 function extractLabelFields(text){
   const out={ ref:'', lot:'', hersteller:'', name:'', verwendung:'', french:'', laenge:'', dAussen:'', dInnen:'', weitere:'' };
   if(text==null) return out;
@@ -59,6 +76,15 @@ function extractLabelFields(text){
   /* Hersteller: bekannte Marken wort-genau, längster Treffer gewinnt … */
   let best='';
   BRANDS.forEach(b=>{ if(new RegExp('\\b'+reEsc(b)+'\\b','i').test(raw) && b.length>best.length) best=b; });
+  /* … sonst OCR-tolerant: einzelne Wörter gegen (Ein-Wort-)Marken mit kleiner
+     Editier-Distanz abgleichen — fängt Tippfehler wie „Medironic" ab. Kurze
+     Marken (<5) bleiben außen vor, um Fehlgriffe zu vermeiden. */
+  if(!best){
+    const toks=[...new Set(raw.split(/[^A-Za-zÄÖÜäöü]+/).filter(x=>x.length>=5))];
+    for(const b of BRANDS){ if(b.indexOf(' ')>=0 || b.length<5) continue;
+      const bl=b.toLowerCase(); const maxd=b.length>=8?2:1;
+      if(toks.some(tk=>Math.abs(tk.length-b.length)<=maxd && levenshtein(tk.toLowerCase(),bl)<=maxd)){ best=b; break; } }
+  }
   if(best) out.hersteller=best;
   /* … sonst Fallback: Firmenname mit Rechtsform (GmbH/AG/Inc/…), aber KEINE
      EC-REP-/Vertriebs-/Koordinations-Zeile (das ist nicht der Hersteller). */
@@ -72,8 +98,8 @@ function extractLabelFields(text){
   /* … sonst: Hersteller aus dem GTIN-Präfix ableiten (manche Etiketten – z. B.
      Boston-EP-Kabel – nennen die Marke nur im Barcode). Nur bekannte, eindeutige
      GS1-Präfixe, direkt an „GTIN"/„(01)". */
-  if(!out.hersteller){ const gm=raw.match(/(?:GTIN|\(01\))\D{0,3}0?(\d{12,13})/i);
-    if(gm){ const g=gm[1];
+  if(!out.hersteller){ const gm=raw.match(/(?:GTIN|\(01\))\D{0,3}0?([0-9OIlSBZoQgq]{12,13})/i);
+    if(gm){ const g=ocrFixDigits(gm[1]);
       if(/^8714729/.test(g)) out.hersteller='Boston Scientific';
       else if(/^5414734/.test(g)) out.hersteller='Abbott'; } }
 
@@ -195,6 +221,93 @@ function extractLabelFields(text){
   return out;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   BILD-VORVERARBEITUNG (State of the Art)
+   Vor der Texterkennung wird das Foto aufbereitet — das ist der größte Hebel
+   für die Genauigkeit bei echten Handyfotos:
+   1) Graustufen (Farbe hilft der Texterkennung nicht, kostet nur).
+   2) ADAPTIVE Binarisierung nach Bradley/Roth (2007): jedes Pixel wird mit dem
+      Mittelwert seiner UMGEBUNG verglichen (nicht mit einem globalen Wert).
+      Das ist robust gegen ungleichmäßiges Licht, Reflexe und Schatten auf
+      glänzenden Etiketten/Folien — dort versagt ein globaler Schwellwert (Otsu).
+      Ein Integralbild macht den Umgebungs-Mittelwert je Pixel in O(1) berechenbar.
+   Quellen: Bradley & Roth, „Adaptive Thresholding using the Integral Image",
+   J. Graphics Tools 12(2), 2007; Tesseract-Doku (ImproveQuality).
+   Die Kernfunktionen sind rein (arbeiten auf Zahl-Arrays, kein DOM) → testbar.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* RGBA-Pixel (Uint8-Array r,g,b,a,…) → Graustufen (Luminanz), n = Pixelzahl. */
+function ocrGrayscale(rgba, n){
+  const gray=new Uint8ClampedArray(n);
+  for(let i=0;i<n;i++){ const p=i*4;
+    gray[i]=(rgba[p]*0.299 + rgba[p+1]*0.587 + rgba[p+2]*0.114)|0; }
+  return gray;
+}
+/* Adaptive Binarisierung (Bradley): Pixel wird SCHWARZ (0), wenn es spürbar
+   dunkler ist als der Mittelwert seines Fensters (~ Bildbreite/8), sonst WEISS
+   (255). `t` = erlaubte Abweichung in Prozent (Standard 15). Rein & testbar. */
+function ocrBradleyThreshold(gray, w, h, opts){
+  opts=opts||{};
+  const S=Math.max(2, Math.round(opts.window || (w/8))); const half=(S/2)|0;
+  const t=(opts.t!=null?opts.t:15)/100;
+  const out=new Uint8ClampedArray(w*h);
+  /* Integralbild: integ[Y*(w+1)+X] = Summe aller Pixel mit y<Y und x<X.
+     Float64 gegen Überlauf bei großen Bildern. */
+  const iw=w+1; const integ=new Float64Array(iw*(h+1));
+  for(let y=0;y<h;y++){ let rowsum=0;
+    for(let x=0;x<w;x++){ rowsum+=gray[y*w+x];
+      integ[(y+1)*iw+(x+1)] = integ[y*iw+(x+1)] + rowsum; } }
+  for(let y=0;y<h;y++){
+    const y1=Math.max(0,y-half), y2=Math.min(h-1,y+half);
+    for(let x=0;x<w;x++){
+      const x1=Math.max(0,x-half), x2=Math.min(w-1,x+half);
+      const count=(x2-x1+1)*(y2-y1+1);
+      const sum = integ[(y2+1)*iw+(x2+1)] - integ[y1*iw+(x2+1)]
+                - integ[(y2+1)*iw+x1]     + integ[y1*iw+x1];
+      out[y*w+x] = (gray[y*w+x]*count <= sum*(1-t)) ? 0 : 255;
+    }
+  }
+  return out;
+}
+/* Schärfe-Maß = Varianz des Laplace-Filters. Höher = schärfer/kontrastreicher.
+   Dient als Qualitätshinweis („zu unscharf?"). Rein & testbar. */
+function ocrSharpness(gray, w, h){
+  if(w<3||h<3) return 0;
+  let sum=0,sum2=0,n=0;
+  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+    const i=y*w+x;
+    const lap=4*gray[i]-gray[i-1]-gray[i+1]-gray[i-w]-gray[i+w];
+    sum+=lap; sum2+=lap*lap; n++;
+  }
+  const mean=sum/n; return sum2/n - mean*mean;
+}
+let _ocrSharp=null;   /* Schärfe des zuletzt vorverarbeiteten Bildes (Qualitätshinweis) */
+/* Bereitet ein Foto (data-URL) für die OCR auf: passende Auflösung → Graustufen
+   → adaptive Binarisierung. Fällt bei jedem Fehler aufs Originalbild zurück. */
+function ocrPreprocess(dataUrl, cb){
+  const img=new Image();
+  img.onload=()=>{ try{
+    let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+    if(!w||!h){ cb(dataUrl); return; }
+    /* Auflösung: riesige Fotos runter-, kleine hochskalieren, damit die Schrift
+       genug Pixel hat (Best Practice: kleine Bilder VOR der OCR vergrößern). */
+    const MAXED=2200, MIN=1500; const longest=Math.max(w,h); let scale=1;
+    if(longest>MAXED) scale=MAXED/longest; else if(longest<MIN) scale=Math.min(2, MIN/longest);
+    w=Math.round(w*scale); h=Math.round(h*scale);
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(img,0,0,w,h);
+    const id=ctx.getImageData(0,0,w,h);
+    const gray=ocrGrayscale(id.data, w*h);
+    _ocrSharp=ocrSharpness(gray, w, h);
+    const bin=ocrBradleyThreshold(gray, w, h, {t:15});
+    for(let i=0;i<w*h;i++){ const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=bin[i]; id.data[p+3]=255; }
+    ctx.putImageData(id,0,0);
+    cb(c.toDataURL('image/png'));   /* PNG: verlustfrei fürs Schwarz-Weiß-Bild */
+  }catch(e){ cb(dataUrl); } };
+  img.onerror=()=>cb(dataUrl); img.src=dataUrl;
+}
+
 /* ===== Engine (lazy) ===== */
 let _tessLoading=null;
 function ensureTesseract(){
@@ -224,11 +337,40 @@ async function runLabelOCR(image, onProgress){
   try{
     /* pageseg 3 = automatische Segmentierung: liest ein GANZES Etikett mit
        Titel, mehreren Spalten und verstreuten Feldern (REF, Hersteller, Maße)
-       zuverlässiger als der frühere Einzelblock-Modus 6. */
-    try{ await worker.setParameters({ tessedit_pageseg_mode:'3', preserve_interword_spaces:'1' }); }catch(e){}
-    const res=await worker.recognize(image);
-    return (res && res.data && res.data.text) || '';
+       zuverlässiger als der Einzelblock-Modus. user_defined_dpi hilft der
+       Engine bei der internen Skalierung kleiner Schrift. */
+    try{ await worker.setParameters({ tessedit_pageseg_mode:'3', preserve_interword_spaces:'1', user_defined_dpi:'300' }); }catch(e){}
+    let res=await worker.recognize(image);
+    let text=(res&&res.data&&res.data.text)||'';
+    let conf=(res&&res.data&&res.data.confidence)||0;
+    /* Wurde kaum Text gefunden, zweiter Versuch als EIN gleichmäßiger Block
+       (PSM 6) — hilft bei Etiketten mit einem großen zentralen Textblock. Das
+       ergiebigere Ergebnis gewinnt. */
+    const dense=(s)=>String(s||'').replace(/\s/g,'').length;
+    if(dense(text) < 24){
+      try{ await worker.setParameters({ tessedit_pageseg_mode:'6' });
+        const r2=await worker.recognize(image);
+        if(dense(r2&&r2.data&&r2.data.text) > dense(text)){ text=r2.data.text; conf=r2.data.confidence||conf; }
+      }catch(e){}
+    }
+    return { text, confidence:Math.round(conf) };
   } finally { try{ await worker.terminate(); }catch(e){} }
+}
+/* Liest zusätzlich einen Barcode aus DEMSELBEN Foto (falls die native
+   BarcodeDetector-API vorhanden ist). Der Barcode trägt GTIN und teils die REF
+   (GS1 AI 240/241) EXAKT — während OCR sie nur schätzt. So wird der Barcode zur
+   „Wahrheit" für diese Felder (Barcode-OCR-Fusion). */
+async function ocrBarcodeFromImage(dataUrl){
+  try{
+    if(typeof window==='undefined' || !('BarcodeDetector' in window)) return null;
+    const formats=(typeof SCAN_FORMATS!=='undefined')?SCAN_FORMATS:undefined;
+    const det=new window.BarcodeDetector(formats?{formats}:undefined);
+    const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=dataUrl; });
+    const codes=await det.detect(img);
+    if(codes&&codes.length){ const c=codes[0];
+      if(typeof parseScan==='function') return parseScan(c.rawValue||'', c.format||''); }
+  }catch(e){}
+  return null;
 }
 
 /* ===== UI-Anbindung ===== */
@@ -273,32 +415,37 @@ function ocrCaptureAndFill(){
   };
   document.body.appendChild(inp); inp.click();
 }
-/* Für OCR auf ~2000 px längste Kante bringen: kleiner Text (REF, Maße) braucht
-   mehr Auflösung als die 1280-px-Fotopflege — aber Handy-Rohbilder (4000 px+)
-   kosten unnötig Zeit. Nur verkleinern, nie hochskalieren. */
-function ocrPrescale(dataUrl, cb){ const MAX=2000; const img=new Image();
-  img.onload=()=>{ try{
-    let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-    if(!w||!h){ cb(dataUrl); return; }
-    if(Math.max(w,h)<=MAX){ cb(dataUrl); return; }
-    const f=MAX/Math.max(w,h); w=Math.round(w*f); h=Math.round(h*f);
-    const c=document.createElement('canvas'); c.width=w; c.height=h;
-    c.getContext('2d').drawImage(img,0,0,w,h);
-    cb(c.toDataURL('image/jpeg',0.9));
-  }catch(e){ cb(dataUrl); } };
-  img.onerror=()=>cb(dataUrl); img.src=dataUrl; }
 async function ocrProcess(dataUrl){
   ocrBusy(true, 'OCR startet …');
   try{
-    /* auf OCR-freundliche Auflösung bringen (mehr Detail als die Fotopflege) */
-    const img=await new Promise((res)=>{ ocrPrescale(dataUrl,res); });
-    const text=await runLabelOCR(img,(m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
+    /* 1) Foto aufbereiten (Graustufen + adaptive Binarisierung). */
+    _ocrSharp=null;
+    const img=await new Promise((res)=>{ ocrPreprocess(dataUrl,res); });
+    /* 2) Text erkennen (getunte Engine, Konfidenz). */
+    const ocr=await runLabelOCR(img,(m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
       ocrBusy(true, ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
-    const fields=extractLabelFields(text);
+    const fields=extractLabelFields(ocr.text);
+    /* 3) Barcode-Fusion: Barcode aus DEMSELBEN Originalfoto lesen; seine REF
+       (und GTIN) sind exakt und schlagen die OCR-Schätzung. */
+    let barcode=null;
+    try{ barcode=await ocrBarcodeFromImage(dataUrl); }catch(e){}
+    if(barcode){
+      if(barcode.itemRef){ fields.ref=barcode.itemRef; }                 /* Barcode-REF gewinnt */
+      const gi=$('scGtin'); const g=barcode.gtin;
+      if(gi && g && !gi.value.trim()){ gi.value=(typeof gtinKey==='function'?gtinKey(g):g); }
+    }
     const filled=ocrFillForm(fields);
     ocrBusy(false);
     const got=Object.keys(filled);
-    if(got.length){ toast('Erkannt: '+got.map(ocrFieldLabel).join(', ')+' – bitte prüfen.'); }
+    const bcMsg=(barcode&&(barcode.itemRef||barcode.gtin))?' · Barcode gelesen':'';
+    if(got.length){
+      let msg='Erkannt: '+got.map(ocrFieldLabel).join(', ')+bcMsg+' – bitte prüfen.';
+      /* Qualitätshinweis: geringe Konfidenz ODER sehr unscharfes Bild. */
+      if((ocr.confidence!=null && ocr.confidence<55) || (_ocrSharp!=null && _ocrSharp<40))
+        msg+=' ⚠ Bild schwierig – bei Fehlern schärfer/gerader & näher fotografieren.';
+      toast(msg);
+    }
+    else if(bcMsg){ toast('Barcode gelesen – Text unsicher. Bitte Felder prüfen/ergänzen.'); }
     else { toast('Kein Text sicher erkannt. Bitte näher/schärfer fotografieren oder manuell eingeben.', true); }
     /* Charge/LOT wird bewusst NICHT gemeldet: reine Identifikations- &
        Eigenschaftssammlung, keine Chargenverfolgung. */

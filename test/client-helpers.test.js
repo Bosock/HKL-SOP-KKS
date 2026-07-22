@@ -52,7 +52,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, location: { protocol: 'https:', hostname: 'example.com' } };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' } };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -94,6 +94,11 @@ function loadHelpers() {
     extractFn('gtinBadges'),
     extractFn('matSizeList'),
     extractFn('extractLabelFields'),
+    extractFn('ocrGrayscale'),
+    extractFn('ocrBradleyThreshold'),
+    extractFn('ocrSharpness'),
+    extractFn('levenshtein'),
+    extractFn('ocrFixDigits'),
     extractFn('photoCropDims'),
     extractFn('matPropSlug'),
     extractFn('matNormName'),
@@ -111,7 +116,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG };
 }
@@ -1220,6 +1225,51 @@ test('OCR echt: Abbott Fast-Cath Guiding SR0 — 8.5F, Kurvenwinkel 50°', () =>
   assert.equal(f.laenge, '63 cm');               // Geräte-Länge, nicht Draht-145cm
   assert.equal(f.dAussen, '2,80 mm');
   assert.ok(/50° Kurve/.test(f.weitere), 'Kurvenwinkel: ' + f.weitere);
+});
+
+// --- OCR-Bildvorverarbeitung & Robustheit (reine Helfer) -------------------
+test('ocrGrayscale: Luminanz aus RGBA', () => {
+  // reines Rot, Grün, Blau, Weiß
+  const rgba = new Uint8ClampedArray([255,0,0,255, 0,255,0,255, 0,0,255,255, 255,255,255,255]);
+  const g = fns.ocrGrayscale(rgba, 4);
+  assert.equal(g[0], 76);    // 255*0.299
+  assert.equal(g[1], 149);   // 255*0.587
+  assert.equal(g[2], 29);    // 255*0.114
+  assert.equal(g[3], 255);   // Weiß
+});
+test('ocrBradleyThreshold: dunkle Mitte wird schwarz, heller Rand weiß', () => {
+  const g = new Uint8ClampedArray([200,200,200, 200,20,200, 200,200,200]);
+  const b = fns.ocrBradleyThreshold(g, 3, 3, { window: 3, t: 15 });
+  assert.equal(b[4], 0);     // dunkles Zentrum → schwarz
+  assert.equal(b[0], 255);   // heller Rand → weiß
+});
+test('ocrBradleyThreshold: adaptiv — Text bleibt trotz Helligkeitsverlauf lesbar', () => {
+  // Zwei Bereiche unterschiedlicher Grundhelligkeit, je ein dunkles „Textpixel".
+  const g = new Uint8ClampedArray([
+     90,60, 90,  240,150,240,
+     90,90, 90,  240,240,240,
+  ]);
+  const b = fns.ocrBradleyThreshold(g, 6, 2, { window: 3, t: 15 });
+  assert.equal(b[1], 0);   // dunkles Pixel im dunklen Bereich → schwarz (globale Schwelle würde scheitern)
+  assert.equal(b[4], 0);   // dunkles Pixel im hellen Bereich → schwarz
+});
+test('ocrSharpness: scharfe Kante hat höhere Varianz als flache Fläche', () => {
+  const flat = new Uint8ClampedArray(25).fill(128);
+  const edge = new Uint8ClampedArray([0,0,0,255,255, 0,0,0,255,255, 0,0,0,255,255, 0,0,0,255,255, 0,0,0,255,255]);
+  assert.ok(fns.ocrSharpness(edge, 5, 5) > fns.ocrSharpness(flat, 5, 5));
+});
+test('levenshtein: Editier-Distanz', () => {
+  assert.equal(fns.levenshtein('medironic', 'medtronic'), 1);
+  assert.equal(fns.levenshtein('abbott', 'abbott'), 0);
+  assert.equal(fns.levenshtein('', 'abc'), 3);
+});
+test('extractLabelFields: OCR-Tippfehler in Marke wird toleriert (fuzzy)', () => {
+  const f = fns.extractLabelFields('Medronic\nMicra MC1VR01\nREF MC1VR01');
+  assert.equal(f.hersteller, 'Medtronic');   // „Medronic" (Distanz 1) → Medtronic
+});
+test('ocrFixDigits: Buchstaben-zu-Ziffer nur im Zahlenkontext', () => {
+  assert.equal(fns.ocrFixDigits('O87I472S'), '08714725');
+  assert.equal(fns.ocrFixDigits('B00Z'), '8002');
 });
 
 // --- OCR an echten Etiketten (Runde 6: F-Präfix, Catalogue, Abiomed …) -----
