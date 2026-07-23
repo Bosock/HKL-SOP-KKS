@@ -6,6 +6,14 @@ async function load(){
   catch(e){ DB=DEMO; setTimeout(()=>toast('Keine Standards-Datei gefunden – Demodaten aktiv',true),400); }
   DB_BASE=DB; rebuildDB(); /* eigene Standards/Einträge (Server) + App-eigene Standards (lokal) über die Basis legen */
   buildMaterialIndex(); checkAdminHash(); applyAdminUI(); try{ history.replaceState({d:0},''); }catch(e){} applyDeepLink(); renderStandards(); updateBar();
+  loadMaterialData();  /* Referenz-Katalog + Aufräum-Vorschläge (tolerant, nicht blockierend) */
+}
+
+/* Lädt die mitgelieferten Material-Datendateien (Baustein 1+2). Bewusst NACH dem
+   Render und tolerant: fehlt eine Datei, bleibt die App voll bedienbar. */
+async function loadMaterialData(){
+  try{ const r=await fetch('data/material_catalog.json',{cache:'no-store'}); if(r.ok && typeof catSetData==='function') catSetData(await r.json()); }catch(e){}
+  try{ const r=await fetch('data/cleanup_suggestions.json',{cache:'no-store'}); if(r.ok && typeof cleanupSetData==='function') cleanupSetData(await r.json()); }catch(e){}
 }
 
 /* ============ Material-Index ============ */

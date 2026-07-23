@@ -17,8 +17,8 @@
 const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog',
   /* Inhalte & Anpassungen aus dem Verwaltungsmodus (vom Kollegen) – jetzt ebenfalls zentral geteilt */
   'hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_uksections',
-  /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) */
-  'hkl_gtin','hkl_matlink','hkl_matprops',
+  /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
+  'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -39,6 +39,7 @@ function hydrateVars(){
   GTINDB=loadJSON('hkl_gtin',{});
   MATLINK=loadJSON('hkl_matlink',{});
   MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
+  if(typeof CLEANUP_DONE!=='undefined') CLEANUP_DONE=loadJSON('hkl_cleanup_done',{});
   RULES=loadJSON('hkl_rules',[]); rebuildRulesIndex();
   HINTS=loadHints();
   GLOSSARY=loadGlossary();

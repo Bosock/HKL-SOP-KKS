@@ -52,7 +52,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' } };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {} };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -103,6 +103,12 @@ function loadHelpers() {
     extractFn('matPropSlug'),
     extractFn('matNormName'),
     extractFn('matSuggestGroups'),
+    extractFn('catNormRef'),
+    extractFn('catLookup'),
+    extractFn('catSpecPairs'),
+    extractFn('catMassPairs'),
+    extractFn('cleanupSuggest'),
+    extractFn('cleanupIsDone'),
     extractFn('mengeHiAuto'),
     extractFn('camErrorMessage'),
     extractFn('rulesActive'),
@@ -116,12 +122,12 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
-  return { fns, NATCFG };
+  return { fns, NATCFG, ctx };
 }
 
-const { fns } = loadHelpers();
+const { fns, ctx } = loadHelpers();
 
 // --- esc --------------------------------------------------------------------
 test('esc: escapes HTML metacharacters', () => {
@@ -1643,4 +1649,43 @@ test('ruleBeats: spezifischere Reichweite gewinnt, sonst die neuere Regel', () =
   assert.ok(fns.ruleBeats(grpNeu, grp), 'gleiche Reichweite: neuere gewinnt');
   assert.equal(fns.ruleRank({ art: 'stelle' }), 4);
   assert.equal(fns.ruleRank({ art: 'alle' }), 1);
+});
+
+// --- Referenz-Katalog (Baustein 1) ------------------------------------------
+test('catNormRef: uppercases and strips non-alphanumerics', () => {
+  assert.equal(fns.catNormRef('rm*rg5-j40'), 'RMRG5J40');
+  assert.equal(fns.catNormRef(' 538-476 '), '538476');
+  assert.equal(fns.catNormRef(null), '');
+});
+test('catLookup: matches normalized REF, ignores <4-char refs', () => {
+  ctx.MATCAT = { 'RMRG5J40': { name: 'Schleuse', hersteller: 'Terumo' }, '538476': { name: 'INFINITI' } };
+  assert.equal(fns.catLookup('rm*rg5-j40').name, 'Schleuse');
+  assert.equal(fns.catLookup('538-476').name, 'INFINITI');
+  assert.equal(fns.catLookup('abc'), null);   // too short
+  assert.equal(fns.catLookup('9-9-9'), null);  // normalizes to 999 (<4)
+  assert.equal(fns.catLookup('NOPE1234'), null);
+});
+test('catSpecPairs / catMassPairs: object -> label/value pairs', () => {
+  // Cross-realm arrays: compare by shape/content, not reference-equal deepEqual.
+  const e = { specs: { Typ: 'DES', Nenndruck: '12 atm' }, masse: { French: '7F' } };
+  const sp = fns.catSpecPairs(e);
+  assert.equal(sp.length, 2);
+  assert.equal(sp[0][0], 'Typ'); assert.equal(sp[0][1], 'DES');
+  assert.equal(sp[1][0], 'Nenndruck'); assert.equal(sp[1][1], '12 atm');
+  const mp = fns.catMassPairs(e);
+  assert.equal(mp.length, 1); assert.equal(mp[0][0], 'French'); assert.equal(mp[0][1], '7F');
+  assert.equal(fns.catSpecPairs({}).length, 0);
+});
+
+// --- Aufräum-Assistent (Baustein 2) -----------------------------------------
+test('cleanupSuggest: returns suggestion for a material_key or null', () => {
+  ctx.CLEANUP = { 'ethibond': { kern: '0er Ethibond', kategorie: 'Nahtmaterial' } };
+  assert.equal(fns.cleanupSuggest('ethibond').kern, '0er Ethibond');
+  assert.equal(fns.cleanupSuggest('unbekannt'), null);
+  assert.equal(fns.cleanupSuggest(''), null);
+});
+test('cleanupIsDone: reflects the done-set', () => {
+  ctx.CLEANUP_DONE = { 'ethibond': true };
+  assert.equal(fns.cleanupIsDone('ethibond'), true);
+  assert.equal(fns.cleanupIsDone('anderes'), false);
 });

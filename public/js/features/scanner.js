@@ -395,8 +395,11 @@ function renderScanItemView(r){
   const badges=(typeof sizeBadges==='function')?sizeBadges(matSizeList(r)):badgeSpans(gtinBadges(r));
   const rows=[
     ['Hersteller', r.hersteller],
+    ['Kategorie', r.kategorie],
     ['REF / Bestellnr.', r.ref],
     ['Verwendung', r.verwendung],
+    ['Hinweis / Bedingung', r.hinweis],
+    ['Alternative', r.alternative],
   ].concat((typeof MATPROPS!=='undefined'?MATPROPS:[]).map(p=>[p.label, r.props&&r.props[p.key]]))
    .concat([
     ['Lagerort', r.lagerort],
@@ -409,6 +412,7 @@ function renderScanItemView(r){
     ${r.photo?`<div style="margin:10px 0;border-radius:12px;overflow:hidden;max-height:240px;background:#000"><img src="${esc(r.photo)}" style="width:100%;max-height:240px;object-fit:contain" alt=""></div>`:''}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
+    ${(typeof catInfoBlockHTML==='function')?catInfoBlockHTML(r):''}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Zur Liste</button><button class="btn btn-pri" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,true)">Bearbeiten</button></div>
     ${rescan}
   </div>`;
@@ -427,7 +431,11 @@ function renderScanItemForm(r){
     <input type="file" id="scanFileInp" accept="image/*" style="display:none" onchange="scanOnPhoto(event)">
     <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="$('scanFileInp').click()">📷 Foto wählen</button><button type="button" class="btn btn-sec" id="scanCropBtn" onclick="scanEditPhoto()" style="${r.photo?'':'display:none'}">✂ Zuschneiden / drehen</button></div>
     <div class="flabel" style="margin-top:12px">HERSTELLER *</div><input class="loc-input" id="scHersteller" placeholder="z. B. Terumo" value="${esc(r.hersteller||'')}">
-    <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}">
+    <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}" oninput="if(typeof catCheckForm==='function')catCheckForm()">
+    <div id="catMatch" style="display:none"></div>
+    <input type="hidden" id="catHold" value="${r.katspecs?esc(JSON.stringify({specs:r.katspecs,ref:r.katref||'',quelle:r.katquelle||'',status:r.katstatus||'unbestätigt'})):''}">
+    <div class="flabel">KATEGORIE</div><input class="loc-input" id="scKat" placeholder="z. B. Schleuse / Introducer" value="${esc(r.kategorie||'')}" list="catKatList">
+    <datalist id="catKatList">${(typeof MATCAT_KATS!=='undefined'?MATCAT_KATS:[]).map(k=>`<option value="${esc(k)}">`).join('')}</datalist>
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
     <div class="flabel">VERWENDUNG</div><input class="loc-input" id="scVerw" placeholder="z. B. radialer Zugang" value="${esc(r.verwendung||'')}">
     <div class="flabel" style="margin-top:12px">MASSE / GRÖSSEN</div>
@@ -443,6 +451,7 @@ function renderScanItemForm(r){
     ${del}
   </div>
   <div class="foot">Die GTIN kommt aus dem Barcode und ist der Schlüssel: REF, Hersteller und Maße einmal erfassen — bei jedem weiteren Scan sind sie sofort da. Alles wird zentral gespeichert und auf allen Geräten geteilt.</div>`;
+  if(typeof catCheckForm==='function') catCheckForm();   /* Referenz-Katalog: Treffer zur vorhandenen REF gleich anzeigen */
 }
 /* Eigene Eigenschaft (Schema-erweiternd, z. B. „Tip Load") anlegen — erscheint
    danach bei JEDEM Produkt als Feld. Inline-Zeile statt prompt(). */
@@ -487,10 +496,17 @@ function saveScanItem(gArg){
   else if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
   const preis=parsePreis(val('scPreis'));
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
+    kategorie:val('scKat')||null,
     groessen:scanReadSizes(),
     /* Alt-Einzelfelder auf null: sie sind jetzt in der Maßliste (matSizeList) aufgegangen. */
     french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto(), props:scanReadProps() };
+  /* Referenz-Katalog: übernommene Plattform-Specs (unbestätigt) am Stammsatz sichern. */
+  const kh=(typeof catReadHold==='function')?catReadHold():null;
+  if(kh && kh.specs && Object.keys(kh.specs).length){
+    patch.katspecs=kh.specs; patch.katref=kh.ref||null; patch.katquelle=kh.quelle||null;
+    patch.katstatus=(GTINDB[g]&&GTINDB[g].katstatus==='bestätigt')?'bestätigt':(kh.status||'unbestätigt');
+  }
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();
   /* Aus der Materialverwaltung „neu angelegt" → jetzt (erst beim Speichern, nicht

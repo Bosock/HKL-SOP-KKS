@@ -1,0 +1,2995 @@
+{
+"_hinweis": "Aufräum-Vorschläge je material_key: entmischter Kern + Kategorie + ausgelagerte Felder. Nur Vorschlag – der Nutzer bestätigt.",
+"vorschlaege": {
+"kleiner tisch": {
+"roh": "kleiner Tisch",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "kleiner Tisch",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro-set": {
+"roh": "Coro-Set",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Coro-Set",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"nacl-flasche": {
+"roh": "500ml NaCl-Flasche",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "500ml NaCl-Flasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kornzange": {
+"roh": "Kornzange",
+"kategorie": "Instrument",
+"kern": "Kornzange",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"amp. lokale": {
+"roh": "Amp. Lokale (Buccain 20ml – Bupivacain)",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "Amp. Lokale (Buccain 20ml – Bupivacain)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile handschuhe": {
+"roh": "Sterile Handschuhe",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "Sterile Handschuhe",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"softasept® n gefärbt": {
+"roh": "Softasept® N gefärbt",
+"kategorie": "Desinfektion / Antiseptik",
+"kern": "Softasept® N gefärbt",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"braunol®": {
+"roh": "Braunol®",
+"kategorie": "Desinfektion / Antiseptik",
+"kern": "Braunol®",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"wrench-kit": {
+"roh": "Wrench-Kit (Schraubendreher Set steril)",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Wrench-Kit (Schraubendreher Set steril)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lead end cap kit abhängig von den elektroden": {
+"roh": "Lead End Cap Kit (Anschluss-Kappen) abhängig von den Elektroden",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "Lead End Cap Kit (Anschluss-Kappen)",
+"verwendung": "",
+"bedingung": "abhängig von den Elektroden",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"10er skalpell": {
+"roh": "10er Skalpell",
+"kategorie": "Instrument",
+"kern": "10er Skalpell",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"op-lampengriff": {
+"roh": "OP-Lampengriff",
+"kategorie": "Instrument",
+"kern": "OP-Lampengriff",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lange injektionskanüle": {
+"roh": "lange Injektionskanüle (gelb)",
+"kategorie": "Punktions-/Transseptalnadel",
+"kern": "lange Injektionskanüle (gelb)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"folien-waben-pflaster 10x": {
+"roh": "Folien-Waben-Pflaster 10x8cm (Opsite)",
+"kategorie": "Verband / Pflaster",
+"kern": "Folien-Waben-Pflaster 10x8cm (Opsite)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"4- monocryl™ hautnaht": {
+"roh": "4-0er MONOCRYL™ Hautnaht",
+"kategorie": "Nahtmaterial",
+"kern": "4-0er MONOCRYL™ Hautnaht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"vicryl™ 4x": {
+"roh": "0er VICRYL™ 4x70cm",
+"kategorie": "Nahtmaterial",
+"kern": "0er VICRYL™ 4x70cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"applica op-folie 20x": {
+"roh": "Applica OP-Folie 20x20cm",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Applica OP-Folie 20x20cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher sieb": {
+"roh": "Schrittmacher Sieb (Wechsel-Sieb)",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Schrittmacher Sieb (Wechsel-Sieb)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher set": {
+"roh": "Schrittmacher Set",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Schrittmacher Set",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pack. sterile kompressen": {
+"roh": "Pack. Sterile Kompressen",
+"kategorie": "Kompresse / Tupfer / Textil",
+"kern": "Pack. Sterile Kompressen",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"20 luer-solo spritze": {
+"roh": "20 Luer-Solo (grüne) Spritze",
+"kategorie": "Spritze",
+"kern": "20 Luer-Solo (grüne) Spritze",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile abdeckhaube bv 75x": {
+"roh": "sterile Abdeckhaube BV 75x90cm (C-Bogen)",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "sterile Abdeckhaube BV 75x90cm (C-Bogen)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"neutralelektrode": {
+"roh": "Neutralelektrode",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "Neutralelektrode",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"einmalmolltex": {
+"roh": "Einmalmolltex",
+"kategorie": "Kompresse / Tupfer / Textil",
+"kern": "Einmalmolltex",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"dreifache wischdesinfektion des op-gebietes mit softasept® n gefärbt": {
+"roh": "Dreifache Wischdesinfektion des OP-Gebietes mit Softasept® N gefärbt",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Dreifache Wischdesinfektion des OP-Gebietes mit Softasept® N gefärbt",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"aggregate werden durch belegärzte mitgebracht": {
+"roh": "Aggregate werden durch Belegärzte mitgebracht",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Aggregate werden durch Belegärzte mitgebracht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"ethibondexcel™ als annaht für das aggregat": {
+"roh": "0er ETHIBONDEXCEL™ als Annaht für das Aggregat",
+"kategorie": "Nahtmaterial",
+"kern": "0er ETHIBONDEXCEL™",
+"verwendung": "als Annaht für das Aggregat",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"werden normalerweise von der firma angereicht": {
+"roh": "Werden normalerweise von der Firma angereicht",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Werden normalerweise von der Firma angereicht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"blaue schale steril": {
+"roh": "blaue Schale steril 1000ml",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "blaue Schale steril 1000ml",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"hämostaseventil map152": {
+"roh": "Hämostaseventil MAP152 (MAP112)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Hämostaseventil MAP152 (MAP112)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"omnifix luer-lock spritze": {
+"roh": "20ml Omnifix Luer-Lock Spritze",
+"kategorie": "Spritze",
+"kern": "20ml Omnifix Luer-Lock Spritze",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kontrastmittel": {
+"roh": "100ml Kontrastmittel",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "100ml Kontrastmittel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ethibondexcel™ pro implantierte sonde": {
+"roh": "0er ETHIBONDEXCEL™ pro implantierte Sonde",
+"kategorie": "Nahtmaterial",
+"kern": "0er ETHIBONDEXCEL™",
+"verwendung": "",
+"bedingung": "pro implantierte Sonde",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"peel-off-schleuse": {
+"roh": "9F Peel-Off-Schleuse (Saal 3 Schrank rechts an der Wand)",
+"kategorie": "Schleuse / Introducer",
+"kern": "9F Peel-Off-Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "Saal 3 Schrank rechts an der Wand",
+"alternative": "",
+"kein_material": false
+},
+"splashwire gebogen": {
+"roh": "SplashWire (Terumo) gebogen 180cm",
+"kategorie": "Führungsdraht",
+"kern": "SplashWire (Terumo) gebogen 180cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ptca-draht": {
+"roh": "PTCA-Draht (Pilot 50 oder 150)",
+"kategorie": "Führungsdraht",
+"kern": "PTCA-Draht (Pilot 50 oder 150)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile einmal-schere": {
+"roh": "sterile Einmal-Schere",
+"kategorie": "Instrument",
+"kern": "sterile Einmal-Schere",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"4- monocryl™ hautnaht oder steri-strips™": {
+"roh": "4-0er MONOCRYL™ Hautnaht oder Steri-Strips™",
+"kategorie": "Nahtmaterial",
+"kern": "4-0er MONOCRYL™ Hautnaht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "Steri-Strips™",
+"kein_material": false
+},
+"event-recorder sieb": {
+"roh": "Event-Recorder Sieb",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Event-Recorder Sieb",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"reveal linq11": {
+"roh": "Reveal LINQ11 (Eventrecorder)",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Reveal LINQ11 (Eventrecorder)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse femoral": {
+"roh": "6F Schleuse femoral",
+"kategorie": "Schleuse / Introducer",
+"kern": "6F Schleuse femoral",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"punktionskanüle femoral": {
+"roh": "Punktionskanüle femoral",
+"kategorie": "Punktions-/Transseptalnadel",
+"kern": "Punktionskanüle femoral",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro – j – draht": {
+"roh": "Coro – J – Draht 150cm",
+"kategorie": "Führungsdraht",
+"kern": "Coro – J – Draht 150cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"multipack diagnostikkatheter": {
+"roh": "Multipack Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "Multipack Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"+ styropor-druckpunkt | ideal-binde | pflaster 10 x": {
+"roh": "+ Styropor-Druckpunkt | Ideal-Binde | Pflaster 10 x 8cm",
+"kategorie": "Verband / Pflaster",
+"kern": "+ Styropor-Druckpunkt | Ideal-Binde | Pflaster 10 x 8cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro-set + hahnenbank": {
+"roh": "Coro-Set + Hahnenbank",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Coro-Set + Hahnenbank",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"100 kontrastmittel": {
+"roh": "100 Kontrastmittel",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "100 Kontrastmittel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"nacl infusion mit adenosin versetzen. anschließend einen minispike aufsetzen": {
+"roh": "500ml NaCl Infusion mit 1,7ml Adenosin (Adrekar) versetzen. Anschließend einen MiniSpike aufsetzen",
+"kategorie": "Führungsdraht",
+"kern": "500ml NaCl Infusion mit 1,7ml Adenosin (Adrekar) versetzen. Anschließend einen MiniSpike aufsetzen",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"radial schleuse": {
+"roh": "6F Radial Schleuse (RAIN Sheath™)",
+"kategorie": "Schleuse / Introducer",
+"kern": "6F Radial Schleuse (RAIN Sheath™)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"multipack diagnostikkatheter oder terumo tig 4.0": {
+"roh": "Multipack Diagnostikkatheter 5F oder TERUMO TIG 4.0 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "Multipack Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "TERUMO TIG 4.0 5F",
+"kein_material": false
+},
+"radiales druckmanschette + protokoll": {
+"roh": "Radiales Druckmanschette + Protokoll",
+"kategorie": "Verschlusssystem (vaskulär)",
+"kern": "Radiales Druckmanschette + Protokoll",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pflaster 10 x": {
+"roh": "Pflaster 10 x 8cm",
+"kategorie": "Verband / Pflaster",
+"kern": "Pflaster 10 x 8cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"führungskatheter ohne seiten löcher": {
+"roh": "6F Führungskatheter ohne Seiten Löcher",
+"kategorie": "Führungskatheter (Guiding)",
+"kern": "6F Führungskatheter ohne Seiten Löcher",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"luer-solo": {
+"roh": "20ml Luer-Solo (grün)",
+"kategorie": "Spritze",
+"kern": "20ml Luer-Solo (grün)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ffr-draht": {
+"roh": "FFR-Draht (PressureWire™ X)",
+"kategorie": "Intravaskuläre Bildgebung",
+"kern": "FFR-Draht (PressureWire™ X)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"hämostaseventil map 152": {
+"roh": "Hämostaseventil MAP 152",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Hämostaseventil MAP 152",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"truevision ivus katheter": {
+"roh": "TrueVision IVUS Katheter",
+"kategorie": "Intravaskuläre Bildgebung",
+"kern": "TrueVision IVUS Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"führungskatheter": {
+"roh": "6F Führungskatheter",
+"kategorie": "Führungskatheter (Guiding)",
+"kern": "6F Führungskatheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"diagnostikkatheter ima oder multipurpuse": {
+"roh": "5F Diagnostikkatheter IMA (Inter Mamaria) oder Multipurpuse (MP / MPA)",
+"kategorie": "Diagnostikkatheter",
+"kern": "5F Diagnostikkatheter IMA (Inter Mamaria)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "Multipurpuse (MP / MPA",
+"kein_material": false
+},
+"pci oder weitere diagnostik möglich": {
+"roh": "PCI oder weitere Diagnostik möglich",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "PCI oder weitere Diagnostik möglich",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"dragonfly opstar™ oct-katheter": {
+"roh": "Dragonfly OpStar™ OCT-Katheter",
+"kategorie": "Intravaskuläre Bildgebung",
+"kern": "Dragonfly OpStar™ OCT-Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ptca-pumpe": {
+"roh": "PTCA-Pumpe (Indiflator)",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "PTCA-Pumpe (Indiflator)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ptca- draht / drähte": {
+"roh": "PTCA- Draht / Drähte",
+"kategorie": "Führungsdraht",
+"kern": "PTCA- Draht / Drähte",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"führungskatheter rücksprache untersucher": {
+"roh": "Führungskatheter (in der Regel ohne SH Side holes) ➡ Rücksprache Untersucher",
+"kategorie": "Führungskatheter (Guiding)",
+"kern": "Führungskatheter (in der Regel ohne SH Side holes) ➡ Rücksprache Untersucher",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rechtsherz-ballon-katheter": {
+"roh": "7F Rechtsherz-Ballon-Katheter",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "7F Rechtsherz-Ballon-Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"bga spritzen": {
+"roh": "BGA Spritzen",
+"kategorie": "Spritze",
+"kern": "BGA Spritzen",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kurze angiomat leitung": {
+"roh": "Kurze Angiomat Leitung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Kurze Angiomat Leitung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"für aks": {
+"roh": "Für AKS (TAVI-Screening)",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "",
+"verwendung": "Für AKS (TAVI-Screening",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"al i in": {
+"roh": "AL I in 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "AL I in 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"splashwire gerade": {
+"roh": "SplashWire (Terumo) Gerade 260cm",
+"kategorie": "Führungsdraht",
+"kern": "SplashWire (Terumo) Gerade 260cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rechtsherz-katheter": {
+"roh": "5F Rechtsherz-Katheter",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "5F Rechtsherz-Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"cordis emerald™ 0,032” j-draht": {
+"roh": "Cordis EMERALD™ 0,032” 150cm J-Draht",
+"kategorie": "Führungsdraht",
+"kern": "Cordis EMERALD™ 0,032” 150cm J-Draht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"styropor-druckpunkt | ideal-binde | pflaster 10 x": {
+"roh": "Styropor-Druckpunkt | Ideal-Binde | Pflaster 10 x 8cm",
+"kategorie": "Verband / Pflaster",
+"kern": "Styropor-Druckpunkt | Ideal-Binde | Pflaster 10 x 8cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ultraschallbezug": {
+"roh": "Ultraschallbezug",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Ultraschallbezug",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mersilene™ z-naht": {
+"roh": "0er Mersilene™ Z-Naht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Mersilene™ Z-Naht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"einmalnadelhalter": {
+"roh": "Einmalnadelhalter",
+"kategorie": "Instrument",
+"kern": "Einmalnadelhalter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"11er skalpell": {
+"roh": "11er Skalpell",
+"kategorie": "Instrument",
+"kern": "11er Skalpell",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"luer-solo spritze für lokalanästhetikum": {
+"roh": "20ml Luer-Solo (grüne) Spritze für Lokalanästhetikum",
+"kategorie": "Spritze",
+"kern": "20ml Luer-Solo (grüne) Spritze",
+"verwendung": "für Lokalanästhetikum",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"epu-katheter und kabel": {
+"roh": "EPU-Katheter und Kabel",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "EPU-Katheter und Kabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"blazer™ ii xp - - large curve / std distal": {
+"roh": "Blazer™ II XP - 8mm x 8F - Large Curve / STD Distal",
+"kategorie": "Ablationskatheter",
+"kern": "Blazer™ II XP - 8mm x 8F - Large Curve / STD Distal",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"graues verbindungskabel steril aus dem kks-steri": {
+"roh": "Graues Verbindungskabel steril aus dem KKS-Steri",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Graues Verbindungskabel steril",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus dem KKS-Steri",
+"alternative": "",
+"kein_material": false
+},
+"adapter für ungekühlte ablationskatheter": {
+"roh": "Adapter für ungekühlte Ablationskatheter (liegt beim Generator)",
+"kategorie": "Ablationskatheter",
+"kern": "Adapter",
+"verwendung": "für ungekühlte Ablationskatheter (liegt beim Generator",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rf marinr™ - - mcxl": {
+"roh": "RF Marinr™ - 4mm x 7F - MCXL",
+"kategorie": "Ablationskatheter",
+"kern": "RF Marinr™ - 4mm x 7F - MCXL",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"tx-hat500-mdt": {
+"roh": "TX-HAT500-MDT",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "TX-HAT500-MDT",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"anschließen einer infusion abhängig von ef des pat. – evtl. absprache mit untersucher": {
+"roh": "Anschließen einer Infusion (500ml Sterofundin) abhängig von EF des Pat. – evtl. Absprache mit Untersucher",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Anschließen einer Infusion (500ml Sterofundin)",
+"verwendung": "",
+"bedingung": "abhängig von EF des Pat; evtl. Absprache mit Untersucher",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"leiste rasieren und mit softasept® n gefärbt desinfizieren": {
+"roh": "Leiste rasieren und mit Softasept® N gefärbt desinfizieren",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Leiste rasieren und mit Softasept® N gefärbt desinfizieren",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"schleuse femoral für cs-katheter": {
+"roh": "7F Schleuse femoral für CS-Katheter",
+"kategorie": "Schleuse / Introducer",
+"kern": "7F Schleuse femoral",
+"verwendung": "für CS-Katheter",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"luer-solo spritze": {
+"roh": "20ml Luer-Solo (grüne) Spritze (Lokale)",
+"kategorie": "Spritze",
+"kern": "20ml Luer-Solo (grüne) Spritze (Lokale)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"blazer™ ii xp - - large curve / std disatal": {
+"roh": "Blazer™ II XP - 8mm x 8F - Large Curve / STD Disatal",
+"kategorie": "Ablationskatheter",
+"kern": "Blazer™ II XP - 8mm x 8F - Large Curve / STD Disatal",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"inquiry™ – 20-poliger coronar sinus katheter": {
+"roh": "Inquiry™ 7F – 20-Poliger Coronar Sinus Katheter",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Inquiry™ 7F – 20-Poliger Coronar Sinus Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1924-sa verbindungskabel": {
+"roh": "1924-SA Verbindungskabel",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "1924-SA Verbindungskabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"fast-cath™ ramp™": {
+"roh": "Fast-Cath™ RAMP™ 8,5F",
+"kategorie": "Schleuse / Introducer",
+"kern": "Fast-Cath™ RAMP™ 8,5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"großer tisch": {
+"roh": "großer Tisch",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "großer Tisch",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro-set + 1x hahnenbank": {
+"roh": "Coro-Set + 1x Hahnenbank",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Coro-Set + 1x Hahnenbank",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"steriler großer tischbezug": {
+"roh": "Steriler großer Tischbezug",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Steriler großer Tischbezug",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1l nacl-flasche": {
+"roh": "1L NaCl-Flasche",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "1L NaCl-Flasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"infusionssystem": {
+"roh": "Infusionssystem",
+"kategorie": "Führungsdraht",
+"kern": "Infusionssystem",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perfusorspritze - schleusenspülung": {
+"roh": "Perfusorspritze - Schleusenspülung",
+"kategorie": "Schleuse / Introducer",
+"kern": "Perfusorspritze - Schleusenspülung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perfusorleitung": {
+"roh": "Perfusorleitung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Perfusorleitung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"100 oder nacl-infusion": {
+"roh": "100 oder 250ml NaCl-Infusion",
+"kategorie": "Führungsdraht",
+"kern": "100 oder 250ml NaCl-Infusion",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"km": {
+"roh": "100ml KM",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "100ml KM",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse für den cs-katheter": {
+"roh": "7F Schleuse für den CS-Katheter",
+"kategorie": "Schleuse / Introducer",
+"kern": "7F Schleuse",
+"verwendung": "für den CS-Katheter",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"oder schleuse": {
+"roh": "8F oder 9F Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "8F oder 9F Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"electrical umbilical 2035uc": {
+"roh": "Electrical Umbilical 2035UC (elektrisches Verbindungskabel)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Electrical Umbilical 2035UC (elektrisches Verbindungskabel)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coaxial umbilical 203cxc": {
+"roh": "Coaxial Umbilical 203CXC (Coaxialkabel)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Coaxial Umbilical 203CXC (Coaxialkabel)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"arctic front advance pro™ – cryo-ballon": {
+"roh": "Arctic Front Advance Pro™ (AFAPRO28) – Cryo-Ballon",
+"kategorie": "Ablationskatheter",
+"kern": "Arctic Front Advance Pro™ (AFAPRO28) – Cryo-Ballon",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"flexcath contour™ – cryo-schleuse": {
+"roh": "FlexCath Contour™ (12FCC20) – Cryo-Schleuse",
+"kategorie": "Ablationskatheter",
+"kern": "FlexCath Contour™ (12FCC20) – Cryo-Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"2achc diagnostic catheter cable mtb": {
+"roh": "2ACHC Diagnostic Catheter Cable MTB (Achive Verbindungskabel)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "2ACHC Diagnostic Catheter Cable MTB (Achive Verbindungskabel)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"achive mapping-katheter": {
+"roh": "Achive Mapping-Katheter",
+"kategorie": "Ablationskatheter",
+"kern": "Achive Mapping-Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"inquiry™ | 10-poliger coronar sinus katheter": {
+"roh": "Inquiry™ 6F | 10-Poliger Coronar Sinus Katheter",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Inquiry™ 6F | 10-Poliger Coronar Sinus Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1910-sa verbindungskabel": {
+"roh": "1910-SA Verbindungskabel",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "1910-SA Verbindungskabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"brk-1™ transseptalnadel": {
+"roh": "BRK-1™ Transseptalnadel",
+"kategorie": "Okkluder / Implantat",
+"kern": "BRK-1™ Transseptalnadel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"3-wegehahn mit verlängerung": {
+"roh": "3-Wegehahn mit Verlängerung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "3-Wegehahn mit Verlängerung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro-j-drath": {
+"roh": "Coro-J-Drath 150cm",
+"kategorie": "Führungsdraht",
+"kern": "Coro-J-Drath 150cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"omnifix luer-lock spritze für die steuerbare schleuse": {
+"roh": "20ml Omnifix Luer-Lock Spritze für die steuerbare Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "20ml Omnifix Luer-Lock Spritze",
+"verwendung": "für die steuerbare Schleuse",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pappschachtel für die resterilisation der brk-1™ transseptalnadel": {
+"roh": "Pappschachtel für die Resterilisation der BRK-1™ Transseptalnadel",
+"kategorie": "Okkluder / Implantat",
+"kern": "Pappschachtel",
+"verwendung": "für die Resterilisation der BRK-1™ Transseptalnadel",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lagerort saal 1": {
+"roh": "Lagerort Saal 1",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Lagerort",
+"verwendung": "",
+"bedingung": "",
+"standort": "Saal 1",
+"alternative": "",
+"kein_material": true
+},
+"mersilene™ naht": {
+"roh": "0er Mersilene™ Naht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Mersilene™ Naht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"supreme™ crd-2™": {
+"roh": "Supreme™ CRD-2™ (HIS Katheter)",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Supreme™ CRD-2™ (HIS Katheter)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"supreme™ jsn™": {
+"roh": "Supreme™ JSN™ (RV Katheter)",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Supreme™ JSN™ (RV Katheter)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"supreme™ grey verbindungskabel": {
+"roh": "Supreme™ GREY Verbindungskabel",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Supreme™ GREY Verbindungskabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse femoral für den cs-katheter": {
+"roh": "7F Schleuse femoral für den CS-Katheter",
+"kategorie": "Schleuse / Introducer",
+"kern": "7F Schleuse femoral",
+"verwendung": "für den CS-Katheter",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"8 oder schleuse femoral": {
+"roh": "8 oder 9F Schleuse femoral",
+"kategorie": "Schleuse / Introducer",
+"kern": "8 oder 9F Schleuse femoral",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perfusorspritze für die kontinuierliche spülung": {
+"roh": "Perfusorspritze für die kontinuierliche Spülung",
+"kategorie": "Spritze",
+"kern": "Perfusorspritze",
+"verwendung": "für die kontinuierliche Spülung",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"hahnenbank": {
+"roh": "Hahnenbank",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Hahnenbank",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"luer-solo spritze für lokale": {
+"roh": "20ml Luer-Solo Spritze (grün) für Lokale",
+"kategorie": "Spritze",
+"kern": "20ml Luer-Solo Spritze (grün)",
+"verwendung": "für Lokale",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile abdeckhaube bv 75x für die konsole": {
+"roh": "sterile Abdeckhaube BV 75x90cm (C-Bogen) für die Konsole",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "sterile Abdeckhaube BV 75x90cm (C-Bogen)",
+"verwendung": "für die Konsole",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"steriler kabelüberzug mölnlycke® / storz": {
+"roh": "Steriler Kabelüberzug Mölnlycke® / Storz",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Steriler Kabelüberzug Mölnlycke® / Storz",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"inqwire® .035“ führungsdrath": {
+"roh": "InQwire® .035“ Führungsdrath 180cm",
+"kategorie": "Führungsdraht",
+"kern": "InQwire® .035“ Führungsdrath 180cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"farawave™ pfa ablations katheter": {
+"roh": "FARAWAVE™ PFA Ablations Katheter 12F",
+"kategorie": "Ablationskatheter",
+"kern": "FARAWAVE™ PFA Ablations Katheter 12F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"faradrive™ pfa steuerbare schleuse": {
+"roh": "FARADRIVE™ PFA Steuerbare Schleuse 13F",
+"kategorie": "Schleuse / Introducer",
+"kern": "FARADRIVE™ PFA Steuerbare Schleuse 13F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"inquiry™ – 10-poliger coronar sinus katheter": {
+"roh": "Inquiry™ 6F – 10-Poliger Coronar Sinus Katheter",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Inquiry™ 6F – 10-Poliger Coronar Sinus Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"fast-cath™ sr0™": {
+"roh": "Fast-Cath™ SR0™ 8,5F",
+"kategorie": "Schleuse / Introducer",
+"kern": "Fast-Cath™ SR0™ 8,5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mit cryo-konsole…": {
+"roh": "Mit Cryo-Konsole…",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Mit Cryo-Konsole…",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"freezor™ xtra": {
+"roh": "Freezor™ Xtra (Fokaler Cryo-Ablationskathter)",
+"kategorie": "Ablationskatheter",
+"kern": "Freezor™ Xtra (Fokaler Cryo-Ablationskathter)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"leiste rasieren und mit softasept desinfizieren": {
+"roh": "Leiste rasieren und mit Softasept (Orange) desinfizieren",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Leiste rasieren und mit Softasept (Orange) desinfizieren",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"500 nacl-infusion mit 5000 i.e. heparin in druckbeutel an den infusionsständer am coro-tisch": {
+"roh": "500 NaCl-Infusion mit 5000 I.E. Heparin (Orion-Spülung) in Druckbeutel an den Infusionsständer am Coro-Tisch",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "500 NaCl-Infusion mit 5000 I.E. Heparin (Orion-Spülung) in Druckbeutel an den Infusionsständer am Coro-Tisch",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"tubeing-set und oder nacl-infusionsbeutel vorbereiten notwendig? oder auf ansage bereitschaft?": {
+"roh": "Tubeing-Set und 500ml oder 1000ml NaCl-Infusionsbeutel vorbereiten Notwendig? Oder auf Ansage bereitschaft?",
+"kategorie": "Führungsdraht",
+"kern": "Tubeing-Set und 500ml",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "1000ml NaCl-Infusionsbeutel vorbereiten Notwendig? Oder auf Ansage bereitschaft?",
+"kein_material": false
+},
+"großer tischbezug": {
+"roh": "großer Tischbezug",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "großer Tischbezug",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"intellamap orion™ mapping katheter /": {
+"roh": "IntellaMap Orion™ Mapping Katheter / 8,5F",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "IntellaMap Orion™ Mapping Katheter / 8,5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"intellanav stablepoint™ ablationskatheter / standard curve /": {
+"roh": "IntellaNav StablePoint™ Ablationskatheter / Standard Curve / 4mm x 8F",
+"kategorie": "Ablationskatheter",
+"kern": "IntellaNav StablePoint™ Ablationskatheter / Standard Curve / 4mm x 8F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sureflex™ m / steuerbare schleuse / baylis medical": {
+"roh": "SureFlex™ M / 8,5F Steuerbare Schleuse / Baylis Medical",
+"kategorie": "Schleuse / Introducer",
+"kern": "SureFlex™ M / 8,5F Steuerbare Schleuse / Baylis Medical",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"heidelberger verlängerung": {
+"roh": "Heidelberger Verlängerung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Heidelberger Verlängerung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perfusorspritze für die schleusenspülung": {
+"roh": "Perfusorspritze für die Schleusenspülung",
+"kategorie": "Schleuse / Introducer",
+"kern": "Perfusorspritze",
+"verwendung": "für die Schleusenspülung",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"3-wege-hahn": {
+"roh": "3-Wege-Hahn",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "3-Wege-Hahn",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"spritzen für act": {
+"roh": "2ml Spritzen für ACT",
+"kategorie": "Spritze",
+"kern": "2ml Spritzen",
+"verwendung": "für ACT",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"steriler kameraüberzug": {
+"roh": "Steriler Kameraüberzug",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Steriler Kameraüberzug",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rhythmia hdx™ mapping system": {
+"roh": "Rhythmia HDx™ Mapping System",
+"kategorie": "EP-/Mapping-Katheter",
+"kern": "Rhythmia HDx™ Mapping System",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"tubeing-set und oder nacl-infusionsbeutel vorbereiten": {
+"roh": "Tubeing-Set und 500ml oder 1000ml NaCl-Infusionsbeutel vorbereiten",
+"kategorie": "Führungsdraht",
+"kern": "Tubeing-Set und 500ml",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "1000ml NaCl-Infusionsbeutel vorbereiten",
+"kein_material": false
+},
+"intellanav stablepoint™ ablationskatheter / large curve /": {
+"roh": "IntellaNav StablePoint™ Ablationskatheter / Large Curve / 4mm x 8F",
+"kategorie": "Ablationskatheter",
+"kern": "IntellaNav StablePoint™ Ablationskatheter / Large Curve / 4mm x 8F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"arterial leadercath vygon oder schleuse femoral + 3-wege-hahn": {
+"roh": "Arterial Leadercath VYGON oder 4F Schleuse femoral + 3-Wege-Hahn",
+"kategorie": "Schleuse / Introducer",
+"kern": "Arterial Leadercath VYGON",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "4F Schleuse femoral + 3-Wege-Hahn",
+"kein_material": false
+},
+"anschließen einer infusion abhängig von ef des pat. – evtl. absprache mit untersucher – evtl. nach ves schauen": {
+"roh": "Anschließen einer Infusion (500ml Sterofundin) abhängig von EF des Pat. – evtl. Absprache mit Untersucher – evtl. nach VES Schauen",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Anschließen einer Infusion (500ml Sterofundin) . – . nach VES Schauen",
+"verwendung": "",
+"bedingung": "abhängig von EF des Pat; evtl. Absprache mit Untersucher – evtl",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"agilis™ nxt | | | lg": {
+"roh": "Agilis™ NxT | 71cm | 8,5F | LG (Large)",
+"kategorie": "Schleuse / Introducer",
+"kern": "Agilis™ NxT | 71cm | 8,5F | LG (Large)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"beide 1l nacl-infusionsbeutel mit jeweils heparin versetzen": {
+"roh": "Beide 1L NaCl-Infusionsbeutel mit jeweils 1ml Heparin (5000 I.E.) versetzen",
+"kategorie": "Führungsdraht",
+"kern": "Beide 1L NaCl-Infusionsbeutel mit jeweils 1ml Heparin (5000 I.E.) versetzen",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"abbott stabilisator": {
+"roh": "Abbott Stabilisator (Sieb)",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Abbott Stabilisator (Sieb)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kiste / korb mit material für tc / mc": {
+"roh": "Kiste / Korb mit Material für TC / MC",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Kiste / Korb mit Material",
+"verwendung": "für TC / MC",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"steuerbare schleuse von abbott je clip prozedur": {
+"roh": "steuerbare Schleuse von Abbott je Clip Prozedur (SGC0707)",
+"kategorie": "Schleuse / Introducer",
+"kern": "steuerbare Schleuse von Abbott (SGC0707)",
+"verwendung": "",
+"bedingung": "je Clip Prozedur",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perfusorspritze": {
+"roh": "Perfusorspritze",
+"kategorie": "Spritze",
+"kern": "Perfusorspritze",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"amplatzer draht": {
+"roh": "Amplatzer Draht 260cm",
+"kategorie": "Führungsdraht",
+"kern": "Amplatzer Draht 260cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mersilene™ oder ähnliche naht für die z-naht": {
+"roh": "0er Mersilene™ oder ähnliche Naht für die Z-Naht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Mersilene™",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "ähnliche Naht für die Z-Naht",
+"kein_material": false
+},
+"dilatator": {
+"roh": "Dilatator 20F",
+"kategorie": "Dilatator",
+"kern": "Dilatator 20F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"hochdruck-3-wegehan": {
+"roh": "Hochdruck-3-Wegehan",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Hochdruck-3-Wegehan",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"swartz sl-1 transseptalschleuse": {
+"roh": "Swartz SL-1 Transseptalschleuse (81cm)",
+"kategorie": "Okkluder / Implantat",
+"kern": "Swartz SL-1 Transseptalschleuse (81cm)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile kittel": {
+"roh": "Sterile Kittel",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "Sterile Kittel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pappschachtel für die resterilisation der brk-1 transseptalnadel": {
+"roh": "Pappschachtel für die Resterilisation der BRK-1 Transseptalnadel",
+"kategorie": "Okkluder / Implantat",
+"kern": "Pappschachtel",
+"verwendung": "für die Resterilisation der BRK-1 Transseptalnadel",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"radialis-druckmanschette oder material für druckverband": {
+"roh": "Radialis-Druckmanschette ODER Material für Druckverband",
+"kategorie": "Verschlusssystem (vaskulär)",
+"kern": "Radialis-Druckmanschette",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "Material für Druckverband",
+"kein_material": false
+},
+"multipack diagnostikkatheter oder tig 4.0": {
+"roh": "Multipack Diagnostikkatheter 5F oder TIG 4.0 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "Multipack Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "TIG 4.0 5F",
+"kein_material": false
+},
+"zugang / zugänge im voraus dem plan entnehmen oder mit dem untersucher besprechen": {
+"roh": "Zugang / Zugänge im Voraus dem Plan entnehmen oder mit dem Untersucher besprechen",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Zugang / Zugänge im Voraus dem Plan entnehmen",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "mit dem Untersucher besprechen",
+"kein_material": true
+},
+"kleiner tisch oder 1x großer tisch": {
+"roh": "kleiner Tisch ODER 1x großer Tisch",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "kleiner Tisch",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "1x großer Tisch",
+"kein_material": false
+},
+"nacl-infusion mit 5000 i.e. heparin | 5mg glyceroltrinitrat | 2,5mg verapamil versetzten": {
+"roh": "500ml NaCl-Infusion mit 5000 I.E. Heparin | 5mg Glyceroltrinitrat | 2,5mg Verapamil versetzten",
+"kategorie": "Führungsdraht",
+"kern": "500ml NaCl-Infusion mit 5000 I.E. Heparin | 5mg Glyceroltrinitrat | 2,5mg Verapamil versetzten",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"heidelberger-verlängerung": {
+"roh": "Heidelberger-Verlängerung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Heidelberger-Verlängerung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ptca-drähte": {
+"roh": "PTCA-Drähte",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "PTCA-Drähte",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rotapro™-bohrkopf aus dem filmraum": {
+"roh": "ROTAPRO™-Bohrkopf aus dem Filmraum",
+"kategorie": "Rotablation / Atherektomie",
+"kern": "ROTAPRO™-Bohrkopf",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus dem Filmraum",
+"alternative": "",
+"kein_material": false
+},
+"rotawire": {
+"roh": "ROTAWire",
+"kategorie": "Rotablation / Atherektomie",
+"kern": "ROTAWire",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pacer verbindungskabel": {
+"roh": "Pacer Verbindungskabel",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Pacer Verbindungskabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"passagerer schrittmacher": {
+"roh": "Passagerer Schrittmacher (Pacer)",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Passagerer Schrittmacher (Pacer)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"femostop™ ii plus": {
+"roh": "FemoStop™ II Plus",
+"kategorie": "Verschlusssystem (vaskulär)",
+"kern": "FemoStop™ II Plus",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pacer schleuse": {
+"roh": "6F Pacer Schleuse",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "6F Pacer Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"tischverlängerung": {
+"roh": "Tischverlängerung (steril)",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Tischverlängerung (steril)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rotawire™ drive and wireclip™ extra support gerade": {
+"roh": "ROTAWIRE™ Drive and wireClip™ EXTRA SUPPORT gerade",
+"kategorie": "Rotablation / Atherektomie",
+"kern": "ROTAWIRE™ Drive and wireClip™ EXTRA SUPPORT gerade",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher-verbindungskabel": {
+"roh": "Schrittmacher-Verbindungskabel (Osypka)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Schrittmacher-Verbindungskabel (Osypka)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher-schleuse": {
+"roh": "6F Schrittmacher-Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "6F Schrittmacher-Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mersilene™ annaht": {
+"roh": "0er Mersilene™ Annaht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Mersilene™ Annaht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pleurapunktionsset": {
+"roh": "Pleurapunktionsset",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Pleurapunktionsset",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"oder km": {
+"roh": "50ml oder 100ml KM",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "50ml oder 100ml KM",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perikardpunktionsset": {
+"roh": "Perikardpunktionsset",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Perikardpunktionsset",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"für eine probenentnahme wird eine perfusorspritze genutzt": {
+"roh": "Für eine Probenentnahme wird eine Perfusorspritze genutzt",
+"kategorie": "Spritze",
+"kern": "",
+"verwendung": "Für eine Probenentnahme wird eine Perfusorspritze genutzt",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lange punktionskanüle": {
+"roh": "Lange Punktionskanüle",
+"kategorie": "Punktions-/Transseptalnadel",
+"kern": "Lange Punktionskanüle",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse": {
+"roh": "6F Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "6F Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pigtail": {
+"roh": "6F Pigtail",
+"kategorie": "Diagnostikkatheter",
+"kern": "6F Pigtail",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"bestätigen der erfolgreichen punktion mittels km-injektion": {
+"roh": "Bestätigen der erfolgreichen Punktion mittels KM-Injektion",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Bestätigen der erfolgreichen Punktion mittels KM-Injektion",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"langer coro -j-draht": {
+"roh": "langer Coro -J-Draht 260cm",
+"kategorie": "Führungsdraht",
+"kern": "langer Coro -J-Draht 260cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"einmalpinzette": {
+"roh": "Einmalpinzette",
+"kategorie": "Instrument",
+"kern": "Einmalpinzette",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pack bauchtücher": {
+"roh": "Pack Bauchtücher",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "Pack Bauchtücher",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kurze angiomatleitung": {
+"roh": "kurze Angiomatleitung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "kurze Angiomatleitung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"pigtail diagnostikkatheter": {
+"roh": "Pigtail Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "Pigtail Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse femoral als arterie": {
+"roh": "4F Schleuse femoral als Arterie",
+"kategorie": "Schleuse / Introducer",
+"kern": "4F Schleuse femoral als Arterie",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"intri24™ sheath schleuse": {
+"roh": "Intri24™ Sheath Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "Intri24™ Sheath Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"flow triever system: t16 / t20 / t24c / t24": {
+"roh": "Flow Triever System: T16 / T20 / T24C / T24",
+"kategorie": "Thrombektomie / Aspiration",
+"kern": "Flow Triever System: T16 / T20 / T24C / T24",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"disk retriever: xl: 19- / flowtriever2®": {
+"roh": "Disk Retriever: XL: 19-25mm / FlowTriever2®",
+"kategorie": "Thrombektomie / Aspiration",
+"kern": "Disk Retriever: XL: 19-25mm / FlowTriever2®",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"flowsaver® blutrückführungssystem": {
+"roh": "FlowSaver® Blutrückführungssystem",
+"kategorie": "Thrombektomie / Aspiration",
+"kern": "FlowSaver® Blutrückführungssystem",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"flowstasis®": {
+"roh": "FlowStasis® (Z-Naht Verschlusssystem)",
+"kategorie": "Nahtmaterial",
+"kern": "FlowStasis® (Z-Naht Verschlusssystem)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mpa vbt oder mp a2 super torque® plus": {
+"roh": "6F MPA VBT (Sepcial) 125cm oder 5.2F MP A2(I) 125cm Super Torque® PLUS",
+"kategorie": "Diagnostikkatheter",
+"kern": "6F MPA VBT (Sepcial) 125cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "5.2F MP A2(I) 125cm Super Torque® PLUS",
+"kein_material": false
+},
+"amplatz super stiff™ draht gerade oder inqwire® amplatz draht": {
+"roh": "Amplatz Super Stiff™ Draht gerade 260cm (Boston Scientific) oder InQwire® Amplatz Draht 260cm (MeritMedical)",
+"kategorie": "Führungsdraht",
+"kern": "Amplatz Super Stiff™ Draht gerade 260cm (Boston Scientific)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "InQwire® Amplatz Draht 260cm (MeritMedical",
+"kein_material": false
+},
+"bioptimal™ bipolarer schrittmacher-ballon-katheter oder 1x bipacingball": {
+"roh": "Bioptimal™ Bipolarer Schrittmacher-Ballon-Katheter ODER 1x bipacingball (VYGON)",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Bioptimal™ Bipolarer Schrittmacher-Ballon-Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "1x bipacingball (VYGON",
+"kein_material": false
+},
+"abbott fast-cath™ schrittmacherschleuse oder 1x arrow® schrittmacherschleuse": {
+"roh": "6F Abbott Fast-Cath™ Schrittmacherschleuse ODER 1x 6F ARROW® Schrittmacherschleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "6F Abbott Fast-Cath™ Schrittmacherschleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "1x 6F ARROW® Schrittmacherschleuse",
+"kein_material": false
+},
+"d2p-sp schrittmacher-verbindungskabel": {
+"roh": "D2P-SP Schrittmacher-Verbindungskabel (Osypka)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "D2P-SP Schrittmacher-Verbindungskabel (Osypka)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1l nacl flasche": {
+"roh": "1L NaCl Flasche",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "1L NaCl Flasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"nacl flasche": {
+"roh": "500ml NaCl Flasche",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "500ml NaCl Flasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"mersilene™ für z-naht": {
+"roh": "0er Mersilene™ für Z-Naht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Mersilene™",
+"verwendung": "für Z-Naht",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"nacl infusionsflasche": {
+"roh": "100ml NaCl Infusionsflasche",
+"kategorie": "Führungsdraht",
+"kern": "100ml NaCl Infusionsflasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"rachenbetäubung": {
+"roh": "Rachenbetäubung",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "Rachenbetäubung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"beißring": {
+"roh": "Beißring",
+"kategorie": "Instrument",
+"kern": "Beißring",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"einmalpumpaufsatz für rachenbetäubung": {
+"roh": "Einmalpumpaufsatz für Rachenbetäubung",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "Einmalpumpaufsatz",
+"verwendung": "für Rachenbetäubung",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ultraschallgel": {
+"roh": "Ultraschallgel",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "Ultraschallgel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile abdeckhaube bv": {
+"roh": "sterile Abdeckhaube BV (C-Bogen)",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "sterile Abdeckhaube BV (C-Bogen)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"meritmedical® heartspan® transseptalschleuse oder swartz™ sl 1™ abbott": {
+"roh": "MeritMedical® HeartSpan® Transseptalschleuse 8,5F oder Swartz™ SL 1™ Abbott 81cm 8,5F",
+"kategorie": "Okkluder / Implantat",
+"kern": "MeritMedical® HeartSpan® Transseptalschleuse 8,5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "Swartz™ SL 1™ Abbott 81cm 8,5F",
+"kein_material": false
+},
+"amplatzer™ amulet™ delivery sheath oder": {
+"roh": "Amplatzer™ Amulet™ Delivery Sheath (Okkluder-Schleuse) 12F oder 14F",
+"kategorie": "Okkluder / Implantat",
+"kern": "Amplatzer™ Amulet™ Delivery Sheath (Okkluder-Schleuse) 12F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "14F",
+"kein_material": false
+},
+"amplatzer™ amulet™ laa-okkluder": {
+"roh": "Amplatzer™ Amulet™ LAA-Okkluder",
+"kategorie": "Okkluder / Implantat",
+"kern": "Amplatzer™ Amulet™ LAA-Okkluder",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"multipurpose diagnostikkatheter": {
+"roh": "Multipurpose Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "Multipurpose Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"material aus saal 1": {
+"roh": "Material aus Saal 1",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Material aus",
+"verwendung": "",
+"bedingung": "",
+"standort": "Saal 1",
+"alternative": "",
+"kein_material": true
+},
+"amplatzer™ talisman™ schleuse": {
+"roh": "Amplatzer™ Talisman™ Schleuse",
+"kategorie": "Okkluder / Implantat",
+"kern": "Amplatzer™ Talisman™ Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"amplatzer™ talisman™ pfo occluder": {
+"roh": "Amplatzer™ Talisman™ PFO Occluder",
+"kategorie": "Okkluder / Implantat",
+"kern": "Amplatzer™ Talisman™ PFO Occluder",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"map 152 hämostaseventil": {
+"roh": "Map 152 Hämostaseventil (MAP 112)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Map 152 Hämostaseventil (MAP 112)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"3-wege-hanhn": {
+"roh": "3-Wege-Hanhn",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "3-Wege-Hanhn",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"terumo schleuse": {
+"roh": "11F Terumo Schleuse [Saal 1 – Oberhalb Cryo 2]",
+"kategorie": "Schleuse / Introducer",
+"kern": "11F Terumo Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "[Saal 1 – Oberhalb Cryo 2]",
+"alternative": "",
+"kein_material": false
+},
+"coro-set + 2x hahnenbank": {
+"roh": "Coro-Set + 2x Hahnenbank",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Coro-Set + 2x Hahnenbank",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacherkabel": {
+"roh": "Schrittmacherkabel",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Schrittmacherkabel",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"tavi – sieb": {
+"roh": "TAVI – Sieb",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "TAVI – Sieb",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"luer-lock spritze": {
+"roh": "30ml Luer-Lock Spritze",
+"kategorie": "Spritze",
+"kern": "30ml Luer-Lock Spritze",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lange angiomat leitung": {
+"roh": "lange Angiomat Leitung (150cm)",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "lange Angiomat Leitung (150cm)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse schrittmacher": {
+"roh": "Schleuse Schrittmacher (6F)",
+"kategorie": "Schleuse / Introducer",
+"kern": "Schleuse Schrittmacher (6F)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher ballon – katheter": {
+"roh": "Schrittmacher Ballon – Katheter",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Schrittmacher Ballon – Katheter",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"confida steifer draht": {
+"roh": "Confida 260cm steifer Draht",
+"kategorie": "Führungsdraht",
+"kern": "Confida 260cm steifer Draht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"true dilatation größe steht immer auf dem plan": {
+"roh": "True Dilatation (Valvuloplastie Ballon) Größe steht immer auf dem Plan",
+"kategorie": "Ballon / Dilatation",
+"kern": "True Dilatation (Valvuloplastie Ballon)",
+"verwendung": "",
+"bedingung": "Größe steht immer auf dem Plan",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"für geplante / nötige valvuloplastie einen hochdruck-3-wegehan und eine perfusorspritze anreichen": {
+"roh": "Für geplante / nötige Valvuloplastie einen Hochdruck-3-Wegehan und eine Perfusorspritze anreichen",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "",
+"verwendung": "Für geplante / nötige Valvuloplastie einen Hochdruck-3-Wegehan und eine Perfusorspritze anreichen",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"jr 4 diagnostikkatheter": {
+"roh": "JR 4 Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "JR 4 Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"angio-seal® vip": {
+"roh": "6F ANGIO-SEAL® VIP",
+"kategorie": "Verschlusssystem (vaskulär)",
+"kern": "6F ANGIO-SEAL® VIP",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lunderquist® extra stiff dc": {
+"roh": "Lunderquist® Extra Stiff DC",
+"kategorie": "Führungsdraht",
+"kern": "Lunderquist® Extra Stiff DC",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lange schleuse": {
+"roh": "Lange 6F Schleuse (Flexor® Check-Flo®)",
+"kategorie": "Schleuse / Introducer",
+"kern": "Lange 6F Schleuse (Flexor® Check-Flo®)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"true dilatation größe steht auf dem plan": {
+"roh": "True Dilatation (Valvuloplastie Ballon) Größe steht auf dem Plan",
+"kategorie": "Ballon / Dilatation",
+"kern": "True Dilatation (Valvuloplastie Ballon)",
+"verwendung": "",
+"bedingung": "Größe steht auf dem Plan",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"weitere materialein": {
+"roh": "Weitere Materialein",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Weitere Materialein",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"al i diagnostikkatheter": {
+"roh": "AL I Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "AL I Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"jr4 diagnostikkatheter": {
+"roh": "JR4 Diagnostikkatheter 5F",
+"kategorie": "Diagnostikkatheter",
+"kern": "JR4 Diagnostikkatheter 5F",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"perclose™ prostyle™": {
+"roh": "Perclose™ ProStyle™",
+"kategorie": "Verschlusssystem (vaskulär)",
+"kern": "Perclose™ ProStyle™",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"cook – schleuse": {
+"roh": "14F Cook – Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "14F Cook – Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ladesystem": {
+"roh": "Ladesystem",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "Ladesystem",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"delivery-system": {
+"roh": "Delivery-system",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "Delivery-system",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"jeweils zwei klappen der größe, die implantiert werden soll": {
+"roh": "Jeweils zwei Klappen der Größe, die implantiert werden soll",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Jeweils zwei Klappen der Größe, die implantiert werden soll",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"anästhesie reicht an": {
+"roh": "Anästhesie reicht an",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Anästhesie reicht an",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"zvk": {
+"roh": "ZVK",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "ZVK",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"optilene® annaht": {
+"roh": "0er Optilene® Annaht",
+"kategorie": "Nahtmaterial",
+"kern": "0er Optilene® Annaht",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"folienpflaster 10 x": {
+"roh": "Folienpflaster (IV3000◊) 10 x 12cm",
+"kategorie": "Verband / Pflaster",
+"kern": "Folienpflaster (IV3000◊) 10 x 12cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"fluency plus stent jede größe 1x für femorale blutungen": {
+"roh": "Fluency plus Stent jede Größe 1x Für femorale Blutungen",
+"kategorie": "Stent / Stentgraft",
+"kern": "Fluency plus Stent jede Größe 1x",
+"verwendung": "Für femorale Blutungen",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"coro-j-draht": {
+"roh": "Coro-J-Draht 260cm",
+"kategorie": "Führungsdraht",
+"kern": "Coro-J-Draht 260cm",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"crossover schleuse": {
+"roh": "Crossover Schleuse 6F (Flexor® Check-Flo® → Alkin Up & Over® Kontralateral)",
+"kategorie": "Schleuse / Introducer",
+"kern": "Crossover Schleuse 6F (Flexor® Check-Flo® → Alkin Up & Over® Kontralateral)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"true™ dilatation jede größe": {
+"roh": "True™ Dilatation jede Größe",
+"kategorie": "Ballon / Dilatation",
+"kern": "True™ Dilatation jede Größe",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse 1x wird zum einbringen des fluency-stents benötigt": {
+"roh": "10F Schleuse 1x wird zum Einbringen des Fluency-Stents benötigt",
+"kategorie": "Stent / Stentgraft",
+"kern": "10F Schleuse 1x",
+"verwendung": "wird zum Einbringen des Fluency-Stents benötigt",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1l nacl-flasche aus dem kühlschrank": {
+"roh": "1L NaCl-Flasche aus dem Kühlschrank",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "1L NaCl-Flasche",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus dem Kühlschrank",
+"alternative": "",
+"kein_material": false
+},
+"cook – schleuse bei 23- / cook bei klappe": {
+"roh": "14F Cook – Schleuse bei 23-29mm / 18F Cook bei 34mm Klappe",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "14F Cook – Schleuse",
+"verwendung": "",
+"bedingung": "bei 23-29mm / 18F Cook bei 34mm Klappe",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"materielein aus dem keller": {
+"roh": "Materielein aus dem Keller (wird oft von der Firma geholt)",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "Materielein (wird oft von der Firma geholt)",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus dem Keller",
+"alternative": "",
+"kein_material": true
+},
+"diagnostikkatheter pigtail": {
+"roh": "Diagnostikkatheter 5F Pigtail",
+"kategorie": "Diagnostikkatheter",
+"kern": "Diagnostikkatheter 5F Pigtail",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"sterile überzug klein bv": {
+"roh": "sterile Überzug klein BV (C-Bogen)",
+"kategorie": "Abdeckung / Sterilbezug",
+"kern": "sterile Überzug klein BV (C-Bogen)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"edwards material": {
+"roh": "Edwards Material",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "Edwards Material",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"safari2™ .035” x extra small curve guidewire": {
+"roh": "SAFARI2™ .035” X 275cm Extra Small Curve Guidewire (Boston Scientific)",
+"kategorie": "Führungsdraht",
+"kern": "SAFARI2™ .035” X 275cm Extra Small Curve Guidewire (Boston Scientific)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"stabilisator": {
+"roh": "Stabilisator (steriles Sieb)",
+"kategorie": "Prozedur-Set / Sieb",
+"kern": "Stabilisator (steriles Sieb)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"loadingsystem +1x reserve": {
+"roh": "Loadingsystem +1x Reserve",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "Loadingsystem +1x Reserve",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"evoque klappe – größe vom plan entnehmen + 1x reserve": {
+"roh": "EVOQUE Klappe – Größe vom Plan entnehmen + 1x Reserve",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "EVOQUE Klappe",
+"verwendung": "",
+"bedingung": "Größe vom Plan entnehmen + 1x Reserve",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"dilatator-kit + 1x reserve": {
+"roh": "Dilatator-Kit + 1x Reserve",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "Dilatator-Kit + 1x Reserve",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"deliverysystem +1x reserve": {
+"roh": "Deliverysystem +1x Reserve",
+"kategorie": "Herzklappe / TAVI-TMVR",
+"kern": "Deliverysystem +1x Reserve",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"check-flo® cook-schleuse": {
+"roh": "24F Check-Flo® Cook-Schleuse",
+"kategorie": "Schleuse / Introducer",
+"kern": "24F Check-Flo® Cook-Schleuse",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"abbott agilis nxt steuerbare schleuse": {
+"roh": "Abbott Agilis NxT steuerbare Schleuse 8.5Fr (MD)",
+"kategorie": "Schleuse / Introducer",
+"kern": "Abbott Agilis NxT steuerbare Schleuse 8.5Fr (MD)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schwellenkabel zur stimulation über den safari2™-draht bei av-block": {
+"roh": "Schwellenkabel zur Stimulation über den SAFARI2™-Draht bei AV-Block",
+"kategorie": "Führungsdraht",
+"kern": "Schwellenkabel zur Stimulation über den SAFARI2™-Draht bei AV-Block",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lange angiomaten-leitung": {
+"roh": "Lange (150cm) Angiomaten-Leitung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "Lange (150cm) Angiomaten-Leitung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"kurze angiomaten-leitung": {
+"roh": "kurze Angiomaten-Leitung",
+"kategorie": "Kabel / Konnektor / Leitung",
+"kern": "kurze Angiomaten-Leitung",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"lokale": {
+"roh": "Lokale (Buccain 20ml – Bupivacain)",
+"kategorie": "Medikament / Lösung / KM",
+"kern": "Lokale (Buccain 20ml – Bupivacain)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"ethibondexcel™ für die fixierung der sonde am sleeve": {
+"roh": "0er ETHIBONDEXCEL™ für die Fixierung der Sonde am Sleeve",
+"kategorie": "Nahtmaterial",
+"kern": "0er ETHIBONDEXCEL™",
+"verwendung": "für die Fixierung der Sonde am Sleeve",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"1er ethibondexcel™ ur-5 für die fixierung des gerätes": {
+"roh": "1er ETHIBONDEXCEL™ UR-5 für die Fixierung des Gerätes",
+"kategorie": "Nahtmaterial",
+"kern": "1er ETHIBONDEXCEL™ UR-5",
+"verwendung": "für die Fixierung des Gerätes",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"vicryl™ 4x für die subkutan-naht": {
+"roh": "0er VICRYL™ 4x70cm für die Subkutan-Naht",
+"kategorie": "Nahtmaterial",
+"kern": "0er VICRYL™ 4x70cm",
+"verwendung": "für die Subkutan-Naht",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"applica op-folie 45x aus der s-icd schublade saal 3": {
+"roh": "Applica OP-Folie 45x50cm (groß) aus der S-ICD Schublade Saal 3",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Applica OP-Folie 45x50cm (groß)",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus der S-ICD Schublade Saal 3",
+"alternative": "",
+"kein_material": false
+},
+"s-icd-set": {
+"roh": "S-ICD-Set (Universal-Set)",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "S-ICD-Set (Universal-Set)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"folien-waben-pflaster 15x": {
+"roh": "Folien-Waben-Pflaster 15x10cm (Opsite)",
+"kategorie": "Verband / Pflaster",
+"kern": "Folien-Waben-Pflaster 15x10cm (Opsite)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"knopfkanüle aus der s-icd schublade saal 3": {
+"roh": "Knopfkanüle aus der S-ICD Schublade Saal 3",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Knopfkanüle",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus der S-ICD Schublade Saal 3",
+"alternative": "",
+"kein_material": false
+},
+"vicryl™ ct-1 plus für die intramuskular-naht": {
+"roh": "2er VICRYL™ CT-1 Plus für die Intramuskular-Naht",
+"kategorie": "Nahtmaterial",
+"kern": "2er VICRYL™ CT-1 Plus",
+"verwendung": "für die Intramuskular-Naht",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"op-skinmarker aus der s-icd schublade saal 3": {
+"roh": "OP-Skinmarker aus der S-ICD Schublade Saal 3",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "OP-Skinmarker",
+"verwendung": "",
+"bedingung": "",
+"standort": "aus der S-ICD Schublade Saal 3",
+"alternative": "",
+"kein_material": false
+},
+"haut-stapler": {
+"roh": "Haut-Stapler (Wundtacker)",
+"kategorie": "Nahtmaterial",
+"kern": "Haut-Stapler (Wundtacker)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"9. wischdesinfektion des op-gebietes mit softasept® n gefärbt": {
+"roh": "9. 🔲 Wischdesinfektion des OP-Gebietes mit Softasept® N gefärbt (3X)",
+"kategorie": "Kein Material (Hinweis/Handlung/Ort)",
+"kern": "9. 🔲 Wischdesinfektion des OP-Gebietes mit Softasept® N gefärbt (3X)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": true
+},
+"ethibondexcel™ für die fixierung des gerätes": {
+"roh": "0er ETHIBONDEXCEL™ für die Fixierung des Gerätes (entfällt oft)",
+"kategorie": "Nahtmaterial",
+"kern": "0er ETHIBONDEXCEL™",
+"verwendung": "für die Fixierung des Gerätes",
+"bedingung": "entfällt oft",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"aggregate und sonden": {
+"roh": "Aggregate und Sonden (in Absprache)",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "Aggregate und Sonden (",
+"verwendung": "",
+"bedingung": "in Absprache",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"vitatron q20 standard": {
+"roh": "Vitatron Q20 Standard",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Vitatron Q20 Standard",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"capsurefix novus mri™ surescan™ 5076 in für vvi": {
+"roh": "CapSureFix Novus MRI™ SureScan™ 5076 in 58cm für VVI",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "CapSureFix Novus MRI™ SureScan™ 5076 in 58cm",
+"verwendung": "für VVI",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"capsurefix novus mri™ surescan™ 5076 in für aai": {
+"roh": "CapSureFix Novus MRI™ SureScan™ 5076 in 52cm für AAI",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "CapSureFix Novus MRI™ SureScan™ 5076 in 52cm",
+"verwendung": "für AAI",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"passaeger pacer für bradykarden": {
+"roh": "Passaeger Pacer (Schrittmacher) Für Bradykarden",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Passaeger Pacer (Schrittmacher)",
+"verwendung": "Für Bradykarden",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schleuse schrittmacher zum einführen des ballon-katheters": {
+"roh": "Schleuse Schrittmacher (6F) Zum Einführen des Ballon-Katheters",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Schleuse Schrittmacher (6F)",
+"verwendung": "Zum Einführen des Ballon-Katheters",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"schrittmacher ballon – katheter wird in den rechten ventrikel eingeschwemmt und an den pacer angeschlossen": {
+"roh": "Schrittmacher Ballon – Katheter wird in den rechten Ventrikel eingeschwemmt und an den Pacer angeschlossen",
+"kategorie": "Passagerer SM / Ballonkatheter",
+"kern": "Schrittmacher Ballon – Katheter",
+"verwendung": "wird in den rechten Ventrikel eingeschwemmt und an den Pacer angeschlossen",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"blaue schale": {
+"roh": "blaue Schale 1000ml (steril)",
+"kategorie": "Basis-/Verbrauchsmaterial",
+"kern": "blaue Schale 1000ml (steril)",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"vitatron q70 / attesta™ dr mri": {
+"roh": "Vitatron Q70 / Attesta™ DR MRI",
+"kategorie": "Schrittmacher/ICD-Aggregat",
+"kern": "Vitatron Q70 / Attesta™ DR MRI",
+"verwendung": "",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"capsurefix novus mri™ surescan™ 5076 in für rv": {
+"roh": "CapSureFix Novus MRI™ SureScan™ 5076 in 58cm für RV",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "CapSureFix Novus MRI™ SureScan™ 5076 in 58cm",
+"verwendung": "für RV",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+},
+"capsurefix novus mri™ surescan™ 5076 in für ra": {
+"roh": "CapSureFix Novus MRI™ SureScan™ 5076 in 52cm für RA",
+"kategorie": "Schrittmacher-/ICD-Sonde",
+"kern": "CapSureFix Novus MRI™ SureScan™ 5076 in 52cm",
+"verwendung": "für RA",
+"bedingung": "",
+"standort": "",
+"alternative": "",
+"kein_material": false
+}
+}
+}

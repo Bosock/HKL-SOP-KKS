@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v37';
+const CACHE_VERSION = 'v38';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -58,15 +58,22 @@ const SHELL = [
   'js/features/materials.js',
   'js/features/scanner.js',
   'js/features/materialhub.js',
+  'js/features/matcatalog.js',
+  'js/features/matcleanup.js',
   'js/features/ocr.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'data/hkl_standards_export.json',
+  'data/material_catalog.json',
+  'data/cleanup_suggestions.json',
 ];
 
-const DATA_PATH = '/data/hkl_standards_export.json';
+/* Alle mitgelieferten Datendateien unter /data/*.json (Standards, Referenz-
+   Katalog, Aufräum-Vorschläge) laufen über dieselbe cache-first-Strategie. */
+function isDataPath(pathname){ return /^\/data\/.*\.json$/.test(pathname); }
 
 /* Precache tolerant: ein einzelnes fehlendes Asset (z. B. nach Umbenennung)
    darf die Installation nicht komplett verhindern. */
@@ -142,6 +149,6 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
   if (req.mode === 'navigate') { event.respondWith(navigate(req)); return; }
-  if (url.pathname === DATA_PATH) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }
+  if (isDataPath(url.pathname)) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }
   event.respondWith(staleWhileRevalidate(req, SHELL_CACHE));
 });

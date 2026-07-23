@@ -121,6 +121,7 @@ function renderMaterialHub(){
     ${scanCta}
     <div id="scanHelp"></div>
     <button class="add-entry-btn" onclick="matHubNew()">＋ Material ohne Barcode anlegen</button>
+    ${(typeof cleanupStats==='function' && cleanupStats().offen>0 && (typeof ADMIN==='undefined'||ADMIN))?`<button class="add-entry-btn" style="border-color:var(--accent)" onclick="openCleanup()">🧹 Aufräum-Assistent · ${cleanupStats().offen} offen</button>`:''}
     ${dup}
     <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="matHubSearch" placeholder="Material, Standard, REF, Hersteller …" value="${esc(matHubQ)}" oninput="matHubSearch(this.value)" autocomplete="off"></div>
     <div class="filter-row">${fb('alle','Alle')}${fb('offen','Offen')}${fb('material','Material')}${fb('geraet','Gerät')}</div>
