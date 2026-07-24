@@ -12,8 +12,16 @@ function entryCardHTML(e,cid,isMatGer){
   const canon=(showThumb&&e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
   const thumbSrc=(canon&&canon.photo)||(care&&care.photo)||'';
   const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
-  const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text);
-  const mv=qeGet(e,cid,'mengeVal'); const mengeEff=(mv!==undefined?mv:e.menge);
+  const dn=qeGet(e,cid,'name'); let name=(dn!==undefined?dn:e.anzeige_text);
+  const mv=qeGet(e,cid,'mengeVal'); let mengeEff=(mv!==undefined?mv:e.menge);
+  /* Arztspezifische Variante liegt GANZ OBEN auf der Kaskade: Wer eine Variante
+     angewählt hat, sieht deren Werte — der Standard darunter bleibt unberührt. */
+  const vName=(typeof varGet==='function')?varGet(cid,'name'):undefined;
+  const vMenge=(typeof varGet==='function')?varGet(cid,'menge'):undefined;
+  const vHinweis=(typeof varGet==='function')?varGet(cid,'hinweis'):undefined;
+  if(vName!==undefined) name=vName;
+  if(vMenge!==undefined) mengeEff=vMenge;
+  const varBadge=(typeof varBadgeHTML==='function')?varBadgeHTML(cid):'';
   const hasEdit=!!( (QE.cid[cid]&&Object.keys(QE.cid[cid]).length) || overrides[cid] || (cid in reassign) || (e.material_key&&QE.mat[e.material_key]&&Object.keys(QE.mat[e.material_key]).length) || (typeof hasStelleRule==='function'&&hasStelleRule(cid)) );
   const editBtn=ADMIN?`<button type="button" class="entry-edit-btn${hasEdit?' edited':''}" title="${hasEdit?'Bearbeiten (angepasst)':'Bearbeiten'}" aria-label="Eintrag bearbeiten">✎</button>`:'';
   /* Sichtbarer Aktions-Einstieg für ALLE (UX-Audit K1): Admin → Schnellmenü,
@@ -53,6 +61,10 @@ function entryCardHTML(e,cid,isMatGer){
   let style, filledCls='';
   if(fill){ const t=pickTextColor(fill); style=`--e-col:${esc(fill)};--e-fill:${esc(fill)};--e-fill-text:${t};--e-fill-bd:${t}`; filledCls=' filled'; }
   else { style=`--e-col:${catCol}`; }
+  /* Arzt-Hinweis als eigener, farbig abgesetzter Zusatz (nicht in den
+     Standardtext gemischt — man muss sehen, was arztspezifisch ist). */
+  if(vHinweis!==undefined){ const va=(typeof varActive==='function')?varActive():null;
+    meta+=`<span class="tag tag-var" style="--vcol:${esc((va&&va.farbe)||'#8b5cf6')}">${esc((va&&(va.kurz||varKurz(va.name)))||'')}: ${esc(vHinweis)}</span>`; }
   const star = important?`<span class="imp-star">⭐</span>`:'';
   const addedTag = e._added?`<span class="added-tag">neu</span>`:'';
   /* „Warum"-Wissensfeld: aufklappbares 💡-Detail (für alle sichtbar, im Admin
@@ -60,7 +72,8 @@ function entryCardHTML(e,cid,isMatGer){
   const whyQe=qeGet(e,cid,'why'); const why=(((whyQe!==undefined&&whyQe!==null)?whyQe:(e.why||''))||'').toString();
   const whyBtn=why?`<button type="button" class="entry-why-btn" aria-label="Warum – Hintergrund anzeigen" aria-expanded="false" title="Warum?">💡</button>`:'';
   const whyPanel=why?`<div class="e-why"><span class="ew-lbl">Warum</span>${esc(why).replace(/\n/g,'<br>')}</div>`:'';
-  return `<div class="entry ${cls}${filledCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
+  const varCls=varBadge?' var-changed':'';
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -76,7 +89,9 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     const groupsMap=new Map(); let appear=0;
     (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
       if(e.natur==='ueberschrift') return; if(settings.fliesstext===false && e.ist_fliesstext) return;
-      const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return; const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
+      const cid=cidOf(curStd.id,idx,si,ei); if(qeGet(e,cid,'hidden')===true) return;
+      if(typeof varHidden==='function' && varHidden(cid)) return;   /* von der Arzt-Variante ausgeblendet */
+      const uk=canonUk(e,cid); const gkey=uk||'\u0000null';
       if(!groupsMap.has(gkey)){ groupsMap.set(gkey,{uk:uk,first:appear++,entries:[]}); }
       groupsMap.get(gkey).entries.push({e,cid});
     }); });
@@ -125,6 +140,17 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
          aus der Quelldatei (Souveränität: überall hinzufügen können). */
       if(ADMIN&&b.head) html+=`<button class="add-entry-btn uksec-add" data-ri="${idx}" data-seg="${esc(b.head)}" onclick="startAddEntrySeg(+this.dataset.ri,this.dataset.seg)">＋ Eintrag in „${esc(b.head)}"</button>`;
     });
+  }
+  /* Zusätzliche Einträge der aktiven Arzt-Variante – als eigener, klar
+     gekennzeichneter Block ans Ende, damit Standard und Ergänzung trennbar
+     bleiben. */
+  if(typeof varAdded==='function'){
+    const extra=varAdded(curStd.id,idx).filter(x=>x&&x.name);
+    if(extra.length){ const va=(typeof varActive==='function')?varActive():null;
+      html+=`<div class="var-extra" style="--vcol:${esc((va&&va.farbe)||'#8b5cf6')}">
+        <div class="vx-head">＋ zusätzlich für ${esc((va&&va.name)||'diese Variante')}</div>`;
+      extra.forEach(x=>{ html+=`<div class="entry step var-changed" style="--e-col:${esc((va&&va.farbe)||'#8b5cf6')}"><div class="entry-row"><div class="chk">✓</div>${x.menge?`<div class="mbox">${esc(x.menge)}</div>`:'<div class="mbox empty"></div>'}<div class="e-main"><div class="e-top"><div class="e-text">${esc(x.name)}<span class="var-badge" style="--vcol:${esc((va&&va.farbe)||'#8b5cf6')}">${esc((va&&(va.kurz||varKurz(va.name)))||'')}</span></div></div></div></div></div>`; });
+      html+=`</div>`; }
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
   const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
@@ -230,11 +256,26 @@ function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.l
   saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
 function toggleUk(ckey){ collapsed[ckey]=(collapsed[ckey]===false)?true:false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]);
+  /* Konfigurierbare Pop-up-Dialoge: Abhaken/Entfernen ist der häufigste
+     Auslöser („beim Abhaken von ACT nach dem Wert fragen"). */
+  if(typeof popupFire==='function'){ const e=(typeof findEntry==='function')?findEntry(cid):null;
+    const nm=(e&&(e.anzeige_text||e.roh_text))||'';
+    popupFire({ ereignis: checks[cid]?'check':'uncheck', titel:nm, cid, sid:(curStd&&curStd.id)||'', quelle:'standard' }); }
   /* Einmaliger Hinweis (pro Gerät) auf den täglichen Reset — sonst wundert man
      sich am nächsten Morgen, wohin die Häkchen sind (UX-Audit K4c). */
   if(checks[cid] && !store.get('hkl_hint_daily')){ store.set('hkl_hint_daily','1'); toast('Häkchen gelten für heute – morgen starten sie automatisch leer.'); } }
 
 function goBack(){ if(formCtx){ closeForm(); return; }
+  /* Neue Ansichten (Anleitungen, Pop-up-Verwaltung, Varianten): jeweils genau
+     eine Ebene zurück, statt bis zur Übersicht durchzufallen. */
+  const act=(id)=>{ const el=$(id); return el&&el.classList.contains('active'); };
+  if(act('scr-guide-edit')){ if(typeof guideCancelEdit==='function') guideCancelEdit(); return; }
+  if(act('scr-variant-edit')){ if(typeof varEditBack==='function') varEditBack(); return; }
+  if(act('scr-popups')){ if(typeof popupEditId!=='undefined'&&popupEditId){ popupCloseEdit(); return; } setMode('use'); return; }
+  if(act('scr-variants')){ setMode('use'); return; }
+  if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
+    renderStandards(); show('scr-standards'); updateBar();
+    const sw=$('searchWrap'); if(sw) sw.style.display='block'; return; }
   if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
   if(nav.length>0){ try{ history.back(); }catch(e){ } return; }
   setMode('use'); }

@@ -1,8 +1,12 @@
 /* ============ Ebene 2: Rubriken ============ */
 function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id); if(!s){ toast('Standard nicht gefunden',true); return; }
   curStd=s;
-  if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} } }
+  if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} }
+    if(typeof noteUsage==='function') noteUsage(id);
+    if(typeof popupFire==='function') popupFire({ ereignis:'standard-oeffnen', titel:stdTitel(s), sid:id }); }
   let html='';
+  /* Arztspezifische Varianten: Reiter „Standard | Dr. X" direkt im Kopf. */
+  if(typeof varBarHTML==='function') html+=varBarHTML(s.id);
   if(ADMIN){
     const hiddenNow=stdHidden(s);
     html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center">
@@ -38,8 +42,19 @@ function searchStandard(q){ const res=[]; q=(q||'').trim().toLowerCase(); if(!q|
   (curStd.rubriken||[]).forEach((r,ri)=>{ (r.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
     if(e.natur==='ueberschrift') return; const cid=cidOf(curStd.id,ri,si,ei); if(qeGet(e,cid,'hidden')===true) return;
     const dn=qeGet(e,cid,'name'); const name=(dn!==undefined?dn:e.anzeige_text)||'';
-    if(!name.toLowerCase().includes(q)) return;
-    const uk=canonUk(e,cid); const loc=(e.material_key&&careMem[e.material_key]&&careMem[e.material_key].loc)||null;
+    /* Auch nach Material suchen: Synonyme, Spezifikation und – wenn das Material
+       einem Stammsatz zugeordnet ist – dessen Name/REF/Hersteller/Lagerort.
+       Damit findet „IntellaNav" oder „20ml" den Eintrag auch dann, wenn im
+       Standard eine andere Schreibweise steht. */
+    const canon=(e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
+    const synV=qeGet(e,cid,'synonyms'); const syn=Array.isArray(synV)?synV:(Array.isArray(e.synonyms)?e.synonyms:[]);
+    const spRaw=qeGet(e,cid,'spez'); const sp=Array.isArray(spRaw)?spRaw.join(' '):(spRaw||e.spezifikation||'');
+    const hay=[name, syn.join(' '), (Array.isArray(sp)?sp.join(' '):sp),
+      canon?[canon.name,canon.ref,canon.hersteller,canon.kategorie,canon.lagerort].filter(Boolean).join(' '):'',
+      (e.groessen||[]).map(g=>g&&g.wert).filter(Boolean).join(' ')].join(' ').toLowerCase();
+    if(hay.indexOf(q)<0) return;
+    const uk=canonUk(e,cid);
+    const loc=(canon&&canon.lagerort)||(e.material_key&&careMem[e.material_key]&&careMem[e.material_key].loc)||null;
     res.push({cid,ri,name,rubrik:rubName(r,ri),uk,loc}); }); }); });
   return res; }
 function stdSearch(q){ const results=$('stdSearchResults'), list=$('stdRubList'); if(!results||!list) return;

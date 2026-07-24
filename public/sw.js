@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v38';
+const CACHE_VERSION = 'v39';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -60,6 +60,11 @@ const SHELL = [
   'js/features/materialhub.js',
   'js/features/matcatalog.js',
   'js/features/matcleanup.js',
+  'js/features/lightbox.js',
+  'js/features/listview.js',
+  'js/features/guides.js',
+  'js/features/popups.js',
+  'js/features/variants.js',
   'js/features/ocr.js',
   'js/core/sync.js',
   'js/core/pwa.js',

@@ -40,7 +40,9 @@ function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-titl
     h+=sAct('✍️','Änderungsvorschläge',pend?(pend+' offen'):'ansehen & bewerten',"showSheet(false);openSuggestions()"); }
   if(ADMIN){ h+=sAct('🧬','Material verwalten','Scannen · Fotos · Maße · Eigenschaften · Preise · zusammenführen',"menuGo('care')"); }
   else { h+=sAct('📷','Etikett scannen','Produkt per Barcode erfassen & finden',"showSheet(false);openScanHub()"); }
-  if(ADMIN){ h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
+  if(ADMIN){ h+=sAct('💬','Pop-up-Dialoge','Abfragen beim Abhaken frei einstellen',"showSheet(false);openPopupAdmin()");
+    h+=sAct('👤','Ärzte & Varianten','arztspezifische Abweichungen pflegen',"showSheet(false);openVariantAdmin()");
+    h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
     h+=sAct('🔑','Passwort ändern','',"changePw()");
     h+=sAct('🚪','Abmelden','Verwaltungsmodus beenden',"adminLogout()"); }
   else { h+=sAct('🔒','Anmelden','Verwaltung freischalten',"promptLogin()"); }
@@ -199,6 +201,7 @@ function ablaufSegments(idx){ const r=curStd.rubriken[idx]; const blocks=[]; con
       if(e.natur==='ueberschrift'){ startSeg(e.anzeige_text||e.roh_text, e._added?e._aid:null); return; }
       if(settings.fliesstext===false&&e.ist_fliesstext) return;
       if(qeGet(e,cid,'hidden')===true) return;
+      if(typeof varHidden==='function' && varHidden(cid)) return;   /* Arzt-Variante blendet aus */
       if(e._added&&e.seg){ (defer[e.seg]=defer[e.seg]||[]).push({e,cid}); return; }
       if(!cur) startSeg(null); cur.items.push({e,cid}); segOf[cid]=cur.segId; }); });
   /* Zugeordnete Einträge in ihren Abschnitt legen; Abschnitt weg (umbenannt/

@@ -19,6 +19,8 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   'hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_uksections',
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
+  /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
+  'hkl_guides','hkl_popups','hkl_variants',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -40,6 +42,11 @@ function hydrateVars(){
   MATLINK=loadJSON('hkl_matlink',{});
   MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
   if(typeof CLEANUP_DONE!=='undefined') CLEANUP_DONE=loadJSON('hkl_cleanup_done',{});
+  if(typeof GUIDES!=='undefined'){ GUIDES=loadJSON('hkl_guides',[]); if(!Array.isArray(GUIDES)) GUIDES=[]; }
+  if(typeof POPUPS!=='undefined'){ POPUPS=loadJSON('hkl_popups',[]); if(!Array.isArray(POPUPS)) POPUPS=[]; }
+  if(typeof VARIANTS!=='undefined'){ VARIANTS=loadJSON('hkl_variants',{aerzte:[],data:{}});
+    if(!VARIANTS||typeof VARIANTS!=='object') VARIANTS={aerzte:[],data:{}};
+    if(!Array.isArray(VARIANTS.aerzte)) VARIANTS.aerzte=[]; if(!VARIANTS.data) VARIANTS.data={}; }
   RULES=loadJSON('hkl_rules',[]); rebuildRulesIndex();
   HINTS=loadHints();
   GLOSSARY=loadGlossary();

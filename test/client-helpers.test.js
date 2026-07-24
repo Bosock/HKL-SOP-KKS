@@ -43,6 +43,19 @@ function extractConst(name) {
   return m[0];
 }
 
+// Grab a multi-line `const NAME = [ ... ];` declaration by balancing brackets.
+// (extractConst only handles single-line declarations.)
+function extractConstBlock(name) {
+  const sig = SRC.indexOf('const ' + name + ' = [');
+  assert.notEqual(sig, -1, `const ${name} = [ not found in public/js modules`);
+  let depth = 0;
+  for (let j = SRC.indexOf('[', sig); j < SRC.length; j++) {
+    if (SRC[j] === '[') depth++;
+    else if (SRC[j] === ']') { depth--; if (depth === 0) return SRC.slice(sig, j + 1) + ';'; }
+  }
+  throw new Error(`unbalanced brackets extracting ${name}`);
+}
+
 // Build a sandbox and expose the requested helpers from it.
 function loadHelpers() {
   const NATCFG = {
@@ -52,7 +65,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {} };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -109,6 +122,26 @@ function loadHelpers() {
     extractFn('catMassPairs'),
     extractFn('cleanupSuggest'),
     extractFn('cleanupIsDone'),
+    extractConstBlock('SORTS'),
+    extractFn('lbClampScale'),
+    extractFn('lbTouchDist'),
+    extractFn('sortValid'),
+    extractFn('isFav'),
+    extractFn('usageOf'),
+    extractFn('sortItems'),
+    extractFn('guideCid'),
+    extractFn('intervalRank'),
+    extractFn('guideList'),
+    extractFn('guideById'),
+    extractFn('guideSearch'),
+    extractFn('popupMatches'),
+    extractFn('popupMissing'),
+    extractFn('popupOptions'),
+    extractFn('varKurz'),
+    extractFn('varGet'),
+    extractFn('varHidden'),
+    extractFn('varChanged'),
+    extractFn('varDiffCount'),
     extractFn('mengeHiAuto'),
     extractFn('camErrorMessage'),
     extractFn('rulesActive'),
@@ -122,7 +155,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -1688,4 +1721,122 @@ test('cleanupIsDone: reflects the done-set', () => {
   ctx.CLEANUP_DONE = { 'ethibond': true };
   assert.equal(fns.cleanupIsDone('ethibond'), true);
   assert.equal(fns.cleanupIsDone('anderes'), false);
+});
+
+// --- Lightbox (Foto-Detailansicht) ------------------------------------------
+test('lbClampScale: hält den Zoom zwischen 1 und 6', () => {
+  assert.equal(fns.lbClampScale(0.2), 1);
+  assert.equal(fns.lbClampScale(2.5), 2.5);
+  assert.equal(fns.lbClampScale(99), 6);
+});
+test('lbTouchDist: Abstand zweier Finger (Pythagoras)', () => {
+  assert.equal(fns.lbTouchDist({clientX:0,clientY:0},{clientX:3,clientY:4}), 5);
+});
+
+// --- Übersicht: Sortierung / Favoriten --------------------------------------
+test('sortValid: bereichsfremde Sortierung fällt auf „gruppe" zurück', () => {
+  assert.equal(fns.sortValid('kosten','standard'), 'kosten');
+  assert.equal(fns.sortValid('kosten','anleitung'), 'gruppe');   // Kosten gibt es nur bei Standards
+  assert.equal(fns.sortValid('faellig','anleitung'), 'faellig');
+  assert.equal(fns.sortValid('faellig','standard'), 'gruppe');
+  assert.equal(fns.sortValid('quatsch','standard'), 'gruppe');
+});
+test('sortItems: A–Z, Kosten und Favoriten sortieren korrekt', () => {
+  const list=[{id:'a',titel:'Zebra',kosten:10},{id:'b',titel:'Alpha',kosten:99},{id:'c',titel:'Mitte',kosten:50}];
+  assert.equal(fns.sortItems(list,'alpha')[0].titel, 'Alpha');
+  assert.equal(fns.sortItems(list,'kosten')[0].titel, 'Alpha');   // teuerster zuerst (99)
+  ctx.FAV = { a:true };
+  assert.equal(fns.sortItems(list,'fav')[0].id, 'a');
+  ctx.FAV = {};
+});
+test('usageOf/isFav: liefern Standardwerte ohne Eintrag', () => {
+  ctx.USAGE = { x:{n:3,last:100} };
+  assert.equal(fns.usageOf('x').n, 3);
+  assert.equal(fns.usageOf('unbekannt').n, 0);
+  assert.equal(fns.isFav('unbekannt'), false);
+});
+
+// --- Anleitungen ------------------------------------------------------------
+test('guideCid: eindeutiger Häkchen-Schlüssel je Schritt', () => {
+  assert.equal(fns.guideCid('g:1','s:2'), 'g|g:1|s:2');
+});
+test('intervalRank: häufigere Intervalle zuerst, Unbekanntes ans Ende', () => {
+  assert.ok(fns.intervalRank('täglich') < fns.intervalRank('monatlich'));
+  assert.ok(fns.intervalRank('monatlich') < fns.intervalRank('jährlich'));
+  assert.equal(fns.intervalRank(''), 99);
+});
+test('guideSearch: findet über Titel und Schritt-Text', () => {
+  ctx.GUIDES = [
+    { id:'g1', titel:'Rhythmia-Anlage aufbauen', bereich:'Aufbau & Vorbereitung', kurz:'', schritte:[
+      { id:'s1', text:'Kabel an die Konsole stecken' }, { id:'s2', text:'Patchs kleben' } ] },
+    { id:'g2', titel:'ACT-Gerät', bereich:'Gerät bedienen', kurz:'Chargennummer', schritte:[] },
+  ];
+  const r1=fns.guideSearch('rhythmia');
+  assert.equal(r1.length, 1); assert.equal(r1[0].id, 'g1'); assert.equal(r1[0].kopf, true);
+  const r2=fns.guideSearch('konsole');
+  assert.equal(r2.length, 1); assert.equal(r2[0].treffer, 1);
+  assert.equal(fns.guideSearch('nichts').length, 0);
+  assert.equal(fns.guideById('g2').titel, 'ACT-Gerät');
+});
+
+// --- Pop-ups ----------------------------------------------------------------
+test('popupMatches: Ereignis + Textmuster steuern das Auslösen', () => {
+  const p={ id:'p1', aktiv:true, ereignis:'check', zielTyp:'text', zielWert:'ACT' };
+  assert.equal(fns.popupMatches(p,{ereignis:'check',titel:'ACT bestimmen'}), true);
+  assert.equal(fns.popupMatches(p,{ereignis:'check',titel:'act bestimmen'}), true);   // Groß/klein egal
+  assert.equal(fns.popupMatches(p,{ereignis:'check',titel:'Schleuse legen'}), false); // Text passt nicht
+  assert.equal(fns.popupMatches(p,{ereignis:'uncheck',titel:'ACT'}), false);          // anderes Ereignis
+});
+test('popupMatches: inaktive Pop-ups lösen nie aus', () => {
+  const p={ aktiv:false, ereignis:'check', zielTyp:'alle' };
+  assert.equal(fns.popupMatches(p,{ereignis:'check',titel:'egal'}), false);
+});
+test('popupMatches: Ziel „alle" und Bindung an Standard/Anleitung', () => {
+  assert.equal(fns.popupMatches({aktiv:true,ereignis:'check',zielTyp:'alle'},{ereignis:'check',titel:'x'}), true);
+  const ps={aktiv:true,ereignis:'standard-oeffnen',zielTyp:'standard',zielWert:'std-1'};
+  assert.equal(fns.popupMatches(ps,{ereignis:'standard-oeffnen',sid:'std-1'}), true);
+  assert.equal(fns.popupMatches(ps,{ereignis:'standard-oeffnen',sid:'std-2'}), false);
+  const pg={aktiv:true,ereignis:'anleitung-oeffnen',zielTyp:'anleitung',zielWert:'g1'};
+  assert.equal(fns.popupMatches(pg,{ereignis:'anleitung-oeffnen',gid:'g1'}), true);
+});
+test('popupMissing: meldet nur leere Pflichtfelder', () => {
+  const p={ felder:[ {id:'f1',label:'ACT-Wert',pflicht:true}, {id:'f2',label:'Notiz',pflicht:false} ] };
+  assert.equal(fns.popupMissing(p,{f1:'250',f2:''}).length, 0);
+  const miss=fns.popupMissing(p,{f1:'  ',f2:'x'});
+  assert.equal(miss.length, 1); assert.equal(miss[0], 'ACT-Wert');
+});
+test('popupOptions: Kommaliste wird zu sauberen Optionen', () => {
+  const o=fns.popupOptions({optionen:'ja, nein , unklar'});
+  assert.equal(o.length, 3); assert.equal(o[1], 'nein');
+  assert.equal(fns.popupOptions({}).length, 0);
+});
+
+// --- Arzt-Varianten ---------------------------------------------------------
+test('varKurz: bildet ein Kürzel und ignoriert Titel', () => {
+  assert.equal(fns.varKurz('Dr. Tscheban'), 'TSC');
+  assert.equal(fns.varKurz('Anna Berger'), 'AB');
+  assert.equal(fns.varKurz(''), '??');
+});
+test('varGet/varHidden/varChanged: greifen nur bei aktiver Variante', () => {
+  ctx.VARIANTS = { aerzte:[{id:'v1',name:'Dr. X',kurz:'DX'}],
+    data:{ v1:{ qe:{ 'std|0|0|1':{ name:'anderes Material', menge:'2x' } }, hidden:{ 'std|0|0|2':true }, added:{} } } };
+  ctx.curVariant = '';
+  assert.equal(fns.varGet('std|0|0|1','name'), undefined);   // ohne Variante: nichts
+  assert.equal(fns.varHidden('std|0|0|2'), false);
+  ctx.curVariant = 'v1';
+  assert.equal(fns.varGet('std|0|0|1','name'), 'anderes Material');
+  assert.equal(fns.varGet('std|0|0|1','hinweis'), undefined); // leere Felder zählen nicht
+  assert.equal(fns.varHidden('std|0|0|2'), true);
+  assert.equal(fns.varChanged('std|0|0|1'), true);
+  assert.equal(fns.varChanged('std|0|0|9'), false);
+  ctx.curVariant = '';
+});
+test('varDiffCount: zählt Änderungen, Ausblendungen und Ergänzungen je Standard', () => {
+  ctx.VARIANTS = { aerzte:[{id:'v1',name:'Dr. X'}], data:{ v1:{
+    qe:{ 'std|0|0|1':{name:'x'}, 'andere|0|0|1':{name:'y'} },
+    hidden:{ 'std|0|0|2':true },
+    added:{ 'std|1':[{name:'Extra'}] } } } };
+  assert.equal(fns.varDiffCount('v1','std'), 3);   // 1 Änderung + 1 ausgeblendet + 1 ergänzt
+  assert.equal(fns.varDiffCount('v1','andere'), 1);
+  assert.equal(fns.varDiffCount('unbekannt','std'), 0);
 });

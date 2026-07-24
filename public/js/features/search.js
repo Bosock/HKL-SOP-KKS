@@ -36,18 +36,65 @@ function openGlobalSearch(preset){ showSheet(false);
   if(preset&&String(preset).trim()){ const i=$('gSearchInput'); if(i){ i.value=preset; } globalSearch(preset); }
   setTimeout(()=>{ const i=$('gSearchInput'); if(i) i.focus(); },50); }
 
+/* Sucht in der Material-Stammdatenbank (Etikett-Scanner/Stammsätze): Name, REF,
+   Hersteller, Kategorie, Lagerort. Liefert die Stammsätze. Rein/testbar. */
+function searchMaterialStamm(q){
+  q=(q||'').trim().toLowerCase(); if(!q || typeof GTINDB==='undefined' || !GTINDB) return [];
+  return Object.keys(GTINDB).map(k=>GTINDB[k]).filter(r=>r &&
+    [r.name,r.ref,r.hersteller,r.kategorie,r.lagerort,r.gtin].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0);
+}
+/* Zählt, in wie vielen Standards ein Material-Stammsatz vorkommt (über MATLINK).
+   Damit beantwortet die Suche „welcher Standard nutzt dieses Material?". Rein. */
+function stammUsedIn(stammId){
+  if(typeof MATLINK==='undefined' || !MATLINK || typeof DB==='undefined' || !DB) return [];
+  const keys=Object.keys(MATLINK).filter(k=>MATLINK[k]===stammId);
+  if(!keys.length) return [];
+  const set=new Set();
+  DB.standards.forEach(s=>{ if(stdHidden(s)&&!ADMIN) return;
+    (s.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{
+      if(e.material_key && keys.indexOf(e.material_key)>=0) set.add(stdTitel(s)); }))); });
+  return [...set];
+}
+
+/* Ergebnisdarstellung: UNTEREINANDER mit großen, deutlichen Trennern je Typ —
+   Standards, Anleitungen, Material. So sieht man sofort, was wozu gehört
+   (statt alles in einem Topf). */
 function globalSearch(q){ const box=$('gSearchResults'); if(!box) return;
-  if(!(q||'').trim()){ box.innerHTML=`<div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet jeden Eintrag über alle Standards – und zeigt zu einem Material alle Eingriffe, in denen es vorkommt.</p></div>`; return; }
+  if(!(q||'').trim()){ box.innerHTML=`<div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet alles auf einmal: Einträge in Standards, Anleitungen und Material-Stammsätze – nach Art getrennt aufgelistet.</p></div>`; return; }
   const res=searchGlobal(q);
-  if(!res.length){ box.innerHTML=`<div class="empty"><div class="ei">🔍</div><h3>Kein Treffer</h3><p>„${esc(q)}" wurde in keinem Standard gefunden.</p></div>`; return; }
-  /* nach Standard gruppieren (= Rückwärtssuche Material → Eingriffe) */
-  const byStd=new Map();
-  res.forEach(h=>{ if(!byStd.has(h.sid)) byStd.set(h.sid,{std:h.std,grp:h.grp,hits:[]}); byStd.get(h.sid).hits.push(h); });
-  let html=`<div class="srch-count">${res.length} Treffer in ${byStd.size} Standard${byStd.size>1?'s':''}</div>`;
-  byStd.forEach((g,sid)=>{
-    html+=`<div class="gs-std"><span class="gs-badge">${esc(g.grp)}</span>${esc(g.std)}</div>`;
-    g.hits.forEach(h=>{ html+=`<div class="srch-hit" onclick="jumpGlobal('${esc(h.sid)}',${h.ri},'${esc(h.cid)}')"><div class="sh-name">${esc(h.name)}</div><div class="sh-ctx">${esc(h.rubrik)}${h.syn?' · Synonym: '+esc(h.syn):''}</div></div>`; });
-  });
+  const guides=(typeof guideSearch==='function')?guideSearch(q):[];
+  const mats=searchMaterialStamm(q);
+  if(!res.length && !guides.length && !mats.length){
+    box.innerHTML=`<div class="empty"><div class="ei">🔍</div><h3>Kein Treffer</h3><p>„${esc(q)}" wurde nirgends gefunden.</p></div>`; return; }
+
+  const sect=(ico,title,sub)=>`<div class="gs-sect"><span class="gs-sect-ico">${ico}</span><span class="gs-sect-t">${esc(title)}</span><span class="gs-sect-s">${esc(sub)}</span></div>`;
+  let html=`<div class="srch-count">${res.length+guides.length+mats.length} Treffer</div>`;
+
+  /* 1) Standards — nach Standard gruppiert (Rückwärtssuche Material → Eingriffe) */
+  if(res.length){
+    const byStd=new Map();
+    res.forEach(h=>{ if(!byStd.has(h.sid)) byStd.set(h.sid,{std:h.std,grp:h.grp,hits:[]}); byStd.get(h.sid).hits.push(h); });
+    html+=sect('📋','Standards',res.length+' Treffer in '+byStd.size+' Standard'+(byStd.size>1?'s':''));
+    byStd.forEach((g,sid)=>{
+      html+=`<div class="gs-std"><span class="gs-badge">${esc(g.grp)}</span>${esc(g.std)}</div>`;
+      g.hits.forEach(h=>{ html+=`<div class="srch-hit" data-sid="${esc(h.sid)}" data-ri="${h.ri}" data-cid="${esc(h.cid)}" onclick="jumpGlobal(this.dataset.sid,+this.dataset.ri,this.dataset.cid)"><div class="sh-name">${esc(h.name)}</div><div class="sh-ctx">${esc(h.rubrik)}${h.syn?' · Synonym: '+esc(h.syn):''}</div></div>`; });
+    });
+  }
+  /* 2) Anleitungen */
+  if(guides.length){
+    html+=sect('📘','Anleitungen',guides.length+' Treffer');
+    guides.forEach(g=>{ const sub=[g.bereich, g.treffer?(g.treffer+' Schritt(e)'):''].filter(Boolean).join(' · ');
+      html+=`<div class="srch-hit" data-gid="${esc(g.id)}" onclick="openGuide(this.dataset.gid)"><div class="sh-name">${esc(g.titel)}</div><div class="sh-ctx">${esc(sub)}</div></div>`; });
+  }
+  /* 3) Material-Stammsätze — mit „wird genutzt in …" */
+  if(mats.length){
+    html+=sect('🧬','Material',mats.length+' Stammsätze');
+    mats.slice(0,60).forEach(r=>{
+      const used=stammUsedIn(r.gtin);
+      const sub=[r.hersteller, r.ref?('REF '+r.ref):'', r.kategorie].filter(Boolean).join(' · ');
+      const uses=used.length?`<div class="sh-uses">wird genutzt in: ${esc(used.slice(0,4).join(', '))}${used.length>4?' +'+(used.length-4):''}</div>`:'';
+      html+=`<div class="srch-hit" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)"><div class="sh-name">${esc(r.name||r.ref||r.gtin)}</div><div class="sh-ctx">${esc(sub)}</div>${uses}</div>`; });
+  }
   box.innerHTML=html; }
 
 /* Öffnet den Standard und springt zum Eintrag (nutzt jumpToHit aus rubriken.js). */
