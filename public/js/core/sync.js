@@ -79,6 +79,10 @@ function refreshView(){
     if($('scr-search').classList.contains('active')||$('scr-glossary').classList.contains('active')||$('scr-suggest').classList.contains('active')) return;
     /* Scanner-Hub/-Formular nicht wegrendern (analog zu Suche/Glossar) */
     if($('scr-scan').classList.contains('active')||$('scr-scan-item').classList.contains('active')) return;
+    /* Neue Ansichten mit offenen Eingaben ebenso in Ruhe lassen: Anleitungs-
+       Editor, Pop-up-Konfiguration, Varianten-Editor, Aufräum-Assistent. */
+    const busy=['scr-guide','scr-guide-edit','scr-popups','scr-variants','scr-variant-edit','scr-cleanup','scr-form'];
+    if(busy.some(id=>{ const el=$(id); return el&&el.classList.contains('active'); })) return;
     buildMaterialIndex();
     if(mode==='admin'){ renderAdmin(); updateBar(); return; }
     if(mode==='catalog'){ if(!formCtx){ renderCatalog(); updateBar(); } return; }

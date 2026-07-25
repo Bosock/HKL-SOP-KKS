@@ -144,7 +144,9 @@ const GS1_AGAIN = '01' + GTIN + '17270101';            // derselbe Artikel, ande
     window.BarcodeDetector = Object.assign(function () { this.detect = async () => []; }, { getSupportedFormats: async () => ['qr_code'] });
     openScanHub(); await startCam();
     await new Promise(r => setTimeout(r, 200));
-    const html = document.getElementById('scanHelp').innerHTML;
+    // Slot ist jetzt eine Klasse (feste ID kollidierte über mehrere Screens)
+    const slot = document.querySelector('.screen.active .scan-help-slot') || document.querySelector('.scan-help-slot');
+    const html = slot ? slot.innerHTML : '';
     return { shown: html.length > 0, blocked: /blockiert/i.test(html), retry: /Erneut versuchen/.test(html), steps: /Einstellungen|Menü/i.test(html) };
   });
   r.check('blockierte Kamera → dauerhafter Hilfe-Block erscheint', help.shown && help.blocked);

@@ -18,6 +18,7 @@ async function loadMaterialData(){
 
 /* ============ Material-Index ============ */
 function buildMaterialIndex(){
+  if(typeof invalidateMatCaches==='function') invalidateMatCaches();
   const map=new Map();
   DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((rub,ri)=>{ (rub.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
     if(e.ist_fliesstext) return; const cid=cidOf(std.id,ri,si,ei); if(qeGet(e,cid,'hidden')===true) return; const nat=effNatur(e,cid);

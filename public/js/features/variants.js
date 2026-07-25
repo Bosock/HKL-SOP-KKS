@@ -96,10 +96,10 @@ function varBarHTML(sid){
   const tab=(id,label,sub,farbe)=>{
     const on=(curVariant===id);
     const st=(id&&farbe)?` style="--vcol:${esc(farbe)}"`:'';
-    return `<button class="vtab${on?' on':''}"${st} data-v="${esc(id)}" onclick="setVariant(this.dataset.v)">
+    return `<button class="vtab${on?' on':''}"${st} role="tab" aria-selected="${on?'true':'false'}" tabindex="${on?'0':'-1'}" data-v="${esc(id)}" onclick="setVariant(this.dataset.v)">
       <span class="vtab-l">${esc(label)}</span>${sub?`<span class="vtab-s">${esc(sub)}</span>`:''}</button>`;
   };
-  let h=`<div class="vartabs">`+tab('','Standard','Haus-Vorgabe','');
+  let h=`<div class="vartabs" role="tablist" aria-label="Standard oder arztspezifische Variante">`+tab('','Standard','Haus-Vorgabe','');
   aerzte.forEach(a=>{ const n=varDiffCount(a.id,sid); h+=tab(a.id,a.name,n?(n+' abweichend'):'wie Standard',a.farbe); });
   h+=`</div>`;
   if(ADMIN){ h+=`<div class="var-admin">

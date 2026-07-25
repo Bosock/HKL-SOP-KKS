@@ -32,6 +32,14 @@ const $=(id)=>document.getElementById(id);
    gilt trotzdem weiter — Defense in depth. */
 const esc=(s)=>(s==null?'':String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
 const today=()=>new Date().toISOString().slice(0,10);
+/* Entprellt einen Aufruf: erst wenn ms lang nichts mehr kam, wird ausgeführt.
+   Für „Suche während des Tippens" — ohne das läuft die Suche bei JEDEM Zeichen
+   über alle Standards (bei 47 Standards / 4.475 Einträgen spürbar). 300 ms ist
+   der gängige Kompromiss aus Reaktion und Last. */
+function debounce(fn,ms){ let t=null;
+  return function(){ const a=arguments, self=this;
+    if(t) clearTimeout(t);
+    t=setTimeout(()=>{ t=null; fn.apply(self,a); }, ms==null?300:ms); }; }
 function loadJSON(k,def){ try{ const r=store.get(k); return r?JSON.parse(r):def; }catch(e){ return def; } }
 function saveJSON(k,v){ store.set(k,JSON.stringify(v)); }
 

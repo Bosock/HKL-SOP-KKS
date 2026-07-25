@@ -118,23 +118,25 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   }, r2);
   check('matAdminLink verknüpft/löst ein Material im Panel', r8.linked && r8.unlinked);
 
-  // 9) Zentrale Materialverwaltung (materialhub): ein Bildschirm, ein Editor
+  // 9) Material-ZENTRALE: „care" führt jetzt in die konsolidierte Ansicht
+  //    (vier Register). Der frühere zweite Hub ist entfernt — hier wird nur
+  //    geprüft, dass der Einstieg dort landet; Details deckt e2e/matcenter.js ab.
   const r9 = await A.page.evaluate(() => {
-    setMode('care'); renderMaterialHub();
+    setMode('care');
     const box = document.getElementById('scr-care');
     const html = box.innerHTML;
     return {
-      title: html.indexOf('>Material<') >= 0,
-      // Scan-CTA bei BarcodeDetector-Support, sonst Fallback-Hinweis (scan-this)
+      zentrale: html.indexOf('Material &amp; Einträge') >= 0 || html.indexOf('Material & Einträge') >= 0,
+      register: box.querySelectorAll('.mc-tab').length,
       scanBtn: html.indexOf('scan-cta') >= 0 || html.indexOf('scan-this') >= 0,
-      newBtn: html.indexOf('Material ohne Barcode anlegen') >= 0,
-      search: !!box.querySelector('#matHubSearch'),
-      rows: box.querySelectorAll('#matHubList .mat-row').length,
+      newBtn: html.indexOf('Material anlegen') >= 0,
+      rows: box.querySelectorAll('#mcList .mat-row').length,
       rowsShowWhere: (matHubRows()[0] && Array.isArray(matHubRows()[0].stds)),
+      alterHubWeg: (typeof renderMaterialHub === 'undefined'),
     };
   });
-  check('Material-Hub: EIN Bildschirm mit Titel „Material"', r9.title);
-  check('… mit Scan-Knopf, „ohne Barcode anlegen" und Suche', r9.scanBtn && r9.newBtn && r9.search);
+  check('„care" öffnet die Material-Zentrale (nicht mehr den alten Hub)', r9.zentrale && r9.alterHubWeg);
+  check('… mit vier Registern, Scan-Knopf und „Material anlegen"', r9.register === 4 && r9.scanBtn && r9.newBtn);
   check('… listet Materialien (' + r9.rows + ') inkl. Vorkommen (wo benutzt)', r9.rows > 0 && r9.rowsShowWhere);
 
   // 10) openMaterial: bereitet Stammsatz aus Alt-Pflegedaten VOR (Editor zeigt

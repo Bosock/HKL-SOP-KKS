@@ -229,10 +229,18 @@ function camHelpSteps(){
     'Seite neu laden und erneut „📷 Etikett scannen" tippen.'
   ];
 }
+/* Liefert den Hilfe-Slot des gerade sichtbaren Screens (siehe showCamHelp). */
+function scanHelpSlot(){
+  const act=document.querySelector('.screen.active');
+  return (act&&act.querySelector('.scan-help-slot'))||document.querySelector('.scan-help-slot');
+}
 /* Dauerhaft sichtbarer Hilfe-Block im Scan-Hub (statt flüchtigem Toast), damit
    man die Schritte in Ruhe befolgen kann. */
 function showCamHelp(reason){
-  const box=$('scanHelp'); if(!box) return;
+  /* Alle Screens liegen gleichzeitig im DOM — eine feste ID traf daher immer
+     den ERSTEN Treffer (ggf. in einem unsichtbaren Screen) und die Hilfe blieb
+     unsichtbar. Deshalb: Slot per Klasse suchen, und zwar im AKTIVEN Screen. */
+  const box=scanHelpSlot(); if(!box) return;
   const steps=camHelpSteps().map(s=>`<li style="margin:4px 0">${esc(s)}</li>`).join('');
   box.innerHTML=`<div style="border:1px solid var(--warn);background:rgba(224,90,90,.12);border-radius:14px;padding:14px 16px;margin:12px 0">
     <div style="font-weight:800;color:var(--warn);margin-bottom:6px">📷 Kamera für diese Seite blockiert</div>
@@ -347,8 +355,8 @@ function openScanHub(){
   showSheet(false); formCtx=null; scanPendingLinkKey=null;   /* Abbrechen/Zurück verwirft eine offene Neuanlage-Verknüpfung */
   /* Aus der zentralen Materialverwaltung (mode 'care') heraus geöffnet →
      dorthin zurück (Editor „Abbrechen"/„Speichern" landet wieder im Hub). */
-  if(mode==='care' && typeof renderMaterialHub==='function'){
-    renderMaterialHub(); show('scr-care');
+  if(mode==='care' && typeof renderMatCenter==='function'){
+    renderMatCenter(); show('scr-care');
     setBar('Material', (typeof MAT_INDEX!=='undefined'?MAT_INDEX.length:0)+' Materialien', false);
     const sw=$('searchWrap'); if(sw) sw.style.display='none'; return;
   }
@@ -365,7 +373,7 @@ function renderScanHub(q){
   const manual = ADMIN ? `<button class="add-entry-btn" onclick="openScanItem('',true)">＋ Produkt ohne Scan anlegen</button>` : '';
   const search = `<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gtinSearchInput" placeholder="Produkt, REF, Hersteller, GTIN …" value="${esc(q||'')}" oninput="scanSearch(this.value)" autocomplete="off"></div>`;
   /* Slot für die dauerhafte Kamera-Freigabe-Hilfe (showCamHelp bei Sperre). */
-  $('scr-scan').innerHTML = cta + `<div id="scanHelp"></div>` + manual + search + `<div id="gtinList">${scanListHTML(q)}</div>`;
+  $('scr-scan').innerHTML = cta + `<div class="scan-help-slot"></div>` + manual + search + `<div id="gtinList">${scanListHTML(q)}</div>`;
 }
 function scanListHTML(q){
   const all=Object.keys(GTINDB).map(k=>GTINDB[k]);

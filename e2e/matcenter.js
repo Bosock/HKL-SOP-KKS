@@ -120,6 +120,56 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('Ordnung: eigene Eigenschaft anlegbar', ordnung.nachher === ordnung.vorher + 1 && ordnung.drin);
   r.check('Ordnung zeigt Kategorien/Unterkategorien', ordnung.kats > 0);
 
+  // ─────────── QM-Regressionen (gefundene Fehler dürfen nicht zurückkommen) ───────────
+  const qm = await A.page.evaluate(() => {
+    // 1) Kamera-Hilfe darf NICHT in einem unsichtbaren Screen landen.
+    //    (Früher feste ID „scanHelp" 3× im DOM → immer der erste Treffer.)
+    setMode('care'); mcGo('material');
+    const slotsGesamt = document.querySelectorAll('.scan-help-slot').length;
+    const aktiverSlot = document.querySelector('.screen.active .scan-help-slot');
+    const slotImAktiven = !!aktiverSlot && (scanHelpSlot() === aktiverSlot);
+    const keineDoppelId = document.querySelectorAll('#scanHelp').length === 0;
+
+    // 2) Nach dem Speichern eines Materials landet man in der ZENTRALE,
+    //    nicht mehr im entfernten Alt-Hub.
+    openScanHub();
+    const zurueckInZentrale = document.getElementById('scr-care').classList.contains('active')
+      && document.querySelectorAll('#scr-care .mc-tab').length === 4;
+
+    // 3) Reiter tragen die ARIA-Tab-Semantik (W3C APG).
+    const tabs = [...document.querySelectorAll('#scr-care .mc-tab')];
+    const tablist = document.querySelector('#scr-care .mc-tabs');
+    const ariaOk = tablist && tablist.getAttribute('role') === 'tablist'
+      && tabs.every(t => t.getAttribute('role') === 'tab' && t.hasAttribute('aria-selected'))
+      && tabs.filter(t => t.getAttribute('aria-selected') === 'true').length === 1
+      && tabs.filter(t => t.getAttribute('tabindex') === '0').length === 1;
+
+    // 4) Pfeiltaste wechselt den Reiter.
+    const vorher = mcTab;
+    mcTabKey({ key: 'ArrowRight', preventDefault(){} });
+    const nachPfeil = mcTab;
+
+    // 5) Der Rückwärts-Index liefert dasselbe wie ein voller Durchlauf,
+    //    ist aber ohne DB-Rundgang je Treffer.
+    const key = Object.keys(MATLINK)[0] || null;
+    let indexOk = true;
+    if (key) {
+      const id = MATLINK[key];
+      const ausIndex = stammUsedIn(id).sort().join('|');
+      const brutal = new Set();
+      DB.standards.forEach(s => (s.rubriken||[]).forEach(r => (r.sub_bereiche||[]).forEach(sb =>
+        (sb.eintraege||[]).forEach(e => { if (e.material_key && MATLINK[e.material_key] === id) brutal.add(stdTitel(s)); }))));
+      indexOk = ausIndex === [...brutal].sort().join('|');
+    }
+    return { slotsGesamt, slotImAktiven, keineDoppelId, zurueckInZentrale, ariaOk, vorher, nachPfeil, indexOk };
+  });
+  r.check('Kamera-Hilfe zielt auf den sichtbaren Bildschirm (keine doppelte ID)',
+    qm.keineDoppelId && qm.slotImAktiven);
+  r.check('Speichern führt zurück in die Zentrale (kein Rückfall in den Alt-Hub)', qm.zurueckInZentrale);
+  r.check('Register erfüllen das ARIA-Tab-Muster (role/aria-selected/tabindex)', qm.ariaOk);
+  r.check('Pfeiltaste wechselt den Reiter', qm.vorher !== qm.nachPfeil);
+  r.check('Rückwärts-Index liefert dasselbe wie der volle Durchlauf', qm.indexOk === true);
+
   r.check('keine Konsolen-/Seitenfehler', A.errs.filter(e => !/favicon/i.test(e)).length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

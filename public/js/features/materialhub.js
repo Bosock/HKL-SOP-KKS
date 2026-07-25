@@ -1,5 +1,11 @@
 /* ─────────────────────────────────────────────────────────────
-   BAUSTEIN — ZENTRALE MATERIALVERWALTUNG (ein Ort für alles)
+   BAUSTEIN — MATERIAL-DATENHELFER (Zeilen, Verknüpfung, Zusammenführung)
+   Die Bildschirm-Darstellung liegt seit der Konsolidierung in
+   features/matcenter.js (Material-Zentrale). Hier bleiben nur die
+   DATEN-Helfer, die von dort (und aus dem Standard heraus) benutzt werden —
+   eine zweite Hub-Oberfläche wäre ein Divergenz-Risiko und ist entfernt.
+
+   FRÜHER (historisch):
    Führt die früher getrennten Material-Menüs zusammen: „Material pflegen"
    (Foto/Lagerort/Preis), den „Etikett-Scanner" (Barcode-Stammsatz mit Maßen &
    eigenen Eigenschaften) und die „Materialzusammenführung" (Destillation).
@@ -15,18 +21,22 @@
    Alt-Daten aus „Material pflegen" (hkl_care/hkl_prod) werden beim ersten
    Öffnen nicht-destruktiv in den Stammsatz übernommen. */
 
-let matHubQ='';                    /* aktuelle Suche im Hub */
-let matHubFilterVal='alle';        /* alle | offen | material | geraet */
-let matHubCache=null;              /* einmal je Vollrender berechnete Zeilen (Suche/Filter arbeiten darauf, kein DB-Durchlauf je Tastendruck) */
-
-/* material_key → Set der Standard-Titel, in denen es vorkommt (ein Durchlauf). */
-function matStdMap(){ const m={};
+/* material_key → Set der Standard-Titel, in denen es vorkommt.
+   GECACHT: Diese Karte wurde früher bei jedem Aufruf neu über ALLE Standards
+   berechnet (Übersicht, Suche, Zentrale) — bei 4.475 Einträgen unnötig teuer.
+   buildMaterialIndex() verwirft den Cache, wenn sich die Daten ändern. */
+let matStdMapCache=null;
+function invalidateMatCaches(){ matStdMapCache=null;
+  if(typeof mcRowCache!=='undefined') mcRowCache=null;
+  if(typeof mcEntryCache!=='undefined') mcEntryCache=null; }
+function matStdMap(){ if(matStdMapCache) return matStdMapCache;
+  const m={};
   if(typeof DB==='undefined'||!DB||!DB.standards) return m;
   DB.standards.forEach(s=>{ const t=(typeof stdTitel==='function')?stdTitel(s):(s.titel||s.id);
     (s.rubriken||[]).forEach(r=>{ if(r.typ!=='material'&&r.typ!=='geraete') return;
       (r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{ const k=e.material_key;
         if(!k) return; (m[k]=m[k]||new Set()).add(t); })); }); });
-  return m; }
+  matStdMapCache=m; return m; }
 
 /* Seed für einen neuen Stammsatz aus den Alt-Pflegedaten (Foto, Lagerort,
    Hersteller, REF, Verwendung, Preis) — verlustfreie Übernahme. */
@@ -71,65 +81,6 @@ function matHubStatusTag(s){
   if(s==='part') return `<span class="mat-sub open"><span class="dot dot-open"></span>teilgepflegt</span>`;
   return `<span class="mat-sub open"><span class="dot dot-open"></span>offen</span>`;
 }
-function matHubListHTML(){
-  let list=(matHubCache||(matHubCache=matHubRows())).slice();
-  const f=matHubFilterVal;
-  if(f==='offen') list=list.filter(x=>x.status==='open'||x.status==='part');
-  else if(f==='material') list=list.filter(x=>x.typ==='material');
-  else if(f==='geraet') list=list.filter(x=>x.typ==='geraet');
-  const q=(matHubQ||'').trim().toLowerCase();
-  if(q) list=list.filter(x=>((x.name||'')+' '+(x.stds||[]).join(' ')).toLowerCase().indexOf(q)>=0);
-  list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
-  if(!list.length) return `<div class="empty"><div class="ei">🔍</div><h3>Nichts in diesem Filter</h3><p>Filter wechseln oder oben scannen/anlegen.</p></div>`;
-  return list.slice(0,600).map(m=>{
-    const thumb=m.photo?`<div class="mat-thumb"><img src="${esc(m.photo)}" alt=""></div>`
-      :`<div class="mat-thumb">${(typeof natOf==='function'?natOf(m.typ).icon:'')||(m.kind==='stamm'?'🏷️':'📷')}</div>`;
-    const where=m.stds.length?esc(m.stds.slice(0,2).join(', '))+(m.stds.length>2?` +${m.stds.length-2}`:'')
-      :(m.kind==='stamm'?'noch keinem Standard zugeordnet':'—');
-    const cnt=m.vorkommen?`<span class="mat-count">${m.vorkommen}×</span>`:'';
-    const onclick=m.kind==='stamm'?`openScanItem(this.dataset.k,true)`:`openMaterial(this.dataset.k)`;
-    return `<div class="mat-row" style="border-left-color:var(--n-${esc(m.typ)})" data-k="${esc(m.key)}" onclick="${onclick}">
-      ${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div>
-      <div class="mat-sub">${matHubStatusTag(m.status)} · <span class="vw-ctx" style="display:inline">${where}</span></div></div>${cnt}</div>`;
-  }).join('');
-}
-/* Der zentrale Material-Bildschirm (rendert in den „care"-Screen). */
-function renderMaterialHub(){
-  const box=$('scr-care'); if(!box) return;
-  const rows=matHubCache=matHubRows();
-  const total=rows.filter(x=>x.kind==='mat').length;
-  const linked=rows.filter(x=>x.kind==='mat'&&x.status==='linked').length;
-  const groups=(typeof matSuggestGroups==='function'&&typeof matDistinctList==='function')
-    ? matSuggestGroups(matDistinctList()) : [];
-  const scanCta=(typeof scannerSupported==='function'&&scannerSupported())
-    ? `<button class="scan-cta" onclick="startCam()">📷 Etikett scannen</button>`
-    : `<div class="scan-this">Der Live-Scanner braucht Android-Chrome mit Kamerafreigabe. Material lässt sich hier trotzdem anlegen und pflegen.</div>`;
-  let dup='';
-  if(groups.length){
-    const items=groups.slice(0,6).map((g,gi)=>{ const names=g.map(k=>{ const m=MAT_INDEX.find(x=>x.key===k); return m?m.name:k; });
-      return `<div class="ukrow" style="border-left-color:var(--accent)"><div class="ukrow-head"><span class="uk-name">${esc(names[0])}</span><span class="uk-count">${g.length}×</span></div>
-        <div class="vw-ctx">${names.slice(1).map(esc).join(' · ')||'—'}</div>
-        <div class="uk-actions"><button data-i="${gi}" onclick="matHubMerge(+this.dataset.i)">Zusammenführen</button></div></div>`; }).join('');
-    const dsum=(typeof vsum==='function')
-      ? vsum('🧬', groups.length+' mögliche Duplikate', 'gleiche Materialien zu einem Stammsatz zusammenführen')
-      : `<summary>🧬 ${groups.length} mögliche Duplikate</summary>`;
-    dup=`<details class="vpanel" style="margin:10px 0">${dsum}<div class="vpanel-body">${items}</div></details>`;
-  }
-  const fb=(k,l)=>`<button class="${matHubFilterVal===k?'on':''}" onclick="setMatHubFilter('${k}')">${l}</button>`;
-  box.innerHTML=`<div class="banner"><h2>Material</h2><p>Alle Materialien an einem Ort: scannen, fotografieren, Maße & eigene Eigenschaften erfassen, Preise pflegen und gleiche Materialien zusammenführen. Ein Tipp aufs Material öffnet den Editor.<br><b>Hinweis:</b> Alles wird zentral auf dem Server gespeichert und auf allen Geräten geteilt.</p>
-      <div class="prog"><div class="prog-txt">${linked} von ${total} mit Stammsatz verknüpft</div></div></div>
-    ${scanCta}
-    <div id="scanHelp"></div>
-    <button class="add-entry-btn" onclick="matHubNew()">＋ Material ohne Barcode anlegen</button>
-    ${(typeof cleanupStats==='function' && cleanupStats().offen>0 && (typeof ADMIN==='undefined'||ADMIN))?`<button class="add-entry-btn" style="border-color:var(--accent)" onclick="openCleanup()">🧹 Aufräum-Assistent · ${cleanupStats().offen} offen</button>`:''}
-    ${dup}
-    <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="matHubSearch" placeholder="Material, Standard, REF, Hersteller …" value="${esc(matHubQ)}" oninput="matHubSearch(this.value)" autocomplete="off"></div>
-    <div class="filter-row">${fb('alle','Alle')}${fb('offen','Offen')}${fb('material','Material')}${fb('geraet','Gerät')}</div>
-    <div id="matHubList">${matHubListHTML()}</div>`;
-}
-function matHubSearch(q){ matHubQ=q||''; const box=$('matHubList'); if(box) box.innerHTML=matHubListHTML(); }
-function setMatHubFilter(f){ matHubFilterVal=f; renderMaterialHub(); }
-
 /* Öffnet den EINEN Editor für ein Vorkommen (material_key). Ist das Material
    schon verknüpft → dessen Stammsatz bearbeiten. Sonst einen NEUEN Stammsatz
    transient vorbereiten (aus Name + Alt-Pflegedaten) — er wird erst BEIM
@@ -166,5 +117,6 @@ function matHubMerge(gi){
   if(!id) return;
   g.forEach(k=>{ if(typeof matLinkTo==='function') matLinkTo(k,id); });
   if(typeof buildMaterialIndex==='function') buildMaterialIndex();
-  renderMaterialHub(); if(typeof toast==='function') toast(g.length+' Vorkommen zusammengeführt');
+  if(typeof renderMatCenter==='function') renderMatCenter();
+  if(typeof toast==='function') toast(g.length+' Vorkommen zusammengeführt');
 }

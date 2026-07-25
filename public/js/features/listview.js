@@ -72,10 +72,10 @@ function noteUsage(id){ if(!id) return; const u=USAGE[id]||(USAGE[id]={n:0,last:
 function segBarHTML(){
   const cnt=(typeof DB!=='undefined'&&DB&&DB.standards)?DB.standards.filter(s=>!stdHidden(s)||ADMIN).length:0;
   const gcnt=(typeof guideList==='function')?guideList().length:0;
-  const b=(key,label,n)=>`<button class="seg-btn${curSeg===key?' on':''}" onclick="setSeg('${key}')">${label}<span class="seg-n">${n}</span></button>`;
-  const sorts=sortsFor(curSeg).map(s=>`<button class="sortchip${curSort===s.key?' on':''}" onclick="setSort('${s.key}')" title="${esc(s.label)}">${s.ico} ${esc(s.label)}</button>`).join('');
-  return `<div class="segbar">${b('standard','📋 Standards',cnt)}${b('anleitung','📘 Anleitungen',gcnt)}</div>
-    <div class="sortbar">${sorts}</div>`;
+  const b=(key,label,n)=>`<button class="seg-btn${curSeg===key?' on':''}" role="tab" aria-selected="${curSeg===key?'true':'false'}" tabindex="${curSeg===key?'0':'-1'}" onclick="setSeg('${key}')">${label}<span class="seg-n">${n}</span></button>`;
+  const sorts=sortsFor(curSeg).map(s=>`<button class="sortchip${curSort===s.key?' on':''}" aria-pressed="${curSort===s.key?'true':'false'}" onclick="setSort('${s.key}')" title="${esc(s.label)}"><span aria-hidden="true">${s.ico}</span> ${esc(s.label)}</button>`).join('');
+  return `<div class="segbar" role="tablist" aria-label="Standards oder Anleitungen">${b('standard','📋 Standards',cnt)}${b('anleitung','📘 Anleitungen',gcnt)}</div>
+    <div class="sortbar" role="group" aria-label="Sortierung">${sorts}</div>`;
 }
 /* ⭐-Schalter für eine Zeile (Freitext bleibt außerhalb des onclick). */
 function favBtnHTML(id){ return `<button type="button" class="fav-btn${isFav(id)?' on':''}" data-fid="${esc(id)}" onclick="event.stopPropagation();toggleFav(this.dataset.fid)" aria-label="Favorit">${isFav(id)?'★':'☆'}</button>`; }

@@ -30,7 +30,7 @@ function searchGlobal(q){ const res=[]; q=(q||'').trim().toLowerCase(); if(!q||!
    UX-Audit M2): Feld vorbefüllen und sofort suchen. */
 function openGlobalSearch(preset){ showSheet(false);
   formCtx=null; mode='use'; nav=[]; /* Zurück führt sauber zur Übersicht */
-  const html=`<div class="std-search gsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gSearchInput" placeholder="Alles durchsuchen – Material, Gerät, Synonym …" oninput="globalSearch(this.value)" autocomplete="off"></div><div id="gSearchResults"><div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet jeden Eintrag über alle Standards – und zeigt zu einem Material alle Eingriffe, in denen es vorkommt.</p></div></div>`;
+  const html=`<div class="std-search gsearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gSearchInput" placeholder="Alles durchsuchen – Material, Gerät, Synonym …" oninput="globalSearchDebounced(this.value)" autocomplete="off"></div><div id="gSearchResults"><div class="empty"><div class="ei">🔎</div><h3>Globale Suche</h3><p>Findet jeden Eintrag über alle Standards – und zeigt zu einem Material alle Eingriffe, in denen es vorkommt.</p></div></div>`;
   $('scr-search').innerHTML=html; show('scr-search'); setBar('Globale Suche','über alle Standards',true);
   $('searchWrap').style.display='none';
   if(preset&&String(preset).trim()){ const i=$('gSearchInput'); if(i){ i.value=preset; } globalSearch(preset); }
@@ -43,16 +43,18 @@ function searchMaterialStamm(q){
   return Object.keys(GTINDB).map(k=>GTINDB[k]).filter(r=>r &&
     [r.name,r.ref,r.hersteller,r.kategorie,r.lagerort,r.gtin].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0);
 }
-/* Zählt, in wie vielen Standards ein Material-Stammsatz vorkommt (über MATLINK).
-   Damit beantwortet die Suche „welcher Standard nutzt dieses Material?". Rein. */
+/* Zählt, in welchen Standards ein Material-Stammsatz vorkommt.
+   FRÜHER lief das je Treffer einmal über ALLE Standards — bei 60 Material-
+   Treffern also ~270.000 Iterationen PRO TASTENDRUCK. Jetzt über die gecachte
+   Karte matStdMap() (ein Durchlauf, wiederverwendet) plus die umgedrehte
+   MATLINK-Zuordnung. */
 function stammUsedIn(stammId){
-  if(typeof MATLINK==='undefined' || !MATLINK || typeof DB==='undefined' || !DB) return [];
+  if(typeof MATLINK==='undefined' || !MATLINK) return [];
   const keys=Object.keys(MATLINK).filter(k=>MATLINK[k]===stammId);
   if(!keys.length) return [];
+  const map=(typeof matStdMap==='function')?matStdMap():{};
   const set=new Set();
-  DB.standards.forEach(s=>{ if(stdHidden(s)&&!ADMIN) return;
-    (s.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{
-      if(e.material_key && keys.indexOf(e.material_key)>=0) set.add(stdTitel(s)); }))); });
+  keys.forEach(k=>{ const s=map[k]; if(s) s.forEach(t=>set.add(t)); });
   return [...set];
 }
 
@@ -96,6 +98,10 @@ function globalSearch(q){ const box=$('gSearchResults'); if(!box) return;
       html+=`<div class="srch-hit" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)"><div class="sh-name">${esc(r.name||r.ref||r.gtin)}</div><div class="sh-ctx">${esc(sub)}</div>${uses}</div>`; });
   }
   box.innerHTML=html; }
+
+/* Entprellte Variante für das Eingabefeld — globalSearch() selbst bleibt
+   synchron (Tests und der „Alles durchsuchen"-Sprung rufen sie direkt auf). */
+const globalSearchDebounced=debounce((q)=>globalSearch(q),300);
 
 /* Öffnet den Standard und springt zum Eintrag (nutzt jumpToHit aus rubriken.js). */
 function jumpGlobal(sid,ri,cid){ openStandard(sid); jumpToHit(cid,ri); }

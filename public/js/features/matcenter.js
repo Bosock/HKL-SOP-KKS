@@ -25,6 +25,7 @@ let mcTab = 'material';        /* material | eintraege | ordnung | pruefen */
 let mcQ = '';                  /* Suche im aktuellen Register */
 let mcFilter = 'alle';         /* Filter im Register „Material"/„Einträge" */
 let mcRowCache = null;         /* je Vollrender einmal berechnet */
+let mcEntryCache = null;       /* dito für die Eintragsliste (voller DB-Durchlauf) */
 
 /* ===== Reine, testbare Helfer ===== */
 
@@ -72,8 +73,9 @@ function mcLegacyPending(){
 }
 /* Einträge (Vorkommen) mit ihrem Pflegestatus. Rein bezogen auf DB/Stores. */
 function mcEntryRows(){
+  if(mcEntryCache) return mcEntryCache;          /* je Render nur EIN Durchlauf */
   if(typeof allMatGerEntries!=='function') return [];
-  return allMatGerEntries().map(x=>{
+  return (mcEntryCache=allMatGerEntries().map(x=>{
     const cid=x.cid;
     const linkedId=(typeof canonId==='function'&&x.e.material_key)?canonId(x.e.material_key):null;
     const hidden=(typeof qeGet==='function')?(qeGet(x.e,cid,'hidden')===true):false;
@@ -83,14 +85,19 @@ function mcEntryRows(){
     return { cid, name:(dn!==undefined?dn:x.e.anzeige_text)||'', std:(typeof stdTitel==='function')?stdTitel(x.std):x.std.titel,
       stdId:x.std.id, rubrik:x.rubrik||'', mk:x.e.material_key||'', verknuepft:!!linkedId,
       hidden, unsicher, eigen:!!x.e._added };
-  });
+  }));
 }
 
 /* ===== Register-Gerüst ===== */
 function renderMatCenter(){
   const box=$('scr-care'); if(!box) return;
-  const tab=(k,ico,label,badge)=>`<button class="mc-tab${mcTab===k?' on':''}" onclick="mcGo('${k}')">
-    <span class="mc-tab-ico">${ico}</span><span class="mc-tab-l">${esc(label)}</span>${badge?`<span class="mc-tab-b">${esc(String(badge))}</span>`:''}</button>`;
+  /* Reiter nach W3C-ARIA-Muster „Tabs": role=tab + aria-selected, nur der
+     aktive Reiter ist im Tab-Fokus (tabindex), Pfeiltasten wechseln. */
+  const tab=(k,ico,label,badge)=>`<button class="mc-tab${mcTab===k?' on':''}" role="tab" id="mctab-${k}"
+    aria-selected="${mcTab===k?'true':'false'}" aria-controls="mcPanel" tabindex="${mcTab===k?'0':'-1'}"
+    onclick="mcGo('${k}')" onkeydown="mcTabKey(event)">
+    <span class="mc-tab-ico" aria-hidden="true">${ico}</span><span class="mc-tab-l">${esc(label)}</span>${badge?`<span class="mc-tab-b">${esc(String(badge))}</span>`:''}</button>`;
+  mcEntryCache=null;                              /* Caches je Vollrender frisch */
   const rows=mcRowCache=(typeof matHubRows==='function')?matHubRows():[];
   const offen=rows.filter(x=>x.status==='open'||x.status==='part').length;
   const gaps=mcGapCounts(); const legacy=mcLegacyPending();
@@ -98,30 +105,45 @@ function renderMatCenter(){
   let html=`<div class="banner"><h2>🧬 Material &amp; Einträge</h2>
     <p>Der eine Ort für alles rund ums Material: erfassen, pflegen, zuordnen, ordnen und prüfen.
     <b>Material</b> = was ein Produkt ist (gilt überall gleich). <b>Eintrag</b> = wie es an einer Stelle benutzt wird.</p></div>
-    <div class="mc-tabs">
+    <div class="mc-tabs" role="tablist" aria-label="Bereiche der Materialverwaltung">
       ${tab('material','📦','Material',rows.length)}
       ${tab('eintraege','📄','Einträge','')}
       ${tab('ordnung','🗂','Ordnung','')}
       ${tab('pruefen','✅','Prüfen',todo||'')}
     </div>`;
+  html+=`<div id="mcPanel" role="tabpanel" aria-labelledby="mctab-${mcTab}">`;
   if(mcTab==='material') html+=mcMaterialHTML(offen);
   else if(mcTab==='eintraege') html+=mcEntriesHTML();
   else if(mcTab==='ordnung') html+=mcOrdnungHTML();
   else html+=mcPruefenHTML(gaps,legacy);
+  html+=`</div>`;
   box.innerHTML=html;
 }
-function mcGo(t){ mcTab=t; mcQ=''; mcFilter='alle'; renderMatCenter(); }
+function mcGo(t){ mcTab=t; mcQ=''; mcFilter='alle'; renderMatCenter();
+  const el=document.getElementById('mctab-'+t); if(el){ try{ el.focus(); }catch(e){} } }
+/* Pfeiltasten-Navigation zwischen den Reitern (ARIA-APG „Tabs"). */
+const MC_TABS=['material','eintraege','ordnung','pruefen'];
+function mcTabKey(ev){
+  const i=MC_TABS.indexOf(mcTab); let j=-1;
+  if(ev.key==='ArrowRight') j=(i+1)%MC_TABS.length;
+  else if(ev.key==='ArrowLeft') j=(i-1+MC_TABS.length)%MC_TABS.length;
+  else if(ev.key==='Home') j=0;
+  else if(ev.key==='End') j=MC_TABS.length-1;
+  if(j<0) return;
+  ev.preventDefault(); mcGo(MC_TABS[j]); }
 function mcSearch(q){ mcQ=q||'';
   const box=$('mcList'); if(!box) return;
   box.innerHTML=(mcTab==='eintraege')?mcEntryListHTML():mcMaterialListHTML(); }
 function mcSetFilter(f){ mcFilter=f; renderMatCenter(); }
+/* Entprellt — die Eintragsliste geht über alle Standards. */
+const mcSearchDebounced=debounce((q)=>mcSearch(q),250);
 
 /* ===== Register 1: MATERIAL (Stammsätze) ===== */
 function mcMaterialHTML(offen){
   const scanCta=(typeof scannerSupported==='function'&&scannerSupported())
     ? `<button class="scan-cta" onclick="startCam()">📷 Etikett scannen</button>`
     : `<div class="scan-this">Der Live-Scanner braucht Android-Chrome mit Kamerafreigabe. Material lässt sich hier trotzdem anlegen und pflegen.</div>`;
-  const fb=(k,l)=>`<button class="${mcFilter===k?'on':''}" onclick="mcSetFilter('${k}')">${esc(l)}</button>`;
+  const fb=(k,l)=>`<button class="${mcFilter===k?'on':''}" aria-pressed="${mcFilter===k?'true':'false'}" onclick="mcSetFilter('${k}')">${esc(l)}</button>`;
   const groups=(typeof matSuggestGroups==='function'&&typeof matDistinctList==='function')
     ? matSuggestGroups(matDistinctList()) : [];
   let dup='';
@@ -129,12 +151,12 @@ function mcMaterialHTML(offen){
     dup=`<div class="mc-hint">🧬 ${groups.length} mögliche Duplikate –
       <button class="vlink" onclick="mcGo('pruefen')">im Register „Prüfen" zusammenführen</button></div>`;
   }
-  return `${scanCta}<div id="scanHelp"></div>
+  return `${scanCta}<div class="scan-help-slot"></div>
     <div class="mc-actions">
       <button class="add-entry-btn" onclick="matHubNew()">＋ Material anlegen</button>
     </div>
     ${dup}
-    <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Material, Standard, REF, Hersteller …" value="${esc(mcQ)}" oninput="mcSearch(this.value)" autocomplete="off"></div>
+    <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Material, Standard, REF, Hersteller …" value="${esc(mcQ)}" oninput="mcSearchDebounced(this.value)" autocomplete="off"></div>
     <div class="filter-row">${fb('alle','Alle')}${fb('offen','Offen ('+offen+')')}${fb('foto','ohne Foto')}${fb('preis','ohne Preis')}${fb('lagerort','ohne Lagerort')}${fb('material','Material')}${fb('geraet','Gerät')}</div>
     <div id="mcList">${mcMaterialListHTML()}</div>`;
 }
@@ -173,9 +195,9 @@ function mcEntriesHTML(){
   const nv=rows.filter(r=>!r.verknuepft&&!r.hidden).length;
   const un=rows.filter(r=>r.unsicher&&!r.hidden).length;
   const hi=rows.filter(r=>r.hidden).length;
-  const fb=(k,l)=>`<button class="${mcFilter===k?'on':''}" onclick="mcSetFilter('${k}')">${esc(l)}</button>`;
+  const fb=(k,l)=>`<button class="${mcFilter===k?'on':''}" aria-pressed="${mcFilter===k?'true':'false'}" onclick="mcSetFilter('${k}')">${esc(l)}</button>`;
   return `<div class="mc-hint">Hier stehen die <b>Vorkommen</b> in den Standards – also wie ein Material an einer bestimmten Stelle benutzt wird. Ein Tipp öffnet die Eintrags-Maske; dort legst du auch fest, <b>wo</b> die Änderung gelten soll.</div>
-    <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Eintrag, Standard, Rubrik …" value="${esc(mcQ)}" oninput="mcSearch(this.value)" autocomplete="off"></div>
+    <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Eintrag, Standard, Rubrik …" value="${esc(mcQ)}" oninput="mcSearchDebounced(this.value)" autocomplete="off"></div>
     <div class="filter-row">${fb('alle','Alle')}${fb('nichtverknuepft','ohne Material ('+nv+')')}${fb('unsicher','Einstufung unsicher ('+un+')')}${fb('ausgeblendet','Ausgeblendet ('+hi+')')}${fb('eigen','Eigene')}</div>
     <div id="mcList">${mcEntryListHTML()}</div>`;
 }

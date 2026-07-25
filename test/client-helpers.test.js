@@ -65,7 +65,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true, GTINDB: {}, MATLINK: {}, careMem: {}, PROD: {}, CATALOG: { items: [] } };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, setTimeout, clearTimeout, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true, GTINDB: {}, MATLINK: {}, careMem: {}, PROD: {}, CATALOG: { items: [] } };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -137,6 +137,7 @@ function loadHelpers() {
     extractFn('popupMatches'),
     extractFn('popupMissing'),
     extractFn('popupOptions'),
+    extractFn('debounce'),
     extractFn('canonId'),
     extractFn('mcMissingOf'),
     extractFn('mcGapCounts'),
@@ -160,7 +161,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -1893,4 +1894,22 @@ test('mcFillEmpty: füllt nur leere Felder und überschreibt nie', () => {
   assert.equal(rec.lagerort, 'Regal A');
   // erneut anwenden ändert nichts mehr (idempotent → gefahrlos wiederholbar)
   assert.equal(fns.mcFillEmpty(rec, { name:'X', hersteller:'Y', preis:9 }), false);
+});
+
+// --- QM: Debounce (Suche während des Tippens) -------------------------------
+test('debounce: führt erst nach der Ruhezeit aus und nur einmal', async () => {
+  let n = 0, letzter = null;
+  const f = fns.debounce((v) => { n++; letzter = v; }, 20);
+  f('a'); f('ab'); f('abc');                 // drei schnelle Anschläge
+  assert.equal(n, 0, 'während des Tippens läuft nichts');
+  await new Promise(r => setTimeout(r, 60));
+  assert.equal(n, 1, 'genau ein Aufruf nach der Pause');
+  assert.equal(letzter, 'abc', 'mit dem zuletzt getippten Wert');
+});
+test('debounce: getrennte Tippfolgen lösen getrennt aus', async () => {
+  let n = 0;
+  const f = fns.debounce(() => { n++; }, 15);
+  f(); await new Promise(r => setTimeout(r, 40));
+  f(); await new Promise(r => setTimeout(r, 40));
+  assert.equal(n, 2);
 });

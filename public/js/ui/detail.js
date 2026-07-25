@@ -273,6 +273,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-variant-edit')){ if(typeof varEditBack==='function') varEditBack(); return; }
   if(act('scr-popups')){ if(typeof popupEditId!=='undefined'&&popupEditId){ popupCloseEdit(); return; } setMode('use'); return; }
   if(act('scr-variants')){ setMode('use'); return; }
+  if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }
   if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
     renderStandards(); show('scr-standards'); updateBar();
     const sw=$('searchWrap'); if(sw) sw.style.display='block'; return; }

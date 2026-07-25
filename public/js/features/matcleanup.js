@@ -57,7 +57,7 @@ function renderCleanup(){
     <p>Aus jedem verdichteten Standard-Eintrag wird sauberes Material + eigene Felder (Verwendung, Bedingung, Standort, Alternative). Prüfe den Vorschlag und übernimm ihn — oder korrigiere ihn vorher. Die Standards bleiben unangetastet.</p>
     <div class="prog"><div class="prog-txt">${st.done} von ${st.total} aufgeräumt${st.offen?` · ${st.offen} offen`:''}</div></div></div>`;
   if(!q.length){
-    box.innerHTML=bar+`<div class="empty"><div class="ei">✅</div><h3>Alles aufgeräumt</h3><p>Es sind keine offenen Vorschläge mehr da. Neue Materialien erscheinen hier automatisch, sobald es Vorschläge dazu gibt.</p><div class="p-actions" style="justify-content:center"><button class="btn btn-sec" onclick="mode='care';renderMaterialHub&&renderMaterialHub();show('scr-care')">Zur Materialverwaltung</button>${st.done?`<button class="btn btn-sec" onclick="cleanupResetAll()">Fortschritt zurücksetzen</button>`:''}</div></div>`;
+    box.innerHTML=bar+`<div class="empty"><div class="ei">✅</div><h3>Alles aufgeräumt</h3><p>Es sind keine offenen Vorschläge mehr da. Neue Materialien erscheinen hier automatisch, sobald es Vorschläge dazu gibt.</p><div class="p-actions" style="justify-content:center"><button class="btn btn-sec" onclick="mode='care';renderCare();show('scr-care');updateBar()">Zur Materialverwaltung</button>${st.done?`<button class="btn btn-sec" onclick="cleanupResetAll()">Fortschritt zurücksetzen</button>`:''}</div></div>`;
     return;
   }
   if(cleanupIdx>=q.length) cleanupIdx=0;

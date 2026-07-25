@@ -13,6 +13,7 @@
 let lbScale = 1, lbX = 0, lbY = 0;              /* aktuelle Transformation */
 let lbDragging = false, lbSX = 0, lbSY = 0;     /* Ziehen (Maus/Finger) */
 let lbPinchDist = 0, lbPinchScale = 1;          /* Pinch-Ausgangswerte */
+let lbLastFocus = null;                         /* Fokus vor dem Öffnen (wird zurückgegeben) */
 
 /* Grenzen für den Zoom – unter 1 sähe das Bild verloren aus, über 6 wird es
    unscharf und man verliert die Orientierung. Rein/testbar. */
@@ -28,7 +29,8 @@ function lbEnsure(){
   let el=document.getElementById('lightbox');
   if(el) return el;
   el=document.createElement('div');
-  el.id='lightbox'; el.className='lb'; el.setAttribute('aria-hidden','true'); el.setAttribute('role','dialog');
+  el.id='lightbox'; el.className='lb'; el.setAttribute('aria-hidden','true');
+  el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-label','Foto in Großansicht');
   el.innerHTML=`<div class="lb-bar">
       <span class="lb-cap" id="lbCap"></span>
       <button type="button" class="lb-btn" id="lbZoomOut" aria-label="Verkleinern">－</button>
@@ -98,10 +100,15 @@ function openLightbox(src, caption){
   if(cap) cap.textContent=caption||'';
   lbApply();
   el.classList.add('show'); el.setAttribute('aria-hidden','false');
+  /* Fokus in den Dialog holen und beim Schließen zurückgeben (Tastatur/
+     Screenreader dürfen nicht im Hintergrund hängen bleiben). */
+  try{ lbLastFocus=document.activeElement; }catch(e){ lbLastFocus=null; }
+  const close=el.querySelector('.lb-close'); if(close) setTimeout(()=>{ try{ close.focus(); }catch(e){} },30);
 }
 function closeLightbox(){ const el=document.getElementById('lightbox'); if(!el) return;
   el.classList.remove('show'); el.setAttribute('aria-hidden','true');
-  const img=el.querySelector('#lbImg'); if(img) img.src=''; }
+  const img=el.querySelector('#lbImg'); if(img) img.src='';
+  if(lbLastFocus){ try{ lbLastFocus.focus(); }catch(e){} lbLastFocus=null; } }
 
 /* Delegierter Klick-Handler: jedes Bild mit [data-zoom] öffnet die Lightbox.
    So brauchen einzelne Ansichten keinen eigenen onclick — sie setzen nur das

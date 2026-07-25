@@ -96,10 +96,10 @@ function entryScopeBarHTML(cid, mk){
   const hs=sid?hits({art:'standard',wert:sid}):null;
   const hg=grp?hits({art:'gruppe',wert:grp}):null;
   const ha=hits({art:'alle'});
-  const btn=(k,ico,label,sub,on)=>`<button type="button" class="scope-chip${on?' on':''}" data-s="${k}" onclick="pickEntryScope(this)">
+  const btn=(k,ico,label,sub,on)=>`<button type="button" class="scope-chip${on?' on':''}" role="radio" aria-checked="${on?'true':'false'}" data-s="${k}" onclick="pickEntryScope(this)">
     <span class="sc-l">${ico} ${esc(label)}</span><span class="sc-s">${esc(sub||'')}</span></button>`;
   let h=`<div class="scopebar" id="fScope" data-scope="cid">
-    <div class="scope-head">🎯 Gilt für</div><div class="scope-row">`;
+    <div class="scope-head" id="fScopeLbl">🎯 Gilt für</div><div class="scope-row" role="radiogroup" aria-labelledby="fScopeLbl">`;
   h+=btn('cid','📍','Nur hier','diese eine Stelle',true);
   if(sid&&hs) h+=btn('std','📄','Standard',hs.vorkommen+'× hier');
   if(grp&&hg) h+=btn('grp','🗂','Gruppe „'+grp+'"',hg.vorkommen+'× / '+hg.standards.length+' Std.');
@@ -108,8 +108,8 @@ function entryScopeBarHTML(cid, mk){
   return h;
 }
 function pickEntryScope(btn){ const w=$('fScope'); if(!w) return;
-  w.querySelectorAll('.scope-chip').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on'); w.dataset.scope=btn.dataset.s; }
+  w.querySelectorAll('.scope-chip').forEach(b=>{ b.classList.remove('on'); b.setAttribute('aria-checked','false'); });
+  btn.classList.add('on'); btn.setAttribute('aria-checked','true'); w.dataset.scope=btn.dataset.s; }
 function readEntryScope(){ const w=$('fScope'); return (w&&w.dataset.scope)||'cid'; }
 
 function openEntryForm(desc){

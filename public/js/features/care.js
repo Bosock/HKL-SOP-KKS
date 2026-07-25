@@ -15,7 +15,6 @@
 
 function renderCare(){
   if(typeof renderMatCenter==='function'){ renderMatCenter(); return; }
-  if(typeof renderMaterialHub==='function'){ renderMaterialHub(); return; }
   const box=$('scr-care'); if(box) box.innerHTML='<p class="hint">Materialverwaltung nicht verfügbar.</p>';
 }
 
