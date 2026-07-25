@@ -70,20 +70,29 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   });
   r.check('Scanner-Formular: Foto-Zone + Datei + „Zuschneiden"-Knopf', form.zone && form.crop && form.fileInp);
 
-  // 6) „Material pflegen": Foto setzen → Speichern → careMem.photo.
-  const care = await A.page.evaluate(async () => {
+  // 6) KONSOLIDIERUNG: Die alte „Material pflegen“-Maske ist entfernt — Fotos
+  //    haben jetzt EIN Zuhause (den Material-Stammsatz). Alt-Fotos dürfen dabei
+  //    nicht verloren gehen: sie bleiben lesbar und wandern per Übernahme in
+  //    den Stammsatz (mcMigrateLegacy).
+  const care = await A.page.evaluate(() => {
     const m = (typeof MAT_INDEX !== 'undefined' && MAT_INDEX[0]) ? MAT_INDEX[0] : null;
     if (!m) return { skip: true };
-    careMem = {}; openCare(m.key);
-    const has = !!document.getElementById('photoZone') && /Zuschneiden \/ drehen/.test(document.getElementById('scr-care-item').innerHTML);
+    const alteMaskeWeg = (typeof openCare === 'undefined') && (typeof saveCare === 'undefined');
     const c = document.createElement('canvas'); c.width = 16; c.height = 16; c.getContext('2d').fillRect(0, 0, 16, 16);
-    careSetPhoto(c.toDataURL('image/jpeg'));
-    saveCare(m.key);
-    return { has, stored: !!(careMem[m.key] && careMem[m.key].photo) };
+    careMem[m.key] = { loc: 'Alt-Regal', photo: c.toDataURL('image/jpeg') };
+    saveJSON('hkl_care', careMem);
+    const offenVorher = mcLegacyPending().care;
+    mcMigrateLegacy();
+    const id = canonId(m.key); const rec = id ? GTINDB[id] : null;
+    return { skip: false, alteMaskeWeg, offenVorher,
+      imStammsatz: !!(rec && rec.photo && rec.photo.indexOf('data:image') === 0),
+      altErhalten: !!(careMem[m.key] && careMem[m.key].photo) };
   });
   if (!care.skip) {
-    r.check('Material pflegen: Foto-Zone + „Zuschneiden"-Knopf', care.has);
-    r.check('Material pflegen speichert Foto (careMem)', care.stored);
+    r.check('Alte „Material pflegen“-Maske ist entfernt (eine Foto-Quelle)', care.alteMaskeWeg);
+    r.check('Alt-Foto wird als offen erkannt', care.offenVorher >= 1);
+    r.check('Alt-Foto landet im Material-Stammsatz', care.imStammsatz);
+    r.check('Alt-Daten bleiben erhalten (kein Datenverlust)', care.altErhalten);
   }
 
   r.check('keine Konsolenfehler', A.errs.length === 0);

@@ -179,18 +179,21 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     openStandard(sid); openRubrik(ri);
     openEntryForm({ kind: 'editBase', cid });
     document.getElementById('fName').value = 'REICHWEITE-TEST';
-    saveEntryForm();
-    const shown = document.getElementById('sheet').classList.contains('show');
-    const sh = document.getElementById('sheet').innerHTML;
-    const four = sh.indexOf('Nur hier') >= 0 && sh.indexOf('In diesem Standard') >= 0 && sh.indexOf('In der Gruppe') >= 0 && sh.indexOf('Überall') >= 0;
+    // NEU: Der Geltungsbereich steht sichtbar IN der Maske (statt als Nachfrage
+    // hinterher). Vier Stufen zur Wahl, vorbelegt ist die sichere „nur hier“.
+    const bar = document.getElementById('fScope');
+    const shown = !!bar;
+    const stufen = bar ? [...bar.querySelectorAll('.scope-chip')].map(b => b.dataset.s) : [];
+    const four = ['cid','std','grp','mat'].every(k => stufen.includes(k));
     window.confirm = () => true;
-    applyEditScope('mat');
+    bar.querySelector('.scope-chip[data-s="mat"]').click();   // „Überall“ wählen
+    saveEntryForm();                                          // wendet direkt an
     let all = true, n = 0;
     DB.standards.forEach(s => (s.rubriken || []).forEach((r, i) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => { if (e.material_key === mk) { n++; if (qeGet(e, cidOf(s.id, i, si, ei), 'name') !== 'REICHWEITE-TEST') all = false; } }))));
     const ruled = rulesActive(RULES).some(x => x.prop === 'name' && x.ziel && x.ziel.key === mk && x.wo && x.wo.art === 'alle');
     return { shown, four, all, n, ruled };
   });
-  r.check('F: Bearbeiten-Formular öffnet Reichweiten-Nachfrage', fscope.shown);
+  r.check('F: Bearbeiten-Formular zeigt den Geltungsbereich sichtbar', fscope.shown);
   r.check('F: … mit allen vier Stufen (hier/Standard/Gruppe/überall)', fscope.four);
   r.check('F: „Überall" ändert alle Vorkommen des Materials', fscope.all && fscope.n >= 1);
   r.check('F: … als Regel journaliert (rücknehmbar)', fscope.ruled);

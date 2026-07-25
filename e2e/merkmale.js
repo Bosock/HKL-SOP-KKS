@@ -55,11 +55,12 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const zRows=document.querySelectorAll('#fZus .merk-row');
     zRows[0].querySelector('.merk-name').value='Struktur'; zRows[0].querySelector('.merk-zwert').value='geflochten';
     zRows[1].querySelector('.merk-name').value='Nadel'; zRows[1].querySelector('.merk-zwert').value='5/8';
+    // NEU: Geltungsbereich sichtbar in der Maske, vorbelegt „nur hier“ —
+    // Speichern wendet direkt an, ohne Zwischenfrage.
+    const bar=document.getElementById('fScope');
+    const asks=!!bar && readEntryScope()==='cid';
+    const props=!!bar && bar.innerHTML.indexOf('Nur hier')>=0 && bar.innerHTML.indexOf('Überall')>=0;
     saveEntryForm();
-    const sheet=document.getElementById('sheet');
-    const asks=sheet.classList.contains('show');
-    const props=sheet.innerHTML.indexOf('Größen')>=0 && sheet.innerHTML.indexOf('Eigene Felder')>=0;
-    applyEditScope('cid');
     const e=findEntry(cid);
     const gro=qeGet(e,cid,'groessen')||[]; const zus=qeGet(e,cid,'zusatz')||[];
     const card=entryCardHTML(e,cid,true);
@@ -69,7 +70,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       badges: card.indexOf('45cm')>=0 && card.indexOf('Struktur: geflochten')>=0 && card.indexOf('Nadel: 5/8')>=0,
       journaled: rulesActive(RULES).some(x=>x.prop==='zusatz'&&x.wo&&x.wo.art==='stelle'&&x.wo.wert===cid), cid, mk };
   });
-  check('Speichern fragt Reichweite (Änderungen: Größen + Eigene Felder)', r2.asks && r2.props);
+  check('Geltungsbereich sichtbar in der Maske, vorbelegt „nur hier“', r2.asks && r2.props);
   check('Größe „Länge 45cm" zusätzlich gespeichert', r2.hasLen);
   check('Eigene Merkmale (Struktur, Nadel) gespeichert', r2.hasZus);
   check('Badges am Eintrag: 45cm · Struktur: geflochten · Nadel: 5/8', r2.badges);
@@ -87,7 +88,8 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const zRows=document.querySelectorAll('#fZus .merk-row');
     const last=zRows[zRows.length-1];
     last.querySelector('.merk-name').value='MHD-Kontrolle'; last.querySelector('.merk-zwert').value='monatlich';
-    saveEntryForm(); applyEditScope('mat');
+    document.getElementById('fScope').querySelector('.scope-chip[data-s="mat"]').click();
+    saveEntryForm();
     const e2=findEntry(cid2); const zus2=qeGet(e2,cid2,'zusatz')||[];
     return { rolled: zus2.some(f=>f.n==='MHD-Kontrolle') };
   }, r2);

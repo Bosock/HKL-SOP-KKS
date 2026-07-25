@@ -423,6 +423,7 @@ function renderScanItemForm(r){
   const del=(g && GTINDB[g])?`<div class="p-actions" style="margin-top:10px"><button class="btn btn-sec" style="color:#d64545" data-g="${esc(g)}" onclick="deleteScanItem(this.dataset.g)">Aus Datenbank löschen</button></div>`:'';
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${r.manual?'Material-Stammsatz (ohne Barcode)':(g?('GTIN '+esc(g)):'Neues Produkt')}</div>
+    <div class="scope-note">🎯 Gilt für <b>dieses Material überall</b> – in jedem Standard, in dem es vorkommt. Was nur an EINER Stelle anders sein soll (z. B. die Menge), gehört an den Eintrag.</div>
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
     <button type="button" class="scan-cta ocr-cta" onclick="ocrCaptureAndFill()">📸 Etikett fotografieren – Felder automatisch ausfüllen</button>
     <div class="ocr-hint">Liest REF, Hersteller und Maße direkt vom Etikett (läuft auf dem Gerät). Bitte die erkannten Werte prüfen.</div>

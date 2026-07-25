@@ -65,7 +65,7 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true, GTINDB: {}, MATLINK: {}, careMem: {}, PROD: {}, CATALOG: { items: [] } };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
@@ -137,6 +137,11 @@ function loadHelpers() {
     extractFn('popupMatches'),
     extractFn('popupMissing'),
     extractFn('popupOptions'),
+    extractFn('canonId'),
+    extractFn('mcMissingOf'),
+    extractFn('mcGapCounts'),
+    extractFn('mcLegacyPending'),
+    extractFn('mcFillEmpty'),
     extractFn('varKurz'),
     extractFn('varGet'),
     extractFn('varHidden'),
@@ -155,7 +160,7 @@ function loadHelpers() {
     extractFn('contrastRatio'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -1839,4 +1844,53 @@ test('varDiffCount: zählt Änderungen, Ausblendungen und Ergänzungen je Standa
   assert.equal(fns.varDiffCount('v1','std'), 3);   // 1 Änderung + 1 ausgeblendet + 1 ergänzt
   assert.equal(fns.varDiffCount('v1','andere'), 1);
   assert.equal(fns.varDiffCount('unbekannt','std'), 0);
+});
+
+// --- Material-Zentrale: Lücken & Alt-Daten -----------------------------------
+test('mcMissingOf: benennt genau die fehlenden Pflegefelder', () => {
+  assert.equal(fns.mcMissingOf({ photo:'x', preis:1, lagerort:'A', ref:'R1', kategorie:'Schleuse' }).length, 0);
+  const m = fns.mcMissingOf({ photo:null, preis:null, lagerort:'', ref:'R1', kategorie:'' });
+  assert.ok(m.includes('foto')); assert.ok(m.includes('preis'));
+  assert.ok(m.includes('lagerort')); assert.ok(m.includes('kategorie'));
+  assert.ok(!m.includes('ref'));
+  assert.equal(fns.mcMissingOf(null).length, 0);
+});
+test('mcMissingOf: Preis 0 gilt als gepflegt (nicht als Lücke)', () => {
+  // 0,00 € ist eine legitime Angabe – sie darf nicht als „fehlt" gezählt werden.
+  assert.ok(!fns.mcMissingOf({ photo:'x', preis:0, lagerort:'A', ref:'R', kategorie:'K' }).includes('preis'));
+});
+test('mcGapCounts: zählt Lücken über alle Stammsätze', () => {
+  ctx.GTINDB = {
+    a: { gtin:'a', photo:null, preis:null, lagerort:null, ref:'R', kategorie:'K' },
+    b: { gtin:'b', photo:'p',  preis:5,    lagerort:'L',  ref:'R', kategorie:'K' },
+    c: { gtin:'c', photo:null, preis:5,    lagerort:'L',  ref:null, kategorie:'K' },
+  };
+  const g = fns.mcGapCounts();
+  assert.equal(g.foto, 2); assert.equal(g.preis, 1);
+  assert.equal(g.lagerort, 1); assert.equal(g.ref, 1); assert.equal(g.kategorie, 0);
+  ctx.GTINDB = {};
+});
+test('mcLegacyPending: zählt nur Alt-Daten OHNE Stammsatz', () => {
+  ctx.careMem = { 'schleuse 6f': { photo:'p', loc:'A' }, 'draht': { photo:null, loc:'' } };
+  ctx.PROD    = { 'schleuse 6f': { hersteller:'Terumo' }, 'naht': { preis:3 } };
+  ctx.MATLINK = {};                       // nichts verknüpft
+  let l = fns.mcLegacyPending();
+  assert.equal(l.care, 1);                // nur der Datensatz mit Inhalt
+  assert.equal(l.prod, 2);
+  assert.equal(l.gesamt, 3);
+  ctx.MATLINK = { 'schleuse 6f': 'm:1' }; // jetzt verknüpft → nicht mehr offen
+  l = fns.mcLegacyPending();
+  assert.equal(l.care, 0); assert.equal(l.prod, 1);
+  ctx.careMem = {}; ctx.PROD = {}; ctx.MATLINK = {};
+});
+test('mcFillEmpty: füllt nur leere Felder und überschreibt nie', () => {
+  const rec = { name:'Vorhanden', hersteller:'', preis:null };
+  const changed = fns.mcFillEmpty(rec, { name:'Neu', hersteller:'Terumo', preis:12.5, lagerort:'Regal A' });
+  assert.equal(changed, true);
+  assert.equal(rec.name, 'Vorhanden');    // NICHT überschrieben
+  assert.equal(rec.hersteller, 'Terumo'); // leeres Feld gefüllt
+  assert.equal(rec.preis, 12.5);
+  assert.equal(rec.lagerort, 'Regal A');
+  // erneut anwenden ändert nichts mehr (idempotent → gefahrlos wiederholbar)
+  assert.equal(fns.mcFillEmpty(rec, { name:'X', hersteller:'Y', preis:9 }), false);
 });

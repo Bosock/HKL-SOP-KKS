@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v39';
+const CACHE_VERSION = 'v40';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -58,6 +58,7 @@ const SHELL = [
   'js/features/materials.js',
   'js/features/scanner.js',
   'js/features/materialhub.js',
+  'js/features/matcenter.js',
   'js/features/matcatalog.js',
   'js/features/matcleanup.js',
   'js/features/lightbox.js',

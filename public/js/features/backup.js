@@ -18,7 +18,7 @@ function restoreMat(mk){ if(QE.mat[mk]){ delete QE.mat[mk].hidden; if(Object.key
   saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
 
 /* Kategorie als „beschaffbar" markieren (fließt in Pflege/Preise/Katalog/Kosten). */
-function setNatBeschaffbar(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].beschaffbar=!!val; saveNatCfg(); buildMaterialIndex(); renderAdmin(); }
+function setNatBeschaffbar(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].beschaffbar=!!val; saveNatCfg(); buildMaterialIndex(); refreshSettingsViews(); }
 /* Vollständiges Entfernen einer Rubrik-Vorlage (nur zentral in der Matrix). */
 function confirmDeleteRubTpl(id){ const t=RUBTPL.find(x=>x.id===id); if(!t) return;
   if(!confirm('Vorlage „'+t.name+'" überall entfernen? Die Rubrik verschwindet aus allen Standards; bereits dort eingetragene Einträge dieser Rubrik gehen verloren.')) return;
@@ -54,6 +54,15 @@ function exportCostCSV(){ try{
 /* Einheitliche Panel-Kopfzeile: Symbol · Titel · Klartext „was es ändert" ·
    optionaler Status-Badge. So sagt JEDES Menü, was es bewirkt (nicht nur eine
    nackte Zahl). Symbol ist fest verdrahtet (nicht zu escapen), Rest escaped. */
+/* Die Kategorie-/Unterkategorie-Funktionen werden jetzt aus ZWEI Ansichten
+   benutzt (Verwaltung und Material-Zentrale). Statt hart renderAdmin() zu
+   rufen, frischt dieser Helfer die gerade sichtbare Ansicht auf. */
+function refreshSettingsViews(){
+  try{
+    if($('scr-care') && $('scr-care').classList.contains('active') && typeof renderMatCenter==='function'){ renderMatCenter(); return; }
+  }catch(e){}
+  if(typeof renderAdmin==='function') renderAdmin();
+}
 function vsum(icon,title,desc,badge){
   const b=(badge!=null&&badge!=='')?`<span class="vp-badge">${esc(String(badge))}</span>`:'';
   return `<summary><span class="vp-ico">${icon}</span><span class="vp-txt"><span class="vp-title">${esc(title)}</span><span class="vp-desc">${esc(desc)}</span></span>${b}</summary>`;
@@ -319,8 +328,8 @@ function reassignEntry(cid,val){ const e=findEntry(cid);
 function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>('new|'+x.id)===cid); return n?newToEntry(n):null; } const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
 
 /* ─── Kategorien-Editor: schreibt in die Konfiguration + speichert ─── */
-function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); renderAdmin(); }
-function setNatColor(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].color=val; saveNatCfg(); applyNatConfig(); buildMaterialIndex(); renderAdmin(); }
+function setNatLabel(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].label=(val||'').trim()||NATCFG.items[key].label; saveNatCfg(); refreshSettingsViews(); }
+function setNatColor(key,val){ if(!NATCFG.items[key]) return; NATCFG.items[key].color=val; saveNatCfg(); applyNatConfig(); buildMaterialIndex(); refreshSettingsViews(); }
 function editNatIcon(key){ if(!NATCFG.items[key]) return; const cur=NATCFG.items[key].icon||''; const v=prompt('Symbol (Emoji) für diese Kategorie:',cur); if(v==null) return; NATCFG.items[key].icon=(v.trim()||cur); saveNatCfg(); renderAdmin(); }
 /* Eingabezeile statt prompt() (M1): window.prompt() liefert in installierten
    PWA-Fenstern (manifest display:"standalone") auf manchen Android-Chrome-
@@ -348,7 +357,7 @@ function renameUk(i){ const oldName=UK_LIST[i]; if(oldName==null) return;
   const metaOld=ukMeta[oldName]; if(metaOld){ if(!ukMeta[newName]) ukMeta[newName]=metaOld; delete ukMeta[oldName]; }
   saveJSON('hkl_ukmap',ukMap); saveJSON('hkl_reassign',reassign); saveJSON('hkl_ukmeta',ukMeta);
   computeUkList(); renderAdmin(); toast('Unterkategorie aktualisiert'); }
-function setUkColor(i,color){ const name=UK_LIST[i]; if(name==null) return; ukMeta[name]=Object.assign({},ukMeta[name],{color}); saveJSON('hkl_ukmeta',ukMeta); renderAdmin(); }
+function setUkColor(i,color){ const name=UK_LIST[i]; if(name==null) return; ukMeta[name]=Object.assign({},ukMeta[name],{color}); saveJSON('hkl_ukmeta',ukMeta); refreshSettingsViews(); }
 function moveUk(i,dir){ computeUkList(); const names=UK_LIST.slice(); const j=i+dir; if(j<0||j>=names.length) return;
   names.forEach((n,k)=>{ ukMeta[n]=Object.assign({},ukMeta[n],{order:k}); });
   const a=names[i], b=names[j]; const oa=ukMeta[a].order; ukMeta[a].order=ukMeta[b].order; ukMeta[b].order=oa;

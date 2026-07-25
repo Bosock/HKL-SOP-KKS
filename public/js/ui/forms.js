@@ -86,6 +86,32 @@ function openMaterialFromForm(mk){ if(mk&&typeof openMaterial==='function') open
 /* desc: {kind:'add',sid,ri,defaultNat} | {kind:'editAdd',sid,ri,aid} | {kind:'editBase',cid}
         | {kind:'catalog'} | {kind:'editCatalog',id}
    optional desc.back overschreibt den Rücksprung (Standard: zurück zur Rubrik). */
+/* Sichtbare Geltungsbereich-Leiste für die Eintrags-Maske. Zeigt gleich mit,
+   WIE VIELE Stellen eine Stufe betrifft — so ist „überall" keine Überraschung.
+   Die Auswahl liegt im data-Attribut und wird beim Speichern gelesen. */
+function entryScopeBarHTML(cid, mk){
+  const sid=(typeof cidStd==='function')?cidStd(cid):null;
+  const grp=(sid&&typeof stdGruppeById==='function')?stdGruppeById(sid):null;
+  const hits=(w)=>{ try{ return (typeof ruleHits==='function')?ruleHits(mk,w):null; }catch(e){ return null; } };
+  const hs=sid?hits({art:'standard',wert:sid}):null;
+  const hg=grp?hits({art:'gruppe',wert:grp}):null;
+  const ha=hits({art:'alle'});
+  const btn=(k,ico,label,sub,on)=>`<button type="button" class="scope-chip${on?' on':''}" data-s="${k}" onclick="pickEntryScope(this)">
+    <span class="sc-l">${ico} ${esc(label)}</span><span class="sc-s">${esc(sub||'')}</span></button>`;
+  let h=`<div class="scopebar" id="fScope" data-scope="cid">
+    <div class="scope-head">🎯 Gilt für</div><div class="scope-row">`;
+  h+=btn('cid','📍','Nur hier','diese eine Stelle',true);
+  if(sid&&hs) h+=btn('std','📄','Standard',hs.vorkommen+'× hier');
+  if(grp&&hg) h+=btn('grp','🗂','Gruppe „'+grp+'"',hg.vorkommen+'× / '+hg.standards.length+' Std.');
+  if(ha) h+=btn('mat','🌐','Überall',ha.vorkommen+'× / '+ha.standards.length+' Std.');
+  h+=`</div><p class="hint">Weitere Stufen als „nur hier" werden als Regel gespeichert und sind unter 🧾 Regeln &amp; Journal jederzeit rücknehmbar.</p></div>`;
+  return h;
+}
+function pickEntryScope(btn){ const w=$('fScope'); if(!w) return;
+  w.querySelectorAll('.scope-chip').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); w.dataset.scope=btn.dataset.s; }
+function readEntryScope(){ const w=$('fScope'); return (w&&w.dataset.scope)||'cid'; }
+
 function openEntryForm(desc){
   const isCatalog=(desc.kind==='catalog'||desc.kind==='editCatalog');
   let cur={name:'',menge:'',nat:desc.defaultNat||'material',sizeTyp:'',sizeVal:'',uk:desc.defaultUk||'',spez:'',color:''}; let title='Eintrag hinzufügen';
@@ -117,7 +143,12 @@ function openEntryForm(desc){
     ?`<div class="form-grp"><div class="flabel">Größe (optional)</div><div class="form-row"><select class="form-sel" id="fSizeTyp">${sizeTypOptionsHTML(cur.sizeTyp)}</select><input class="loc-input" id="fSizeVal" placeholder="z. B. 6F" value="${esc(cur.sizeVal)}"></div></div>`
     :(linkedCanon?productLinkedBlockHTML(cur,linkedCanon,linkMk):merkmaleBlockHTML(cur));
   const nameHint=linkedCanon?`<p class="hint">Produkt: „${esc(linkedCanon.name||linkedCanon.ref||linkedCanon.gtin)}". Nur ändern, wenn im Standard ein abweichender Name stehen soll.</p>`:'';
+  /* GELTUNGSBEREICH SICHTBAR VOR DEM TIPPEN (statt Nachfrage hinterher):
+     Man muss wissen, was man gerade ändert — nur diese Stelle oder alle
+     Vorkommen. Nur sinnvoll, wenn der Eintrag ein geteiltes Material trägt. */
+  const scopeBar=(desc.kind==='editBase'&&linkMk)?entryScopeBarHTML(desc.cid,linkMk):'';
   const h=`<div class="pcard">
+    ${scopeBar}
     <div class="form-grp"><div class="flabel">Bezeichnung</div><input class="loc-input" id="fName" placeholder="z. B. Radialschleuse" value="${esc(cur.name)}">${nameHint}</div>
     <div class="form-grp"><div class="flabel">Menge (optional)</div><input class="loc-input" id="fMenge" placeholder="z. B. 2x" value="${esc(cur.menge)}"></div>
     <div class="form-grp"><div class="flabel">Kategorie</div>${natPickHTML(cur.nat,isCatalog,!isCatalog)}${isCatalog?'':`<div class="form-row" id="natNewRow" style="display:none;margin-top:8px"><input class="loc-input" id="natNewInp" placeholder="Name der neuen Kategorie"><button type="button" class="add-btn" onclick="natFormNewSave()">Anlegen</button></div>`}</div>
@@ -172,7 +203,16 @@ function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bi
        gelten soll. Ohne material_key (eigene Einträge, Hinweise) gibt es kein
        geteiltes Ziel → wie bisher nur an dieser Stelle. */
     const e=findEntry(d.cid); const changes=entryFormChanges(d.cid,f);
-    if(e&&e.material_key&&changes.length){ editScopePending={cid:d.cid,changes}; renderEditScopeSheet(d.cid); showSheet(true); return; }
+    if(e&&e.material_key&&changes.length){
+      /* Der Geltungsbereich steht jetzt SICHTBAR in der Maske – keine Nachfrage
+         mehr. WICHTIG: auch „nur hier" läuft weiter über applyEditScope, damit
+         die Änderung im Regel-Journal landet und unter 🧾 Regeln & Journal
+         rücknehmbar bleibt (ein Schreibweg für alle Reichweiten). Ohne Leiste
+         (Altfall) wird wie früher gefragt. */
+      editScopePending={cid:d.cid,changes};
+      if($('fScope')){ applyEditScope(readEntryScope()); }
+      else { renderEditScopeSheet(d.cid); showSheet(true); }
+      return; }
     applyBaseEntryEdit(d.cid,f); toast(changes.length?'Gespeichert':'Keine Änderung'); }
   else if(d.kind==='catalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); toast('Zum Katalog hinzugefügt'); }
   else if(d.kind==='editCatalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:d.id}))); saveCatalog(); toast('Gespeichert'); }

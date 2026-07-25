@@ -38,7 +38,7 @@ function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-titl
   h+=sAct('📖','Abkürzungsglossar','Begriffe nachschlagen',"showSheet(false);openGlossary()");
   { const pend=(typeof pendingSuggestions==='function')?pendingSuggestions().length:0;
     h+=sAct('✍️','Änderungsvorschläge',pend?(pend+' offen'):'ansehen & bewerten',"showSheet(false);openSuggestions()"); }
-  if(ADMIN){ h+=sAct('🧬','Material verwalten','Scannen · Fotos · Maße · Eigenschaften · Preise · zusammenführen',"menuGo('care')"); }
+  if(ADMIN){ h+=sAct('🧬','Material & Einträge','Der eine Ort: erfassen · pflegen · zuordnen · ordnen · prüfen',"menuGo('care')"); }
   else { h+=sAct('📷','Etikett scannen','Produkt per Barcode erfassen & finden',"showSheet(false);openScanHub()"); }
   if(ADMIN){ h+=sAct('💬','Pop-up-Dialoge','Abfragen beim Abhaken frei einstellen',"showSheet(false);openPopupAdmin()");
     h+=sAct('👤','Ärzte & Varianten','arztspezifische Abweichungen pflegen',"showSheet(false);openVariantAdmin()");
