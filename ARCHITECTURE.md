@@ -205,6 +205,72 @@ trägt die CSP `'wasm-unsafe-eval'` (reine WASM-Kompilierung, kein bare
 (Client entpackt selbst). End-to-End (lädt echte Engine, liest echten Text):
 `e2e/ocr.js`.
 
+**Etikett-Erkennung in vier Stufen** — Leitgedanke: *die beste Texterkennung
+ist die, die man nicht braucht*, und eine REF muss nicht perfekt gelesen
+werden, sondern **unterscheidbar** sein. Ausführlich in
+[`docs/KONZEPT-OCR.md`](docs/KONZEPT-OCR.md):
+
+| Stufe | Modul | Kern |
+|---|---|---|
+| 0 Barcode | `features/scanner.js` | GS1 AI `01` (GTIN) und AI `240/241` (REF **exakt**) |
+| 1 GTIN auflösen | `features/gudid.js` | eigener Stammsatz → Referenz-Katalog → **AccessGUDID** (NLM, frei, kontolos); Treffer sind „unbestätigt" mit Quelle, Cache `hkl_gudid` (gerätelokal) |
+| 2 Etikett lesen | `features/ocr.js` | `ocrReadLabel`: Graustufen bis 3600 px + Kontrastspreizung, Wörterbücher AUS, gezielter **REF-Streifen** (`ocrRefBand` → PSM 7 + Whitelist), zweite Meinung binarisiert, Mehrheitsentscheid (`ocrVoteFields`) — alles aus EINEM Foto |
+| 3 REF auflösen | `features/matref.js` | `refResolve` gegen den bekannten Bestand: exakt → Zeichenklasse (`O/0`, `I/1`, `S/5`, `B/8`) → ähnlich; **nur Eindeutiges wird entschieden** |
+
+Dazu die **Lernschleife** (`hkl_ocrlearn`, in `SHARED_KEYS` + `BACKUP_KEYS`):
+Korrigiert ein Mensch eine Lesung, merkt sich die App das Paar — beim nächsten
+Mal trifft sie sofort, auch bei Produkten außerhalb jedes Katalogs.
+Der **geführte Dialog** (`features/ocrwizard.js`) führt durch zwei Aufnahmen
+(Barcode nah, Etikett flächig), weil beide gegensätzliche Bilder brauchen; ein
+einzelnes Foto bleibt möglich. Server-OCR ist bewusst **nicht** umgesetzt,
+solange `/api/state` unauthentifiziert ist (siehe Konzeptpapier).
+CSP: `connect-src` erlaubt zusätzlich genau `https://accessgudid.nlm.nih.gov`.
+
+**Fotogalerie am Material** (`features/scanner.js`): der Stammsatz führt
+`fotos: [{src,titel}]`; `photo` bleibt das erste Bild der Liste, damit alle
+Listenansichten und Altbestände unverändert funktionieren.
+
+**Fehler- und Problemanalyse** (`features/diag.js`) — damit die App ohne
+Entwickler wartbar bleibt. Drei Bausteine, ausführlich in
+[`docs/FEHLERANALYSE.md`](docs/FEHLERANALYSE.md):
+
+1. **Technische Fehler automatisch**: `window.onerror`, `unhandledrejection`,
+   fehlgeschlagene Ressourcen und — die ergiebigste Quelle — jeder rote
+   Fehler-`toast()` der App (durch Umhüllen der globalen Funktion, kein
+   Eingriff an den Aufrufstellen). Jeder Eintrag trägt Bildschirm und den Weg
+   dorthin. `diagPush` fasst gleiche Befunde zu EINEM Eintrag mit Zähler
+   zusammen — sonst wäre das Protokoll nach dem ersten Fehlerschauer wertlos.
+2. **Gefühlte Fehler**: „🐞 Problem melden" im Menü, ohne Anmeldung, zwei
+   Felder (Absicht / Beobachtung). Den Kontext hängt die App selbst an. Das
+   ist der Fall, den keine Fehlerbehandlung sieht: *es passiert nichts.*
+3. **Selbsttest**: `diagChecks()` prüft nebenwirkungsfrei Bildschirme,
+   Datenbestand, Verknüpfungen, Speicherplatz, Verbindung — und
+   **„Übersichtszeilen sind bedienbar"**: jeder Halte-Detektor trägt sich in
+   `HOLDNAV` mit den Daten-Attributen ein, die er versteht; `diagRowProblems`
+   meldet jede Zeile, für die es keinen Weg hinein gibt.
+
+Dazu **„Schalter in Zeilen erreichbar"** (`diagInnerBlocked`): Der Detektor
+lauscht am Container und beansprucht den Tipp auf der ganzen Zeile — ein
+`stopPropagation()` im Inline-`onclick` eines Schalters DARIN läuft zu spät,
+weil der native Klick gar nicht erst entsteht. Nur `ignoreSel` im Detektor
+wirkt. Der Selbsttest meldet jeden nicht ausgenommenen Schalter.
+
+Anlass war ein realer Fehler: Anleitungen ließen sich auf Touchgeräten nicht
+öffnen, weil `attachHoldNav` nur `data-sid` kannte, bei `data-gid` nichts tun
+konnte — den Tipp aber trotzdem per `preventDefault` verschluckte, sodass
+kein `click` und damit kein Inline-`onclick` mehr feuerte. Mit der Maus fiel
+das nicht auf. Behoben auf beiden Ebenen: der Detektor kennt jetzt beide
+Attribute, UND `onTap` meldet zurück, ob es den Tipp behandelt hat — nur ein
+behandelter Tipp wird noch unterdrückt. Die systematische Nachsuche fand zwei
+Geschwister derselben Klasse (⭐ Favorit in der Übersicht, 🔗 Produkt-Verweis
+am Eintrag) — beide behoben. Die zweite, fast identische Kopie des Detektors
+in `attachLongPress` ist entfallen; Einträge nutzen jetzt denselben
+`attachHoldNav` (`rowSel:'.entry-row[data-cid]'`, `ignoreSel:ENTRY_BTNS`),
+womit auch der meistgenutzte Bildschirm im Selbsttest-Register `HOLDNAV`
+erscheint.
+Geteilter Schlüssel `hkl_diag` in `SHARED_KEYS` (Meldungen aller Geräte an
+einem Ort), bewusst NICHT in `BACKUP_KEYS`. End-to-End: `e2e/diagnose.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

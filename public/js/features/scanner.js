@@ -177,8 +177,37 @@ function matSizeList(r){
   return out;
 }
 
+/* ===== Fotogalerie eines Materials ===== */
+/* Ein Bild reicht selten: Verpackung, Etikett, das ausgepackte Produkt, der
+   Anschluss, der Lagerort im Regal — im HKL hilft jedes davon beim
+   Wiedererkennen. Der Stammsatz führt deshalb eine LISTE von Fotos.
+   `photo` (Einzelbild) bleibt als Vorschaubild bestehen und ist immer das
+   erste Bild der Liste — so bleiben alle Altbestände und alle Listenansichten
+   unverändert nutzbar. Rein & testbar. */
+function matPhotos(r){
+  if(!r) return [];
+  const out=[];
+  const push=(src,titel)=>{ const s=String(src||''); if(!s) return;
+    if(out.some(x=>x.src===s)) return; out.push({ src:s, titel:titel||'' }); };
+  if(Array.isArray(r.fotos)) r.fotos.forEach(f=>{ if(typeof f==='string') push(f,''); else if(f) push(f.src, f.titel); });
+  push(r.photo,'');                       /* Alt-Einzelfoto nie verlieren */
+  return out;
+}
+/* Foto anhängen (ohne Dubletten). Liefert eine NEUE Liste. Rein. */
+function matPhotoAdd(list, src, titel){
+  const s=String(src||''); const arr=(list||[]).slice();
+  if(!s || arr.some(x=>x&&x.src===s)) return arr;
+  arr.push({ src:s, titel:titel||'' }); return arr;
+}
+/* Foto entfernen. Rein. */
+function matPhotoDel(list, i){ const arr=(list||[]).slice(); if(i<0||i>=arr.length) return arr; arr.splice(i,1); return arr; }
+/* Foto zum Vorschaubild machen (nach vorn holen). Rein. */
+function matPhotoMain(list, i){ const arr=(list||[]).slice(); if(i<=0||i>=arr.length) return arr;
+  const [x]=arr.splice(i,1); arr.unshift(x); return arr; }
+
 /* ===== Zustand ===== */
 let GTINDB=loadJSON('hkl_gtin',{}); function saveGtinDB(){ saveJSON('hkl_gtin',GTINDB); }
+let scanGalerie=[];                                 /* Fotoliste des gerade offenen Editors */
 let lastScanInfo=null;                              /* transiente Info des letzten Scans (LOT/Verfall/Serie) */
 let scanPendingLinkKey=null;                        /* material_key, der beim nächsten Speichern mit dem Stammsatz verknüpft wird (Materialverwaltung) */
 let scanStream=null, scanTimer=null, scanDetector=null, scanBusy=false, scanTorchOn=false;
@@ -399,6 +428,20 @@ function openScanItem(gArg, edit){
   show('scr-scan-item');
   setBar(r.name||r.ref||(key?('GTIN '+key):'Neues Produkt'), edit?'Bearbeiten':'Produkt', true);
 }
+/* Fotos in der Produktansicht: das erste groß, die weiteren als antippbare
+   Streifen-Vorschau. Jedes Bild trägt [data-zoom] → Lightbox (features/lightbox.js). */
+function scanViewGalerieHTML(r){
+  const fotos=matPhotos(r);
+  if(!fotos.length) return '';
+  const haupt=fotos[0];
+  const weitere=fotos.slice(1).map((f,i)=>`<img class="gal-strip-img" src="${esc(f.src)}" alt="${esc(f.titel||('Foto '+(i+2)))}" data-zoom data-cap="${esc(f.titel||'')}">`).join('');
+  return `<div class="gal-view">
+    <div class="gal-view-main"><img src="${esc(haupt.src)}" alt="${esc(haupt.titel||'Produktfoto')}" data-zoom data-cap="${esc(haupt.titel||'')}"></div>
+    ${haupt.titel?`<div class="gal-cap-view">${esc(haupt.titel)}</div>`:''}
+    ${weitere?`<div class="gal-strip">${weitere}</div>`:''}
+    ${fotos.length>1?`<div class="gal-hint">${fotos.length} Fotos · antippen zum Vergrößern</div>`:''}
+  </div>`;
+}
 function renderScanItemView(r){
   const badges=(typeof sizeBadges==='function')?sizeBadges(matSizeList(r)):badgeSpans(gtinBadges(r));
   const rows=[
@@ -417,7 +460,7 @@ function renderScanItemView(r){
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${esc(r.name||r.ref||'Produkt')}</div>
     <div class="pc-ctx">${r.manual?'Manueller Stammsatz':`<span class="gtin-mono">GTIN ${esc(r.gtin)}</span>`}</div>
-    ${r.photo?`<div style="margin:10px 0;border-radius:12px;overflow:hidden;max-height:240px;background:#000"><img src="${esc(r.photo)}" style="width:100%;max-height:240px;object-fit:contain" alt=""></div>`:''}
+    ${scanViewGalerieHTML(r)}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
     ${(typeof catInfoBlockHTML==='function')?catInfoBlockHTML(r):''}
@@ -427,18 +470,20 @@ function renderScanItemView(r){
 }
 function renderScanItemForm(r){
   const g=r.gtin||'';
+  scanGalerie=matPhotos(r);                    /* Fotoliste in den Editor laden */
   const refHint=(!r.ref && lastScanInfo && lastScanInfo.gtin===g && lastScanInfo.itemRef)?lastScanInfo.itemRef:'';
   const del=(g && GTINDB[g])?`<div class="p-actions" style="margin-top:10px"><button class="btn btn-sec" style="color:#d64545" data-g="${esc(g)}" onclick="deleteScanItem(this.dataset.g)">Aus Datenbank löschen</button></div>`:'';
   $('scr-scan-item').innerHTML=`<div class="pcard">
     <div class="pc-name">${r.manual?'Material-Stammsatz (ohne Barcode)':(g?('GTIN '+esc(g)):'Neues Produkt')}</div>
     <div class="scope-note">🎯 Gilt für <b>dieses Material überall</b> – in jedem Standard, in dem es vorkommt. Was nur an EINER Stelle anders sein soll (z. B. die Menge), gehört an den Eintrag.</div>
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
-    <button type="button" class="scan-cta ocr-cta" onclick="ocrCaptureAndFill()">📸 Etikett fotografieren – Felder automatisch ausfüllen</button>
-    <div class="ocr-hint">Liest REF, Hersteller und Maße direkt vom Etikett (läuft auf dem Gerät). Bitte die erkannten Werte prüfen.</div>
-    <div class="flabel" style="margin-top:12px">PRODUKTFOTO</div>
-    <div class="photo-zone" onclick="$('scanFileInp').click()" id="scanPhotoZone">${r.photo?`<img src="${esc(r.photo)}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<div class="ph-ico">📷</div><div class="ph-sub">Produktfoto aufnehmen oder wählen</div>`}</div>
-    <input type="file" id="scanFileInp" accept="image/*" style="display:none" onchange="scanOnPhoto(event)">
-    <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="$('scanFileInp').click()">📷 Foto wählen</button><button type="button" class="btn btn-sec" id="scanCropBtn" onclick="scanEditPhoto()" style="${r.photo?'':'display:none'}">✂ Zuschneiden / drehen</button></div>
+    <button type="button" class="scan-cta ocr-cta" onclick="ocrWizStart()">📸 Geführte Erfassung – Barcode &amp; Etikett</button>
+    <div class="ocr-hint">Führt in zwei Schritten durch die Aufnahme: erst der Barcode (Produktnummer exakt, ohne Texterkennung), dann das Etikett (REF, Hersteller, Maße). Ein Foto genügt auch. Alle Werte bitte prüfen.</div>
+    <div class="p-actions" style="margin-top:4px"><button type="button" class="btn btn-sec" onclick="ocrCaptureAndFill()">Nur ein Etikett-Foto lesen</button></div>
+    <div class="flabel" style="margin-top:12px">FOTOS</div>
+    <div id="scGallery">${scanGalerieHTML()}</div>
+    <input type="file" id="scanFileInp" accept="image/*" multiple style="display:none" onchange="scanOnPhoto(event)">
+    <p class="hint">Beliebig viele Fotos: Verpackung, Etikett, ausgepacktes Produkt, Anschluss, Regalplatz. Das erste Bild ist das Vorschaubild in allen Listen; jedes Bild lässt sich antippen und vergrößern.</p>
     <div class="flabel" style="margin-top:12px">HERSTELLER *</div><input class="loc-input" id="scHersteller" placeholder="z. B. Terumo" value="${esc(r.hersteller||'')}">
     <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}" oninput="if(typeof catCheckForm==='function')catCheckForm()">
     <div id="catMatch" style="display:none"></div>
@@ -480,17 +525,66 @@ function scSizeRowHTML(g){ const types=(typeof SIZE_TYPES!=='undefined')?SIZE_TY
 function scanAddSize(){ const box=$('scSizes'); if(box) box.insertAdjacentHTML('beforeend', scSizeRowHTML(null)); }
 function scanReadSizes(){ const box=$('scSizes'); if(!box) return [];
   return [...box.querySelectorAll('.merk-row')].map(r=>({typ:(r.querySelector('.merk-typ').value||'dimension'),wert:r.querySelector('.merk-wert').value.trim()})).filter(g=>g.wert).map(g=>({typ:g.typ,wert:g.wert,roh:g.wert})); }
-/* Produktfoto (Editor-Ergebnis) in die Vorschau setzen + fürs Speichern merken. */
-function scanSetPhoto(photo){ const z=$('scanPhotoZone'); if(z){ z.innerHTML=`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" alt="">`; z.dataset.photo=photo; }
-  const b=$('scanCropBtn'); if(b) b.style.display=''; }
+/* ===== Fotogalerie im Editor ===== */
 function _scanShrink(d,cb){ if(typeof shrinkPhoto==='function') shrinkPhoto(d,cb); else cb(d); }
-function scanOnPhoto(ev){ const f=ev.target.files&&ev.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; _scanShrink(edited,(photo)=>scanSetPhoto(photo)); }); };
-  r.readAsDataURL(f); try{ ev.target.value=''; }catch(e){} }
-function scanEditPhoto(){ const z=$('scanPhotoZone'); const cur=(z&&z.dataset.photo)||(z&&z.querySelector('img')&&z.querySelector('img').getAttribute('src'))||'';
-  if(!cur){ $('scanFileInp').click(); return; }
-  openPhotoEditor(cur,(edited)=>{ if(edited==null) return; _scanShrink(edited,(photo)=>scanSetPhoto(photo)); }); }
-function scanCurrentPhoto(){ const z=$('scanPhotoZone'); return (z&&z.dataset.photo)||(z&&z.querySelector('img')&&z.querySelector('img').getAttribute('src'))||null; }
+/* Kachelraster: erstes Bild trägt die Marke „Vorschau". */
+function scanGalerieHTML(){
+  const kacheln=scanGalerie.map((f,i)=>`<div class="gal-item">
+      <img src="${esc(f.src)}" alt="${esc(f.titel||('Foto '+(i+1)))}" data-zoom data-cap="${esc(f.titel||'')}">
+      ${i===0?'<span class="gal-main">Vorschau</span>':''}
+      <div class="gal-tools">
+        ${i>0?`<button type="button" title="Als Vorschaubild" aria-label="Als Vorschaubild" onclick="scanGalerieMain(${i})">★</button>`:''}
+        <button type="button" title="Zuschneiden / drehen" aria-label="Zuschneiden oder drehen" onclick="scanGalerieEdit(${i})">✂</button>
+        <button type="button" title="Entfernen" aria-label="Foto entfernen" onclick="scanGalerieDel(${i})">✕</button>
+      </div>
+      <input class="gal-cap" placeholder="Bildunterschrift (optional)" value="${esc(f.titel||'')}" oninput="scanGalerieCap(${i}, this.value)">
+    </div>`).join('');
+  return `<div class="gal-grid">${kacheln}<button type="button" class="gal-add" onclick="$('scanFileInp').click()"><span class="ph-ico">📷</span><span class="ph-sub">Foto hinzufügen</span></button></div>`;
+}
+function scanGalerieRender(){ const box=$('scGallery'); if(box) box.innerHTML=scanGalerieHTML(); }
+/* Ein Bild anhängen. Es erscheint SOFORT in der Galerie (sonst wirkt die App
+   beim Hinzufügen träge) und wird im Hintergrund verkleinert — das Verkleinern
+   braucht einen Bild-Ladevorgang und wäre sonst ein Wettlauf mit dem
+   Speichern-Knopf. */
+function scanGalerieAdd(src, titel){
+  const vorher=scanGalerie.length;
+  scanGalerie=matPhotoAdd(scanGalerie, src, titel);
+  if(scanGalerie.length===vorher) return;              /* Dublette – nichts zu tun */
+  const i=scanGalerie.length-1;
+  scanGalerieRender();
+  _scanShrink(src,(klein)=>{ const f=scanGalerie[i];
+    if(f && f.src===src && klein && klein!==src){ f.src=klein; scanGalerieRender(); } });
+}
+/* Mehrere Bilder anhängen (z. B. die Aufnahmen des geführten Dialogs). */
+function scanGalerieAddMany(list, titel){ (list||[]).filter(Boolean).forEach(src=>scanGalerieAdd(src, titel)); }
+function scanGalerieDel(i){ scanGalerie=matPhotoDel(scanGalerie,i); scanGalerieRender(); }
+function scanGalerieMain(i){ scanGalerie=matPhotoMain(scanGalerie,i); scanGalerieRender(); }
+function scanGalerieCap(i, v){ if(scanGalerie[i]) scanGalerie[i].titel=(v||'').trim(); }
+function scanGalerieEdit(i){ const f=scanGalerie[i]; if(!f) return;
+  openPhotoEditor(f.src,(edited)=>{ if(edited==null) return; _scanShrink(edited,(klein)=>{ scanGalerie[i]={src:klein,titel:f.titel||''}; scanGalerieRender(); }); }); }
+/* Mehrfachauswahl aus der Dateiauswahl: jedes Bild einzeln durch den
+   Foto-Editor zu schicken wäre eine Zumutung — nur bei EINEM Bild wird der
+   Editor geöffnet, mehrere wandern direkt in die Galerie (dort einzeln
+   nachbearbeitbar). */
+function scanOnPhoto(ev){
+  const files=[...((ev.target&&ev.target.files)||[])]; if(!files.length) return;
+  try{ ev.target.value=''; }catch(e){}
+  if(files.length===1){
+    const r=new FileReader();
+    r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; scanGalerieAdd(edited); }); };
+    r.readAsDataURL(files[0]); return;
+  }
+  const bilder=[]; let i=0;
+  (function step(){
+    if(i>=files.length){ scanGalerieAddMany(bilder); return; }
+    const r=new FileReader(); r.onload=()=>{ bilder.push(r.result); i++; step(); }; r.onerror=()=>{ i++; step(); };
+    r.readAsDataURL(files[i]);
+  })();
+}
+/* Vorschaubild = erstes Bild der Galerie (Kompatibilität zu `photo`). */
+function scanCurrentPhoto(){ return (scanGalerie[0]&&scanGalerie[0].src)||null; }
+/* Von der OCR/vom Assistenten aufgerufen, wenn dort ein Foto entstanden ist. */
+function scanSetPhoto(photo){ scanGalerieAdd(photo); }
 function saveScanItem(gArg){
   if(!ADMIN){ promptLoginThen(()=>saveScanItem(gArg)); return; }
   let g=gArg?gtinKey(gArg):'';
@@ -509,7 +603,13 @@ function saveScanItem(gArg){
     groessen:scanReadSizes(),
     /* Alt-Einzelfelder auf null: sie sind jetzt in der Maßliste (matSizeList) aufgegangen. */
     french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
-    lagerort:val('scLoc')||null, preis:(preis==null?null:preis), photo:scanCurrentPhoto(), props:scanReadProps() };
+    lagerort:val('scLoc')||null, preis:(preis==null?null:preis),
+    fotos:scanGalerie.slice(), photo:scanCurrentPhoto(), props:scanReadProps() };
+  /* LERNSCHLEIFE: Hat die OCR gerade etwas anderes gelesen als hier gespeichert
+     wird, merkt sich die App das Paar — beim nächsten Mal trifft sie sofort.
+     Genau das macht die Erkennung auch bei Produkten besser, die in KEINEM
+     Katalog stehen. */
+  ocrLearnFromSave(ref);
   /* Referenz-Katalog: übernommene Plattform-Specs (unbestätigt) am Stammsatz sichern. */
   const kh=(typeof catReadHold==='function')?catReadHold():null;
   if(kh && kh.specs && Object.keys(kh.specs).length){
@@ -518,6 +618,7 @@ function saveScanItem(gArg){
   }
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());
   saveGtinDB();
+  if(typeof refInvalidateIndex==='function') refInvalidateIndex();   /* neue REF ist ab sofort auflösbar */
   /* Aus der Materialverwaltung „neu angelegt" → jetzt (erst beim Speichern, nicht
      schon beim Öffnen) das Vorkommen mit dem Stammsatz verknüpfen. */
   if(scanPendingLinkKey && typeof matLinkTo==='function'){ matLinkTo(scanPendingLinkKey, g); scanPendingLinkKey=null; if(typeof buildMaterialIndex==='function') buildMaterialIndex(); }

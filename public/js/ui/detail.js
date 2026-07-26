@@ -73,7 +73,11 @@ function entryCardHTML(e,cid,isMatGer){
   const whyBtn=why?`<button type="button" class="entry-why-btn" aria-label="Warum – Hintergrund anzeigen" aria-expanded="false" title="Warum?">💡</button>`:'';
   const whyPanel=why?`<div class="e-why"><span class="ew-lbl">Warum</span>${esc(why).replace(/\n/g,'<br>')}</div>`:'';
   const varCls=varBadge?' var-changed':'';
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
+  /* data-cid an der Zeile: Der Halte-Detektor liest die Kennung direkt aus dem
+     Attribut, statt sie aus der DOM-id zurückzurechnen. Zeilen OHNE data-cid
+     (z. B. reine Anzeige-Zeilen einer Arzt-Variante) sind damit ausdrücklich
+     nicht bedienbar — der Selektor selbst drückt den Vertrag aus. */
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -273,6 +277,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-variant-edit')){ if(typeof varEditBack==='function') varEditBack(); return; }
   if(act('scr-popups')){ if(typeof popupEditId!=='undefined'&&popupEditId){ popupCloseEdit(); return; } setMode('use'); return; }
   if(act('scr-variants')){ setMode('use'); return; }
+  if(act('scr-diag')){ setMode('use'); return; }
   if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }
   if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
     renderStandards(); show('scr-standards'); updateBar();

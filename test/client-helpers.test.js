@@ -159,9 +159,48 @@ function loadHelpers() {
     extractFn('_lin'),
     extractFn('relLuminance'),
     extractFn('contrastRatio'),
+    extractFn('ocrStretch'),
+    extractFn('ocrDichte'),
+    extractFn('ocrWordsOf'),
+    extractFn('ocrRefBand'),
+    extractFn('ocrVoteFields'),
+    extractFn('ocrRefTokens'),
+    extractConst('REF_KLASSE'),
+    extractConst('REF_STOPP'),
+    extractFn('refCanon'),
+    extractFn('refClassKey'),
+    extractFn('refDistance'),
+    extractFn('refTolerance'),
+    extractFn('refPlausible'),
+    extractFn('refIndex'),
+    extractFn('refResolve'),
+    extractFn('refWieLabel'),
+    extractFn('refLearnInto'),
+    extractFn('refFromLearn'),
+    extractConst('GUDID_BASIS'),
+    extractFn('gudidUrl'),
+    extractFn('gudidLookupfaehig'),
+    extractFn('gudidExtract'),
+    extractConstBlock('WIZ_SCHRITTE'),
+    extractFn('wizSchritt'),
+    extractFn('wizFortschritt'),
+    extractFn('wizZusammenfassung'),
+    extractFn('wizHatErgebnis'),
+    extractFn('matPhotos'),
+    extractFn('matPhotoAdd'),
+    extractFn('matPhotoDel'),
+    extractFn('matPhotoMain'),
+    extractConst('DIAG_MAX'),
+    extractFn('diagShort'),
+    extractFn('diagSig'),
+    extractFn('diagPush'),
+    extractFn('diagAlter'),
+    extractFn('diagRowProblems'),
+    extractFn('diagInnerBlocked'),
+    extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -1912,4 +1951,364 @@ test('debounce: getrennte Tippfolgen lösen getrennt aus', async () => {
   f(); await new Promise(r => setTimeout(r, 40));
   f(); await new Promise(r => setTimeout(r, 40));
   assert.equal(n, 2);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   OCR-Qualität: REF-Auflösung, Kandidaten, Mehrheitsentscheid,
+   REF-Streifen, Kontrastspreizung, GTIN-Nachschlag, Fotogalerie
+   ═══════════════════════════════════════════════════════════════ */
+
+test('ocrStretch: blasse Grauschrift wird auf den vollen Bereich gedehnt', () => {
+  // Nur Werte zwischen 100 und 140 – nach dem Dehnen liegt Schwarz nahe 0, Weiß nahe 255.
+  const g = new Uint8ClampedArray([100, 110, 120, 130, 140, 120, 110, 130, 120, 100]);
+  const out = fns.ocrStretch(g, g.length, { lowPct: 10, highPct: 90 });
+  assert.ok(Math.min(...out) < 40, 'dunkelster Wert muss deutlich dunkler werden');
+  assert.ok(Math.max(...out) > 215, 'hellster Wert muss deutlich heller werden');
+});
+
+test('ocrStretch: einfarbiges Bild bleibt unverändert (kein Division-durch-Null)', () => {
+  const g = new Uint8ClampedArray([128, 128, 128, 128]);
+  const out = fns.ocrStretch(g, 4, {});
+  assert.equal(out.length, 4);
+  assert.equal(out[0], 128);
+});
+
+test('ocrDichte: zählt Zeichen ohne Leerraum', () => {
+  assert.equal(fns.ocrDichte('AB CD\n EF '), 6);
+  assert.equal(fns.ocrDichte(null), 0);
+});
+
+test('ocrWordsOf: Wörter flach ODER verschachtelt in blocks', () => {
+  const flach = fns.ocrWordsOf({ words: [{ text: 'REF', confidence: 90, bbox: { x0: 1, y0: 2, x1: 3, y1: 4 } }] });
+  assert.equal(flach.length, 1);
+  assert.equal(flach[0].text, 'REF');
+  const tief = fns.ocrWordsOf({ blocks: [{ paragraphs: [{ lines: [{ words: [{ text: 'H749', bbox: { x0: 5, y0: 6, x1: 7, y1: 8 } }] }] }] }] });
+  assert.equal(tief.length, 1);
+  assert.equal(tief[0].text, 'H749');
+  assert.equal(tief[0].bbox.x0, 5);
+});
+
+test('ocrRefBand: findet den Streifen rechts vom Wort „REF"', () => {
+  const words = [
+    { text: 'STERILE', bbox: { x0: 10, y0: 10, x1: 90, y1: 30 } },
+    { text: 'REF', bbox: { x0: 20, y0: 100, x1: 60, y1: 124 } },
+  ];
+  const band = fns.ocrRefBand(words, 800, 600);
+  assert.ok(band, 'Band muss gefunden werden');
+  assert.ok(band.y < 100 && (band.y + band.h) > 124, 'Band umschließt die REF-Zeile mit Luft');
+  assert.equal(band.x + band.w, 800, 'Band reicht bis zum rechten Bildrand');
+});
+
+test('ocrRefBand: ohne Marker kein Band (nichts wird geraten)', () => {
+  assert.equal(fns.ocrRefBand([{ text: 'LOT', bbox: { x0: 1, y0: 1, x1: 2, y1: 2 } }], 100, 100), null);
+  assert.equal(fns.ocrRefBand(null, 100, 100), null);
+});
+
+test('ocrVoteFields: die Mehrheit gewinnt, Leeres stimmt nicht mit ab', () => {
+  const v = fns.ocrVoteFields([
+    { ref: 'H749', hersteller: '' },
+    { ref: 'H74Q', hersteller: 'Boston Scientific' },
+    { ref: 'H749', hersteller: 'Boston Scientific' },
+  ]);
+  assert.equal(v.ref, 'H749');
+  assert.equal(v.hersteller, 'Boston Scientific');
+});
+
+test('ocrVoteFields: bei Gleichstand gewinnt die vorderste (gezielte) Lesung', () => {
+  const v = fns.ocrVoteFields([{ ref: 'AAA1' }, { ref: 'BBB2' }]);
+  assert.equal(v.ref, 'AAA1');
+});
+
+test('ocrRefTokens: der ausdrückliche REF-Marker schlägt freie Muster', () => {
+  const toks = fns.ocrRefTokens('Boston Scientific\nMODEL M004\nREF H74904527011\n8F 45cm');
+  assert.ok(toks.length > 0);
+  assert.equal(toks[0].tok, 'H74904527011');
+  assert.equal(toks[0].quelle, 'REF');
+});
+
+test('ocrRefTokens: Etiketten-Schlagwörter und GTINs sind keine REF-Kandidaten', () => {
+  const toks = fns.ocrRefTokens('STERILE EO\nLATEX\nGTIN 08714729123456\nQTY 1');
+  assert.ok(!toks.some(t => /STERILE|LATEX|QTY/i.test(t.tok)), 'Schlagwörter dürfen nicht als REF gelten');
+  assert.ok(!toks.some(t => t.tok === '08714729123456'), 'eine GTIN ist keine REF');
+});
+
+test('refClassKey: verwechselbare Zeichen fallen auf einen Vertreter zusammen', () => {
+  assert.equal(fns.refClassKey('8FR-B4O'), fns.refClassKey('8FR-840'));
+  assert.equal(fns.refClassKey('RM*RGSJ4O'), fns.refClassKey('RM-RG5J40'));
+  assert.notEqual(fns.refClassKey('AB12'), fns.refClassKey('AB13'));
+});
+
+test('refDistance: Zeichenklassen-Fehler kosten nichts, echte Fehler einen Schritt', () => {
+  assert.equal(fns.refDistance('H749O4527O11', 'H74904527011'), 0);
+  assert.equal(fns.refDistance('H74904527011', 'H74904527012'), 1);
+});
+
+test('refPlausible: nur Artikelnummer-artige Zeichenfolgen', () => {
+  assert.equal(fns.refPlausible('RM*RG5J40'), true);
+  assert.equal(fns.refPlausible('KATHETER'), false, 'ohne Ziffer ist es ein Name');
+  assert.equal(fns.refPlausible('A1'), false, 'zu kurz');
+  assert.equal(fns.refPlausible('2024'), false, 'Jahreszahl');
+  assert.equal(fns.refPlausible('08714729123456'), false, 'GTIN');
+});
+
+test('refResolve: exakter Treffer im Bestand', () => {
+  const idx = fns.refIndex(['RM*RG5J40', 'H74904527011']);
+  const r = fns.refResolve('RM-RG5J40', idx);
+  assert.equal(r.ref, 'RM*RG5J40');
+  assert.equal(r.wie, 'exakt');
+  assert.equal(r.sicher, true);
+});
+
+test('refResolve: OCR-Zeichenfehler wird über die Zeichenklasse geheilt', () => {
+  const idx = fns.refIndex(['RM*RG5J40']);
+  const r = fns.refResolve('RM*RGSJ4O', idx);
+  assert.equal(r.ref, 'RM*RG5J40');
+  assert.equal(r.wie, 'zeichenklasse');
+  assert.equal(r.sicher, true);
+});
+
+test('refResolve: mehrere passende REFs ⇒ nichts wird entschieden (Sicherheitsregel)', () => {
+  // „B4O" passt über die Zeichenklasse auf 840 UND auf B40 – also mehrdeutig.
+  const idx = fns.refIndex(['AB840X', 'ABB40X']);
+  const r = fns.refResolve('ABB4OX', idx);
+  assert.equal(r.wie, 'mehrdeutig');
+  assert.equal(r.sicher, false);
+  assert.ok(r.kandidaten.length >= 2);
+});
+
+test('refResolve: unbekannte REF bleibt roh stehen (leer schlägt falsch)', () => {
+  const idx = fns.refIndex(['RM*RG5J40']);
+  const r = fns.refResolve('ZZZZ9999', idx);
+  assert.equal(r.wie, 'roh');
+  assert.equal(r.sicher, false);
+  assert.equal(r.ref, 'ZZZZ9999');
+});
+
+test('refResolve: ein einzelner Buchstabendreher findet den eindeutigen Nachbarn', () => {
+  const idx = fns.refIndex(['H74904527011']);
+  const r = fns.refResolve('H74904527013', idx);
+  assert.equal(r.ref, 'H74904527011');
+  assert.equal(r.wie, 'ähnlich');
+  assert.equal(r.sicher, false, 'ähnlich ist ein Vorschlag, keine Gewissheit');
+});
+
+test('refResolve: kurze REFs werden NICHT unscharf zugeordnet', () => {
+  const idx = fns.refIndex(['AB12']);
+  const r = fns.refResolve('AB19', idx);
+  assert.equal(r.wie, 'roh', 'bei vier Zeichen wäre jede Toleranz gefährlich');
+});
+
+test('Lernschleife: eine Korrektur wirkt beim nächsten Mal sofort', () => {
+  let map = {};
+  map = fns.refLearnInto(map, 'RM*RGSJ4O', 'RM*RG5J40');
+  assert.equal(fns.refFromLearn(map, 'RM*RGSJ4O'), 'RM*RG5J40');
+  // auch eine leicht anders geschriebene Rohlesung derselben Zeichenklasse trifft
+  assert.equal(fns.refFromLearn(map, 'RM-RGSJ4O'), 'RM*RG5J40');
+  assert.equal(fns.refFromLearn(map, 'ANDERS123'), '');
+});
+
+test('Lernschleife: wiederholte gleiche Korrektur zählt hoch', () => {
+  let map = fns.refLearnInto({}, 'X1234Y', 'ABC999');
+  map = fns.refLearnInto(map, 'X1234Y', 'ABC999');
+  assert.equal(map[fns.refClassKey('X1234Y')].n, 2);
+});
+
+test('gudidUrl / gudidLookupfaehig: nur echte GTINs werden nachgeschlagen', () => {
+  assert.ok(fns.gudidUrl('08714729123456').indexOf('di=08714729123456') > 0);
+  assert.equal(fns.gudidLookupfaehig('08714729123456'), true);
+  assert.equal(fns.gudidLookupfaehig('m:eigen'), false);
+  assert.equal(fns.gudidLookupfaehig(''), false);
+});
+
+test('gudidExtract: Katalognummer wird zur REF, Firmenname zum Hersteller', () => {
+  const t = fns.gudidExtract({ gudid: { device: {
+    catalogNumber: 'H74904527011', brandName: 'Expo', companyName: 'Boston Scientific', deviceDescription: 'Sheath' } } });
+  assert.equal(t.ref, 'H74904527011');
+  assert.equal(t.name, 'Expo');
+  assert.equal(t.hersteller, 'Boston Scientific');
+  assert.ok(/AccessGUDID/.test(t.quelle), 'die Quelle muss mitgeführt werden');
+});
+
+test('gudidExtract: fehlt die Katalognummer, greift die Modellnummer', () => {
+  const t = fns.gudidExtract({ device: { versionModelNumber: 'MDL-7', companyName: 'Terumo' } });
+  assert.equal(t.ref, 'MDL-7');
+});
+
+test('gudidExtract: leere/kaputte Antwort ergibt null (nichts wird erfunden)', () => {
+  assert.equal(fns.gudidExtract(null), null);
+  assert.equal(fns.gudidExtract({}), null);
+  assert.equal(fns.gudidExtract({ gudid: { device: { catalogNumber: '', brandName: 'null' } } }), null);
+});
+
+test('Assistent: drei Schritte, Fortschritt zählt richtig', () => {
+  const f0 = fns.wizFortschritt({ schritt: 0 });
+  assert.equal(f0.nr, 1);
+  assert.equal(f0.gesamt, 3);
+  assert.equal(f0.id, 'barcode');
+  assert.equal(fns.wizFortschritt({ schritt: 1 }).id, 'etikett');
+  assert.equal(fns.wizFortschritt({ schritt: 2 }).id, 'pruefen');
+});
+
+test('Assistent: die Übersicht nennt zu jedem Wert die Herkunft', () => {
+  const zeilen = fns.wizZusammenfassung({
+    gtin: '08714729123456', barcodeRef: '', gtinTreffer: { ref: 'H749', quelle: 'AccessGUDID (NLM)' },
+    fields: { ref: 'H749', hersteller: 'Boston Scientific' }, refInfo: { wie: 'exakt' },
+  });
+  const gtinZeile = zeilen.find(z => z[0] === 'GTIN');
+  assert.ok(gtinZeile && /exakt/.test(gtinZeile[2]), 'die GTIN kommt exakt aus dem Barcode');
+  const refZeile = zeilen.find(z => z[0] === 'REF / Bestellnr.');
+  assert.ok(refZeile && /AccessGUDID/.test(refZeile[2]), 'die REF stammt aus dem Nachschlag');
+  const hZeile = zeilen.find(z => z[0] === 'Hersteller');
+  assert.ok(hZeile && /Etikett/.test(hZeile[2]), 'der Hersteller wurde gelesen');
+});
+
+test('Assistent: ohne Ergebnis wird nichts vorgegaukelt', () => {
+  assert.equal(fns.wizHatErgebnis({ fields: {} }), false);
+  assert.equal(fns.wizHatErgebnis(null), false);
+  assert.equal(fns.wizHatErgebnis({ gtin: '0871', fields: {} }), true);
+});
+
+test('Fotogalerie: Alt-Einzelfoto geht nie verloren und wird nicht gedoppelt', () => {
+  const nur = fns.matPhotos({ photo: 'data:a' });
+  assert.equal(nur.length, 1);
+  assert.equal(nur[0].src, 'data:a');
+  const beides = fns.matPhotos({ photo: 'data:a', fotos: [{ src: 'data:a' }, { src: 'data:b', titel: 'Anschluss' }] });
+  assert.equal(beides.length, 2, 'dasselbe Bild darf nur einmal erscheinen');
+  assert.equal(beides[1].titel, 'Anschluss');
+  assert.equal(fns.matPhotos(null).length, 0);
+});
+
+test('Fotogalerie: hinzufügen, entfernen, zum Vorschaubild machen', () => {
+  let l = fns.matPhotoAdd([], 'data:a');
+  l = fns.matPhotoAdd(l, 'data:b', 'Etikett');
+  l = fns.matPhotoAdd(l, 'data:a');            // Dublette
+  assert.equal(l.length, 2);
+  const haupt = fns.matPhotoMain(l, 1);
+  assert.equal(haupt[0].src, 'data:b');
+  assert.equal(haupt[0].titel, 'Etikett');
+  assert.equal(fns.matPhotoDel(l, 0).length, 1);
+  assert.equal(fns.matPhotoDel(l, 9).length, 2, 'ungültiger Index ändert nichts');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Diagnose: Fehler- und Problemanalyse
+   ═══════════════════════════════════════════════════════════════ */
+
+test('diagShort: kürzt und normalisiert Leerraum', () => {
+  assert.equal(fns.diagShort('  a \n b  '), 'a b');
+  assert.equal(fns.diagShort('x'.repeat(50), 10).length, 10);
+  assert.ok(fns.diagShort('x'.repeat(50), 10).endsWith('…'));
+  assert.equal(fns.diagShort(null), '');
+});
+
+test('diagPush: ein Fehler in Schleife ergibt EINEN Eintrag mit Zähler', () => {
+  let l = [];
+  for (let i = 0; i < 500; i++) l = fns.diagPush(l, { art: 'fehler', text: 'kaputt', wo: 'scr-std', t: '2026-01-01T00:00:0' + (i % 10) + 'Z' });
+  assert.equal(l.length, 1, 'ohne Zusammenfassung wäre das Protokoll unbrauchbar');
+  assert.equal(l[0].n, 500);
+});
+
+test('diagPush: verschiedene Fehler bleiben getrennt, neueste zuerst', () => {
+  let l = fns.diagPush([], { art: 'fehler', text: 'A', wo: 'x' });
+  l = fns.diagPush(l, { art: 'fehler', text: 'B', wo: 'x' });
+  assert.equal(l.length, 2);
+  assert.equal(l[0].text, 'B');
+});
+
+test('diagPush: derselbe Text auf anderem Bildschirm ist ein anderer Befund', () => {
+  let l = fns.diagPush([], { art: 'fehler', text: 'A', wo: 'scr-std' });
+  l = fns.diagPush(l, { art: 'fehler', text: 'A', wo: 'scr-care' });
+  assert.equal(l.length, 2);
+});
+
+test('diagPush: der Ringpuffer läuft nicht über', () => {
+  let l = [];
+  for (let i = 0; i < 40; i++) l = fns.diagPush(l, { art: 'fehler', text: 'nr' + i, wo: 'x' }, 10);
+  assert.equal(l.length, 10);
+  assert.equal(l[0].text, 'nr39', 'der neueste steht vorn');
+});
+
+test('diagAlter: Abstand statt Uhrzeit', () => {
+  const jetzt = Date.parse('2026-07-26T12:00:00Z');
+  assert.equal(fns.diagAlter('2026-07-26T11:59:40Z', jetzt), 'gerade eben');
+  assert.equal(fns.diagAlter('2026-07-26T11:30:00Z', jetzt), 'vor 30 Min.');
+  assert.equal(fns.diagAlter('2026-07-26T09:00:00Z', jetzt), 'vor 3 Std.');
+  assert.equal(fns.diagAlter('2026-07-24T12:00:00Z', jetzt), 'vor 2 Tagen');
+  assert.equal(fns.diagAlter('kaputt', jetzt), '');
+});
+
+test('diagRowProblems: findet genau den Anleitungs-Fehler (Zeile ohne Weg hinein)', () => {
+  // So sah die Übersicht aus: Standards mit data-sid, Anleitungen mit data-gid —
+  // der Halte-Detektor kannte aber nur 'sid'. Auf Touch passierte dann nichts.
+  const rows = [
+    { dataset: { sid: 'std-1' }, onclick: null },
+    { dataset: { gid: 'g1' }, onclick: null },
+  ];
+  const kaputt = fns.diagRowProblems(rows, ['sid']);
+  assert.equal(kaputt.length, 1, 'die Anleitungs-Zeile ist unerreichbar');
+  assert.equal(kaputt[0].dataset.gid, 'g1');
+  // Nach dem Fix kennt der Detektor beide:
+  assert.equal(fns.diagRowProblems(rows, ['sid', 'gid']).length, 0);
+});
+
+test('diagRowProblems: eigener onclick zählt als Weg hinein', () => {
+  const rows = [{ dataset: {}, onclick: () => {} }];
+  assert.equal(fns.diagRowProblems(rows, ['sid']).length, 0);
+});
+
+test('diagRowProblems: leeres Attribut zählt nicht als Handler', () => {
+  const rows = [{ dataset: { sid: '' }, onclick: null }];
+  assert.equal(fns.diagRowProblems(rows, ['sid']).length, 1);
+});
+
+test('diagBerichtText: enthält Selbsttest, Befunde und Zusammenhang', () => {
+  const t = fns.diagBerichtText({
+    jetzt: '2026-07-26T12:00:00Z', geraet: 'Chrome · Android', netz: 'online',
+    pruefungen: [{ ok: true, titel: 'Alle Bildschirme vorhanden', info: '11 Bildschirme' },
+                 { ok: false, titel: 'Übersichtszeilen sind bedienbar', info: '1 Zeile ohne Handler' }],
+    eintraege: [{ art: 'meldung', t: '2026-07-26T11:58:00Z', text: 'nichts passiert',
+                  wunsch: 'eine Anleitung öffnen', wo: 'scr-standards · use', weg: 'scr-standards', n: 1 }],
+  });
+  assert.ok(/SELBSTTEST: 1\/2 in Ordnung/.test(t));
+  assert.ok(/\[!!\] Übersichtszeilen sind bedienbar/.test(t), 'auffällige Prüfungen sind markiert');
+  assert.ok(/Wollte: eine Anleitung öffnen/.test(t), 'die Absicht des Nutzers gehört in den Bericht');
+  assert.ok(/Bildschirm: scr-standards/.test(t));
+});
+
+test('diagBerichtText: leeres Protokoll wird ehrlich benannt', () => {
+  assert.ok(/PROTOKOLL: keine Einträge/.test(fns.diagBerichtText({ jetzt: 'x' })));
+});
+
+/* Schalter INNERHALB einer Listenzeile — die zweite Hälfte derselben
+   Fehlerklasse wie diagRowProblems. Der Halte-Detektor lauscht am Container
+   und beansprucht den Tipp auf der ganzen Zeile; ein Schalter darin kommt
+   ohne Ausnahme (ignoreSel) nie zum Zug. Traf real: ⭐ in der Übersicht und
+   🔗 am Eintrag. */
+function fakeBtn(cls) {
+  const el = { className: cls, tagName: 'BUTTON' };
+  el.matches = (sel) => sel.split(',').some(s => s.trim() === '.' + cls);
+  el.closest = (sel) => (el.matches(sel) ? el : null);
+  return el;
+}
+function fakeRow(btns) { return { querySelectorAll: () => btns }; }
+
+test('diagInnerBlocked: Schalter ohne Ausnahme werden gemeldet', () => {
+  const row = fakeRow([fakeBtn('fav-btn')]);
+  assert.equal(fns.diagInnerBlocked([row], '').length, 1, 'ohne ignoreSel ist der ⭐ verschluckt');
+  assert.equal(fns.diagInnerBlocked([row], '.fav-btn').length, 0, 'mit Ausnahme ist er frei');
+});
+
+test('diagInnerBlocked: mehrere Ausnahmen in einem Selektor', () => {
+  const row = fakeRow([fakeBtn('entry-edit-btn'), fakeBtn('entry-canon-btn'), fakeBtn('entry-why-btn')]);
+  const sel = '.entry-edit-btn,.entry-why-btn,.entry-menu-btn';
+  const offen = fns.diagInnerBlocked([row], sel);
+  assert.equal(offen.length, 1, 'der 🔗-Schalter fehlte in der Ausnahmeliste');
+  assert.equal(offen[0].className, 'entry-canon-btn');
+  assert.equal(fns.diagInnerBlocked([row], sel + ',.entry-canon-btn').length, 0);
+});
+
+test('diagInnerBlocked: Zeilen ohne Schalter und leere Eingaben', () => {
+  assert.equal(fns.diagInnerBlocked([fakeRow([])], '').length, 0);
+  assert.equal(fns.diagInnerBlocked([null, undefined], '').length, 0);
+  assert.equal(fns.diagInnerBlocked(null, '').length, 0);
 });

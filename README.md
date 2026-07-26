@@ -155,14 +155,36 @@ CSP change, works offline.
 - The barcode does **not** carry the human-readable **REF** or **manufacturer name**, so those
   free-text fields (plus sizes: French, length, outer/inner Ø) are entered **once per GTIN** and
   are then shown automatically on every future scan.
-- **On-device OCR** ([`public/js/features/ocr.js`](public/js/features/ocr.js)) fills those
-  free-text fields from a **photo of the label**: in the product form, *„📸 Etikett fotografieren"*
-  captures a picture and reads REF, manufacturer and sizes off it (`extractLabelFields`), pre-filling
-  the form for the user to confirm. It runs **entirely on the device** — Tesseract.js (WASM) is
-  **self-hosted** under [`public/vendor/tesseract/`](public/vendor/tesseract/) (no cloud, no
-  third-party origin, offline after first use). The engine is loaded lazily on first use only. This
-  needs `wasm-unsafe-eval` in the CSP (WASM compilation only — never bare `unsafe-eval`; see
-  `server/config.js`).
+- **Label capture in four tiers** — the guiding idea is that *the best OCR is the one you don't
+  need*, and that a catalogue number does not have to be read **perfectly**, only
+  **distinguishably**. See [`docs/KONZEPT-OCR.md`](docs/KONZEPT-OCR.md) for the full write-up.
+  1. **Barcode** — GS1 AI `01` carries the GTIN and AI `240/241` often the REF itself: exact, no
+     text recognition involved at all.
+  2. **Resolve the GTIN** ([`features/gudid.js`](public/js/features/gudid.js)) — own product
+     record → bundled reference catalogue → **AccessGUDID** (US National Library of Medicine, free,
+     no account). Web hits are always flagged *unbestätigt* with their source and only ever fill
+     empty fields; results are cached device-locally so the same article resolves offline next time.
+  3. **Read the label** ([`features/ocr.js`](public/js/features/ocr.js)) — grayscale up to 3600 px
+     with percentile contrast stretching (the LSTM engine prefers grayscale over hard
+     binarisation), dictionaries switched **off** so article numbers aren't "corrected" into English
+     words, a targeted **REF strip** located from the word boxes and re-read as a single line
+     (PSM 7) with a character whitelist, an optional binarised second opinion, and a majority vote
+     across all readings — all from **one** photo.
+  4. **Resolve the REF** ([`features/matref.js`](public/js/features/matref.js)) — match the reading
+     against every REF the app knows, treating OCR-confusable characters (`O/0`, `I/1`, `S/5`,
+     `B/8`) as equal. Only **unambiguous** matches are applied; anything else stays raw
+     (*leer schlägt falsch*).
+  A **learning loop** (`hkl_ocrlearn`, shared across devices) remembers every human correction, so
+  the app keeps improving even for products that appear in no catalogue. A **guided two-shot
+  dialog** ([`features/ocrwizard.js`](public/js/features/ocrwizard.js)) walks through the barcode
+  (close-up) and the label (full frame) because the two need opposite framings — a single photo
+  still works. Everything runs **on the device**: Tesseract.js (WASM) is **self-hosted** under
+  [`public/vendor/tesseract/`](public/vendor/tesseract/), loaded lazily on first use. This needs
+  `wasm-unsafe-eval` in the CSP (WASM compilation only — never bare `unsafe-eval`), plus exactly one
+  external origin in `connect-src` for AccessGUDID; see `server/config.js`.
+- **Several photos per material**: a product record keeps a list (`fotos`) — packaging, label,
+  unpacked device, connector, shelf position. The first image stays the thumbnail used by every
+  list view, and every image opens zoomable in the lightbox.
 - Looking products up is open to everyone; creating/editing a record and running OCR require the
   admin login. Where `BarcodeDetector` is unavailable, the database stays searchable and (as admin)
   manually editable; the photo-OCR works independently of it.

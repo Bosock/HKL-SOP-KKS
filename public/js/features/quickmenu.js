@@ -357,20 +357,17 @@ $('sheetOv').addEventListener('click',()=>showSheet(false));
 let touchGuardTs=0;
 function ghostMouse(){ return Date.now()-touchGuardTs<700; }
 
-/* Long-Press per Ereignisdelegation: kurz=abhaken, halten=Menü, bewegen=blättern */
-(function attachLongPress(){ const el=$('scr-detail'); let timer=null,sx=0,sy=0,fired=false,curCid=null,active=false;
-  function cidFromTarget(t){ const row=(t&&t.closest)?t.closest('.entry-row'):null; if(!row) return null; const entry=row.closest('.entry'); if(!entry||!entry.id) return null; return entry.id.replace(/^e-/,''); }
-  function down(x,y,t){ if(t&&t.closest&&(t.closest('.entry-edit-btn')||t.closest('.entry-why-btn')||t.closest('.entry-menu-btn'))) return; const cid=cidFromTarget(t); if(!cid) return; curCid=cid; sx=x; sy=y; fired=false; active=true; clearTimeout(timer); timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(ADMIN){ refreshAuth(); openSheet(curCid); } else { openProposeForm(curCid); } },500); }
-  function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
-  function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(curCid) toggleCheck(curCid); }
-  el.addEventListener('touchstart',e=>{ touchGuardTs=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
-  el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
-  el.addEventListener('touchend',e=>{ touchGuardTs=Date.now(); const consumed=active; up(); if(consumed&&e.cancelable){ try{ e.preventDefault(); }catch(_){} } });
-  el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
-  el.addEventListener('mousedown',e=>{ if(ghostMouse()) return; down(e.clientX,e.clientY,e.target); });
-  el.addEventListener('mousemove',e=>{ if(ghostMouse()) return; move(e.clientX,e.clientY); });
-  el.addEventListener('mouseup',()=>{ if(ghostMouse()) return; up(); });
-  el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
+/* Die eigenen Schalter INNERHALB einer Eintragszeile. Sie müssen vom
+   Halte-Detektor ausgenommen werden — sonst beansprucht er den Tipp auf der
+   ganzen Zeile, hakt ab und unterdrückt den nativen Klick, sodass der
+   Schalter selbst nie zum Zug kommt. An EINER Stelle gepflegt, damit ein
+   neuer Schalter nicht wieder vergessen wird. */
+const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn';
+
+/* Die sichtbaren Schalter einer Eintragszeile (Delegation am Bildschirm).
+   Das Tippen/Halten der ZEILE selbst behandelt der gemeinsame Halte-Detektor
+   weiter unten — früher lag hier eine zweite, fast identische Kopie davon. */
+(function attachEntryButtons(){ const el=$('scr-detail');
   /* Sichtbarer ✎-Button: öffnet direkt das Bearbeiten-Formular (kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-edit-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); editEntry(cid); } else { promptLoginThen(()=>editEntry(cid)); } });
   /* ⋯-Button (für alle sichtbar): Admin → Schnellmenü, sonst → Vorschlag.
@@ -386,15 +383,32 @@ function ghostMouse(){ return Date.now()-touchGuardTs<700; }
    = öffnen, langes Halten (≈500 ms) = Bearbeiten-Menü. Damit ist das gegliederte
    Menü auf JEDER Ebene per Long-Press erreichbar — Standard-Übersicht, Rubriken-
    Liste und (separat) Einträge. Delegation am persistenten Container. */
+/* Register der aktiven Halte-Detektoren. Der Selbsttest (features/diag.js)
+   liest daraus, WELCHE Daten-Attribute eine Zeile tragen muss, damit sie sich
+   überhaupt öffnen lässt — so fällt „Zeile ohne Weg hinein" künftig auf,
+   statt still zu scheitern. */
+const HOLDNAV = [];
 function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired=false,cur=null,active=false;
+  HOLDNAV.push({ el, rowSel:opts.rowSel, keys:(opts.keys||[]), ignoreSel:(opts.ignoreSel||'') });
   function row(t){ if(!t||!t.closest) return null; if(opts.ignoreSel && t.closest(opts.ignoreSel)) return null; return t.closest(opts.rowSel); }
   function down(x,y,t){ const rw=row(t); if(!rw) return; cur=rw; sx=x; sy=y; fired=false; active=true; clearTimeout(timer);
     timer=setTimeout(()=>{ fired=true; try{ if(navigator.vibrate) navigator.vibrate(15); }catch(e){} if(opts.onHold) opts.onHold(cur); },500); }
   function move(x,y){ if(!active) return; if(Math.abs(x-sx)>10||Math.abs(y-sy)>10){ clearTimeout(timer); active=false; } }
-  function up(){ if(!active) return; clearTimeout(timer); active=false; if(fired){ fired=false; return; } if(cur&&opts.onTap) opts.onTap(cur); }
+  /* Liefert TRUE, wenn der Tipp tatsächlich behandelt wurde. Wichtig für den
+     Touch-Pfad unten: nur ein WIRKLICH behandelter Tipp darf den nativen Klick
+     unterdrücken. */
+  function up(){ if(!active) return false; clearTimeout(timer); active=false;
+    if(fired){ fired=false; return true; }
+    return !!(cur && opts.onTap && opts.onTap(cur)); }
   el.addEventListener('touchstart',e=>{ touchGuardTs=Date.now(); const t=e.touches[0]; down(t.clientX,t.clientY,e.target); },{passive:true});
   el.addEventListener('touchmove',e=>{ const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
-  el.addEventListener('touchend',e=>{ touchGuardTs=Date.now(); const consumed=active; up(); if(consumed&&e.cancelable){ try{ e.preventDefault(); }catch(_){} } });
+  /* FEHLER, den das gekostet hat (Anleitungen ließen sich auf dem Handy nicht
+     öffnen): Früher wurde JEDER Tipp auf eine passende Zeile unterdrückt —
+     auch wenn onTap gar nichts tun konnte. Der Browser feuerte dann kein
+     `click`, und ein Inline-`onclick=` auf der Zeile kam nie zum Zug. Am
+     Schreibtisch (Maus) fiel das nicht auf, weil mouseup nichts unterdrückt.
+     Jetzt wird nur unterdrückt, was auch behandelt wurde. */
+  el.addEventListener('touchend',e=>{ touchGuardTs=Date.now(); const behandelt=up(); if(behandelt&&e.cancelable){ try{ e.preventDefault(); }catch(_){} } });
   el.addEventListener('touchcancel',()=>{ clearTimeout(timer); active=false; });
   el.addEventListener('mousedown',e=>{ if(ghostMouse()) return; down(e.clientX,e.clientY,e.target); });
   el.addEventListener('mousemove',e=>{ if(ghostMouse()) return; move(e.clientX,e.clientY); });
@@ -402,11 +416,37 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
   el.addEventListener('mouseleave',()=>{ clearTimeout(timer); active=false; });
 }
 (function attachListHolds(){
-  attachHoldNav($('scr-standards'), { rowSel:'.std',
-    onTap:rw=>{ const id=rw.dataset.sid; if(id) openStandard(id); },
-    onHold:rw=>{ const id=rw.dataset.sid; if(id&&ADMIN){ refreshAuth(); openStdSheet(id); } } });
-  attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn',
-    onTap:rw=>{ const i=rw.dataset.ri; if(i!=null) openRubrik(+i); },
+  /* Die Übersicht trägt ZWEI Zeilenarten mit derselben Klasse `.std`:
+     Standards (data-sid) und Anleitungen (data-gid). Der Halte-Detektor muss
+     beide kennen — sonst verschluckt er den Tipp auf Anleitungen. */
+  /* ignoreSel ist PFLICHT, sobald in einer Zeile eigene Schalter sitzen: Der
+     Detektor beansprucht den Tipp auf der ganzen Zeile und unterdrückt danach
+     den nativen Klick — ein `event.stopPropagation()` im Inline-onclick des
+     Schalters kommt gar nicht erst zum Zug, weil der Detektor am CONTAINER
+     lauscht (Delegation), nicht an der Zeile. Ohne diese Ausnahme öffnete ein
+     Tipp auf ⭐ am Handy den Standard, statt den Favoriten zu setzen. */
+  attachHoldNav($('scr-standards'), { rowSel:'.std', keys:['sid','gid'], ignoreSel:'.fav-btn',
+    onTap:rw=>{
+      const sid=rw.dataset.sid; if(sid){ openStandard(sid); return true; }
+      const gid=rw.dataset.gid; if(gid&&typeof openGuide==='function'){ openGuide(gid); return true; }
+      return false;
+    },
+    onHold:rw=>{
+      const sid=rw.dataset.sid; if(sid&&ADMIN){ refreshAuth(); openStdSheet(sid); return; }
+      const gid=rw.dataset.gid; if(gid&&ADMIN&&typeof openGuideEdit==='function'){ refreshAuth(); openGuideEdit(gid); }
+    } });
+  attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn', keys:['ri'],
+    onTap:rw=>{ const i=rw.dataset.ri; if(i==null) return false; openRubrik(+i); return true; },
     onHold:rw=>{ const i=rw.dataset.ri; if(i!=null&&ADMIN){ refreshAuth(); openRubSheet(+i); } } });
+  /* Einträge: kurz tippen = abhaken, halten = Bearbeiten-Menü (bzw. Vorschlag).
+     Nutzt jetzt denselben Detektor wie die anderen Ebenen — vorher lag hier
+     eine eigene, fast identische Umsetzung, in der die Rückmeldung „behandelt"
+     und der 🔗-Schalter fehlten. Der Selektor `[data-cid]` grenzt bewusst auf
+     ECHTE Eintragszeilen ein; reine Anzeige-Zeilen (Arzt-Varianten) tragen
+     keine Kennung und sind damit ausdrücklich nicht bedienbar. */
+  attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
+    onTap:rw=>{ const cid=rw.dataset.cid; if(!cid) return false; toggleCheck(cid); return true; },
+    onHold:rw=>{ const cid=rw.dataset.cid; if(!cid) return;
+      if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } } });
 })();
 

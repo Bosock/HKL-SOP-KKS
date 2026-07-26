@@ -77,7 +77,11 @@ function guideRowsHTML(query){
   const row=(x)=>{
     const badge=x.notfall?`<span class="std-badge nf">🚨 Notfall</span>`:`<span class="std-badge">${esc(x.gruppe)}</span>`;
     const sub=[x.schritte?(x.schritte+' Schritte'):'noch leer', x.intervall?('⏰ '+x.intervall):''].filter(Boolean).join(' · ');
-    return `<div class="std${x.notfall?' std-nf':''}" data-gid="${esc(x.id)}" onclick="openGuide(this.dataset.gid)">
+    /* KEIN Inline-onclick: Tippen und langes Halten laufen — wie bei den
+       Standards — über den Halte-Detektor (attachHoldNav in quickmenu.js),
+       der auf `data-gid` reagiert. Zwei parallele Wege würden die Anleitung
+       am Schreibtisch doppelt öffnen. */
+    return `<div class="std${x.notfall?' std-nf':''}" data-gid="${esc(x.id)}">
       ${badge}<div class="std-main"><div class="std-title">${esc(x.titel)}</div>
       <div class="std-file">${esc(sub)}${x.kurz?' · '+esc(x.kurz):''}</div></div>
       ${favBtnHTML(x.id)}<span class="chev">›</span></div>`;
