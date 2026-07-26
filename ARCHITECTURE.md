@@ -205,6 +205,31 @@ trägt die CSP `'wasm-unsafe-eval'` (reine WASM-Kompilierung, kein bare
 (Client entpackt selbst). End-to-End (lädt echte Engine, liest echten Text):
 `e2e/ocr.js`.
 
+**Etikett-Erkennung in vier Stufen** — Leitgedanke: *die beste Texterkennung
+ist die, die man nicht braucht*, und eine REF muss nicht perfekt gelesen
+werden, sondern **unterscheidbar** sein. Ausführlich in
+[`docs/KONZEPT-OCR.md`](docs/KONZEPT-OCR.md):
+
+| Stufe | Modul | Kern |
+|---|---|---|
+| 0 Barcode | `features/scanner.js` | GS1 AI `01` (GTIN) und AI `240/241` (REF **exakt**) |
+| 1 GTIN auflösen | `features/gudid.js` | eigener Stammsatz → Referenz-Katalog → **AccessGUDID** (NLM, frei, kontolos); Treffer sind „unbestätigt" mit Quelle, Cache `hkl_gudid` (gerätelokal) |
+| 2 Etikett lesen | `features/ocr.js` | `ocrReadLabel`: Graustufen bis 3600 px + Kontrastspreizung, Wörterbücher AUS, gezielter **REF-Streifen** (`ocrRefBand` → PSM 7 + Whitelist), zweite Meinung binarisiert, Mehrheitsentscheid (`ocrVoteFields`) — alles aus EINEM Foto |
+| 3 REF auflösen | `features/matref.js` | `refResolve` gegen den bekannten Bestand: exakt → Zeichenklasse (`O/0`, `I/1`, `S/5`, `B/8`) → ähnlich; **nur Eindeutiges wird entschieden** |
+
+Dazu die **Lernschleife** (`hkl_ocrlearn`, in `SHARED_KEYS` + `BACKUP_KEYS`):
+Korrigiert ein Mensch eine Lesung, merkt sich die App das Paar — beim nächsten
+Mal trifft sie sofort, auch bei Produkten außerhalb jedes Katalogs.
+Der **geführte Dialog** (`features/ocrwizard.js`) führt durch zwei Aufnahmen
+(Barcode nah, Etikett flächig), weil beide gegensätzliche Bilder brauchen; ein
+einzelnes Foto bleibt möglich. Server-OCR ist bewusst **nicht** umgesetzt,
+solange `/api/state` unauthentifiziert ist (siehe Konzeptpapier).
+CSP: `connect-src` erlaubt zusätzlich genau `https://accessgudid.nlm.nih.gov`.
+
+**Fotogalerie am Material** (`features/scanner.js`): der Stammsatz führt
+`fotos: [{src,titel}]`; `photo` bleibt das erste Bild der Liste, damit alle
+Listenansichten und Altbestände unverändert funktionieren.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

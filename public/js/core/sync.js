@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -39,6 +39,8 @@ function hydrateVars(){
   careMem=loadJSON('hkl_care',{});
   PROD=loadJSON('hkl_prod',{});
   GTINDB=loadJSON('hkl_gtin',{});
+  if(typeof OCRLEARN!=='undefined') OCRLEARN=loadJSON('hkl_ocrlearn',{});
+  if(typeof refInvalidateIndex==='function') refInvalidateIndex();   /* REF-Bestand hat sich geändert */
   MATLINK=loadJSON('hkl_matlink',{});
   MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
   if(typeof CLEANUP_DONE!=='undefined') CLEANUP_DONE=loadJSON('hkl_cleanup_done',{});

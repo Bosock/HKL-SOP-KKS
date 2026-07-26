@@ -83,7 +83,11 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  // AccessGUDID (US National Library of Medicine): freie, kontolose
+  // Geräte-Datenbank. Sie loest eine gescannte GTIN in die menschenlesbare
+  // Katalognummer (REF) auf — der Weg, der GAR KEINE Texterkennung braucht.
+  // Nur GET-Abfragen mit der GTIN, ohne Anmeldedaten (credentials:'omit').
+  "connect-src 'self' https://accessgudid.nlm.nih.gov",
   "manifest-src 'self'",
   // blob: für den Tesseract-Web-Worker (je nach Ladeweg als Blob instanziiert).
   "worker-src 'self' blob:",

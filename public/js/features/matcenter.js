@@ -34,7 +34,10 @@ let mcEntryCache = null;       /* dito für die Eintragsliste (voller DB-Durchla
 function mcMissingOf(rec){
   const out=[];
   if(!rec) return out;
-  if(!rec.photo) out.push('foto');
+  /* Foto: `photo` ist das Vorschaubild, `fotos` die Galerie. Als „vorhanden"
+     zählt beides — sonst gälte ein Material mit fünf Galeriebildern, aber ohne
+     gesetztes Vorschaubild fälschlich als ungepflegt. */
+  if(!rec.photo && !(Array.isArray(rec.fotos) && rec.fotos.length)) out.push('foto');
   if(rec.preis==null || rec.preis==='') out.push('preis');
   if(!rec.lagerort) out.push('lagerort');
   if(!rec.ref) out.push('ref');

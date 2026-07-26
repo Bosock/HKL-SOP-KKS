@@ -62,13 +62,51 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('Scanner-Produkt speichert Foto (GTINDB.photo)', scan.hasPhoto);
   r.check('Produktliste zeigt Foto-Thumbnail', scan.rowHasImg);
 
-  // 5) Scanner-Formular hat Foto-Zone + „Zuschneiden"-Knopf.
+  // 5) Scanner-Formular hat die FOTOGALERIE (mehrere Bilder je Material) mit
+  //    Datei-Auswahl und Werkzeugen je Kachel.
   const form = await A.page.evaluate(() => {
     openScanItem('04012345678901', true);
     const html = document.getElementById('scr-scan-item').innerHTML;
-    return { zone: !!document.getElementById('scanPhotoZone'), crop: /Zuschneiden \/ drehen/.test(html), fileInp: !!document.getElementById('scanFileInp') };
+    return {
+      galerie: !!document.getElementById('scGallery'),
+      kacheln: document.querySelectorAll('#scGallery .gal-item').length,
+      addBtn: !!document.querySelector('#scGallery .gal-add'),
+      crop: /Zuschneiden \/ drehen/.test(html),
+      fileInp: !!document.getElementById('scanFileInp'),
+      mehrfach: !!(document.getElementById('scanFileInp') || {}).multiple,
+      zoombar: !!document.querySelector('#scGallery .gal-item img[data-zoom]'),
+    };
   });
-  r.check('Scanner-Formular: Foto-Zone + Datei + „Zuschneiden"-Knopf', form.zone && form.crop && form.fileInp);
+  r.check('Scanner-Formular: Fotogalerie mit vorhandenem Bild', form.galerie && form.kacheln === 1);
+  r.check('Galerie: „Foto hinzufügen" + Mehrfachauswahl', form.addBtn && form.fileInp && form.mehrfach);
+  r.check('Galerie: Kachel-Werkzeuge (Zuschneiden/drehen)', form.crop);
+  r.check('Galerie: Bilder sind vergrößerbar (Lightbox)', form.zoombar);
+
+  // 5b) Mehrere Fotos je Material: hinzufügen, umsortieren, speichern.
+  const multi = await A.page.evaluate(() => {
+    const mk = (farbe) => { const c = document.createElement('canvas'); c.width = 12; c.height = 12;
+      const g = c.getContext('2d'); g.fillStyle = farbe; g.fillRect(0, 0, 12, 12); return c.toDataURL('image/jpeg'); };
+    openScanItem('04012345678901', true);
+    const vorher = scanGalerie.length;
+    scanGalerie = matPhotoAdd(scanGalerie, mk('#0a0'), 'Etikett');
+    scanGalerie = matPhotoAdd(scanGalerie, mk('#a00'), 'Anschluss');
+    scanGalerieRender();
+    const kacheln = document.querySelectorAll('#scGallery .gal-item').length;
+    // zweites Bild zum Vorschaubild machen
+    scanGalerieMain(1);
+    const neuesHaupt = scanGalerie[0].titel;
+    saveScanItem('04012345678901');
+    const rec = GTINDB['04012345678901'];
+    return { vorher, kacheln, neuesHaupt,
+      gespeichert: (rec.fotos || []).length,
+      vorschauIstErstes: rec.photo === (rec.fotos || [])[0].src,
+      titelErhalten: (rec.fotos || []).some(f => f.titel === 'Anschluss') };
+  });
+  r.check('Galerie: mehrere Fotos je Material', multi.vorher === 1 && multi.kacheln === 3);
+  r.check('Galerie: „★" macht ein Bild zum Vorschaubild', multi.neuesHaupt === 'Etikett');
+  r.check('Galerie: alle Fotos werden gespeichert', multi.gespeichert === 3);
+  r.check('Galerie: photo bleibt das erste Bild (Listen unverändert)', multi.vorschauIstErstes);
+  r.check('Galerie: Bildunterschriften bleiben erhalten', multi.titelErhalten);
 
   // 6) KONSOLIDIERUNG: Die alte „Material pflegen“-Maske ist entfernt — Fotos
   //    haben jetzt EIN Zuhause (den Material-Stammsatz). Alt-Fotos dürfen dabei

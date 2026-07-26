@@ -721,3 +721,58 @@
 .scopebar .hint { margin:8px 0 0; }
 .scope-note { border-left:3px solid var(--accent); background:rgba(61,155,224,.08); border-radius:0 10px 10px 0;
   padding:9px 12px; font-size:12.5px; line-height:1.5; margin:10px 0 4px; }
+
+/* ═══ Geführte Etikett-Erfassung (features/ocrwizard.js) ═══ */
+.wiz { position:fixed; inset:0; z-index:1400; background:rgba(0,0,0,.62); display:none; align-items:flex-end; justify-content:center; }
+.wiz.show { display:flex; }
+.wiz-card { background:var(--surface); width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; box-shadow:0 -8px 40px rgba(0,0,0,.4); }
+@media (min-width:600px){ .wiz { align-items:center; } .wiz-card { border-radius:18px; } }
+.wiz-body { padding:16px 18px 22px; }
+.wiz-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.wiz-title { font-weight:800; font-size:15px; color:var(--text); flex:1; }
+.wiz-x { flex:0 0 36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:16px; cursor:pointer; }
+.wiz-steps { display:flex; gap:6px; width:100%; }
+.wiz-dot { flex:1; height:5px; border-radius:3px; background:var(--line); }
+.wiz-dot.done { background:var(--accent); opacity:.5; }
+.wiz-dot.on { background:var(--accent); }
+.wiz-help { color:var(--text-dim); font-size:13.5px; line-height:1.5; margin:2px 0 12px; }
+.wiz-shot { border-radius:12px; overflow:hidden; background:#000; margin-bottom:12px; max-height:220px; }
+.wiz-shot img { width:100%; max-height:220px; object-fit:contain; cursor:zoom-in; }
+.wiz-ok { border:1px solid var(--ok,#2e9e6b); background:rgba(46,158,107,.12); border-radius:12px; padding:10px 12px; margin-bottom:12px; color:var(--text); font-size:13.5px; }
+.wiz-sub { color:var(--text-dim); font-size:12.5px; margin-top:4px; }
+.wiz-actions { display:flex; gap:8px; margin-top:14px; }
+.wiz-actions .btn { flex:1; min-height:48px; }
+.wiz-link { display:block; width:100%; margin-top:10px; background:none; border:none; color:var(--accent); font-size:13.5px; text-decoration:underline; cursor:pointer; padding:8px; }
+.wiz-busy { display:flex; flex-direction:column; align-items:center; gap:14px; padding:38px 0; }
+.wiz-busy-msg { color:var(--text-dim); font-size:13.5px; text-align:center; }
+.wiz-list { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.wiz-row { display:grid; grid-template-columns:110px 1fr; gap:2px 10px; padding:9px 12px; border-bottom:1px solid var(--line); }
+.wiz-row:last-child { border-bottom:none; }
+.wiz-l { color:var(--text-dim); font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+.wiz-v { font-weight:700; color:var(--text); word-break:break-word; }
+.wiz-q { grid-column:2; color:var(--text-dim); font-size:11.5px; }
+.wiz-wahl { margin-top:12px; }
+.wiz-wahl-t { font-size:13px; color:var(--text-dim); margin-bottom:6px; }
+.wiz-chip { border:1px solid var(--accent); background:var(--surface-2); color:var(--text); border-radius:999px; padding:7px 13px; margin:0 6px 6px 0; font-size:13px; cursor:pointer; font-family:ui-monospace,Menlo,monospace; }
+.wiz-check { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; color:var(--text); }
+.wiz-note { color:var(--text-dim); font-size:12.5px; line-height:1.5; margin:10px 0 0; }
+.wiz-leer { text-align:center; padding:22px 10px; color:var(--text-dim); }
+.wiz-leer .ei { font-size:34px; }
+.wiz-leer h3 { color:var(--text); margin:8px 0 6px; font-size:15px; }
+
+/* ═══ Fotogalerie am Material (features/scanner.js) ═══ */
+.gal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; margin-bottom:6px; }
+.gal-item { position:relative; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--surface-2); }
+.gal-item img { width:100%; height:104px; object-fit:cover; display:block; cursor:zoom-in; }
+.gal-main { position:absolute; top:6px; left:6px; background:var(--accent); color:#fff; font-size:10.5px; font-weight:800; border-radius:6px; padding:2px 6px; }
+.gal-tools { position:absolute; top:6px; right:6px; display:flex; gap:4px; }
+.gal-tools button { width:28px; height:28px; border-radius:8px; border:none; background:rgba(0,0,0,.6); color:#fff; font-size:13px; cursor:pointer; line-height:1; }
+.gal-cap { width:100%; border:none; border-top:1px solid var(--line); background:var(--surface); color:var(--text); font-size:12px; padding:6px 8px; }
+.gal-add { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:140px; border:2px dashed var(--line); border-radius:12px; background:var(--surface-2); color:var(--text-dim); cursor:pointer; }
+.gal-view { margin:10px 0; }
+.gal-view-main { border-radius:12px; overflow:hidden; background:#000; max-height:240px; }
+.gal-view-main img { width:100%; max-height:240px; object-fit:contain; cursor:zoom-in; }
+.gal-cap-view { color:var(--text-dim); font-size:12.5px; margin-top:5px; }
+.gal-strip { display:flex; gap:8px; overflow-x:auto; margin-top:8px; padding-bottom:4px; }
+.gal-strip-img { flex:0 0 78px; width:78px; height:60px; object-fit:cover; border-radius:9px; border:1px solid var(--line); cursor:zoom-in; }
+.gal-hint { color:var(--text-dim); font-size:11.5px; margin-top:5px; }

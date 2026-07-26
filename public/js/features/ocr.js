@@ -269,6 +269,31 @@ function ocrBradleyThreshold(gray, w, h, opts){
   }
   return out;
 }
+/* Kontrastspreizung auf Perzentile: Die dunkelsten `lowPct` % werden zu 0, die
+   hellsten `highPct` % zu 255, dazwischen linear gedehnt. Das hebt blasse,
+   grau-auf-grau gedruckte Etikettenschrift an, OHNE sie — anders als eine
+   harte Binarisierung — auf zwei Werte zu zwingen. Die LSTM-Engine von
+   Tesseract ist auf Graustufen trainiert und liest gedehnte Graubilder
+   messbar besser als plattgeschwellte. Rein & testbar. */
+function ocrStretch(gray, n, opts){
+  opts=opts||{};
+  const lowPct=(opts.lowPct!=null?opts.lowPct:2)/100;
+  const highPct=(opts.highPct!=null?opts.highPct:98)/100;
+  if(!n || n<=0) return gray;
+  const hist=new Uint32Array(256);
+  for(let i=0;i<n;i++) hist[gray[i]]++;
+  let acc=0, lowV=0, highV=255;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n*lowPct){ lowV=v; break; } }
+  acc=0;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=n*highPct){ highV=v; break; } }
+  if(highV<=lowV) return gray;                       /* einfarbiges Bild – nichts zu dehnen */
+  const span=highV-lowV;
+  const out=new Uint8ClampedArray(n);
+  for(let i=0;i<n;i++){ const v=Math.round((gray[i]-lowV)*255/span);
+    out[i]=v<0?0:(v>255?255:v); }
+  return out;
+}
+
 /* Schärfe-Maß = Varianz des Laplace-Filters. Höher = schärfer/kontrastreicher.
    Dient als Qualitätshinweis („zu unscharf?"). Rein & testbar. */
 function ocrSharpness(gray, w, h){
@@ -282,31 +307,144 @@ function ocrSharpness(gray, w, h){
   const mean=sum/n; return sum2/n - mean*mean;
 }
 let _ocrSharp=null;   /* Schärfe des zuletzt vorverarbeiteten Bildes (Qualitätshinweis) */
-/* Bereitet ein Foto (data-URL) für die OCR auf: passende Auflösung → Graustufen
-   → adaptive Binarisierung. Fällt bei jedem Fehler aufs Originalbild zurück. */
-function ocrPreprocess(dataUrl, cb){
+
+/* Auflösungs-Grenzen. WICHTIGE KORREKTUR gegenüber der ersten Fassung: die
+   Obergrenze lag bei 2200 px. Ein aktuelles Handyfoto hat ~4000 px Kantenlänge
+   — die Verkleinerung warf also fast die Hälfte der linearen Auflösung weg.
+   Genau die kleine REF-Schrift (1–2 mm auf dem Etikett) fiel dadurch unter die
+   Erkennungsschwelle, während grobe Elemente (Logo, Produktname) unversehrt
+   blieben. Das erklärt „er liest alles, nur die REF nicht". */
+const OCR_MAXKANTE=3600, OCR_MINKANTE=1600;
+
+/* Bereitet ein Foto (data-URL) für die OCR auf und liefert die Bildmaße mit.
+     modus 'grau'   → Graustufen + Kontrastspreizung (Standard; LSTM-freundlich)
+     modus 'binaer' → zusätzlich adaptive Binarisierung nach Bradley (zweite
+                      Meinung für glänzende/ungleichmäßig beleuchtete Etiketten)
+   cb(dataUrl, {w,h}). Fällt bei jedem Fehler aufs Originalbild zurück. */
+function ocrRender(dataUrl, opts, cb){
+  opts=opts||{};
   const img=new Image();
   img.onload=()=>{ try{
     let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-    if(!w||!h){ cb(dataUrl); return; }
-    /* Auflösung: riesige Fotos runter-, kleine hochskalieren, damit die Schrift
-       genug Pixel hat (Best Practice: kleine Bilder VOR der OCR vergrößern). */
-    const MAXED=2200, MIN=1500; const longest=Math.max(w,h); let scale=1;
+    if(!w||!h){ cb(dataUrl,null); return; }
+    /* Auflösung: nur noch sehr große Fotos runter-, kleine hochskalieren. */
+    const MAXED=opts.max||OCR_MAXKANTE, MIN=OCR_MINKANTE;
+    const longest=Math.max(w,h); let scale=1;
     if(longest>MAXED) scale=MAXED/longest; else if(longest<MIN) scale=Math.min(2, MIN/longest);
     w=Math.round(w*scale); h=Math.round(h*scale);
     const c=document.createElement('canvas'); c.width=w; c.height=h;
     const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     ctx.drawImage(img,0,0,w,h);
     const id=ctx.getImageData(0,0,w,h);
-    const gray=ocrGrayscale(id.data, w*h);
-    _ocrSharp=ocrSharpness(gray, w, h);
-    const bin=ocrBradleyThreshold(gray, w, h, {t:15});
-    for(let i=0;i<w*h;i++){ const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=bin[i]; id.data[p+3]=255; }
+    let px=ocrGrayscale(id.data, w*h);
+    _ocrSharp=ocrSharpness(px, w, h);
+    px=ocrStretch(px, w*h, {});                       /* blasse Schrift anheben */
+    if(opts.modus==='binaer') px=ocrBradleyThreshold(px, w, h, {t:15});
+    for(let i=0;i<w*h;i++){ const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=px[i]; id.data[p+3]=255; }
     ctx.putImageData(id,0,0);
-    cb(c.toDataURL('image/png'));   /* PNG: verlustfrei fürs Schwarz-Weiß-Bild */
-  }catch(e){ cb(dataUrl); } };
-  img.onerror=()=>cb(dataUrl); img.src=dataUrl;
+    cb(c.toDataURL('image/png'), {w,h});               /* PNG: verlustfrei, keine JPEG-Artefakte an Kanten */
+  }catch(e){ cb(dataUrl,null); } };
+  img.onerror=()=>cb(dataUrl,null); img.src=dataUrl;
 }
+/* Kompatibler Kurzweg (Graustufen-Variante). */
+function ocrPreprocess(dataUrl, cb){ ocrRender(dataUrl, {modus:'grau'}, (d)=>cb(d)); }
+
+/* ═══════════════════════════════════════════════════════════════
+   REF-KANDIDATEN UND MEHRHEITSENTSCHEID
+   Statt EINER Lesung zu vertrauen, sammeln wir mehrere Hypothesen aus
+   demselben EINEN Foto (verschiedene Aufbereitungen, verschiedene Segmentier-
+   Modi, ein gezielter Ausschnitt) und lassen sie gegeneinander antreten. Das
+   ist der Multi-Frame-Gedanke aus dem Scanner-Bau — nur ohne den Nutzer zu
+   mehreren Fotos zu zwingen.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Alle plausiblen REF-Kandidaten aus einem Etikett-Text, mit Bewertung.
+   Höher = vertrauenswürdiger. Ein ausdrücklicher „REF"-Marker wiegt am
+   schwersten, ein freistehendes Buchstaben-Ziffern-Muster am wenigsten.
+   Rein & testbar (nutzt refPlausible, wenn vorhanden). */
+function ocrRefTokens(text){
+  const raw=String(text==null?'':text);
+  const out=[];
+  const add=(tok, score, quelle)=>{
+    let t=String(tok||'').replace(/[.,;:]+$/,'').trim();
+    if(!t) return;
+    if(typeof refPlausible==='function' && !refPlausible(t)) return;
+    const vorh=out.find(o=>o.tok.toUpperCase()===t.toUpperCase());
+    if(vorh){ if(score>vorh.score){ vorh.score=score; vorh.quelle=quelle; } return; }
+    out.push({ tok:t, score, quelle });
+  };
+  let m;
+  /* 1) ausdrücklicher REF-Marker (auch „REF OEM:", „REF Catalog No.") */
+  const reRef=/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
+  while((m=reRef.exec(raw))) add(m[1], 100, 'REF');
+  /* 2) gleichwertige Marker anderer Hersteller */
+  const reAlt=/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|REORDER(?:\s*NO\.?)?|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?|P\/N|PN)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
+  while((m=reAlt.exec(raw))) add(m[1], 90, 'Katalognr.');
+  /* 3) „#"-Schreibweise (z. B. Edwards „# S3UCM223") */
+  const reHash=/(?:^|[\n\s])#\s*([A-Za-z][A-Za-z0-9][A-Za-z0-9\-]{2,})/g;
+  while((m=reHash.exec(raw))) add(m[1], 70, '#');
+  /* 4) freie Tokens mit REF-typischem Muster (Buchstaben UND Ziffern gemischt) */
+  const toks=raw.split(/[\s|]+/);
+  toks.forEach(t=>{
+    const clean=t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9\-\/*.]+$/g,'');
+    if(!clean) return;
+    const hatBuchst=/[A-Za-z]/.test(clean), hatZiffer=/\d/.test(clean);
+    if(hatBuchst && hatZiffer) add(clean, 40, 'Muster');
+    else if(hatZiffer && /^\d{5,11}$/.test(clean)) add(clean, 20, 'Zahl');
+  });
+  return out.sort((a,b)=>b.score-a.score || a.tok.length-b.tok.length);
+}
+
+/* Mehrheitsentscheid über mehrere Feldsätze (aus mehreren Lesungen desselben
+   Fotos). Je Feld gewinnt der Wert, den die meisten Lesungen liefern; bei
+   Gleichstand die Lesung mit der höheren Priorität (= früher in der Liste).
+   Leere Werte stimmen nicht mit ab. Rein & testbar. */
+function ocrVoteFields(saetze){
+  const list=(saetze||[]).filter(Boolean);
+  const out={};
+  if(!list.length) return out;
+  const keys={}; list.forEach(s=>Object.keys(s).forEach(k=>{ keys[k]=1; }));
+  Object.keys(keys).forEach(k=>{
+    const stimmen=[];
+    list.forEach((s,i)=>{
+      const v=(s[k]==null?'':String(s[k])).trim(); if(!v) return;
+      const e=stimmen.find(x=>x.v.toUpperCase()===v.toUpperCase());
+      if(e) e.n++; else stimmen.push({ v, n:1, i });
+    });
+    if(!stimmen.length){ out[k]=''; return; }
+    stimmen.sort((a,b)=>(b.n-a.n)||(a.i-b.i));
+    out[k]=stimmen[0].v;
+  });
+  return out;
+}
+
+/* Findet auf Basis der Wort-Rahmen einer ersten Lesung den BILDAUSSCHNITT, in
+   dem die REF steht: das Wort „REF" (oder ein gleichwertiger Marker) plus der
+   Streifen rechts davon bis zum Bildrand, mit etwas Luft nach oben/unten.
+   Dieser Streifen wird danach als EINZELNE TEXTZEILE (PSM 7) mit Zeichen-
+   Whitelist neu gelesen — die Engine sucht dann nicht mehr in einem Etiketten-
+   Wimmelbild, sondern liest genau eine Zeile. Grösster Einzeleffekt der ganzen
+   Kette. Liefert {x,y,w,h} in Bildpixeln oder null. Rein & testbar. */
+function ocrRefBand(words, bildW, bildH){
+  if(!Array.isArray(words) || !bildW || !bildH) return null;
+  const istMarker=(t)=>/^(REF|REF[:.]|CAT|CAT[:.]|CATALOG|MODEL|P\/N|PN|REORDER)$/i.test(String(t||'').trim());
+  let marker=null;
+  for(const w of words){ if(w && w.bbox && istMarker(w.text)){ marker=w; break; } }
+  if(!marker) return null;
+  const b=marker.bbox;
+  const zh=Math.max(1, (b.y1-b.y0));                  /* Zeilenhöhe als Maßstab */
+  const y0=Math.max(0, Math.round(b.y0 - zh*0.7));
+  const y1=Math.min(bildH, Math.round(b.y1 + zh*0.7));
+  const x0=Math.max(0, Math.round(b.x0 - zh*0.3));
+  const x1=bildW;                                      /* bis zum rechten Rand */
+  if((x1-x0)<24 || (y1-y0)<10) return null;
+  return { x:x0, y:y0, w:(x1-x0), h:(y1-y0) };
+}
+
+/* Zeichenvorrat für Code-Felder. Kleinbuchstaben sind auf Etiketten-Codes
+   praktisch nie zu finden — sie auszuschließen entfernt eine ganze Ebene
+   möglicher Verwechslungen (l/1, o/0, s/5). */
+const OCR_REF_WHITELIST='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/*.';
 
 /* ===== Engine (lazy) ===== */
 let _tessLoading=null;
@@ -322,39 +460,181 @@ function ensureTesseract(){
   });
   return _tessLoading;
 }
-/* Führt OCR auf einem Bild (data-URL / Blob / Canvas) aus. Alle Pfade sind
-   same-origin (offline-fähig, CSP-konform). onProgress bekommt die Tesseract-
-   Statusmeldungen. */
-async function runLabelOCR(image, onProgress){
+/* Der Worker wird WIEDERVERWENDET. Vorher wurde er je Lesung neu erzeugt und
+   sofort beendet — bei mehreren Durchgängen (Graustufe, Binär, REF-Streifen)
+   hieße das, die WASM-Engine und das Sprachmodell jedes Mal neu zu laden.
+   Ein Worker für die ganze Sitzung, nach Leerlauf beendet. */
+let _ocrWorker=null, _ocrWorkerIdle=null, _ocrLogger=null;
+function ocrSetLogger(f){ _ocrLogger=(typeof f==='function')?f:null; }
+async function ocrGetWorker(){
+  if(_ocrWorker){ if(_ocrWorkerIdle){ clearTimeout(_ocrWorkerIdle); _ocrWorkerIdle=null; } return _ocrWorker; }
   const T=await ensureTesseract();
-  const worker=await T.createWorker('eng', 1, {
+  _ocrWorker=await T.createWorker('eng', 1, {
     workerPath:'/vendor/tesseract/worker.min.js',
     corePath:'/vendor/tesseract/tesseract-core-simd-lstm.js',
     langPath:'/vendor/tesseract/',
     workerBlobURL:false,
-    logger:(msg)=>{ if(onProgress && msg && msg.status) onProgress(msg); },
+    logger:(msg)=>{ if(_ocrLogger && msg && msg.status) _ocrLogger(msg); },
   });
+  return _ocrWorker;
+}
+/* Nach getaner Arbeit den Speicher wieder freigeben — aber erst nach einer
+   Ruhephase, damit das nächste Etikett sofort loslegen kann. */
+function ocrReleaseWorker(delay){
+  if(!_ocrWorker) return;
+  if(_ocrWorkerIdle) clearTimeout(_ocrWorkerIdle);
+  _ocrWorkerIdle=setTimeout(()=>{ const w=_ocrWorker; _ocrWorker=null; _ocrWorkerIdle=null;
+    try{ if(w) w.terminate(); }catch(e){} }, delay==null?60000:delay);
+}
+
+/* Holt die Einzelwörter samt Rahmen aus einem Tesseract-Ergebnis. Je nach
+   Ausgabeform liegen sie flach (data.words) oder verschachtelt in
+   blocks › paragraphs › lines › words. Beides bedienen. Rein. */
+function ocrWordsOf(data){
+  if(!data) return [];
+  const raus=(w)=>({ text:(w&&w.text)||'', conf:(w&&w.confidence)||0, bbox:(w&&w.bbox)||null });
+  if(Array.isArray(data.words) && data.words.length) return data.words.map(raus);
+  const out=[];
+  (data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>(l.words||[]).forEach(w=>out.push(raus(w))))));
+  return out;
+}
+
+/* EIN Erkennungsdurchgang mit gezielten Parametern.
+     psm         – Segmentierungsmodus (3 = ganze Seite, 6 = ein Block, 7 = eine Zeile)
+     whitelist   – erlaubter Zeichenvorrat (für Code-Felder)
+     woerterbuch – false schaltet die Wörterbücher AB. Für Artikelnummern
+                   entscheidend: sonst „korrigiert" die Engine Codes zu
+                   englischen Wörtern, die es auf dem Etikett gar nicht gibt.
+     rechteck    – {left,top,width,height}: nur diesen Ausschnitt lesen. */
+async function ocrRun(image, opts){
+  opts=opts||{};
+  const worker=await ocrGetWorker();
+  const p={
+    tessedit_pageseg_mode:String(opts.psm||3),
+    preserve_interword_spaces:'1',
+    user_defined_dpi:'300',
+    /* Wörterbücher/Sprachmodell abschaltbar — siehe oben. */
+    load_system_dawg:(opts.woerterbuch===false)?'0':'1',
+    load_freq_dawg:(opts.woerterbuch===false)?'0':'1',
+    load_punc_dawg:(opts.woerterbuch===false)?'0':'1',
+    load_number_dawg:(opts.woerterbuch===false)?'0':'1',
+    tessedit_char_whitelist:opts.whitelist||'',
+  };
+  try{ await worker.setParameters(p); }catch(e){}
+  const args=opts.rechteck?{ rectangle:opts.rechteck }:{};
+  let res;
+  try{ res=await worker.recognize(image, args, { text:true, blocks:true }); }
+  catch(e){ res=await worker.recognize(image, args); }
+  const d=(res&&res.data)||{};
+  return { text:d.text||'', confidence:Math.round(d.confidence||0), words:ocrWordsOf(d) };
+}
+/* Textdichte (Zeichen ohne Leerraum) — Maß dafür, ob ein Durchgang etwas
+   Brauchbares geliefert hat. Rein & testbar. */
+function ocrDichte(s){ return String(s==null?'':s).replace(/\s/g,'').length; }
+
+/* Kompatibler Kurzweg (eine Lesung, automatische Segmentierung mit Rückfall auf
+   Block-Modus). Wird vom geführten Dialog und von Alt-Aufrufen genutzt. */
+async function runLabelOCR(image, onProgress){
+  ocrSetLogger(onProgress);
   try{
-    /* pageseg 3 = automatische Segmentierung: liest ein GANZES Etikett mit
-       Titel, mehreren Spalten und verstreuten Feldern (REF, Hersteller, Maße)
-       zuverlässiger als der Einzelblock-Modus. user_defined_dpi hilft der
-       Engine bei der internen Skalierung kleiner Schrift. */
-    try{ await worker.setParameters({ tessedit_pageseg_mode:'3', preserve_interword_spaces:'1', user_defined_dpi:'300' }); }catch(e){}
-    let res=await worker.recognize(image);
-    let text=(res&&res.data&&res.data.text)||'';
-    let conf=(res&&res.data&&res.data.confidence)||0;
-    /* Wurde kaum Text gefunden, zweiter Versuch als EIN gleichmäßiger Block
-       (PSM 6) — hilft bei Etiketten mit einem großen zentralen Textblock. Das
-       ergiebigere Ergebnis gewinnt. */
-    const dense=(s)=>String(s||'').replace(/\s/g,'').length;
-    if(dense(text) < 24){
-      try{ await worker.setParameters({ tessedit_pageseg_mode:'6' });
-        const r2=await worker.recognize(image);
-        if(dense(r2&&r2.data&&r2.data.text) > dense(text)){ text=r2.data.text; conf=r2.data.confidence||conf; }
-      }catch(e){}
+    let r=await ocrRun(image, { psm:3, woerterbuch:false });
+    if(ocrDichte(r.text)<24){
+      const r2=await ocrRun(image, { psm:6, woerterbuch:false });
+      if(ocrDichte(r2.text)>ocrDichte(r.text)) r=r2;
     }
-    return { text, confidence:Math.round(conf) };
-  } finally { try{ await worker.terminate(); }catch(e){} }
+    return { text:r.text, confidence:r.confidence, words:r.words };
+  } finally { ocrSetLogger(null); ocrReleaseWorker(); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DIE GESAMTE LESE-KETTE FÜR EIN ETIKETTFOTO
+   Reihenfolge nach dem Grundsatz „das sicherste Signal zuerst":
+     0) Barcode aus demselben Foto  → GTIN exakt, oft auch die REF (GS1 AI 240)
+     1) Volltext, Graustufe, PSM 3, ohne Wörterbücher
+     2) Gezielter REF-Streifen (aus den Wortrahmen von 1), PSM 7 + Whitelist
+     3) Zweite Meinung: binarisierte Variante (nur wenn 1 dünn war oder die
+        REF noch fehlt) — glänzende Folienetiketten profitieren davon
+     4) Mehrheitsentscheid über alle Lesungen
+     5) REF gegen den bekannten Bestand auflösen (matref.js)
+   Liefert ein Ergebnisobjekt; verändert NICHTS am Formular.
+   ═══════════════════════════════════════════════════════════════ */
+async function ocrReadLabel(dataUrl, onStatus){
+  const sag=(t)=>{ if(typeof onStatus==='function') onStatus(t); };
+  const lesungen=[];       /* [{text, confidence, quelle}] */
+
+  /* 0) Barcode zuerst — kostet Millisekunden und liefert die exakte Wahrheit. */
+  sag('Barcode suchen …');
+  let barcode=null;
+  try{ barcode=await ocrBarcodeFromImage(dataUrl); }catch(e){}
+
+  /* 1) Volltext auf der Graustufen-Variante. */
+  sag('Bild aufbereiten …');
+  const grau=await new Promise(res=>ocrRender(dataUrl,{modus:'grau'},(d,m)=>res({img:d,masse:m})));
+  ocrSetLogger((m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
+    sag(ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
+  let haupt={ text:'', confidence:0, words:[] };
+  try{ haupt=await ocrRun(grau.img, { psm:3, woerterbuch:false }); }catch(e){}
+  if(haupt.text) lesungen.push({ text:haupt.text, confidence:haupt.confidence, quelle:'Volltext' });
+
+  /* 2) Gezielter REF-Streifen. */
+  let bandText='';
+  const band=grau.masse?ocrRefBand(haupt.words, grau.masse.w, grau.masse.h):null;
+  if(band){
+    sag('REF-Feld genau lesen …');
+    try{
+      const r=await ocrRun(grau.img, { psm:7, woerterbuch:false, whitelist:OCR_REF_WHITELIST,
+        rechteck:{ left:band.x, top:band.y, width:band.w, height:band.h } });
+      bandText=r.text||'';
+      if(bandText.trim()) lesungen.push({ text:bandText, confidence:r.confidence, quelle:'REF-Streifen' });
+    }catch(e){}
+  }
+
+  /* 3) Zweite Meinung auf der binarisierten Variante — nur wenn nötig. */
+  const refBisher=ocrRefTokens(bandText+'\n'+haupt.text);
+  if(ocrDichte(haupt.text)<40 || !refBisher.length){
+    sag('Zweite Lesung (Kontrast) …');
+    try{
+      const bin=await new Promise(res=>ocrRender(dataUrl,{modus:'binaer'},(d)=>res(d)));
+      const r=await ocrRun(bin, { psm:6, woerterbuch:false });
+      if(r.text) lesungen.push({ text:r.text, confidence:r.confidence, quelle:'Kontrast' });
+    }catch(e){}
+  }
+  ocrSetLogger(null); ocrReleaseWorker();
+
+  /* 4) Felder je Lesung ziehen und abstimmen. Der REF-Streifen steht bewusst
+     VORNE — bei Gleichstand gewinnt die gezielte Lesung. */
+  const sortiert=lesungen.slice().sort((a,b)=>(b.quelle==='REF-Streifen'?1:0)-(a.quelle==='REF-Streifen'?1:0));
+  const saetze=sortiert.map(l=>extractLabelFields(l.text));
+  const fields=ocrVoteFields(saetze);
+  const gesamttext=lesungen.map(l=>l.text).join('\n');
+  const conf=lesungen.length?Math.round(lesungen.reduce((s,l)=>s+(l.confidence||0),0)/lesungen.length):0;
+
+  /* 5) REF bestimmen und auflösen. */
+  const kandidaten=ocrRefTokens((bandText?bandText+'\n':'')+gesamttext);
+  let refRoh=fields.ref||(kandidaten[0]&&kandidaten[0].tok)||'';
+  let refInfo={ ref:refRoh, wie:'roh', sicher:false, kandidaten:[] };
+  if(refRoh && typeof refBest==='function'){
+    refInfo=refBest(refRoh);
+    /* Ließ sich der Favorit nicht auflösen, die nächstbesten Kandidaten
+       probieren — oft steckt die richtige REF in der zweiten Lesung. */
+    if(!refInfo.sicher){
+      for(const k of kandidaten.slice(0,6)){
+        if(k.tok===refRoh) continue;
+        const alt=refBest(k.tok);
+        if(alt.sicher){ refInfo=alt; refRoh=k.tok; break; }
+      }
+    }
+  }
+  fields.ref=refInfo.ref||refRoh||'';
+
+  /* Der Barcode schlägt jede OCR-Schätzung. */
+  let gtin='';
+  if(barcode){
+    if(barcode.gtin) gtin=(typeof gtinKey==='function')?gtinKey(barcode.gtin):barcode.gtin;
+    if(barcode.itemRef){ fields.ref=barcode.itemRef; refInfo={ ref:barcode.itemRef, wie:'barcode', sicher:true, kandidaten:[] }; }
+  }
+  return { fields, refInfo, refRoh, kandidaten, gtin, barcode, text:gesamttext,
+    confidence:conf, schaerfe:_ocrSharp, lesungen:lesungen.map(l=>l.quelle) };
 }
 /* Liest zusätzlich einen Barcode aus DEMSELBEN Foto (falls die native
    BarcodeDetector-API vorhanden ist). Der Barcode trägt GTIN und teils die REF
@@ -415,39 +695,77 @@ function ocrCaptureAndFill(){
   };
   document.body.appendChild(inp); inp.click();
 }
+/* Letzte Lesung — Grundlage für die LERNSCHLEIFE: Trägt der Nutzer beim
+   Speichern eine andere REF ein als gelesen, merkt sich die App das Paar
+   (siehe ocrLearnFromSave in scanner.js). */
+let ocrLastRead=null;
+
 async function ocrProcess(dataUrl){
   ocrBusy(true, 'OCR startet …');
   try{
-    /* 1) Foto aufbereiten (Graustufen + adaptive Binarisierung). */
     _ocrSharp=null;
-    const img=await new Promise((res)=>{ ocrPreprocess(dataUrl,res); });
-    /* 2) Text erkennen (getunte Engine, Konfidenz). */
-    const ocr=await runLabelOCR(img,(m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
-      ocrBusy(true, ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
-    const fields=extractLabelFields(ocr.text);
-    /* 3) Barcode-Fusion: Barcode aus DEMSELBEN Originalfoto lesen; seine REF
-       (und GTIN) sind exakt und schlagen die OCR-Schätzung. */
-    let barcode=null;
-    try{ barcode=await ocrBarcodeFromImage(dataUrl); }catch(e){}
-    if(barcode){
-      if(barcode.itemRef){ fields.ref=barcode.itemRef; }                 /* Barcode-REF gewinnt */
-      const gi=$('scGtin'); const g=barcode.gtin;
-      if(gi && g && !gi.value.trim()){ gi.value=(typeof gtinKey==='function'?gtinKey(g):g); }
+    const erg=await ocrReadLabel(dataUrl, (t)=>ocrBusy(true,t));
+    ocrLastRead={ roh:erg.refRoh||'', wie:(erg.refInfo&&erg.refInfo.wie)||'roh', at:Date.now() };
+
+    /* GTIN ins Formular — und, falls die REF noch fehlt, den kostenlosen
+       Nachschlageweg gehen (eigener Stammsatz → Katalog → AccessGUDID). */
+    if(erg.gtin){
+      const gi=$('scGtin'); if(gi && !gi.value.trim()) gi.value=erg.gtin;
+      if(!erg.fields.ref && typeof gtinAufloesen==='function'){
+        ocrBusy(true,'Nummer nachschlagen …');
+        try{
+          const t=await gtinAufloesen(erg.gtin);
+          if(t){ if(t.ref) erg.fields.ref=t.ref;
+            if(t.name && !erg.fields.name) erg.fields.name=t.name;
+            if(t.hersteller && !erg.fields.hersteller) erg.fields.hersteller=t.hersteller;
+            erg.nachschlag=t; }
+        }catch(e){}
+      }
     }
-    const filled=ocrFillForm(fields);
+    const filled=ocrFillForm(erg.fields);
     ocrBusy(false);
-    const got=Object.keys(filled);
-    const bcMsg=(barcode&&(barcode.itemRef||barcode.gtin))?' · Barcode gelesen':'';
-    if(got.length){
-      let msg='Erkannt: '+got.map(ocrFieldLabel).join(', ')+bcMsg+' – bitte prüfen.';
-      /* Qualitätshinweis: geringe Konfidenz ODER sehr unscharfes Bild. */
-      if((ocr.confidence!=null && ocr.confidence<55) || (_ocrSharp!=null && _ocrSharp<40))
-        msg+=' ⚠ Bild schwierig – bei Fehlern schärfer/gerader & näher fotografieren.';
-      toast(msg);
-    }
-    else if(bcMsg){ toast('Barcode gelesen – Text unsicher. Bitte Felder prüfen/ergänzen.'); }
-    else { toast('Kein Text sicher erkannt. Bitte näher/schärfer fotografieren oder manuell eingeben.', true); }
-    /* Charge/LOT wird bewusst NICHT gemeldet: reine Identifikations- &
-       Eigenschaftssammlung, keine Chargenverfolgung. */
+    /* Referenz-Katalog gleich zur (neuen) REF prüfen. */
+    if(typeof catCheckForm==='function') catCheckForm();
+    ocrMeldung(erg, filled);
   }catch(e){ ocrBusy(false); toast('OCR fehlgeschlagen: '+((e&&e.message)||e), true); }
+}
+
+/* LERNSCHLEIFE — beim Speichern eines Stammsatzes aufgerufen.
+   Weicht die gespeicherte REF von der zuletzt GELESENEN ab, war die Lesung
+   falsch und der Mensch hat sie korrigiert. Genau dieses Paar ist Gold wert:
+   Beim nächsten Foto desselben Etiketts trifft die App sofort — unabhängig
+   davon, ob das Produkt in irgendeinem Katalog steht.
+   Bewusst zeitlich begrenzt: nur eine Korrektur, die zur aktuellen Erfassung
+   gehört (30 Minuten), wird gelernt. */
+const OCR_LERN_FENSTER=30*60*1000;
+function ocrLearnFromSave(refFinal){
+  try{
+    if(!ocrLastRead || !ocrLastRead.roh) return;
+    if(Date.now()-(ocrLastRead.at||0) > OCR_LERN_FENSTER){ ocrLastRead=null; return; }
+    const ziel=String(refFinal||'').trim();
+    const roh=ocrLastRead.roh;
+    ocrLastRead=null;
+    if(!ziel) return;
+    if(typeof refCanon!=='function' || typeof refLearn!=='function') return;
+    if(refCanon(roh)===refCanon(ziel)) return;          /* richtig gelesen – nichts zu lernen */
+    refLearn(roh, ziel);
+  }catch(e){}
+}
+
+/* Rückmeldung an den Nutzer — sagt EHRLICH, wie sicher das Ergebnis ist.
+   Getrennt gehalten, damit der geführte Dialog dieselbe Sprache spricht. */
+function ocrMeldung(erg, filled){
+  const got=Object.keys(filled||{});
+  const teile=[];
+  if(erg.barcode && (erg.barcode.gtin||erg.barcode.itemRef)) teile.push('Barcode gelesen');
+  if(erg.nachschlag) teile.push('REF aus '+erg.nachschlag.quelle);
+  else if(erg.refInfo && erg.refInfo.sicher && erg.refInfo.wie!=='roh') teile.push('REF '+refWieLabel(erg.refInfo.wie));
+  if(got.length) teile.push('Erkannt: '+got.map(ocrFieldLabel).join(', '));
+  if(!teile.length){ toast('Kein Text sicher erkannt. Bitte näher/schärfer fotografieren oder manuell eingeben.', true); return; }
+  let msg=teile.join(' · ')+' – bitte prüfen.';
+  if(erg.refInfo && erg.refInfo.wie==='mehrdeutig' && erg.refInfo.kandidaten.length)
+    msg+=' Mögliche REFs: '+erg.refInfo.kandidaten.join(', ');
+  if((erg.confidence!=null && erg.confidence<55) || (erg.schaerfe!=null && erg.schaerfe<40))
+    msg+=' ⚠ Bild schwierig – schärfer/gerader & näher fotografieren.';
+  toast(msg);
 }
