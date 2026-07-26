@@ -271,6 +271,37 @@ erscheint.
 Geteilter Schlüssel `hkl_diag` in `SHARED_KEYS` (Meldungen aller Geräte an
 einem Ort), bewusst NICHT in `BACKUP_KEYS`. End-to-End: `e2e/diagnose.js`.
 
+**Duplizieren** (`features/duplicate.js`) — neue Standards entstehen aus
+bestehenden. Ausführlich in
+[`docs/KONZEPT-DUPLIZIEREN.md`](docs/KONZEPT-DUPLIZIEREN.md). Fünf Zusagen:
+
+1. **vollständig unabhängig in beide Richtungen** (spätere Änderungen am
+   Original wirken nicht auf die Kopie und umgekehrt),
+2. **effektiver statt roher Stand** — Name/Menge/Größen/Kategorie/
+   Unterkategorie werden über `qeGet`/`effNatur`/`rawUk` aufgelöst und
+   eingefroren; material-WEITE Regeln bleiben bewusst wirksam (über den
+   `material_key`), damit die Kopie nicht von der Materialpflege abgeschnitten wird,
+3. **echtes Löschen** statt Ausblenden,
+4. **keine Geschichte** (Häkchen, Nutzung, Favoriten, Prüf-Vermerke und
+   insbesondere Version/Freigabe bleiben zurück — eine Kopie ist ein Entwurf),
+5. **Vorlagen-Rubriken werden aufgelöst**, sonst schlüge ein Löschen in der
+   Kopie auf fremde Standards durch.
+
+Schlüssel-Änderung dafür: `newStdToObj` baute bisher ein FESTES Zwei-Rubriken-
+Gerüst — ein eigener Standard konnte gar keine beliebige Struktur tragen. Jetzt
+trägt ein `NEWSTD`-Datensatz optional eigene `rubriken` (`__eigenStruktur`);
+ohne bleibt alles wie gehabt. Erst dadurch ist echtes Löschen in der Kopie
+möglich. Standards mit eigener Struktur bekommen keine Vorlagen-Rubriken mehr
+automatisch dazu (sonst stünde dieselbe Rubrik zweimal da und Löschen hielte nicht).
+
+Weil Kennungen positionsabhängig sind (`<std>|<rubrik>|<abschnitt>|<index>`),
+zieht `dupCidShift` beim echten Löschen alle Overlay-Töpfe nach (`QE.cid`,
+`overrides`, `reassign`, `reviewed`, `checks`, Arzt-Varianten) — sonst klebten
+Anpassungen am falschen Eintrag. Nebenbei aufgeräumt: `rubKey`/`rubName`/
+`rubHidden`/`rubOrd` hingen implizit an `curStd` und nehmen jetzt einen
+optionalen `std`-Parameter (ohne ihn unverändert). End-to-End:
+`e2e/duplizieren.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

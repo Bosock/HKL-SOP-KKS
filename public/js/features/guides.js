@@ -141,6 +141,7 @@ function renderGuide(){
   }
   const admin=ADMIN?`<div class="p-actions" style="margin-top:14px">
       <button class="btn btn-sec" data-gid="${esc(g.id)}" onclick="openGuideEdit(this.dataset.gid)">✎ Bearbeiten</button>
+      <button class="btn btn-sec" data-gid="${esc(g.id)}" onclick="openDupGuideForm(this.dataset.gid)">⧉ Duplizieren</button>
       <button class="btn btn-sec" style="color:#d64545" data-gid="${esc(g.id)}" onclick="guideDelete(this.dataset.gid)">🗑 Löschen</button>
     </div>`:'';
   const reset=p.done?`<div class="chk-reset"><span class="cr-count">${p.done} abgehakt</span><button type="button" class="cr-btn" onclick="guideResetChecks()">↺ Alle zurücksetzen</button></div>`:'';
