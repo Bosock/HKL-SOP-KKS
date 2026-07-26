@@ -230,6 +230,35 @@ CSP: `connect-src` erlaubt zusätzlich genau `https://accessgudid.nlm.nih.gov`.
 `fotos: [{src,titel}]`; `photo` bleibt das erste Bild der Liste, damit alle
 Listenansichten und Altbestände unverändert funktionieren.
 
+**Fehler- und Problemanalyse** (`features/diag.js`) — damit die App ohne
+Entwickler wartbar bleibt. Drei Bausteine, ausführlich in
+[`docs/FEHLERANALYSE.md`](docs/FEHLERANALYSE.md):
+
+1. **Technische Fehler automatisch**: `window.onerror`, `unhandledrejection`,
+   fehlgeschlagene Ressourcen und — die ergiebigste Quelle — jeder rote
+   Fehler-`toast()` der App (durch Umhüllen der globalen Funktion, kein
+   Eingriff an den Aufrufstellen). Jeder Eintrag trägt Bildschirm und den Weg
+   dorthin. `diagPush` fasst gleiche Befunde zu EINEM Eintrag mit Zähler
+   zusammen — sonst wäre das Protokoll nach dem ersten Fehlerschauer wertlos.
+2. **Gefühlte Fehler**: „🐞 Problem melden" im Menü, ohne Anmeldung, zwei
+   Felder (Absicht / Beobachtung). Den Kontext hängt die App selbst an. Das
+   ist der Fall, den keine Fehlerbehandlung sieht: *es passiert nichts.*
+3. **Selbsttest**: `diagChecks()` prüft nebenwirkungsfrei Bildschirme,
+   Datenbestand, Verknüpfungen, Speicherplatz, Verbindung — und
+   **„Übersichtszeilen sind bedienbar"**: jeder Halte-Detektor trägt sich in
+   `HOLDNAV` mit den Daten-Attributen ein, die er versteht; `diagRowProblems`
+   meldet jede Zeile, für die es keinen Weg hinein gibt.
+
+Anlass war ein realer Fehler: Anleitungen ließen sich auf Touchgeräten nicht
+öffnen, weil `attachHoldNav` nur `data-sid` kannte, bei `data-gid` nichts tun
+konnte — den Tipp aber trotzdem per `preventDefault` verschluckte, sodass
+kein `click` und damit kein Inline-`onclick` mehr feuerte. Mit der Maus fiel
+das nicht auf. Behoben auf beiden Ebenen: der Detektor kennt jetzt beide
+Attribute, UND `onTap` meldet zurück, ob es den Tipp behandelt hat — nur ein
+behandelter Tipp wird noch unterdrückt.
+Geteilter Schlüssel `hkl_diag` in `SHARED_KEYS` (Meldungen aller Geräte an
+einem Ort), bewusst NICHT in `BACKUP_KEYS`. End-to-End: `e2e/diagnose.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

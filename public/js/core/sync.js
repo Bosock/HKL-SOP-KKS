@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -40,6 +40,7 @@ function hydrateVars(){
   PROD=loadJSON('hkl_prod',{});
   GTINDB=loadJSON('hkl_gtin',{});
   if(typeof OCRLEARN!=='undefined') OCRLEARN=loadJSON('hkl_ocrlearn',{});
+  if(typeof DIAG!=='undefined'){ DIAG=loadJSON('hkl_diag',[]); if(!Array.isArray(DIAG)) DIAG=[]; }
   if(typeof refInvalidateIndex==='function') refInvalidateIndex();   /* REF-Bestand hat sich geändert */
   MATLINK=loadJSON('hkl_matlink',{});
   MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
@@ -83,7 +84,7 @@ function refreshView(){
     if($('scr-scan').classList.contains('active')||$('scr-scan-item').classList.contains('active')) return;
     /* Neue Ansichten mit offenen Eingaben ebenso in Ruhe lassen: Anleitungs-
        Editor, Pop-up-Konfiguration, Varianten-Editor, Aufräum-Assistent. */
-    const busy=['scr-guide','scr-guide-edit','scr-popups','scr-variants','scr-variant-edit','scr-cleanup','scr-form'];
+    const busy=['scr-guide','scr-guide-edit','scr-popups','scr-variants','scr-variant-edit','scr-cleanup','scr-form','scr-diag'];
     if(busy.some(id=>{ const el=$(id); return el&&el.classList.contains('active'); })) return;
     buildMaterialIndex();
     if(mode==='admin'){ renderAdmin(); updateBar(); return; }

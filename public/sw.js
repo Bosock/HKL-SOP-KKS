@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v41';
+const CACHE_VERSION = 'v42';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -70,6 +70,7 @@ const SHELL = [
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
+  'js/features/diag.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',

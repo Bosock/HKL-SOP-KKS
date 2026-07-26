@@ -46,6 +46,12 @@ function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-titl
     h+=sAct('🔑','Passwort ändern','',"changePw()");
     h+=sAct('🚪','Abmelden','Verwaltungsmodus beenden',"adminLogout()"); }
   else { h+=sAct('🔒','Anmelden','Verwaltung freischalten',"promptLogin()"); }
+  /* Fehler- und Problemanalyse: „Problem melden" steht ALLEN offen — wer im
+     Labor merkt, dass etwas nicht geht, muss das ohne Anmeldung loswerden
+     können. Das Protokoll selbst sieht die Verwaltung. */
+  h+=sAct('🐞','Problem melden','Etwas geht nicht? Zwei Sätze genügen',"showSheet(false);diagMeldenForm()");
+  if(ADMIN){ const off=(typeof DIAG!=='undefined'&&Array.isArray(DIAG))?DIAG.filter(e=>e.art==='fehler'||e.art==='meldung').length:0;
+    h+=sAct('🩺','Diagnose & Fehler',off?(off+' Einträge im Protokoll'):'Protokoll & Selbsttest',"showSheet(false);openDiag()"); }
   h+=sAct('↺','Alle Häkchen zurücksetzen','Abhaken dieses Geräts leeren',"resetAllChecks()");
   h+=sAct('◐','Ansicht hell/dunkel','',"toggleTheme();showSheet(false)");
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;

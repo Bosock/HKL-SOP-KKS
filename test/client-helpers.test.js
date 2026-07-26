@@ -190,9 +190,16 @@ function loadHelpers() {
     extractFn('matPhotoAdd'),
     extractFn('matPhotoDel'),
     extractFn('matPhotoMain'),
+    extractConst('DIAG_MAX'),
+    extractFn('diagShort'),
+    extractFn('diagSig'),
+    extractFn('diagPush'),
+    extractFn('diagAlter'),
+    extractFn('diagRowProblems'),
+    extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagBerichtText})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -2180,4 +2187,93 @@ test('Fotogalerie: hinzufügen, entfernen, zum Vorschaubild machen', () => {
   assert.equal(haupt[0].titel, 'Etikett');
   assert.equal(fns.matPhotoDel(l, 0).length, 1);
   assert.equal(fns.matPhotoDel(l, 9).length, 2, 'ungültiger Index ändert nichts');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Diagnose: Fehler- und Problemanalyse
+   ═══════════════════════════════════════════════════════════════ */
+
+test('diagShort: kürzt und normalisiert Leerraum', () => {
+  assert.equal(fns.diagShort('  a \n b  '), 'a b');
+  assert.equal(fns.diagShort('x'.repeat(50), 10).length, 10);
+  assert.ok(fns.diagShort('x'.repeat(50), 10).endsWith('…'));
+  assert.equal(fns.diagShort(null), '');
+});
+
+test('diagPush: ein Fehler in Schleife ergibt EINEN Eintrag mit Zähler', () => {
+  let l = [];
+  for (let i = 0; i < 500; i++) l = fns.diagPush(l, { art: 'fehler', text: 'kaputt', wo: 'scr-std', t: '2026-01-01T00:00:0' + (i % 10) + 'Z' });
+  assert.equal(l.length, 1, 'ohne Zusammenfassung wäre das Protokoll unbrauchbar');
+  assert.equal(l[0].n, 500);
+});
+
+test('diagPush: verschiedene Fehler bleiben getrennt, neueste zuerst', () => {
+  let l = fns.diagPush([], { art: 'fehler', text: 'A', wo: 'x' });
+  l = fns.diagPush(l, { art: 'fehler', text: 'B', wo: 'x' });
+  assert.equal(l.length, 2);
+  assert.equal(l[0].text, 'B');
+});
+
+test('diagPush: derselbe Text auf anderem Bildschirm ist ein anderer Befund', () => {
+  let l = fns.diagPush([], { art: 'fehler', text: 'A', wo: 'scr-std' });
+  l = fns.diagPush(l, { art: 'fehler', text: 'A', wo: 'scr-care' });
+  assert.equal(l.length, 2);
+});
+
+test('diagPush: der Ringpuffer läuft nicht über', () => {
+  let l = [];
+  for (let i = 0; i < 40; i++) l = fns.diagPush(l, { art: 'fehler', text: 'nr' + i, wo: 'x' }, 10);
+  assert.equal(l.length, 10);
+  assert.equal(l[0].text, 'nr39', 'der neueste steht vorn');
+});
+
+test('diagAlter: Abstand statt Uhrzeit', () => {
+  const jetzt = Date.parse('2026-07-26T12:00:00Z');
+  assert.equal(fns.diagAlter('2026-07-26T11:59:40Z', jetzt), 'gerade eben');
+  assert.equal(fns.diagAlter('2026-07-26T11:30:00Z', jetzt), 'vor 30 Min.');
+  assert.equal(fns.diagAlter('2026-07-26T09:00:00Z', jetzt), 'vor 3 Std.');
+  assert.equal(fns.diagAlter('2026-07-24T12:00:00Z', jetzt), 'vor 2 Tagen');
+  assert.equal(fns.diagAlter('kaputt', jetzt), '');
+});
+
+test('diagRowProblems: findet genau den Anleitungs-Fehler (Zeile ohne Weg hinein)', () => {
+  // So sah die Übersicht aus: Standards mit data-sid, Anleitungen mit data-gid —
+  // der Halte-Detektor kannte aber nur 'sid'. Auf Touch passierte dann nichts.
+  const rows = [
+    { dataset: { sid: 'std-1' }, onclick: null },
+    { dataset: { gid: 'g1' }, onclick: null },
+  ];
+  const kaputt = fns.diagRowProblems(rows, ['sid']);
+  assert.equal(kaputt.length, 1, 'die Anleitungs-Zeile ist unerreichbar');
+  assert.equal(kaputt[0].dataset.gid, 'g1');
+  // Nach dem Fix kennt der Detektor beide:
+  assert.equal(fns.diagRowProblems(rows, ['sid', 'gid']).length, 0);
+});
+
+test('diagRowProblems: eigener onclick zählt als Weg hinein', () => {
+  const rows = [{ dataset: {}, onclick: () => {} }];
+  assert.equal(fns.diagRowProblems(rows, ['sid']).length, 0);
+});
+
+test('diagRowProblems: leeres Attribut zählt nicht als Handler', () => {
+  const rows = [{ dataset: { sid: '' }, onclick: null }];
+  assert.equal(fns.diagRowProblems(rows, ['sid']).length, 1);
+});
+
+test('diagBerichtText: enthält Selbsttest, Befunde und Zusammenhang', () => {
+  const t = fns.diagBerichtText({
+    jetzt: '2026-07-26T12:00:00Z', geraet: 'Chrome · Android', netz: 'online',
+    pruefungen: [{ ok: true, titel: 'Alle Bildschirme vorhanden', info: '11 Bildschirme' },
+                 { ok: false, titel: 'Übersichtszeilen sind bedienbar', info: '1 Zeile ohne Handler' }],
+    eintraege: [{ art: 'meldung', t: '2026-07-26T11:58:00Z', text: 'nichts passiert',
+                  wunsch: 'eine Anleitung öffnen', wo: 'scr-standards · use', weg: 'scr-standards', n: 1 }],
+  });
+  assert.ok(/SELBSTTEST: 1\/2 in Ordnung/.test(t));
+  assert.ok(/\[!!\] Übersichtszeilen sind bedienbar/.test(t), 'auffällige Prüfungen sind markiert');
+  assert.ok(/Wollte: eine Anleitung öffnen/.test(t), 'die Absicht des Nutzers gehört in den Bericht');
+  assert.ok(/Bildschirm: scr-standards/.test(t));
+});
+
+test('diagBerichtText: leeres Protokoll wird ehrlich benannt', () => {
+  assert.ok(/PROTOKOLL: keine Einträge/.test(fns.diagBerichtText({ jetzt: 'x' })));
 });
