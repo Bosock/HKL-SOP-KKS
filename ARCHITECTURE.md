@@ -249,13 +249,25 @@ Entwickler wartbar bleibt. Drei Bausteine, ausführlich in
    `HOLDNAV` mit den Daten-Attributen ein, die er versteht; `diagRowProblems`
    meldet jede Zeile, für die es keinen Weg hinein gibt.
 
+Dazu **„Schalter in Zeilen erreichbar"** (`diagInnerBlocked`): Der Detektor
+lauscht am Container und beansprucht den Tipp auf der ganzen Zeile — ein
+`stopPropagation()` im Inline-`onclick` eines Schalters DARIN läuft zu spät,
+weil der native Klick gar nicht erst entsteht. Nur `ignoreSel` im Detektor
+wirkt. Der Selbsttest meldet jeden nicht ausgenommenen Schalter.
+
 Anlass war ein realer Fehler: Anleitungen ließen sich auf Touchgeräten nicht
 öffnen, weil `attachHoldNav` nur `data-sid` kannte, bei `data-gid` nichts tun
 konnte — den Tipp aber trotzdem per `preventDefault` verschluckte, sodass
 kein `click` und damit kein Inline-`onclick` mehr feuerte. Mit der Maus fiel
 das nicht auf. Behoben auf beiden Ebenen: der Detektor kennt jetzt beide
 Attribute, UND `onTap` meldet zurück, ob es den Tipp behandelt hat — nur ein
-behandelter Tipp wird noch unterdrückt.
+behandelter Tipp wird noch unterdrückt. Die systematische Nachsuche fand zwei
+Geschwister derselben Klasse (⭐ Favorit in der Übersicht, 🔗 Produkt-Verweis
+am Eintrag) — beide behoben. Die zweite, fast identische Kopie des Detektors
+in `attachLongPress` ist entfallen; Einträge nutzen jetzt denselben
+`attachHoldNav` (`rowSel:'.entry-row[data-cid]'`, `ignoreSel:ENTRY_BTNS`),
+womit auch der meistgenutzte Bildschirm im Selbsttest-Register `HOLDNAV`
+erscheint.
 Geteilter Schlüssel `hkl_diag` in `SHARED_KEYS` (Meldungen aller Geräte an
 einem Ort), bewusst NICHT in `BACKUP_KEYS`. End-to-End: `e2e/diagnose.js`.
 

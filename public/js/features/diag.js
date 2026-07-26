@@ -84,6 +84,26 @@ function diagRowProblems(rows, bekannteKeys){
   });
 }
 
+/* Schalter, die INNERHALB einer Listenzeile sitzen (⭐ Favorit, ⋯ Menü) und
+   vom Halte-Detektor nicht ausgenommen sind. Der Detektor lauscht am
+   CONTAINER (Delegation) und beansprucht den Tipp auf der ganzen Zeile —
+   ein `event.stopPropagation()` im Inline-onclick des Schalters kommt dann
+   gar nicht mehr zum Zug, weil der native Klick unterdrückt wird. Ergebnis:
+   Der Schalter tut am Handy nichts, stattdessen öffnet sich die Zeile.
+   Erwartet Zeilen mit `.querySelectorAll` und `.matches`. Rein & testbar. */
+function diagInnerBlocked(rows, ignoreSel){
+  const raus=[];
+  (rows||[]).forEach(row=>{
+    if(!row || !row.querySelectorAll) return;
+    [...row.querySelectorAll('button, a[href], [onclick]')].forEach(el=>{
+      if(ignoreSel && el.matches && el.matches(ignoreSel)) return;
+      if(ignoreSel && el.closest && el.closest(ignoreSel)) return;
+      raus.push(el);
+    });
+  });
+  return raus;
+}
+
 /* Baut den Bericht zum Kopieren. Reine Textfunktion — nimmt fertige Daten
    entgegen, damit sie ohne Browser prüfbar ist. */
 function diagBerichtText(d){
@@ -247,6 +267,21 @@ function diagChecks(){
     });
     return { ok:!problems.length, info:problems.length?(problems.length+' Zeile(n) ohne Handler: '+[...new Set(problems)].join(', ')):'alle Zeilen erreichbar' };
   }, 'Eine Zeile ohne bekanntes Daten-Attribut lässt sich auf dem Handy nicht öffnen (der Halte-Detektor verschluckt den Tipp).');
+
+  add('Schalter in Zeilen erreichbar', ()=>{
+    /* Zweite Hälfte derselben Fehlerklasse: Die ZEILE ist bedienbar, aber ein
+       Schalter DARIN (⭐, ⋯) wird vom Halte-Detektor mitverschluckt. */
+    const reg=(typeof HOLDNAV!=='undefined')?HOLDNAV:[];
+    const treffer=[];
+    reg.forEach(h=>{
+      if(!h.el) return;
+      const rows=[...h.el.querySelectorAll(h.rowSel)];
+      diagInnerBlocked(rows, h.ignoreSel).forEach(el=>
+        treffer.push((h.el.id||'?')+' '+(el.className||el.tagName)));
+    });
+    const arten=[...new Set(treffer)];
+    return { ok:!arten.length, info:arten.length?('verschluckt: '+arten.join(', ')):'alle Schalter frei' };
+  }, 'Ein Schalter in einer Zeile braucht eine Ausnahme im Halte-Detektor (ignoreSel) — sonst öffnet ein Tipp darauf am Handy die Zeile, statt zu schalten.');
 
   add('Anleitungen vollständig', ()=>{
     const g=(typeof GUIDES!=='undefined'&&Array.isArray(GUIDES))?GUIDES:[];

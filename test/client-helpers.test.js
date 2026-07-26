@@ -196,10 +196,11 @@ function loadHelpers() {
     extractFn('diagPush'),
     extractFn('diagAlter'),
     extractFn('diagRowProblems'),
+    extractFn('diagInnerBlocked'),
     extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagBerichtText})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -2276,4 +2277,38 @@ test('diagBerichtText: enthält Selbsttest, Befunde und Zusammenhang', () => {
 
 test('diagBerichtText: leeres Protokoll wird ehrlich benannt', () => {
   assert.ok(/PROTOKOLL: keine Einträge/.test(fns.diagBerichtText({ jetzt: 'x' })));
+});
+
+/* Schalter INNERHALB einer Listenzeile — die zweite Hälfte derselben
+   Fehlerklasse wie diagRowProblems. Der Halte-Detektor lauscht am Container
+   und beansprucht den Tipp auf der ganzen Zeile; ein Schalter darin kommt
+   ohne Ausnahme (ignoreSel) nie zum Zug. Traf real: ⭐ in der Übersicht und
+   🔗 am Eintrag. */
+function fakeBtn(cls) {
+  const el = { className: cls, tagName: 'BUTTON' };
+  el.matches = (sel) => sel.split(',').some(s => s.trim() === '.' + cls);
+  el.closest = (sel) => (el.matches(sel) ? el : null);
+  return el;
+}
+function fakeRow(btns) { return { querySelectorAll: () => btns }; }
+
+test('diagInnerBlocked: Schalter ohne Ausnahme werden gemeldet', () => {
+  const row = fakeRow([fakeBtn('fav-btn')]);
+  assert.equal(fns.diagInnerBlocked([row], '').length, 1, 'ohne ignoreSel ist der ⭐ verschluckt');
+  assert.equal(fns.diagInnerBlocked([row], '.fav-btn').length, 0, 'mit Ausnahme ist er frei');
+});
+
+test('diagInnerBlocked: mehrere Ausnahmen in einem Selektor', () => {
+  const row = fakeRow([fakeBtn('entry-edit-btn'), fakeBtn('entry-canon-btn'), fakeBtn('entry-why-btn')]);
+  const sel = '.entry-edit-btn,.entry-why-btn,.entry-menu-btn';
+  const offen = fns.diagInnerBlocked([row], sel);
+  assert.equal(offen.length, 1, 'der 🔗-Schalter fehlte in der Ausnahmeliste');
+  assert.equal(offen[0].className, 'entry-canon-btn');
+  assert.equal(fns.diagInnerBlocked([row], sel + ',.entry-canon-btn').length, 0);
+});
+
+test('diagInnerBlocked: Zeilen ohne Schalter und leere Eingaben', () => {
+  assert.equal(fns.diagInnerBlocked([fakeRow([])], '').length, 0);
+  assert.equal(fns.diagInnerBlocked([null, undefined], '').length, 0);
+  assert.equal(fns.diagInnerBlocked(null, '').length, 0);
 });

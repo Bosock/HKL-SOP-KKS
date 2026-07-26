@@ -98,6 +98,60 @@ const TIPP = `(el) => {
     r.check('… und der Halte-Detektor beansprucht den Tipp (kein Geisterklick)', std.verhindert === true);
   }
 
+  // ─────────── Schalter INNERHALB einer Zeile (dieselbe Fehlerklasse) ───────────
+  // Ein Schalter in einer Zeile (⭐ Favorit, 🔗 Produkt) muss vom
+  // Halte-Detektor ausgenommen sein. Sonst beansprucht dieser den Tipp auf der
+  // ganzen Zeile — der Schalter tut nichts, und stattdessen passiert das, was
+  // die Zeile tut (öffnen bzw. abhaken).
+  const schalter = await A.page.evaluate((tippSrc) => {
+    const tipp = eval('(' + tippSrc + ')');
+    doLogin('1234567');
+    // a) ⭐ in der Übersicht darf NICHT öffnen
+    setMode('use'); curSeg = 'standard'; curSort = 'alpha';
+    FAV = {}; saveFav(); renderStandards(''); show('scr-standards');
+    const row = document.querySelector('#scr-standards .std[data-sid]');
+    const sid = row.dataset.sid;
+    tipp(row.querySelector('.fav-btn'));
+    const stern = { fav: !!FAV[sid], screen: (document.querySelector('.screen.active') || {}).id };
+
+    // b) 🔗 am Eintrag darf NICHT abhaken
+    let link = { uebersprungen: true };
+    setMode('use');
+    const std = DB.standards.find(s => (s.rubriken || []).some(rb =>
+      (rb.sub_bereiche || []).some(sb => (sb.eintraege || []).some(e => e.material_key))));
+    if (std) {
+      openStandard(std.id);
+      const ri = std.rubriken.findIndex(rb => (rb.sub_bereiche || []).some(sb =>
+        (sb.eintraege || []).some(e => e.material_key)));
+      openRubrik(ri);
+      // ein verknüpftes Material erzwingen, damit der 🔗-Schalter erscheint
+      const zeile = document.querySelector('#scr-detail .entry-row[data-cid]');
+      if (zeile) {
+        const e = findEntry(zeile.dataset.cid);
+        if (e && e.material_key) {
+          GTINDB['m:linktest'] = { gtin: 'm:linktest', manual: true, name: 'Linktest' };
+          saveGtinDB(); matLinkTo(e.material_key, 'm:linktest'); buildMaterialIndex(); openRubrik(ri);
+        }
+      }
+      const btn = document.querySelector('#scr-detail .entry-canon-btn');
+      if (btn) {
+        const cid = btn.closest('.entry-row').dataset.cid;
+        checks = {}; saveChecks();
+        tipp(btn);
+        link = { uebersprungen: false, abgehakt: !!checks[cid],
+          screen: (document.querySelector('.screen.active') || {}).id };
+      }
+    }
+    return { stern, link };
+  }, TIPP);
+  r.check('⭐ in der Zeile schaltet den Favoriten, statt zu öffnen',
+    schalter.stern.fav === true && schalter.stern.screen === 'scr-standards');
+  if (schalter.link.uebersprungen) { r.fail('🔗-Schalter am Eintrag (kein verknüpftes Material gefunden)'); }
+  else {
+    r.check('🔗 am Eintrag hakt NICHT versehentlich ab', schalter.link.abgehakt === false);
+    r.check('… sondern öffnet den Produkt-Stammsatz', schalter.link.screen === 'scr-scan-item');
+  }
+
   // ─────────── Selbsttest erkennt „Zeile ohne Weg hinein" ───────────
   const test = await A.page.evaluate(() => {
     setMode('use');

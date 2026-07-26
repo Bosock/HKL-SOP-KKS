@@ -100,6 +100,38 @@ vergleicht jede sichtbare Zeile dagegen und meldet
 „*n Zeile(n) ohne Handler*". Ein solcher Fehler ist damit **sichtbar, bevor
 jemand darüber stolpert**.
 
+## 3b. Dieselbe Fehlerklasse, drei Fundstellen
+
+Nach dem ersten Befund habe ich systematisch nach Geschwistern gesucht — mit
+dem Ergebnis, dass es **drei** waren. Alle drei nur mit dem Finger, nie mit
+der Maus:
+
+| # | Wo | Was passierte |
+|---|---|---|
+| 1 | Anleitung in der Übersicht | Tipp öffnete nichts (Detektor kannte `data-gid` nicht) |
+| 2 | ⭐ Favorit in einer Zeile | Tipp öffnete den Standard/die Anleitung, statt den Favoriten zu setzen |
+| 3 | 🔗 Produkt-Verweis am Eintrag | Tipp hakte den Eintrag ab, statt den Stammsatz zu öffnen |
+
+Der gemeinsame Kern: Der Halte-Detektor lauscht am **Container**
+(Ereignis-Delegation) und beansprucht den Tipp auf der ganzen Zeile. Ein
+`event.stopPropagation()` im Inline-`onclick` eines Schalters hilft dagegen
+nicht — es läuft zu spät, denn der native Klick wird gar nicht erst erzeugt.
+Die einzige wirksame Ausnahme ist `ignoreSel` im Detektor selbst.
+
+Behoben und dauerhaft abgesichert durch:
+
+* **Eine** Umsetzung statt zwei: Die Einträge (`#scr-detail`) hatten eine
+  eigene, fast identische Kopie des Detektors — in der die Rückmeldung
+  „behandelt" und der 🔗-Schalter fehlten. Sie ist entfallen; alle drei Ebenen
+  nutzen jetzt `attachHoldNav`.
+* **`ENTRY_BTNS`** — die Schalter einer Eintragszeile stehen an genau einer
+  Stelle, damit ein neu hinzugefügter Schalter nicht wieder vergessen wird.
+* **`data-cid` an der Zeile** statt Rückrechnen aus der DOM-`id`; der
+  Selektor `.entry-row[data-cid]` drückt den Vertrag aus (Zeilen ohne Kennung
+  sind ausdrücklich nicht bedienbar).
+* **Selbsttest „Schalter in Zeilen erreichbar"** (`diagInnerBlocked`) — meldet
+  jeden Schalter, der in einer Zeile sitzt und nicht ausgenommen ist.
+
 ## 4. Der Bericht
 
 **📋 Bericht kopieren** erzeugt einen kompakten Textblock:
