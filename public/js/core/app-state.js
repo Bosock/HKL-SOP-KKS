@@ -95,9 +95,19 @@ function setDesign(k,v){ DESIGN[k]=v; saveDESIGN(); applyDesign(); renderAdmin()
 function resetDesign(){ DESIGN={}; saveDESIGN(); const root=document.documentElement; ['--accent','--accent-deep','--size','--size-bg','--size-bd'].forEach(x=>root.style.removeProperty(x)); try{ if(document.body&&document.body.style) document.body.style.zoom='1'; }catch(e){} applyNatConfig(); renderAdmin(); toast('Design zurückgesetzt'); }
 function setTxt(k,v){ if(v.trim()==='') delete TXT[k]; else TXT[k]=v; saveTXT(); updateBar(); renderAdmin(); }
 function resetTxt(){ TXT={}; saveTXT(); updateBar(); renderAdmin(); toast('Texte zurückgesetzt'); }
-function newStdToObj(n){ return { id:'ns:'+n.id, dateiname:'(App-eigen)', titel:n.titel, gruppe:n.gruppe||'EIGENE', __new:true, rubriken:[
-  { name:'Materialien', typ:'material', sub_bereiche:[{name:null,eintraege:[]}] },
-  { name:'Ablauf', typ:'sonstige', sub_bereiche:[{name:null,eintraege:[]}] } ] }; }
+/* App-eigener Standard → DB-Objekt.
+   Trägt der Datensatz eine EIGENE Struktur (`rubriken`), wird sie verwendet —
+   so entstehen Duplikate bestehender Standards mit beliebigem Aufbau, in denen
+   Löschen wirklich löscht (features/duplicate.js). Ohne eigene Struktur bleibt
+   es beim schlanken Startgerüst von früher (Altbestand bleibt unverändert). */
+function newStdToObj(n){
+  const eigen=Array.isArray(n.rubriken)&&n.rubriken.length;
+  return { id:'ns:'+n.id, dateiname:n.kopieVonTitel?('(Kopie von '+n.kopieVonTitel+')'):'(App-eigen)',
+    titel:n.titel, gruppe:n.gruppe||'EIGENE', __new:true,
+    __kopieVon:n.kopieVon||null, __eigenStruktur:!!eigen,
+    rubriken: eigen ? n.rubriken : [
+      { name:'Materialien', typ:'material', sub_bereiche:[{name:null,eintraege:[]}] },
+      { name:'Ablauf', typ:'sonstige', sub_bereiche:[{name:null,eintraege:[]}] } ] }; }
 function newRubToObj(n){ return { name:n.name, typ:n.typ||'sonstige', __nrid:n.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
 function tplRubToObj(t){ return { name:t.name, typ:t.typ||'sonstige', __tplid:t.id, sub_bereiche:[{name:null,eintraege:[]}] }; }
 /* Gilt eine Rubrik-Vorlage für diesen Standard? (rein/testbar) */
@@ -114,15 +124,26 @@ function mergeCustomIntoDB(){ NEWSTD.forEach(n=>{ if(!DB.standards.find(s=>s.id=
   if(!NEWRUB.length && !RUBTPL.length) return;
   DB.standards=DB.standards.map(s=>{ const grp=stdGruppe(s); const add=[];
     NEWRUB.forEach(n=>{ if(n.std===s.id && !((s.rubriken||[]).find(r=>r.__nrid===n.id)) && !add.find(r=>r.__nrid===n.id)) add.push(newRubToObj(n)); });
-    RUBTPL.forEach(t=>{ if(rubTplMatches(t,s.id,grp) && !((s.rubriken||[]).find(r=>r.__tplid===t.id)) && !add.find(r=>r.__tplid===t.id)) add.push(tplRubToObj(t)); });
+    /* Standards mit EIGENER Struktur (Duplikate) bekommen KEINE Vorlagen-
+       Rubriken automatisch dazu: Beim Duplizieren wird der Inhalt einer
+       Vorlagen-Rubrik als normales Segment übernommen — würde die Vorlage
+       zusätzlich greifen, stünde dieselbe Rubrik zweimal da, und das Löschen
+       im Duplikat hielte nicht. Ein Duplikat ist bewusst gestaltet, nicht
+       generiert. */
+    if(!s.__eigenStruktur)
+      RUBTPL.forEach(t=>{ if(rubTplMatches(t,s.id,grp) && !((s.rubriken||[]).find(r=>r.__tplid===t.id)) && !add.find(r=>r.__tplid===t.id)) add.push(tplRubToObj(t)); });
     if(!add.length) return s; return Object.assign({},s,{rubriken:(s.rubriken||[]).concat(add)}); }); }
 function stdTitel(s){ return (STDE[s.id]&&STDE[s.id].titel)||s.titel; }
 function stdGruppe(s){ return (STDE[s.id]&&STDE[s.id].gruppe)||s.gruppe; }
 function stdHidden(s){ return !!(STDE[s.id]&&STDE[s.id].hidden); }
-function rubKey(r,idx){ return curStd.id+'|'+(r.__tplid?('tpl:'+r.__tplid):(r.__nrid?('nr:'+r.__nrid):idx)); }
-function rubName(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.name)||r.name; }
-function rubHidden(r,idx){ const e=RUBE[rubKey(r,idx)]; return !!(e&&e.hidden); }
-function rubOrd(r,idx){ const e=RUBE[rubKey(r,idx)]; return (e&&e.ord!=null)?e.ord:idx; }
+/* Rubrik-Helfer. `std` ist optional und war früher immer implizit der gerade
+   GEÖFFNETE Standard (curStd) — das reicht für die Anzeige, nicht aber, wenn
+   ein anderer Standard ausgewertet werden muss (z. B. beim Duplizieren). Ohne
+   drittes Argument verhalten sich alle vier exakt wie bisher. */
+function rubKey(r,idx,std){ const s=std||curStd; return s.id+'|'+(r.__tplid?('tpl:'+r.__tplid):(r.__nrid?('nr:'+r.__nrid):idx)); }
+function rubName(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return (e&&e.name)||r.name; }
+function rubHidden(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return !!(e&&e.hidden); }
+function rubOrd(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return (e&&e.ord!=null)?e.ord:idx; }
 /* Standards werden ausschließlich über das Formular-System (openStandardForm →
    ADDITIONS) angelegt; das frühere prompt-basierte newStandard() wurde bei der
    Konsolidierung entfernt. */
@@ -159,6 +180,13 @@ function toggleTplGroup(id,gi){ const t=RUBTPL.find(x=>x.id===id); if(!t) return
 function renameRubrik(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const nn=prompt('Rubrik umbenennen:',rubName(r,idx)); if(nn==null||!nn.trim()) return;
   const k=rubKey(r,idx); RUBE[k]=Object.assign({},RUBE[k],{name:nn.trim()}); saveRUBE(); openStandard(curStd.id,true); }
 function toggleRubHidden(idx){ if(!ADMIN) return; const r=curStd.rubriken[idx]; const k=rubKey(r,idx); const h=!rubHidden(r,idx);
+  /* Eigener Standard mit eigener Struktur (Kopie/Neuanlage): kein Ausblenden,
+     sondern echtes Löschen — es gibt keine Quelldatei, die geschont werden
+     müsste, und beim Aufbau eines neuen Standards will man wegwerfen. */
+  if(h && !r.__nrid && !r.__tplid && typeof ownHatStruktur==='function' && ownHatStruktur(curStd.id)){
+    if(!confirm('Segment „'+rubName(r,idx)+'" endgültig löschen (samt Einträgen)? In einem eigenen Standard ist das nicht wiederherstellbar.')) return;
+    if(ownDeleteRubrik(curStd.id, idx)){ openStandard(curStd.id,true); toast('Segment gelöscht'); }
+    return; }
   if(r.__nrid&&h){ if(!confirm('App-eigene Rubrik endgültig löschen (samt Einträgen)?')) return; NEWRUB=NEWRUB.filter(x=>x.id!==r.__nrid); saveNEWRUB(); NEW=NEW.filter(x=>!(x.std===curStd.id&&x.rub==='nr:'+r.__nrid)); saveNEW(); const i=curStd.rubriken.indexOf(r); if(i>=0) curStd.rubriken.splice(i,1); delete RUBE[k]; saveRUBE(); openStandard(curStd.id,true); toast('Rubrik gelöscht'); return; }
   RUBE[k]=Object.assign({},RUBE[k],{hidden:h}); saveRUBE(); openStandard(curStd.id,true); toast(h?'Rubrik ausgeblendet':'Rubrik wieder sichtbar'); }
 function moveRubrik(idx,dir){ if(!ADMIN) return; const vis=curStd.rubriken.map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));

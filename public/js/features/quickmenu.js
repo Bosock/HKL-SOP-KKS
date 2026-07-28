@@ -75,8 +75,12 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
   h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
   h+=sGroup('Inhalt','Titel, Gruppe & Freigabe');
-  h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);editStandard()');
+  h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
   h+=sAct('🏷️','Version & Freigabe','Status und Gültigkeit','showSheet(false);openStdMetaForm()');
+  h+=sGroup('Neuen Standard daraus machen','Kopieren statt abtippen');
+  h+=sAct('⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
+  if(typeof ownHatStruktur==='function' && ownHatStruktur(s.id)){
+    h+=sAct('＋','Segment hinzufügen','neue Rubrik in diesem eigenen Standard','showSheet(false);ownAddRubrikUI()'); }
   h+=sGroup('Gefahrenzone','Ausblenden & löschen');
   h+=sAct(hid?'↩️':'🗑️',hid?'Wieder einblenden':'Ausblenden',hid?'für alle wieder sichtbar':'aus der Nutzung nehmen (wiederherstellbar)','showSheet(false);toggleStdHidden()',hid?'':'danger');
   if(s.__new){ h+=sAct('🗑️','Endgültig löschen','App-eigenen Standard samt Einträgen entfernen','showSheet(false);deleteNewStandard()','danger'); }
@@ -97,7 +101,11 @@ function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[
   if(isTpl){ h+=sAct('🌐','Geltungsbereich','in welchen Standards die Rubrik erscheint','showSheet(false);openRubrikForm(\''+esc(r.__tplid)+'\')'); }
   h+=sGroup('Gefahrenzone','Häkchen & Ausblenden');
   h+=sAct('♻️','Häkchen zurücksetzen','die Tages-Häkchen dieser Rubrik','showSheet(false);clearRubrikChecks('+idx+')');
-  h+=sAct(hid?'↩️':'🗑️',hid?'Wieder einblenden':(r.__nrid?'Endgültig löschen':'Ausblenden'),hid?'':(r.__nrid?'eigene Rubrik samt Einträgen':'aus der Anzeige nehmen (wiederherstellbar)'),'showSheet(false);toggleRubHidden('+idx+')',hid?'':'danger');
+  const echtWeg=(typeof ownHatStruktur==='function' && ownHatStruktur(curStd.id) && !r.__nrid && !r.__tplid);
+  h+=sAct(hid?'↩️':'🗑️',
+    hid?'Wieder einblenden':((r.__nrid||echtWeg)?'Endgültig löschen':'Ausblenden'),
+    hid?'':((r.__nrid||echtWeg)?'Segment samt Einträgen entfernen':'aus der Anzeige nehmen (wiederherstellbar)'),
+    'showSheet(false);toggleRubHidden('+idx+')', hid?'':'danger');
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h; showSheet(true);
 }
@@ -330,6 +338,13 @@ function sheetDelete(){
     const id=sheetCid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
     if(QE.cid[sheetCid]) delete QE.cid[sheetCid]; if(overrides[sheetCid]){ delete overrides[sheetCid]; saveJSON('hkl_overrides',overrides); }
     saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); return; }
+  /* In einem EIGENEN Standard (Kopie/Neuanlage mit eigener Struktur) gibt es
+     keine Quelldatei, die man schonen müsste — dort ist Löschen echtes
+     Löschen. Genau das braucht man beim Aufbau eines neuen Standards. */
+  if(typeof ownHatStruktur==='function' && sheetCid && ownHatStruktur(sheetCid.split('|')[0])){
+    if(!confirm('Diesen Eintrag endgültig löschen? In einem eigenen Standard ist das nicht wiederherstellbar.')) return;
+    if(ownDeleteEntry(sheetCid)){ showSheet(false); toast('Eintrag gelöscht'); reRenderDetail(); }
+    return; }
   if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
 /* Setzt NUR die Änderungen an dieser Stelle zurück: 📍-Regeln (revoke) + die
    Alt-Speicher an diesem cid. Standard-/Gruppen-/Überall-Regeln bleiben — die

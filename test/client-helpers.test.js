@@ -191,6 +191,10 @@ function loadHelpers() {
     extractFn('matPhotoDel'),
     extractFn('matPhotoMain'),
     extractConst('DIAG_MAX'),
+    extractFn('dupTitel'),
+    extractFn('dupDeep'),
+    extractFn('dupCidShift'),
+    extractFn('dupZaehlung'),
     extractFn('diagShort'),
     extractFn('diagSig'),
     extractFn('diagPush'),
@@ -200,7 +204,7 @@ function loadHelpers() {
     extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText})';
+  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText, dupTitel, dupDeep, dupCidShift, dupZaehlung})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -2311,4 +2315,82 @@ test('diagInnerBlocked: Zeilen ohne Schalter und leere Eingaben', () => {
   assert.equal(fns.diagInnerBlocked([fakeRow([])], '').length, 0);
   assert.equal(fns.diagInnerBlocked([null, undefined], '').length, 0);
   assert.equal(fns.diagInnerBlocked(null, '').length, 0);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Duplizieren: Titelvergabe, echte Tiefkopie, Nachziehen der
+   positionsabhängigen Anpassungen beim echten Löschen
+   ═══════════════════════════════════════════════════════════════ */
+
+test('dupTitel: erste Kopie, dann durchnummeriert', () => {
+  assert.equal(fns.dupTitel('VVI-ICD', []), 'Kopie von VVI-ICD');
+  assert.equal(fns.dupTitel('VVI-ICD', ['Kopie von VVI-ICD']), 'Kopie von VVI-ICD (2)');
+  assert.equal(fns.dupTitel('VVI-ICD', ['Kopie von VVI-ICD', 'Kopie von VVI-ICD (2)']), 'Kopie von VVI-ICD (3)');
+});
+
+test('dupTitel: Groß-/Kleinschreibung zählt nicht als Unterschied', () => {
+  assert.equal(fns.dupTitel('X', ['kopie von x']), 'Kopie von X (2)');
+});
+
+test('dupTitel: leerer Titel bekommt einen Platzhalter', () => {
+  assert.equal(fns.dupTitel('   ', []), 'Kopie von Ohne Titel');
+});
+
+test('dupDeep: echte Tiefkopie — keine gemeinsamen Verweise mit dem Original', () => {
+  const orig = { a: 1, liste: [{ n: 'x' }], tief: { arr: [1, 2] } };
+  const k = fns.dupDeep(orig);
+  k.liste[0].n = 'GEAENDERT';
+  k.tief.arr.push(3);
+  assert.equal(orig.liste[0].n, 'x', 'das Original darf sich NICHT mitändern');
+  assert.equal(orig.tief.arr.length, 2);
+  assert.equal(k.a, 1);
+});
+
+test('dupDeep: null, Zahlen und Zeichenketten bleiben unverändert', () => {
+  assert.equal(fns.dupDeep(null), null);
+  assert.equal(fns.dupDeep(5), 5);
+  assert.equal(fns.dupDeep('x'), 'x');
+  assert.equal(fns.dupDeep([]).length, 0);
+});
+
+test('dupCidShift: nachrückende Einträge behalten ihre Anpassungen', () => {
+  // Einträge 0,1,2 haben Farben; Eintrag 1 wird gelöscht.
+  const map = { 'ns:k|0|0|0': 'rot', 'ns:k|0|0|1': 'gruen', 'ns:k|0|0|2': 'blau' };
+  const out = fns.dupCidShift(map, 'ns:k', 0, 0, 1);
+  assert.equal(out['ns:k|0|0|0'], 'rot', 'davor bleibt unangetastet');
+  assert.equal(out['ns:k|0|0|1'], 'blau', 'der frühere Eintrag 2 rückt mitsamt Anpassung auf');
+  assert.equal(out['ns:k|0|0|2'], undefined, 'kein verwaister Schlüssel bleibt zurück');
+});
+
+test('dupCidShift: fremde Standards, Rubriken und Abschnitte bleiben unberührt', () => {
+  const map = {
+    'ns:k|0|0|5': 'betroffen',
+    'ns:k|1|0|5': 'andere Rubrik',
+    'ns:k|0|1|5': 'anderer Abschnitt',
+    'ns:x|0|0|5': 'anderer Standard',
+    'g|anleitung|schritt': 'ganz anderes Format',
+  };
+  const out = fns.dupCidShift(map, 'ns:k', 0, 0, 1);
+  assert.equal(out['ns:k|0|0|4'], 'betroffen');
+  assert.equal(out['ns:k|1|0|5'], 'andere Rubrik');
+  assert.equal(out['ns:k|0|1|5'], 'anderer Abschnitt');
+  assert.equal(out['ns:x|0|0|5'], 'anderer Standard');
+  assert.equal(out['g|anleitung|schritt'], 'ganz anderes Format');
+});
+
+test('dupCidShift: leere Eingabe und Löschen am Ende', () => {
+  assert.equal(Object.keys(fns.dupCidShift(null, 'ns:k', 0, 0, 0)).length, 0);
+  const out = fns.dupCidShift({ 'ns:k|0|0|0': 'a', 'ns:k|0|0|1': 'b' }, 'ns:k', 0, 0, 1);
+  assert.equal(out['ns:k|0|0|0'], 'a');
+  assert.equal(Object.keys(out).length, 1);
+});
+
+test('dupZaehlung: zählt Segmente und Einträge für die Rückmeldung', () => {
+  const z = fns.dupZaehlung([
+    { sub_bereiche: [{ eintraege: [1, 2] }, { eintraege: [3] }] },
+    { sub_bereiche: [{ eintraege: [] }] },
+  ]);
+  assert.equal(z.rubriken, 2);
+  assert.equal(z.eintraege, 3);
+  assert.equal(fns.dupZaehlung(null).rubriken, 0);
 });
