@@ -463,6 +463,7 @@ function renderScanItemView(r){
     ${scanViewGalerieHTML(r)}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
+    ${scanMerkViewHTML(r)}
     ${(typeof catInfoBlockHTML==='function')?catInfoBlockHTML(r):''}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Zur Liste</button><button class="btn btn-pri" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,true)">Bearbeiten</button></div>
     ${rescan}
@@ -499,6 +500,7 @@ function renderScanItemForm(r){
     <div id="scProps">${MATPROPS.map(p=>`<div class="flabel">${esc((p.label||'').toUpperCase())}</div><input class="loc-input" data-pk="${esc(p.key)}" value="${esc((r.props&&r.props[p.key])||'')}">`).join('')}</div>
     <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="scanAddPropUI()">＋ Eigenschaft (z. B. Tip Load)</button></div>
     <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>
+    ${scanMerkFormHTML(r)}
     <div class="flabel" style="margin-top:12px">LAGERORT</div><input class="loc-input" id="scLoc" placeholder="z. B. Regal A · Fach 3" value="${esc(r.lagerort||'')}">
     <div class="flabel">STÜCKPREIS € (optional)</div><input class="loc-input" id="scPreis" inputmode="decimal" placeholder="z. B. 12,50" value="${esc(r.preis!=null?String(r.preis).replace('.',','):'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Abbrechen</button><button class="btn btn-pri" data-g="${esc(g)}" onclick="saveScanItem(this.dataset.g)">Speichern</button></div>
@@ -605,6 +607,16 @@ function saveScanItem(gArg){
     french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis),
     fotos:scanGalerie.slice(), photo:scanCurrentPhoto(), props:scanReadProps() };
+  /* Merkmale (typisiert, je Materialklasse). Unplausible Werte werden gemeldet,
+     aber NICHT abgelehnt: Das Etikett ist die Wirklichkeit, der Katalog nur
+     unsere Erwartung. Wer eine 300-cm-Schleuse hat, soll sie eintragen können. */
+  if(scanMerkBereit()){
+    const kl=$('scMerkKlasse'); const mw=scanReadMerkmale();
+    patch.klasse = (kl && kl.value) || null;
+    patch.merkmale = Object.keys(mw).length ? mw : null;
+    const mahn = merkPruefe(mw, patch.klasse, MERKKAT);
+    if(mahn.length) toast(mahn[0].text + (mahn.length>1?(' (und '+(mahn.length-1)+' weitere)'):''), true);
+  }
   /* LERNSCHLEIFE: Hat die OCR gerade etwas anderes gelesen als hier gespeichert
      wird, merkt sich die App das Paar — beim nächsten Mal trifft sie sofort.
      Genau das macht die Erkennung auch bei Produkten besser, die in KEINEM
@@ -630,4 +642,102 @@ function deleteScanItem(gArg){
   const g=gtinKey(gArg); const r=GTINDB[g]; if(!r) return;
   if(!confirm('Produkt „'+(r.name||r.ref||g)+'" endgültig aus der Datenbank löschen?')) return;
   delete GTINDB[g]; saveGtinDB(); toast('Produkt gelöscht'); openScanHub();
+}
+
+/* ═══ MERKMALE am Produkt — Anzeige und Editor ═══════════════════
+   Der Merkmalskatalog (features/merkmale.js + data/merkmale.json) bekommt hier
+   seinen Platz in der Oberfläche. Bis dahin lagen typisierte Eigenschaften
+   nirgends: „6 F · EBU 4.0 · mit Seitenlöchern" passte in kein Feld.
+   Fehlt der Katalog (Datei nicht geladen), erscheint der Block gar nicht —
+   die Maske bleibt genau wie vorher. */
+
+/* Ist der Merkmalskatalog verfügbar? */
+function scanMerkBereit(){
+  return typeof MERKKAT!=='undefined' && MERKKAT && Array.isArray(MERKKAT.merkmale) && MERKKAT.merkmale.length>0;
+}
+
+/* Anzeige im Produktblatt: Leitmerkmale als Badges, Warnmerkmale rot,
+   darunter die Lückenliste als Arbeitsauftrag. */
+function scanMerkViewHTML(r){
+  if(!scanMerkBereit() || !r) return '';
+  const liste = merkAusSatz(r, MERKKAT);
+  const klasse = r.klasse || '';
+  if(!liste.length && !klasse) return '';
+  const kl = (MERKKAT.klassen||[]).filter(k=>k.id===klasse)[0];
+  const zeilen = liste.map(m=>{
+    const wert = esc(String(m.wert) + (m.einheit?(' '+m.einheit):''));
+    const warn = m.warnung ? ' style="color:#d64545;font-weight:600"' : '';
+    return `<div class="info-field"><div class="if-l">${esc(m.label)}</div><div class="if-v"${warn}>${wert}</div></div>`;
+  }).join('');
+  const luecken = klasse ? merkLuecken(klasse, liste, MERKKAT) : [];
+  const luHtml = luecken.length
+    ? `<p class="hint">Noch nicht erfasst: ${esc(luecken.map(l=>l.label).join(' · '))}</p>` : '';
+  return `<div class="flabel" style="margin-top:12px">MERKMALE${kl?(' · '+esc(kl.label)):''}</div>${zeilen||'<p class="hint">Noch keine Merkmale erfasst.</p>'}${luHtml}`;
+}
+
+/* Ein Eingabefeld je Merkmal — passend zum Typ. Geschlossene Wertelisten und
+   Ja/Nein bekommen eine Auswahl, damit gar nicht erst Schreibvarianten
+   entstehen; alles andere ein Textfeld mit Einheit als Platzhalter. */
+function scanMerkFeldHTML(d, wert){
+  const v = (wert==null?'':String(wert));
+  const kopf = `<div class="flabel">${esc((d.label||'').toUpperCase())}${d.einheit?(' <span style="opacity:.6">('+esc(d.einheit)+')</span>'):''}</div>`;
+  if(d.typ==='ja_nein'){
+    return kopf+`<select class="form-sel merk-f" data-mid="${esc(d.id)}">
+      <option value=""${v===''?' selected':''}>— unbekannt —</option>
+      <option value="ja"${v==='ja'?' selected':''}>ja</option>
+      <option value="nein"${v==='nein'?' selected':''}>nein</option></select>`;
+  }
+  if(d.typ==='liste' && Array.isArray(d.werte) && d.werte.length){
+    const opts = d.werte.map(w=>`<option value="${esc(w)}"${v===w?' selected':''}>${esc(w)}</option>`).join('');
+    const fremd = (v && d.werte.indexOf(v)<0) ? `<option value="${esc(v)}" selected>${esc(v)}</option>` : '';
+    return kopf+`<select class="form-sel merk-f" data-mid="${esc(d.id)}"><option value="">— unbekannt —</option>${opts}${fremd}</select>`;
+  }
+  const ph = d.einheit ? ('z. B. 6 (in '+d.einheit+')') : '';
+  return kopf+`<input class="loc-input merk-f" data-mid="${esc(d.id)}" placeholder="${esc(ph)}" value="${esc(v)}">`;
+}
+
+/* Die Felder zur gewählten Klasse. Getrennt in Leitmerkmale (stehen offen)
+   und allgemeine Angaben (steril, Latex, CE … — zugeklappt), sonst scrollt
+   man sich bei jedem Produkt durch zwanzig Felder. */
+function scanMerkFelderHTML(klasseId, werte){
+  if(!scanMerkBereit()) return '';
+  const w = werte||{};
+  const defs = merkFuerKlasse(MERKKAT, klasseId||'allgemein');
+  const vorn = defs.filter(d=>(d.rang||99) < 40);
+  const hinten = defs.filter(d=>(d.rang||99) >= 40);
+  const bau = list => list.map(d=>scanMerkFeldHTML(d, w[d.id])).join('');
+  const belegtHinten = hinten.some(d=>w[d.id]);
+  return bau(vorn) + (hinten.length
+    ? `<details class="merk-mehr"${belegtHinten?' open':''}><summary>Weitere Angaben (${hinten.length})</summary>${bau(hinten)}</details>`
+    : '');
+}
+
+/* Editor-Block: Klassenwahl + Felder. Beim Wechsel der Klasse werden die
+   bereits eingetippten Werte mitgenommen — niemand soll Arbeit verlieren,
+   nur weil er die Klasse korrigiert. */
+function scanMerkFormHTML(r){
+  if(!scanMerkBereit()) return '';
+  const klasse = (r&&r.klasse) || '';
+  const opts = (MERKKAT.klassen||[]).filter(k=>k.id!=='allgemein')
+    .map(k=>`<option value="${esc(k.id)}"${k.id===klasse?' selected':''}>${esc(k.label)}</option>`).join('');
+  return `<div class="flabel" style="margin-top:12px">MERKMALE</div>
+    <select class="form-sel" id="scMerkKlasse" onchange="scanMerkKlasseWechsel()">
+      <option value="">— Materialklasse wählen —</option>${opts}</select>
+    <p class="hint">Die Klasse bestimmt, welche Merkmale gefragt sind: ein Draht hat keine Kurvenform, eine Kompresse keinen Berstdruck. Leer lassen ist erlaubt — dann erscheinen nur die allgemeinen Angaben.</p>
+    <div id="scMerkFelder">${scanMerkFelderHTML(klasse, (r&&r.merkmale)||{})}</div>`;
+}
+function scanMerkKlasseWechsel(){
+  const sel=$('scMerkKlasse'), box=$('scMerkFelder');
+  if(!sel||!box) return;
+  box.innerHTML = scanMerkFelderHTML(sel.value, scanReadMerkmale());
+}
+/* Alle ausgefüllten Merkmalsfelder einsammeln. Leere Felder werden NICHT
+   gespeichert — „leer" ist eine Aussage, „" ist keine. */
+function scanReadMerkmale(){
+  const out={};
+  document.querySelectorAll('#scMerkFelder .merk-f[data-mid]').forEach(el=>{
+    const v=(el.value||'').trim();
+    if(v) out[el.dataset.mid]=v;
+  });
+  return out;
 }

@@ -27,7 +27,7 @@ vm.runInContext(SRC + `
 ;globalThis.__M = { merkZahl, merkNachMm, merkKonvert, merkPlausibel, merkNormText,
   merkAnkerFund, merkMusterFund, merkRefFelder, merkKlassifizieren, merkFuerKlasse,
   merkEntscheiden, merkSchluessel, merkSammeln, merkKurzText, merkBadges, merkLuecken,
-  merkPasst, merkWertNormieren };
+  merkPasst, merkWertNormieren, merkAusSatz, merkAbgleich, merkPruefe };
 ;globalThis.__setKat = (k)=>{ MERKKAT = k; };`, ctx);
 const M = ctx.__M;
 ctx.__setKat(KAT);
@@ -989,6 +989,79 @@ test('Kompatibilität: welcher Draht passt in den Corodyn?', () => {
 test('Kompatibilität antwortet „unbekannt" statt zu raten', () => {
   const regel = KAT.kompatibilitaet.regeln.filter(r=>r.id==='draht_in_katheter')[0];
   assert.equal(M.merkPasst(regel, [], [{id:'draht_in',wert:'0.014',einheit:'in'}], KAT.einheiten).antwort, 'unbekannt');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   8b. Am Materialstammsatz
+   ═══════════════════════════════════════════════════════════════ */
+test('merkAusSatz liefert gespeicherte Merkmale in Katalogreihenfolge', () => {
+  const r = { klasse:'fuehrungskatheter',
+              merkmale:{ nutzlaenge_cm:'100', ad_fr:'6', seitenloecher:'ja', kurvenform:'EBU4.0' } };
+  const l = M.merkAusSatz(r, KAT);
+  assert.equal(l.map(x=>x.id).join(','), 'ad_fr,kurvenform,seitenloecher,nutzlaenge_cm');
+  assert.equal(l[0].herkunft, 'mensch');
+  assert.equal(l[0].einheit, 'F');
+});
+
+test('merkAusSatz verliert nichts, wenn jemand die Klasse ändert', () => {
+  // Ein Wert, der zur neuen Klasse nicht mehr gehört, darf nicht stillschweigend
+  // verschwinden — das wäre gelöschte Handarbeit.
+  const r = { klasse:'textil', merkmale:{ masse_cm:'10 cm x 10 cm', kurvenform:'EBU4.0' } };
+  const l = M.merkAusSatz(r, KAT);
+  const ids = l.map(x=>x.id);
+  assert.ok(ids.indexOf('kurvenform') >= 0, 'fremdes Merkmal bleibt erhalten');
+  assert.equal(l.filter(x=>x.id==='kurvenform')[0].fremd, true);
+});
+
+test('merkAusSatz auf leerem Satz ist leer statt kaputt', () => {
+  assert.equal(M.merkAusSatz(null, KAT).length, 0);
+  assert.equal(M.merkAusSatz({}, KAT).length, 0);
+  assert.equal(M.merkAusSatz({ merkmale:{} }, KAT).length, 0);
+});
+
+test('merkAbgleich: der Mensch schlägt den Fund', () => {
+  const gefunden = M.merkSammeln(ETIKETT.launcher.text, ETIKETT.launcher.ref, KAT).merkmale;
+  // nichts gespeichert -> alles zum Übernehmen
+  const leer = M.merkAbgleich(gefunden, {});
+  assert.equal(leer.uebernehmen.length, gefunden.length);
+  assert.equal(leer.abweichend.length, 0);
+
+  // gleicher Wert, andere Schreibweise -> bestätigt, nicht abweichend
+  const gleich = M.merkAbgleich(gefunden, { ad_fr:'6', nutzlaenge_cm:'100' });
+  assert.equal(gleich.bestaetigt.filter(x=>x.id==='ad_fr').length, 1);
+  assert.equal(gleich.abweichend.filter(x=>x.id==='ad_fr').length, 0);
+
+  // echter Widerspruch -> gemeldet, NICHT überschrieben
+  const anders = M.merkAbgleich(gefunden, { ad_fr:'7' });
+  const w = anders.abweichend.filter(x=>x.id==='ad_fr')[0];
+  assert.ok(w, 'Abweichung muss gemeldet werden');
+  assert.equal(w.alt, '7');
+  assert.equal(w.neu, '6');
+  assert.equal(anders.uebernehmen.filter(x=>x.id==='ad_fr').length, 0, 'darf nicht übernommen werden');
+});
+
+test('merkPruefe warnt bei unplausiblen Werten, ohne zu blockieren', () => {
+  const ok = M.merkPruefe({ ad_fr:'6', nutzlaenge_cm:'100' }, 'fuehrungskatheter', KAT);
+  assert.equal(ok.length, 0);
+  const schief = M.merkPruefe({ nutzlaenge_cm:'8' }, 'fuehrungskatheter', KAT);
+  assert.equal(schief.length, 1);
+  assert.equal(schief[0].id, 'nutzlaenge_cm');
+  assert.ok(schief[0].text.indexOf('außerhalb') > 0);
+  // Text- und Ja/Nein-Merkmale haben kein Fenster und werden nie bemängelt
+  assert.equal(M.merkPruefe({ kurvenform:'XYZ', seitenloecher:'ja' }, 'fuehrungskatheter', KAT).length, 0);
+});
+
+test('vom Etikett bis zum Stammsatz: der ganze Weg', () => {
+  const e = M.merkSammeln(ETIKETT.sureflex_m.text, ETIKETT.sureflex_m.ref, KAT);
+  // 1. gefunden
+  assert.equal(wert(e, 'curl'), 'Medium Curl');
+  // 2. gespeichert (so, wie der Editor es täte)
+  const satz = { klasse: e.klasse, merkmale: {} };
+  e.merkmale.forEach(m=>{ satz.merkmale[m.id] = m.wert; });
+  // 3. wieder angezeigt
+  const zurueck = M.merkAusSatz(satz, KAT);
+  assert.equal(zurueck.filter(x=>x.id==='curl')[0].wert, 'Medium Curl');
+  assert.equal(M.merkPruefe(satz.merkmale, satz.klasse, KAT).length, 0, 'nichts Unplausibles gespeichert');
 });
 
 /* ═══════════════════════════════════════════════════════════════

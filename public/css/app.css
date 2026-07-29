@@ -803,3 +803,12 @@
 
 /* ═══ Duplizieren (features/duplicate.js) ═══ */
 .dup-sum { border:1px solid var(--line); background:var(--surface-2); border-radius:12px; padding:10px 12px; margin-top:10px; font-size:13.5px; color:var(--text); line-height:1.5; }
+
+/* Merkmale: „Weitere Angaben" zugeklappt — sonst scrollt man bei jedem
+   Produkt an zwanzig Feldern vorbei, die meist leer bleiben. */
+.merk-mehr{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.merk-mehr>summary{cursor:pointer;color:var(--accent);font-size:.86rem;
+  letter-spacing:.04em;text-transform:uppercase;padding:4px 0;list-style:none}
+.merk-mehr>summary::-webkit-details-marker{display:none}
+.merk-mehr>summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.merk-mehr[open]>summary::before{content:"▾ "}

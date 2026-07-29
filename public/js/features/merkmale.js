@@ -547,3 +547,86 @@ function merkAbdeckung(klasseId, merkmale, katalog){
   const ist = (merkmale||[]).filter(m=>m.wert!=null && m.wert!=='').length;
   return { ist: ist, soll: soll, anteil: soll ? Math.round(ist/soll*100) : 0 };
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AM MATERIALSTAMMSATZ
+
+   Der Stammsatz bekommt zwei neue Felder:
+     r.klasse   — die Materialklasse ('fuehrungskatheter', 'schleuse' …)
+     r.merkmale — { merkmalId: Wert } — das, was ein MENSCH eingetragen
+                  oder bestätigt hat
+
+   Trennung mit Absicht: Was aus einem Foto stammt, ist ein Vorschlag und
+   lebt nur im Erfassungsdialog. Erst wenn jemand speichert, wird daraus ein
+   Wert am Stammsatz — und der wird nie wieder automatisch überschrieben.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Die gespeicherten Merkmale eines Stammsatzes als Anzeigeliste — in der
+   Reihenfolge des Katalogs, mit Beschriftung, Einheit und Warnkennung. */
+function merkAusSatz(r, katalog){
+  const kat = katalog || MERKKAT;
+  if(!r || !r.merkmale) return [];
+  const klasse = r.klasse || 'allgemein';
+  const defs = merkFuerKlasse(kat, klasse);
+  const out = [];
+  const gesehen = {};
+  defs.forEach(d=>{
+    const v = r.merkmale[d.id];
+    if(v==null || v==='') return;
+    gesehen[d.id] = true;
+    out.push({ id:d.id, label:d.label, kurz:d.kurz||d.label, typ:d.typ,
+               einheit:d.einheit||null, wert:v, sicher:true, herkunft:'mensch',
+               badge:!!d.badge, warnung:!!d.warnung, rang:d.rang||99 });
+  });
+  /* Merkmale, die zur Klasse nicht (mehr) passen, gehen nicht verloren —
+     sonst verschwände stillschweigend Handarbeit, wenn jemand die Klasse
+     ändert. Sie erscheinen hinten, mit ihrer Kennung als Beschriftung. */
+  Object.keys(r.merkmale).forEach(id=>{
+    if(gesehen[id]) return;
+    const v = r.merkmale[id];
+    if(v==null || v==='') return;
+    const d = (kat.merkmale||[]).filter(x=>x.id===id)[0];
+    out.push({ id:id, label:(d?d.label:id), kurz:(d&&d.kurz)||id, typ:(d?d.typ:'text'),
+               einheit:(d&&d.einheit)||null, wert:v, sicher:true, herkunft:'mensch',
+               badge:false, warnung:!!(d&&d.warnung), rang:95, fremd:true });
+  });
+  out.sort((a,b)=>(a.rang||99)-(b.rang||99));
+  return out;
+}
+
+/* Vorschläge aus einem Etikett mit dem verbinden, was schon am Stammsatz
+   steht. Regel: Der Mensch schlägt alles. Ein bereits gespeicherter Wert
+   wird NIE durch einen Fund überschrieben — er wird höchstens bestätigt.
+   Rückgabe: { uebernehmen:[…], bestaetigt:[…], abweichend:[…] } */
+function merkAbgleich(gefunden, gespeichert){
+  const alt = gespeichert || {};
+  const uebernehmen = [], bestaetigt = [], abweichend = [];
+  (gefunden||[]).forEach(f=>{
+    const a = alt[f.id];
+    if(a==null || a===''){ uebernehmen.push(f); return; }
+    const gleich = merkSchluessel({typ:f.typ}, a) === merkSchluessel({typ:f.typ}, f.wert);
+    if(gleich) bestaetigt.push(f);
+    else abweichend.push({ id:f.id, label:f.label, alt:a, neu:f.wert, herkunft:f.herkunft });
+  });
+  return { uebernehmen: uebernehmen, bestaetigt: bestaetigt, abweichend: abweichend };
+}
+
+/* Prüfung beim Speichern: Welche eingetragenen Werte liegen außerhalb ihres
+   Plausibilitätsfensters? Das BLOCKIERT nicht — es warnt. Ein Etikett darf
+   den Katalog überstimmen, denn das Etikett ist die Wirklichkeit. */
+function merkPruefe(werte, klasseId, katalog){
+  const kat = katalog || MERKKAT;
+  const mahnungen = [];
+  Object.keys(werte||{}).forEach(id=>{
+    const v = werte[id];
+    if(v==null || v==='') return;
+    const d = (kat.merkmale||[]).filter(x=>x.id===id)[0];
+    if(!d || (d.typ!=='mass' && d.typ!=='zahl')) return;
+    if(!merkPlausibel(d, v)){
+      mahnungen.push({ id:id, label:d.label, wert:v, fenster:d.fenster,
+        text: d.label + ' „' + v + '" liegt außerhalb des üblichen Bereichs ('
+              + d.fenster[0] + '–' + d.fenster[1] + (d.einheit?(' '+d.einheit):'') + ')' });
+    }
+  });
+  return mahnungen;
+}

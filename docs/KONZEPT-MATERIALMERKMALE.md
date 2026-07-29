@@ -317,14 +317,37 @@ Arbeitsliste statt zum Bauchgefühl.
 * `public/data/merkmale.json` — 28 Klassen, 97 Merkmale, 7 REF-Grammatiken,
   4 Kompatibilitätsregeln
 * `public/js/features/merkmale.js` — reine, testbare Erkennungsmaschine
-* `test/merkmale.test.js` — 53 Tests gegen 26 echte Etikettentexte
+* `test/merkmale.test.js` — 59 Tests gegen 26 echte Etikettentexte
+* `e2e/matmerkmale.js` — 21 Prüfungen im echten Browser: Klassenwahl,
+  klassenabhängige Felder, Speichern und Wiederanzeigen, Klassenwechsel ohne
+  Datenverlust, Warnung statt Ablehnung, der ND/LD-Fall an SureFlex M/L, und
+  die Rückfallebene ohne Katalog
 
-**Noch nicht verdrahtet** (bewusst): Der Baustein wird geladen, aber weder der
-Etikettenscanner noch der Material-Editor benutzen ihn bisher. Nichts an der
-bestehenden Bedienung ändert sich dadurch. Der nächste Schritt braucht:
+**Verdrahtet (Schritt 1):** Der Materialstammsatz trägt jetzt zwei neue Felder
+— `klasse` und `merkmale` — und der Material-Editor bietet dafür eine
+Klassenwahl mit typisierten Feldern. Die Klasse bestimmt, was gefragt wird;
+allgemeine Angaben (steril, Latex, CE …) liegen zugeklappt darunter. Im
+Produktblatt erscheinen die Merkmale als eigener Block, Warnmerkmale rot, mit
+der Lückenliste als Arbeitsauftrag.
 
-1. Merkmalsblock im Material-Editor (typisierte Felder je Klasse statt
-   Freitextzeilen), mit Herkunfts- und Bestätigungsvermerk
+Drei Festlegungen dabei:
+
+* **Der Mensch schlägt alles.** Was jemand eingetragen hat, wird nie
+  automatisch überschrieben — `merkAbgleich` meldet Abweichungen, statt sie
+  aufzulösen.
+* **Unplausibles wird gemeldet, nicht abgelehnt.** Eine 8-cm-„Katheterlänge"
+  bekommt einen Hinweis und wird trotzdem gespeichert. Das Etikett ist die
+  Wirklichkeit, der Katalog nur unsere Erwartung.
+* **Ein Klassenwechsel verliert nichts.** Weder eingetippte Werte im Formular
+  noch gespeicherte Merkmale, die zur neuen Klasse nicht mehr passen — die
+  erscheinen weiterhin, nur hinten.
+
+Fehlt die Katalogdatei, erscheint der Block gar nicht und die Maske verhält
+sich exakt wie vorher (end-to-end geprüft).
+
+**Noch nicht verdrahtet:**
+
+1. ~~Merkmalsblock im Material-Editor~~ — erledigt
 2. Anbindung an den Foto-Assistenten: gefundene Merkmale als Vorschlag,
    mehrdeutige als Auswahl
 3. Merkmals-Editor in der Materialverwaltung (Grundsatz ⑤)
