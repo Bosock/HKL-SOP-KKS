@@ -173,7 +173,12 @@ function merkAnkerFund(text, def, fenster){
       const p = tl.indexOf(a, von);
       if(p < 0) break;
       von = p + a.length;
-      const schnipsel = t.slice(von, von + weite);
+      /* `anker_davor`: Der Wert steht LINKS der Beschriftung. Etiketten drucken
+         die Nummer groß und schreiben die Erklärung als Bildunterschrift
+         darunter — dann liegt der Wert im Text vor dem Ankerwort. */
+      const schnipsel = def.anker_davor
+        ? t.slice(Math.max(0, p - weite), p)
+        : t.slice(von, von + weite);
       for(let k=0;k<musterListe.length;k++){
         const re = merkRegex(musterListe[k], merkFlags(def, false));
         if(!re) continue;
@@ -230,7 +235,11 @@ function merkMusterFund(text, def){
     const tu = t.toUpperCase();
     def.werte.forEach(w=>{
       const wu = String(w).toUpperCase();
-      if(wu && tu.indexOf(wu) >= 0 && !gesehen[wu]){ gesehen[wu]=true; out.push({ wert:w, treffer:w, herkunft:'muster' }); } });
+      if(!wu || gesehen[wu]) return;
+      /* An Wortgrenzen prüfen — sonst fände „PE" sich mitten in „ImPElla"
+         und die Schleuse bekäme ein Material, das nirgends draufsteht. */
+      const re = merkRegex('(?:^|[^A-Z0-9])' + wu.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:[^A-Z0-9]|$)', '');
+      if(re && re.test(tu)){ gesehen[wu]=true; out.push({ wert:w, treffer:w, herkunft:'muster' }); } });
   }
   return out;
 }

@@ -10,6 +10,11 @@
 > verschiedene Produkte, ein Buchstabe Unterschied, und die App kann sie nicht
 > auseinanderhalten. Das ist kein Erkennungsproblem. Es ist ein
 > **Datenmodell**problem.
+>
+> Derselbe Fall, fotografiert: **Baylis SureFlex 8.5F** als `TSK3003` (Medium
+> Curl) und `TSK3005` (Large Curl). Gleiche French, gleiche 72 cm, gleicher
+> Dilatator, gleicher Draht. Zwei Schachteln, die sich in **nichts**
+> unterscheiden außer einem Buchstaben im Kreis.
 
 ## 1. Die eigentliche Diagnose
 
@@ -102,7 +107,22 @@ Drahtstärke 0,008–0,045″.
 
 Dasselbe Blazer-Etikett nennt **7 F** (Schaft) *und* **8 F** (Spitze). Die App
 entscheidet das nicht. Das Merkmal kommt als *mehrdeutig* zurück, mit beiden
-Kandidaten — und ein Mensch wählt. Genau wie bei der REF-Auflösung.
+Kandidaten — und ein Mensch wählt. Genau wie bei der REF-Auflösung. Beim
+Vanguard-Katheter (7,5 F Schaft / 8 F Spitze) und beim Advisor HD Grid
+(7,5 F Schaft / 8 F Spitze) tritt derselbe Fall auf — dreimal belegt.
+
+### Eine Regel, die sich als falsch erwiesen hat
+
+Aus den ersten 16 Etiketten hatte der Katalog die Regel „bei mehreren
+Drahtdurchmessern gewinnt der größte" — beim ASAHI Gaia stimmt das (0,014″
+Schaft, 0,012″ Spitze). Dann kam der **Boston ROTAWIRE Drive**: 0,009″ Schaft,
+**0,014″ Spitze**. Genau andersherum.
+
+Es gibt also keine sichere textbasierte Regel. Die Regel wurde entfernt; beide
+Werte kommen jetzt als Kandidaten zurück und ein Mensch entscheidet. Das ist
+der ganze Sinn von „leer schlägt falsch" — eine plausible Heuristik, die an
+einem einzigen realen Gegenbeispiel zerbricht, hat in einem SOP nichts zu
+suchen.
 
 ### Gleiche Bedeutung ist kein Widerspruch
 
@@ -149,6 +169,9 @@ falsche Merkmalssatz.
 | **Zwei REFs auf einem Etikett** | Angiokard führt die eigene REF **und** die des Vertriebs (L&R). |
 | **GTIN-Ebene** | `(01)20841156110465` — die führende `2` ist eine Verpackungsebene, nicht die Basis-GTIN. Wichtig für jede Datenbankabfrage. |
 | **Artikelnummer sieht aus wie ein Maß** | `217F3` enthält „17F". Ohne Wortgrenze wird daraus ein 17-French-Katheter. |
+| **Original gegen Aufbereitung** | Vanguard liefert CE-zertifiziert wiederaufbereitete Katheter mit eigener REF und „1/3 Remanufactured". Gleiche Funktion, anderer Preis, andere Dokumentationspflicht — und im Schrank nebeneinander. |
+| **„Single-patient use" ≠ „single use"** | Mehrfach verwendbar, aber nur beim SELBEN Patienten. Verwechslung ist ein Hygienefehler. |
+| **Materialkürzel in Produktnamen** | „PE" steckt in „Im**pe**lla". Werte-Listen müssen an Wortgrenzen prüfen, sonst bekommt eine Schleuse ein Material, das nirgends draufsteht. |
 
 ## 6. Kompatibilität — der eigentliche Nutzen
 
@@ -173,15 +196,31 @@ Das ist eine Frage, die heute im Labor jemand aus dem Kopf beantworten muss.
 
 ## 7. Ergebnis am echten Material
 
-Der Katalog wurde an **16 fotografierten Etiketten** aus dem HKL entwickelt und
-läuft gegen deren Text:
+Der Katalog wurde an **26 fotografierten Etiketten** aus dem HKL entwickelt —
+in zwei Runden: erst 16 Produkte quer durch Herzkatheter und Verbrauch, dann
+11 weitere aus Elektrophysiologie, Mapping, Kabeln und Zubehör.
 
 | | vorher | nachher |
 |---|---|---|
-| erfasste Merkmale gesamt | 16 Freitextzeilen | **115 typisierte Merkmale** |
-| davon ohne Nachfrage sicher | — | **81 (70 %)** |
-| als mehrdeutig gemeldet | — | 2 (statt falsch geraten) |
+| erfasste Merkmale gesamt | 26 Freitextzeilen | **193 typisierte Merkmale** |
+| davon ohne Nachfrage sicher | — | **128 (66 %)** |
+| als mehrdeutig gemeldet | — | 7 (statt falsch geraten) |
+| belegte Materialklassen | — | 17 von 28 |
 | Lücken benannt | — | ja, je Klasse |
+
+### Was die zweite Runde zusätzlich gebracht hat
+
+Sechs neue Materialklassen, jede durch ein Foto belegt: **Mapping-Katheter**
+(Advisor HD Grid X), **Kabel** (EnSite X Connector, SJM 1910-SA/1924-S, Osypka
+TX-HAT500), **Biopsie/Bergung** (Cordis Biopsy Forceps), **Monitoring-Sensor**
+(Masimo LNCS), **Rotablation** (ROTAWIRE Drive) und **Herzunterstützung**
+(Impella Companion Sheath).
+
+Dazu Merkmale, die es vorher nicht gab und die im EPU-Labor täglich gebraucht
+werden: `curl` (M/L bei steuerbaren Schleusen), `aufbereitung` und
+`aufbereitung_zyklus` („1/3 Remanufactured"), `empf_kabel`, `draht_max_in`,
+`empf_schleuse_fr`, `pin_zahl`, `mapping_system`, `sensor`, `patientengewicht`,
+`einmalpatient`.
 
 Beispiel Launcher, 14 Merkmale aus einem einzigen Etikett:
 
@@ -235,7 +274,8 @@ entstanden:
 | `muster` | reguläre Ausdrücke im Freitext |
 | `abbild` | Etikettentext → Klartext (auch für Verneinungen) |
 | `mehrfach` | `max` / `min` / `erste` bei mehreren Funden |
-| `nur_anker` | Muster ergibt nur direkt hinter der Beschriftung Sinn |
+| `nur_anker` | Muster ergibt nur direkt an der Beschriftung Sinn |
+| `anker_davor` | Wert steht LINKS der Beschriftung (Bildunterschrift) |
 | `streng` | Groß-/Kleinschreibung zählt |
 | `warnung` | rot darstellen |
 | `badge` | in der Listenzeile zeigen |
@@ -258,6 +298,14 @@ Ehrlich benannt, damit niemand darauf baut:
 * **Merkmale, die gar nicht auf dem Etikett stehen.** Tip-Load eines
   CTO-Drahtes, Crossing Profile, Biegesteifigkeit. Die müssen aus
   Herstellerdaten oder EUDAMED kommen — mit Status „unbestätigt".
+* **Zahlen in Symbolen.** Das Abbott-EnSite-Kabel darf 20-mal verwendet werden;
+  die 20 steht im Kreispfeil-Symbol. Ohne Klartext bleibt das Feld leer.
+* **Werte ohne beschriftendes Wort.** Abbott druckt die REF des passenden
+  Kabels als Kästchen neben einem Piktogramm. Zwei andere Hersteller schreiben
+  „Recommended Cable" dazu — die werden gelesen, die anderen nicht.
+* **Unscharfe Fotos.** Eine der Aufnahmen (Cordis Long Sheath) ist zu
+  verwackelt für jede Texterkennung. Die App sollte das erkennen und ein neues
+  Foto erbitten, statt Zeichensalat zu speichern.
 
 Die Lückenliste je Klasse macht genau das sichtbar und wird damit zur
 Arbeitsliste statt zum Bauchgefühl.
@@ -266,10 +314,10 @@ Arbeitsliste statt zum Bauchgefühl.
 
 **Fertig und geprüft:**
 
-* `public/data/merkmale.json` — 22 Klassen, 84 Merkmale, 6 REF-Grammatiken,
+* `public/data/merkmale.json` — 28 Klassen, 97 Merkmale, 7 REF-Grammatiken,
   4 Kompatibilitätsregeln
 * `public/js/features/merkmale.js` — reine, testbare Erkennungsmaschine
-* `test/merkmale.test.js` — 44 Tests gegen 16 echte Etikettentexte
+* `test/merkmale.test.js` — 53 Tests gegen 26 echte Etikettentexte
 
 **Noch nicht verdrahtet** (bewusst): Der Baustein wird geladen, aber weder der
 Etikettenscanner noch der Material-Editor benutzen ihn bisher. Nichts an der

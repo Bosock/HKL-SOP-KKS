@@ -329,6 +329,190 @@ const ETIKETT = {
       Medtronic CoreValve LLC Santa Ana CA 92705 USA
       Medtronic Ireland, Parkmore Business Park West, Galway, Ireland Country of Origin: Ireland`
   }
+,
+
+  /* ── zweite Fotocharge: EPU, Mapping, Kabel, Zubehör ── */
+
+  advisor: {
+    name: 'Abbott Advisor HD Grid X, Sensor Enabled — Mapping-Katheter',
+    ref: 'D-AVHDX-DF16',
+    text: `Abbott HD SE Advisor HD Grid X, Sensor Enabled
+      High Density Mapping Catheter
+      de Mappingkatheter mit hoher Dichte
+      8F 2.7 mm   16+2   110 cm   D   F
+      UDI (01)05415067049889(17)281231(10)11195044
+      2028-12-31
+      REF D-AVHDX-DF16
+      LOT 11195044
+      16   3 mm   12 mm   2.5F/0.86 mm   2 ± 4 mm
+      110 cm   7.5F (2.5 mm)
+      STERILE EO   MD   CE 2797   UKCA 0086
+      2026-01-07 Abbott Medical Plymouth MN USA Product of Costa Rica`
+  },
+
+  ensitekabel: {
+    name: 'Abbott EnSite X Catheter Connector Cable 32 PIN',
+    ref: 'D-ENS-AVHDX-CBL',
+    text: `Abbott 32 PIN
+      EnSite X EP System
+      Catheter Connector Cable
+      de Katheterverbindungskabel
+      Advisor HD Grid X, SE
+      UDI (01)05415067049667(17)280930(10)11090488
+      2028-09-30 LOT 11090488
+      REF D-ENS-AVHDX-CBL
+      365±10cm
+      STERILE EO 2025-10-16 UKCA 0086 CE 2797 Rx only MD`
+  },
+
+  rotawire: {
+    name: 'Boston Scientific ROTAWIRE Drive 0.009" x 330 cm',
+    ref: 'H7493946300',
+    text: `Boston Scientific
+      ROTAWIRE Drive and wireClip Torquer
+      EXTRA SUPPORT   STRAIGHT TIP
+      Guidewire and Guidewire Manipulation Device
+      Führungsdraht und Vorrichtung zum Steuern des Führungsdrahtes
+      0.009in (<=0.23mm) x330cm
+      Contents (5)
+      330cm  2.8cm  0.014in (<=0.36mm)  0.009in (<=0.23mm)
+      GTIN 08714729996248
+      LOT 35780876
+      REF H7493946300
+      2027-02-04  MD  STERILE EO  2025-02-04
+      CE 0344 Made in COSTA RICA`
+  },
+
+  therapy: {
+    name: 'Abbott Therapy Ablationskatheter 7F 4 mm M-Kurve',
+    ref: 'IBI-83405',
+    text: `Abbott Therapy
+      Ablation Catheter 1304-7-25-M
+      de Ablationskatheter
+      110 cm   7F 2.3mm   M
+      UDI (01)05414734307338(17)281231(10)11194696
+      2028-12-31  REF IBI-83405  LOT 11194696
+      110 cm   4 mm   4   2-5-2 mm
+      IBI-85641
+      1  Do not reuse  Do not resterilize
+      2026-01-10 STERILE EO MD 10°C 25°C
+      CE 2797 UKCA 0086 Abbott Medical Irvine CA USA`
+  },
+
+  livewire: {
+    name: 'St. Jude Livewire steuerbarer EP-Katheter 5F',
+    ref: '401938',
+    text: `Livewire
+      Steerable Electrophysiology Catheter
+      5F 1.70 mm
+      MED SWEEP   2mm Tip
+      401972 Recommended Cable
+      10   5 mm   115cm
+      LOT 10809965  REF 401938
+      2025-04-22  1  2028-03-31
+      GTIN: 05414734202664
+      STERILE EO CE 2797 Rx only
+      St. Jude Medical Minnetonka MN USA Made in USA`
+  },
+
+  biopsiezange: {
+    name: 'Cordis Biopsy Forceps 5,5 F',
+    ref: '504-300',
+    text: `BIOPSY FORCEPS
+      LOT 71224261  REF Catalogue number 504-300
+      Use-by date 2027-11-30
+      Disposable Biopsy Forceps / Einweg-Biopsiezange
+      Maximum Shaft O.D.   5.5 F (1.85 mm)
+      Usable Shaft Length   104 cm
+      Recommended Sheath   6 F (2.0 mm)
+      JV Jaw Volume   2.46 mm3
+      7440-48-4 Contains Hazardous Substances
+      1 units per box
+      CE 2797 Cordis
+      (01)20705032056097(17)271130(10)71224261`
+  },
+
+  impellasheath: {
+    name: 'Abiomed Impella Low Profile Companion Sheath 7F',
+    ref: '1000440',
+    text: `ABIOMED
+      Impella Low Profile Companion Sheath
+      REF 1000440  LOT H3302900
+      7F  0.101" (2.6 mm)  30 cm
+      MAX GUIDE WIRE  0.038" (0.97 mm)
+      UDI (01)00884450844397(17)280817(10)H3302900
+      Manufacture Date: 2025-08-28  Use By: 2028-08-17
+      STERILE EO  Single Use  Rx ONLY
+      Non-pyrogenic  Do not resterilize
+      1 Unit  CE 2797  Made in U.S.A.
+      Merit Medical Systems South Jordan Utah`
+  },
+
+  masimo: {
+    name: 'Masimo LNCS Neo-L SpO2-Sensor',
+    ref: '1862',
+    text: `Masimo SET
+      < 3 kg or > 40 kg
+      LNCS Neo-L SpO2
+      Neonatal/Adult Pulse Oximeter Adhesive Sensor
+      3 ft. cable
+      NON STERILE  Rx ONLY  Single-patient use only
+      LATEX
+      1862 Masimo reference number  CE 0123
+      1 LNCS Neo-L
+      (01) 00843997000314
+      Assembled in Mexico`
+  },
+
+  sureflex_m: {
+    name: 'Baylis SureFlex steuerbare Schleuse 8.5F Medium Curl',
+    ref: 'TSK3003',
+    text: `Baylis SureFlex
+      Steerable Guiding Sheath
+      DE Steuerbare Führungsschleuse
+      M  8.5F   72cm
+      SureFlex Steerable Sheath, 8.5F/2.8mm, 72cm
+      Transseptal Dilator, 8.5F, 95cm
+      J-Tip Guidewire, 0.032"/0.81mm, 180cm
+      Max Compatible Guidewire O.D.  0.032" (0.81mm)
+      REF TSK3003  LOT 34330778  Use By 2026-07-20
+      (01)00685447018551(17)260720(10)34330778
+      STERILE EO  Rx ONLY  NON-PYROGENIC  CE 1639`
+  },
+
+  sureflex_l: {
+    name: 'Baylis SureFlex steuerbare Schleuse 8.5F Large Curl',
+    ref: 'TSK3005',
+    text: `Baylis SureFlex
+      Steerable Guiding Sheath
+      DE Steuerbare Führungsschleuse
+      L  8.5F   72cm
+      SureFlex Steerable Sheath, 8.5F/2.8mm, 72cm
+      Transseptal Dilator, 8.5F, 95cm
+      J-Tip Guidewire, 0.032"/0.81mm, 180cm
+      Max Compatible Guidewire O.D.  0.032" (0.81mm)
+      REF TSK3005  LOT SSFA170723  Use By 2025-08-03
+      (01) 0 0685447 01856 8 (17) 250803 (10) SSFA170723
+      STERILE EO  Rx ONLY  NON-PYROGENIC  CE 1639`
+  },
+
+  vanguard: {
+    name: 'Vanguard wiederaufbereiteter Ablationskatheter 8F',
+    ref: '35097',
+    text: `VANGUARD
+      Irrigated Ablation Catheter uni SJG
+      F-Type 8F 115cm 4p 1-4-1 TC TE4
+      1/3 Remanufactured   Ablation Catheter   MD
+      irrigated   TC
+      N: 4   4 mm   1-4-1 mm   F-Type
+      115 cm
+      7.5 F = 2.5 mm       8 F = 2.7 mm
+      STERILE EO   5°C 25°C
+      (01)04039134350971(11)231215(17)241214(10)21905704(21)2109747947
+      REF 35097  SN 2109747947
+      2024-12  2023-12
+      Vanguard AG Landsberger Str. 266 12623 Berlin Germany  CE 2797`
+  }
 };
 
 /* Kleiner Helfer: ein Merkmal aus dem Ergebnis herausgreifen. */
@@ -486,10 +670,16 @@ test('Blazer: 8-mm-Spitze, große Kurve — und die Schaft/Spitzen-Falle wird NI
   assert.equal(Array.from(unklar.kandidaten).map(String).sort().join(','), '7,8');
 });
 
-test('Gaia: Drahtstärke ist die größte Angabe, Spitze zählt nicht als Nennmaß', () => {
+test('Gaia: Schaft- und Spitzenmaß werden NICHT gegeneinander verrechnet', () => {
   const e = M.merkSammeln(ETIKETT.gaia.text, ETIKETT.gaia.ref, KAT);
   assert.equal(e.klasse, 'fuehrungsdraht');
-  assert.equal(M.merkZahl(wert(e, 'draht_in')), 0.014);   // nicht 0.012 (das ist die Spitze)
+  // Das Etikett nennt 0,014" (Schaft) und 0,012" (Spitze). Eine frühere Fassung
+  // nahm einfach den größten Wert — bis der Boston ROTAWIRE Drive auftauchte:
+  // dort ist das Nennmaß 0,009" (Schaft) und 0,014" die SPITZE, also genau
+  // andersherum. Es gibt keine sichere Regel, also wird gefragt statt geraten.
+  assert.equal(istMehrdeutig(e, 'draht_in'), true);
+  const unklar = (e.mehrdeutig||[]).filter(x=>x.id==='draht_in')[0];
+  assert.equal(Array.from(unklar.kandidaten).map(String).sort().join(','), '0.012,0.014');
   assert.equal(wert(e, 'draht_laenge_cm'), '190');
   assert.equal(wert(e, 'roentgen_laenge_cm'), '15');
   assert.equal(wert(e, 'beschichtung'), 'SLIP-COAT (hydrophil)');
@@ -659,6 +849,94 @@ test('zwei Varianten derselben Produktfamilie ergeben verschiedene Merkmale', ()
   // …und ohne Seitenlöcher wäre es wieder ein anderes Produkt
   const ms = M.merkSammeln(ETIKETT.launcher.text.replace(/LA6EBU40SH/g,'LA6EBU40MS').replace(/\bSH\b/g,'MS'), 'LA6EBU40MS', KAT);
   assert.equal(wert(ms,'seitenloecher'), 'nein');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   6b. Zweite Fotocharge — EPU, Mapping, Kabel, Aufbereitung
+   ═══════════════════════════════════════════════════════════════ */
+test('SureFlex: Curl unterscheidet, alles andere ist identisch', () => {
+  const a = M.merkSammeln(ETIKETT.sureflex_m.text, ETIKETT.sureflex_m.ref, KAT);
+  const b = M.merkSammeln(ETIKETT.sureflex_l.text, ETIKETT.sureflex_l.ref, KAT);
+  assert.equal(wert(a, 'curl'), 'Medium Curl');
+  assert.equal(wert(b, 'curl'), 'Large Curl');
+  assert.equal(m(a, 'curl').herkunft, 'ref');
+  // identisch:
+  ['schleuse_fr','draht_max_in','steril','dilatator_dabei'].forEach(id=>{
+    assert.equal(wert(a, id), wert(b, id), id + ' darf sich nicht unterscheiden');
+  });
+  assert.equal(wert(a, 'schleuse_fr'), '8.5');
+  assert.equal(M.merkZahl(wert(a, 'draht_max_in')), 0.032);
+});
+
+test('Vanguard: Wiederaufbereitung und Zyklus werden erkannt', () => {
+  const e = M.merkSammeln(ETIKETT.vanguard.text, ETIKETT.vanguard.ref, KAT);
+  assert.equal(e.klasse, 'ablation_rf');
+  assert.equal(wert(e, 'aufbereitung'), 'wiederaufbereitet');
+  assert.equal(wert(e, 'aufbereitung_zyklus'), '1/3');
+  assert.equal(m(e, 'aufbereitung').warnung, true);
+  assert.equal(wert(e, 'gekuehlt'), 'irrigiert');
+  assert.equal(wert(e, 'sensor'), 'Thermoelement (TC)');
+  assert.equal(wert(e, 'elektrodenabstand_mm'), '1-4-1');
+  assert.equal(wert(e, 'polzahl'), '4');
+  // Schaft 7,5 F gegen Spitze 8 F — wieder ohne beschriftendes Wort
+  assert.equal(istMehrdeutig(e, 'ad_fr'), true);
+});
+
+test('„Recommended Cable" steht LINKS der Beschriftung und wird trotzdem gelesen', () => {
+  const e = M.merkSammeln(ETIKETT.livewire.text, ETIKETT.livewire.ref, KAT);
+  assert.equal(wert(e, 'empf_kabel'), '401972');
+  assert.equal(m(e, 'empf_kabel').herkunft, 'anker');
+});
+
+test('ohne beschriftendes Wort bleibt die Kabel-REF eine Lücke statt eine Rateei', () => {
+  // Abbott Therapy druckt IBI-85641 nur als Kästchen neben einem Piktogramm.
+  const e = M.merkSammeln(ETIKETT.therapy.text, ETIKETT.therapy.ref, KAT);
+  assert.equal(m(e, 'empf_kabel'), null);
+  assert.equal(istMehrdeutig(e, 'empf_kabel'), false);
+});
+
+test('Mapping-Katheter und Kabel bekommen eigene Klassen', () => {
+  const a = M.merkSammeln(ETIKETT.advisor.text, ETIKETT.advisor.ref, KAT);
+  assert.equal(a.klasse, 'mapping');
+  assert.equal(wert(a, 'sensor'), 'Sensor Enabled (SE)');
+  assert.equal(wert(a, 'polzahl'), '16');
+
+  const k = M.merkSammeln(ETIKETT.ensitekabel.text, ETIKETT.ensitekabel.ref, KAT);
+  assert.equal(k.klasse, 'kabel');
+  assert.equal(wert(k, 'pin_zahl'), '32');
+  assert.equal(wert(k, 'kabel_laenge_cm'), '365');
+  assert.equal(wert(k, 'mapping_system'), 'EnSite X');
+});
+
+test('Biopsiezange: beide Kompatibilitätsrichtungen vom Etikett', () => {
+  const e = M.merkSammeln(ETIKETT.biopsiezange.text, ETIKETT.biopsiezange.ref, KAT);
+  assert.equal(e.klasse, 'bergung');
+  assert.equal(wert(e, 'schaft_fr'), '5.5');          // Maximum Shaft O.D.
+  assert.equal(wert(e, 'empf_schleuse_fr'), '6');     // Recommended Sheath
+});
+
+test('Impella-Schleuse: „MAX GUIDE WIRE" ist ein sauberer Anker', () => {
+  const e = M.merkSammeln(ETIKETT.impellasheath.text, ETIKETT.impellasheath.ref, KAT);
+  assert.equal(M.merkZahl(wert(e, 'draht_max_in')), 0.038);
+  assert.equal(m(e, 'draht_max_in').herkunft, 'anker');
+  assert.equal(wert(e, 'material'), undefined, '„PE" darf nicht aus „ImPElla" entstehen');
+});
+
+test('Masimo-Sensor: unsteril, Ein-Patienten-Gebrauch, Gewichtsbereich', () => {
+  const e = M.merkSammeln(ETIKETT.masimo.text, ETIKETT.masimo.ref, KAT);
+  assert.equal(e.klasse, 'sensor_monitoring');
+  assert.equal(wert(e, 'steril'), 'unsteril');
+  assert.equal(wert(e, 'einmalpatient'), 'ja');
+  assert.ok(String(wert(e, 'patientengewicht')).indexOf('3 kg') >= 0);
+});
+
+test('ROTAWIRE: die Spitze ist dicker als der Schaft — also wird gefragt', () => {
+  const e = M.merkSammeln(ETIKETT.rotawire.text, ETIKETT.rotawire.ref, KAT);
+  assert.equal(istMehrdeutig(e, 'draht_in'), true);
+  const u = (e.mehrdeutig||[]).filter(x=>x.id==='draht_in')[0];
+  assert.equal(Array.from(u.kandidaten).map(String).sort().join(','), '0.009,0.014');
+  assert.equal(wert(e, 'draht_laenge_cm'), '330');
+  assert.equal(wert(e, 'spitzenform'), 'gerade');
 });
 
 /* ═══════════════════════════════════════════════════════════════

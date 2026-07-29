@@ -155,7 +155,11 @@
     "führungsdraht",
     "fuehrungsdraht",
     "pci guide wire",
-    "ledekateter"
+    "ledekateter",
+    "guidewire manipulation",
+    "rotawire",
+    "führungsdräht",
+    "drähte"
    ],
    "leit": [
     "draht_in",
@@ -174,7 +178,14 @@
     "schleuse",
     "einführbesteck",
     "delivery system",
-    "delivery sheath"
+    "delivery sheath",
+    "steerable guiding sheath",
+    "guiding sheath",
+    "führungsschleuse",
+    "long sheath",
+    "companion sheath",
+    "sureflex",
+    "steuerbare führungsschleuse"
    ],
    "leit": [
     "schleuse_fr",
@@ -212,7 +223,11 @@
     "ablationskatheter",
     "rf ablation",
     "temperature ablation",
-    "irrigated"
+    "irrigated",
+    "irrigated ablation",
+    "intellanav",
+    "tactiflex",
+    "therapy"
    ],
    "leit": [
     "spitze_mm",
@@ -259,7 +274,14 @@
     "ep katheter",
     "steuerbarer katheter",
     "decapolar",
-    "quadripolar"
+    "quadripolar",
+    "electrophysiology catheter",
+    "elektrofizyoloji",
+    "steerable diagnostic catheter",
+    "diagnostischer katheter",
+    "supreme",
+    "livewire",
+    "inquiry"
    ],
    "leit": [
     "ad_fr",
@@ -425,6 +447,122 @@
    "hinweis": "Lade- und Einführsystem sehen gleich aus und stehen nebeneinander im Schrank. Die REF unterscheidet sie über das Präfix (L- / D-)."
   },
   {
+   "id": "mapping",
+   "label": "Mapping-Katheter",
+   "worte": [
+    "mapping catheter",
+    "mappingkatheter",
+    "high density mapping",
+    "hochdichtes mapping",
+    "advisor hd grid",
+    "kartierungskatheter",
+    "mapping kateter"
+   ],
+   "leit": [
+    "polzahl",
+    "ad_fr",
+    "nutzlaenge_cm",
+    "mapping_system",
+    "elektrodenabstand_mm"
+   ],
+   "_beleg": "Abbott Advisor HD Grid X, Sensor Enabled"
+  },
+  {
+   "id": "kabel",
+   "label": "Kabel / Verbindung",
+   "worte": [
+    "electrophysiology cable",
+    "catheter connector cable",
+    "verbindungskabel",
+    "anschlusskabel",
+    "katheterverbindungskabel",
+    "connection cable",
+    "elektrofizyoloji kablosu"
+   ],
+   "leit": [
+    "pin_zahl",
+    "kabel_laenge_cm",
+    "passt_zu",
+    "wiederverwendungen"
+   ],
+   "_beleg": "Abbott EnSite X Connector Cable · SJM 1910-SA / 1924-S · Osypka TX-HAT500-MDT"
+  },
+  {
+   "id": "bergung",
+   "label": "Biopsie / Bergung / Aspiration",
+   "worte": [
+    "biopsy forceps",
+    "biopsiezange",
+    "einweg-biopsiezange",
+    "bioptom",
+    "snare",
+    "goose neck",
+    "thrombusaspiration",
+    "pince de biopsie"
+   ],
+   "leit": [
+    "schaft_fr",
+    "nutzlaenge_cm",
+    "empf_schleuse_fr"
+   ],
+   "_beleg": "Cordis Biopsy Forceps 504-300"
+  },
+  {
+   "id": "sensor_monitoring",
+   "label": "Monitoring-Sensor / Elektrode",
+   "worte": [
+    "pulse oximeter",
+    "pulsoximeter",
+    "spo2",
+    "adhesive sensor",
+    "klebeelektrode",
+    "ekg-elektrode",
+    "lncs"
+   ],
+   "leit": [
+    "patientengewicht",
+    "kabel_laenge_cm",
+    "steril"
+   ],
+   "_beleg": "Masimo LNCS Neo-L SpO2"
+  },
+  {
+   "id": "rotablation",
+   "label": "Rotablation / Atherektomie",
+   "worte": [
+    "rotawire",
+    "rotablation",
+    "bohrkopf",
+    "rotablator",
+    "atherektomie",
+    "rotapro"
+   ],
+   "leit": [
+    "draht_in",
+    "draht_laenge_cm",
+    "spitzenform"
+   ],
+   "_beleg": "Boston Scientific ROTAWIRE Drive"
+  },
+  {
+   "id": "herzunterstuetzung",
+   "label": "Herzunterstützung (Impella / IABP)",
+   "worte": [
+    "impella",
+    "iabp",
+    "ballonpumpe",
+    "intraaortale",
+    "herzunterstützung",
+    "abiomed"
+   ],
+   "leit": [
+    "ad_fr",
+    "nutzlaenge_cm",
+    "draht_max_in"
+   ],
+   "_beleg": "Abiomed Impella Low Profile Companion Sheath"
+  },
+  {
    "id": "allgemein",
    "label": "Allgemein / nicht zugeordnet",
    "worte": [],
@@ -573,7 +711,8 @@
    "anker": [
     "outer diameter",
     "external diameter",
-    "o.d."
+    "außendurchmesser",
+    "aussendurchmesser"
    ],
    "muster": [
     "\\bOD\\b\\s*[:=]?\\s*(\\d{1,2}[.,]\\d{1,3})\\s*mm"
@@ -797,9 +936,10 @@
    "typ": "text",
    "rang": 15,
    "klassen": [
+    "ablation_kryo",
     "ablation_rf",
     "ep_katheter",
-    "ablation_kryo"
+    "mapping"
    ],
    "anker": [
     "electrode spacing",
@@ -807,7 +947,7 @@
     "elektrodenabstand"
    ],
    "muster": [
-    "\\b(\\d(?:[.,]\\d)?(?:\\s*-\\s*\\d(?:[.,]\\d)?){1,3})\\s*mm\\s*(?:spacing|abstand)"
+    "\\b(\\d(?:[.,]\\d)?(?:\\s*-\\s*\\d(?:[.,]\\d)?){1,3})\\s*mm"
    ],
    "mehrfach": "erste"
   },
@@ -822,7 +962,10 @@
    ],
    "rang": 16,
    "klassen": [
-    "ep_katheter"
+    "ablation_rf",
+    "ep_katheter",
+    "kabel",
+    "mapping"
    ],
    "anker": [
     "electrodes",
@@ -830,30 +973,47 @@
     "pole"
    ],
    "muster": [
-    "\\b(\\d{1,2})\\s*(?:-?polig|poles?|electrodes?)\\b",
+    "\\b(\\d{1,2})\\s*\\+\\s*\\d{1,2}\\b",
+    "\\bN[:.]?\\s*(\\d{1,2})\\b",
+    "\\b(\\d{1,2})\\s*p\\b",
+    "\\b(\\d{1,2})\\s*-?\\s*pol(?:ig|\\.|e|ar)?\\b",
+    "\\b(\\d{1,2})\\s*Elektroden\\b",
     "\\b(QUADRI|DECA|DUODECA|OCTA|HEXA)POLAR\\b"
    ],
    "abbild": {
-    "DECA": "10",
-    "DUODECA": "12",
+    "QUADRI": "4",
     "HEXA": "6",
     "OCTA": "8",
-    "QUADRI": "4"
+    "DECA": "10",
+    "DUODECA": "12"
    }
   },
   {
    "id": "gekuehlt",
-   "label": "Gekühlt / Irrigation",
-   "kurz": "gekühlt",
-   "typ": "ja_nein",
+   "label": "Irrigation",
+   "kurz": "Irrig.",
+   "typ": "liste",
    "rang": 17,
    "klassen": [
     "ablation_rf"
    ],
    "anker": [],
    "muster": [
-    "\\b(IRRIGATED|OPEN\\s?IRRIGATION|GEK(?:Ü|UE)HLT|COOLED)\\b"
-   ]
+    "\\b(IRRIGATED|IRRIGIERT|OPEN\\s*IRRIGATION)\\b",
+    "\\b(SOLID\\s*TIP|NICHT-?IRRIGIERT)\\b"
+   ],
+   "werte": [
+    "irrigiert",
+    "nicht irrigiert (Solid Tip)"
+   ],
+   "abbild": {
+    "IRRIGATED": "irrigiert",
+    "IRRIGIERT": "irrigiert",
+    "OPEN IRRIGATION": "irrigiert",
+    "SOLID TIP": "nicht irrigiert (Solid Tip)",
+    "NICHT IRRIGIERT": "nicht irrigiert (Solid Tip)"
+   },
+   "badge": true
   },
   {
    "id": "steuerbar",
@@ -1187,7 +1347,7 @@
    "muster": [
     "(0[.,]0\\d{2})\\s*(?:in|\"|″|inch)"
    ],
-   "mehrfach": "max"
+   "hinweis": "Etiketten nennen oft Schaft- UND Spitzendurchmesser. Beim ASAHI Gaia ist das Nennmaß der größere Wert (0,014\" Schaft / 0,012\" Spitze), beim Boston ROTAWIRE Drive der KLEINERE (0,009\" Schaft / 0,014\" Spitze). Es gibt daher keine sichere Regel — bei mehreren Funden wird gefragt."
   },
   {
    "id": "draht_laenge_cm",
@@ -1487,30 +1647,6 @@
    ],
    "hinweis": "Kompatibilitätsmerkmal: sagt, WELCHER Draht hineinpasst. Das ist die Frage, die im Labor tatsächlich gestellt wird.",
    "mehrfach": "max"
-  },
-  {
-   "id": "draht_max_in",
-   "label": "Max. Drahtdurchmesser",
-   "kurz": "max Draht",
-   "typ": "mass",
-   "einheit": "in",
-   "fenster": [
-    0.008,
-    0.045
-   ],
-   "rang": 26,
-   "beziehung": "braucht",
-   "klassen": [
-    "mikrokatheter",
-    "guide_extension"
-   ],
-   "anker": [
-    "maximum guide wire",
-    "max wire"
-   ],
-   "muster": [],
-   "mehrfach": "max",
-   "nur_anker": true
   },
   {
    "id": "min_guiding_id_mm",
@@ -2125,10 +2261,10 @@
    ],
    "anker": [],
    "muster": [
+    "\\b(NON-?\\s?STERILE|UNSTERIL)\\b",
     "\\bSTERILE?\\s*\\|?\\s*(EO)\\b",
     "\\bSTERILE?\\s*\\|?\\s*(R)\\b",
     "\\bSTERILE?\\s*\\|?\\s*(VH2O2|STEAM)\\b",
-    "\\b(NON-?STERILE|UNSTERIL)\\b",
     "\\b(STERILE?)\\b"
    ],
    "abbild": {
@@ -2139,7 +2275,8 @@
     "STERIL": "steril",
     "STERILE": "steril",
     "UNSTERIL": "unsteril",
-    "VH2O2": "steril (Plasma)"
+    "VH2O2": "steril (Plasma)",
+    "NONSTERILE": "unsteril"
    }
   },
   {
@@ -2329,7 +2466,7 @@
     "product of"
    ],
    "muster": [
-    "^\\s*:?\\s*([A-ZÄÖÜ]{3,}|[A-ZÄÖÜ][a-zäöüß]+(?:\\s+(?:Republic|Kingdom|States|Emirates))?)"
+    "^\\s*:?\\s*([A-ZÄÖÜ]{3,}(?:\\s+[A-ZÄÖÜ]{3,})?|[A-ZÄÖÜ][a-zäöüß]+(?:\\s+(?:Rica|Republic|Kingdom|States|Emirates))?)"
    ],
    "mehrfach": "erste",
    "streng": true,
@@ -2469,6 +2606,375 @@
     "EINFÜHRSYSTEM": "Delivery-System"
    },
    "hinweis": "Lade- und Einführsystem liegen nebeneinander im Schrank und sehen gleich aus. Die REF unterscheidet sie über das Präfix L- / D-."
+  },
+  {
+   "id": "curl",
+   "label": "Curl / Kurvengröße",
+   "kurz": "Curl",
+   "typ": "liste",
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "schleuse"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(SMALL|MEDIUM|LARGE)\\s+CURL\\b"
+   ],
+   "werte": [
+    "Small Curl",
+    "Medium Curl",
+    "Large Curl"
+   ],
+   "abbild": {
+    "SMALL": "Small Curl",
+    "MEDIUM": "Medium Curl",
+    "LARGE": "Large Curl"
+   },
+   "hinweis": "Bei steuerbaren Schleusen DAS Variantenmerkmal: Baylis SureFlex 8.5F gibt es als M (TSK3003) und L (TSK3005) — gleiche French, gleiche Länge, gleicher Dilatator, gleicher Draht. Nur der Curl unterscheidet. Abbott Agilis NxT ebenso.",
+   "_beleg": "Baylis SureFlex M/L · Abbott Agilis NxT"
+  },
+  {
+   "id": "aufbereitung",
+   "label": "Aufbereitung",
+   "kurz": "Aufb.",
+   "typ": "liste",
+   "rang": 6,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(REMANUFACTURED|WIEDERAUFBEREIT\\w*|REPROCESSED)\\b",
+    "\\b(VANGUARD)\\b"
+   ],
+   "werte": [
+    "Original (Einweg)",
+    "wiederaufbereitet",
+    "wiederaufbereitet (Vanguard)"
+   ],
+   "abbild": {
+    "REMANUFACTURED": "wiederaufbereitet",
+    "WIEDERAUFBEREITET": "wiederaufbereitet",
+    "REPROCESSED": "wiederaufbereitet",
+    "VANGUARD": "wiederaufbereitet (Vanguard)"
+   },
+   "hinweis": "Aufbereitetes und Original-Produkt liegen nebeneinander im Schrank und sehen fast gleich aus. Für Dokumentation, Preis und Rückverfolgung ein harter Unterschied.",
+   "_beleg": "Vanguard AG REF 35097"
+  },
+  {
+   "id": "aufbereitung_zyklus",
+   "label": "Aufbereitungs-Zyklus",
+   "kurz": "Zyklus",
+   "typ": "text",
+   "rang": 7,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b([1-9]\\s*/\\s*[1-9])\\s*Remanufactured\\b"
+   ],
+   "hinweis": "„1/3 Remanufactured\" heißt: erster von drei zulässigen Aufbereitungszyklen. Das begrenzt die Wiederverwendbarkeit und gehört in die Dokumentation.",
+   "_beleg": "Vanguard: „1/3 Remanufactured\""
+  },
+  {
+   "id": "empf_kabel",
+   "label": "Passendes Kabel",
+   "kurz": "Kabel",
+   "typ": "text",
+   "rang": 28,
+   "badge": true,
+   "klassen": [
+    "ep_katheter",
+    "ablation_rf",
+    "mapping"
+   ],
+   "anker": [
+    "recommended cable",
+    "empfohlenes kabel"
+   ],
+   "muster": [
+    "((?:IBI-|D-ENS-)[A-Z0-9][A-Z0-9-]{3,20}|\\b\\d{6}\\b)\\s*$"
+   ],
+   "hinweis": "Vier Etiketten nennen die REF des passenden Kabels. Zwei drucken sie als „Recommended Cable\" MIT Beschriftung (Livewire 401972, Supreme 401980) — die werden gelesen. Zwei drucken sie nur als Kästchen neben einem Kabel-Piktogramm (Abbott Therapy IBI-85641, Inquiry IBI-85954) — ohne Wort kein Anker, das bleibt eine Lücke statt einer Rateei.",
+   "_beleg": "SJM Livewire → 401972 · Supreme → 401980 · Abbott Therapy → IBI-85641 · Inquiry → IBI-85954",
+   "anker_davor": true,
+   "nur_anker": true
+  },
+  {
+   "id": "draht_max_in",
+   "label": "Max. Drahtdurchmesser",
+   "kurz": "max Draht",
+   "typ": "mass",
+   "einheit": "in",
+   "fenster": [
+    0.008,
+    0.045
+   ],
+   "rang": 26,
+   "badge": true,
+   "klassen": [
+    "schleuse",
+    "mikrokatheter",
+    "guide_extension",
+    "herzunterstuetzung",
+    "bergung"
+   ],
+   "anker": [
+    "max guide wire",
+    "max compatible guidewire",
+    "maximum guide wire",
+    "max. draht",
+    "max wire"
+   ],
+   "muster": [
+    "(0[.,]0\\d{2})\\s*(?:in|\"|″)"
+   ],
+   "hinweis": "Sauber beschriftetes Kompatibilitätsfeld — beantwortet „welcher Draht passt hier durch?\"",
+   "_beleg": "Abiomed Impella Sheath 0.038\" · Baylis SureFlex 0.032\""
+  },
+  {
+   "id": "empf_schleuse_fr",
+   "label": "Empfohlene Schleuse",
+   "kurz": "via Schleuse",
+   "typ": "mass",
+   "einheit": "F",
+   "fenster": [
+    3,
+    26
+   ],
+   "rang": 27,
+   "badge": true,
+   "klassen": [
+    "bergung",
+    "implantat",
+    "mikrokatheter"
+   ],
+   "anker": [
+    "recommended sheath",
+    "empfohlene schleuse",
+    "via schleuse"
+   ],
+   "muster": [],
+   "nur_anker": true,
+   "hinweis": "Die Gegenrichtung zur Drahtfrage: welche Schleuse dieses Instrument braucht.",
+   "_beleg": "Cordis Biopsy Forceps: Recommended Sheath 6 F"
+  },
+  {
+   "id": "schaft_fr",
+   "label": "Schaftdurchmesser",
+   "kurz": "Schaft",
+   "typ": "mass",
+   "einheit": "F",
+   "fenster": [
+    1,
+    26
+   ],
+   "rang": 9,
+   "klassen": [
+    "ablation_rf",
+    "ep_katheter",
+    "mapping",
+    "bergung"
+   ],
+   "anker": [
+    "shaft",
+    "schaft",
+    "maximum shaft o.d.",
+    "max shaft"
+   ],
+   "muster": [],
+   "nur_anker": true,
+   "hinweis": "Schaft und Spitze haben bei Ablationskathetern oft verschiedene French. Getrennt erfasst, damit die App nicht raten muss, welcher Wert gemeint ist.",
+   "_beleg": "Vanguard: 7,5 F Schaft / 8 F Spitze · Advisor HD Grid: 7,5 F Schaft / 8 F Spitze"
+  },
+  {
+   "id": "pin_zahl",
+   "label": "Steckerpole",
+   "kurz": "PIN",
+   "typ": "zahl",
+   "fenster": [
+    2,
+    128
+   ],
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "kabel"
+   ],
+   "anker": [
+    "pin"
+   ],
+   "muster": [
+    "\\b(\\d{1,3})\\s*PIN\\b"
+   ],
+   "_beleg": "Abbott EnSite X Connector Cable: 32 PIN"
+  },
+  {
+   "id": "kabel_laenge_cm",
+   "label": "Kabellänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    30,
+    600
+   ],
+   "rang": 13,
+   "badge": true,
+   "klassen": [
+    "kabel",
+    "sensor_monitoring"
+   ],
+   "anker": [
+    "länge",
+    "length"
+   ],
+   "muster": [
+    "(\\d{3})\\s*±\\s*\\d+\\s*cm",
+    "\\b(\\d(?:[.,]\\d)?)\\s*m\\s*/",
+    "\\b(\\d)\\s*ft\\b"
+   ],
+   "_beleg": "EnSite X 365±10 cm · SJM 1.5 m/5 ft · Osypka 2,5 m · Masimo 3 ft"
+  },
+  {
+   "id": "wiederverwendungen",
+   "label": "Zulässige Wiederverwendungen",
+   "kurz": "max. Anwendungen",
+   "typ": "zahl",
+   "fenster": [
+    1,
+    100
+   ],
+   "rang": 8,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "kabel",
+    "allgemein"
+   ],
+   "anker": [
+    "wiederverwend",
+    "reuse",
+    "anwendungen"
+   ],
+   "muster": [],
+   "nur_anker": true,
+   "hinweis": "Mehrfach verwendbare Kabel tragen die zulässige Zahl der Anwendungen als Zahl im Kreispfeil-Symbol. Eine Texterkennung liest das Symbol NICHT — der Wert bleibt leer, bis ihn jemand einträgt.",
+   "_beleg": "Abbott EnSite X Connector Cable: 20"
+  },
+  {
+   "id": "patientengewicht",
+   "label": "Patientengewicht",
+   "kurz": "kg",
+   "typ": "text",
+   "rang": 10,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "sensor_monitoring"
+   ],
+   "anker": [
+    "gewicht",
+    "weight"
+   ],
+   "muster": [
+    "([<>]\\s*\\d{1,3}\\s*kg(?:\\s*(?:or|oder|bis|-)\\s*[<>]?\\s*\\d{1,3}\\s*kg)?)"
+   ],
+   "hinweis": "Ein Sensor für <3 kg oder >40 kg darf nicht am falschen Patienten landen.",
+   "_beleg": "Masimo LNCS Neo-L: „< 3 kg or > 40 kg\""
+  },
+  {
+   "id": "einmalpatient",
+   "label": "Nur für einen Patienten",
+   "kurz": "1 Patient",
+   "typ": "ja_nein",
+   "rang": 43,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(SINGLE-?PATIENT\\s+USE)\\b"
+   ],
+   "hinweis": "„Single-patient use\" ist NICHT dasselbe wie „single use\": mehrfach verwendbar, aber nur bei DEMSELBEN Patienten. Verwechslung ist ein Hygienefehler.",
+   "_beleg": "Masimo LNCS Neo-L"
+  },
+  {
+   "id": "mapping_system",
+   "label": "Mapping-System",
+   "kurz": "System",
+   "typ": "liste",
+   "rang": 18,
+   "badge": true,
+   "klassen": [
+    "mapping",
+    "ablation_rf",
+    "ep_katheter",
+    "kabel"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(ENSITE\\s*X|ENSITE\\s*PRECISION|ENSITE)\\b",
+    "\\b(RHYTHMIA\\s*HDX|RHYTHMIA)\\b",
+    "\\b(CARTO\\s*3|CARTO)\\b"
+   ],
+   "werte": [
+    "EnSite",
+    "EnSite X",
+    "EnSite Precision",
+    "Rhythmia HDx",
+    "CARTO",
+    "CARTO 3"
+   ],
+   "abbild": {
+    "ENSITE": "EnSite",
+    "ENSITE X": "EnSite X",
+    "ENSITE PRECISION": "EnSite Precision",
+    "RHYTHMIA": "Rhythmia HDx",
+    "RHYTHMIA HDX": "Rhythmia HDx",
+    "CARTO": "CARTO",
+    "CARTO 3": "CARTO 3"
+   },
+   "hinweis": "„Läuft der an unserem Mappingsystem?\" ist die erste Frage im EPU-Labor.",
+   "_beleg": "Abbott EnSite X EP System"
+  },
+  {
+   "id": "sensor",
+   "label": "Sensor / Ortung",
+   "kurz": "Sensor",
+   "typ": "liste",
+   "rang": 20,
+   "badge": true,
+   "klassen": [
+    "ablation_rf",
+    "ep_katheter",
+    "mapping"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(SENSOR\\s*ENABLED)\\b",
+    "\\bTC\\b",
+    "\\b(THERMOCOUPLE|THERMOELEMENT)\\b"
+   ],
+   "werte": [
+    "Sensor Enabled (SE)",
+    "Thermoelement (TC)"
+   ],
+   "abbild": {
+    "SENSOR ENABLED": "Sensor Enabled (SE)",
+    "TC": "Thermoelement (TC)",
+    "THERMOCOUPLE": "Thermoelement (TC)",
+    "THERMOELEMENT": "Thermoelement (TC)"
+   },
+   "_beleg": "Advisor HD Grid X „Sensor Enabled\" · Vanguard „TC\""
   }
  ],
  "ref_grammatik": [
@@ -2621,6 +3127,27 @@
     "ergibt": "Loading-System für Klappengrößen 23–29 mm"
    },
    "hinweis": "Zubehör-Fallstrick: „L-\" und „D-\" unterscheiden Lade- von Einführsystem. Wer das verwechselt, holt das falsche Set aus dem Schrank."
+  },
+  {
+   "id": "baylis_sureflex",
+   "hersteller": "Baylis Medical",
+   "familie": "SureFlex Steerable Guiding Sheath",
+   "muster": "^TSK300([35])$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "curl",
+     "wenn": {
+      "3": "Medium Curl",
+      "5": "Large Curl"
+     }
+    }
+   ],
+   "beispiel": {
+    "ref": "TSK3003",
+    "ergibt": "8,5 F · Medium Curl"
+   },
+   "hinweis": "Bewusst NICHT verallgemeinert: Es sind genau die zwei fotografierten Varianten hinterlegt (TSK3003 = M, TSK3005 = L). Ob TSK3001 die Small-Variante ist, ist unbelegt und wird nicht geraten."
   }
  ],
  "kompatibilitaet": {
