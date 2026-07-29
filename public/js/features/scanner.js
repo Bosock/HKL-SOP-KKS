@@ -741,3 +741,37 @@ function scanReadMerkmale(){
   });
   return out;
 }
+
+/* Merkmale aus dem Foto-Assistenten ins Formular übernehmen.
+   Regel wie bei ocrFillForm: NUR leere Felder werden gefüllt. Was ein Mensch
+   schon eingetragen hat, bleibt unangetastet — Abweichungen werden gemeldet,
+   nicht aufgelöst (merkAbgleich).
+   Rückgabe: { klasse, gefuellt:[…], abweichend:[…] } */
+function scanMerkUebernehmen(merk){
+  if(!scanMerkBereit() || !merk) return { klasse:null, gefuellt:[], abweichend:[] };
+  const sel=$('scMerkKlasse');
+  if(!sel) return { klasse:null, gefuellt:[], abweichend:[] };
+
+  /* Klasse nur setzen, wenn noch keine gewählt ist. Eine vom Menschen
+     gewählte Klasse ist eine Entscheidung, kein Vorschlag. */
+  let klasse = sel.value;
+  if(!klasse && merk.klasse && merk.klasse!=='allgemein'){
+    klasse = merk.klasse; sel.value = klasse;
+    /* Felder der neuen Klasse aufbauen, dabei Eingetipptes mitnehmen. */
+    const box=$('scMerkFelder');
+    if(box) box.innerHTML = scanMerkFelderHTML(klasse, scanReadMerkmale());
+  }
+
+  /* Abgleich gegen das, was im Formular schon steht. */
+  const vorhanden = scanReadMerkmale();
+  const ab = merkAbgleich(merk.merkmale||[], vorhanden);
+  const gefuellt=[];
+  ab.uebernehmen.forEach(m=>{
+    const el=document.querySelector('#scMerkFelder .merk-f[data-mid="'+m.id+'"]');
+    if(!el) return;                                  /* Merkmal gehört nicht zur Klasse */
+    if((el.value||'').trim()) return;                /* doppelt gesichert: nie überschreiben */
+    el.value = String(m.wert);
+    gefuellt.push(m.label);
+  });
+  return { klasse: klasse||null, gefuellt: gefuellt, abweichend: ab.abweichend };
+}

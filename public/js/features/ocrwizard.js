@@ -147,7 +147,8 @@ function wizTrefferHTML(){
 /* Ergebnisseite mit Herkunft je Feld + Auswahl bei mehrdeutiger REF. */
 function wizPruefenHTML(){
   const zeilen=wizZusammenfassung(WIZ);
-  if(!zeilen.length){
+  const merkTeil=wizMerkHTML();
+  if(!zeilen.length && !merkTeil){
     return `<div class="wiz-leer"><div class="ei">🔍</div><h3>Nichts sicher erkannt</h3>
       <p>Lieber leer als falsch. Bitte näher, gerader und bei besserem Licht fotografieren – oder die Felder von Hand ausfüllen.</p></div>
       <div class="wiz-actions"><button type="button" class="btn btn-sec" onclick="wizBack()">Zurück</button><button type="button" class="btn btn-pri" onclick="wizClose()">Schließen</button></div>`;
@@ -159,12 +160,93 @@ function wizPruefenHTML(){
     : '';
   const fotoAdd=(WIZ.fotoEtikett||WIZ.fotoBarcode)
     ? `<label class="wiz-check"><input type="checkbox" id="wizFotoAdd" checked> Aufnahmen als Materialfotos übernehmen</label>` : '';
-  return `<div class="wiz-list">${rows}</div>${mehrdeutig}${fotoAdd}
+  return `<div class="wiz-list">${rows}</div>${mehrdeutig}${merkTeil}${fotoAdd}
     <p class="wiz-note">Alle Werte sind Vorschläge. Übernommen wird nur in <b>leere</b> Felder – bereits Eingetragenes bleibt unangetastet.</p>
     <div class="wiz-actions">
       <button type="button" class="btn btn-sec" onclick="wizBack()">Zurück</button>
       <button type="button" class="btn btn-pri" onclick="wizApply()">Übernehmen</button>
     </div>`;
+}
+
+
+/* ═══ MERKMALE im Assistenten ═══════════════════════════════════
+   Derselbe Etikettentext, zweite Auswertung: diesmal nach typisierten
+   Eigenschaften (features/merkmale.js). Kostet keine zusätzliche Aufnahme —
+   der Volltext liegt aus der Texterkennung schon vor. */
+
+/* Auswertung (neu) anstoßen. Wird auch nach einer REF-Wahl erneut gerufen,
+   weil die REF-Grammatik ein anderes Ergebnis liefern kann. */
+function wizMerkAuswerten(){
+  if(!WIZ) return;
+  if(typeof merkSammeln!=='function' || typeof MERKKAT==='undefined'
+     || !MERKKAT || !(MERKKAT.merkmale||[]).length){ WIZ.merk=null; return; }
+  const erg = merkSammeln(WIZ.text||'', (WIZ.fields&&WIZ.fields.ref)||'', MERKKAT);
+  /* Vom Menschen bereits getroffene Wahlen bei einer Neuauswertung behalten. */
+  const gewaehlt = (WIZ.merk && WIZ.merk.gewaehlt) || {};
+  Object.keys(gewaehlt).forEach(id=>{
+    const drin = erg.merkmale.some(m=>m.id===id);
+    if(!drin) erg.merkmale.push(gewaehlt[id]);
+    erg.mehrdeutig = erg.mehrdeutig.filter(x=>x.id!==id);
+  });
+  erg.gewaehlt = gewaehlt;
+  erg.verworfen = (WIZ.merk && WIZ.merk.verworfen) || {};
+  erg.merkmale = erg.merkmale.filter(m=>!erg.verworfen[m.id]);
+  /* Weggeklicktes bleibt weg — auch als Frage. Wer „weglassen" gedrückt hat,
+     will nicht nach einer REF-Wahl dieselbe Frage erneut gestellt bekommen. */
+  erg.mehrdeutig = erg.mehrdeutig.filter(x=>!erg.verworfen[x.id]);
+  erg.merkmale.sort((a,b)=>(a.rang||99)-(b.rang||99));
+  WIZ.merk = erg;
+}
+
+/* Mehrdeutiges Merkmal: der Mensch entscheidet (7 F Schaft oder 8 F Spitze?). */
+function wizPickMerk(id, wert){
+  if(!WIZ || !WIZ.merk) return;
+  const def = (MERKKAT.merkmale||[]).filter(d=>d.id===id)[0];
+  const m = { id:id, label:(def?def.label:id), kurz:(def&&def.kurz)||id,
+              typ:(def?def.typ:'text'), einheit:(def&&def.einheit)||null,
+              wert:wert, sicher:true, herkunft:'mensch',
+              badge:!!(def&&def.badge), warnung:!!(def&&def.warnung), rang:(def&&def.rang)||99 };
+  WIZ.merk.gewaehlt[id]=m;
+  WIZ.merk.merkmale=WIZ.merk.merkmale.filter(x=>x.id!==id).concat([m]);
+  WIZ.merk.merkmale.sort((a,b)=>(a.rang||99)-(b.rang||99));
+  WIZ.merk.mehrdeutig=WIZ.merk.mehrdeutig.filter(x=>x.id!==id);
+  wizRender();
+}
+
+/* Einzelnen Vorschlag verwerfen — wer ihn falsch findet, soll ihn wegklicken
+   können, statt hinterher im Formular aufzuräumen. */
+function wizDropMerk(id){
+  if(!WIZ || !WIZ.merk) return;
+  WIZ.merk.verworfen[id]=true;
+  delete WIZ.merk.gewaehlt[id];
+  WIZ.merk.merkmale=WIZ.merk.merkmale.filter(x=>x.id!==id);
+  WIZ.merk.mehrdeutig=WIZ.merk.mehrdeutig.filter(x=>x.id!==id);
+  wizRender();
+}
+
+/* Der Merkmalsteil der Prüfseite. */
+function wizMerkHTML(){
+  const w=WIZ&&WIZ.merk;
+  if(!w) return '';
+  const kl=(MERKKAT.klassen||[]).filter(k=>k.id===w.klasse)[0];
+  const klZeile = (w.klasse && w.klasse!=='allgemein')
+    ? `<div class="wiz-row"><div class="wiz-l">Materialklasse</div><div class="wiz-v">${esc(kl?kl.label:w.klasse)}</div><div class="wiz-q">${w.klasseSicher?'aus dem Etikett':'unsicher – bitte prüfen'}</div></div>`
+    : `<div class="wiz-row"><div class="wiz-l">Materialklasse</div><div class="wiz-v">—</div><div class="wiz-q">nicht erkannt</div></div>`;
+  const quelle = h => h==='anker' ? 'beschriftetes Feld' : h==='ref' ? 'aus der REF' : h==='mensch' ? 'von Ihnen gewählt' : 'Etikett (gelesen)';
+  const rows = (w.merkmale||[]).map(m=>{
+    const v = esc(String(m.wert)+(m.einheit?(' '+m.einheit):''));
+    const q = quelle(m.herkunft) + (m.bestaetigt?' · bestätigt':'');
+    return `<div class="wiz-row"><div class="wiz-l">${esc(m.label)}</div><div class="wiz-v"${m.warnung?' style="color:#d64545;font-weight:600"':''}>${v}</div>
+      <div class="wiz-q">${esc(q)} <button type="button" class="wiz-drop" data-m="${esc(m.id)}" onclick="wizDropMerk(this.dataset.m)" aria-label="Vorschlag verwerfen">✕</button></div></div>`;
+  }).join('');
+  const wahl = (w.mehrdeutig||[]).map(u=>
+    `<div class="wiz-wahl"><div class="wiz-wahl-t">${esc(u.label)}: Das Etikett nennt mehrere Werte – bitte auswählen:</div>
+      ${Array.from(u.kandidaten||[]).map(k=>`<button type="button" class="wiz-chip" data-m="${esc(u.id)}" data-v="${esc(k)}" onclick="wizPickMerk(this.dataset.m,this.dataset.v)">${esc(String(k))}</button>`).join('')}
+      <button type="button" class="wiz-chip wiz-chip-skip" data-m="${esc(u.id)}" onclick="wizDropMerk(this.dataset.m)">weglassen</button></div>`).join('');
+  const luecken = (w.klasse && typeof merkLuecken==='function') ? merkLuecken(w.klasse, w.merkmale, MERKKAT) : [];
+  const luHtml = luecken.length ? `<p class="wiz-note">Nicht auf dem Etikett gefunden: ${esc(luecken.map(l=>l.label).join(' · '))} – bitte von Hand ergänzen.</p>` : '';
+  if(!rows && !wahl) return `<div class="wiz-merk-t">MERKMALE</div>${klZeile}<p class="wiz-note">Keine typisierten Merkmale erkannt.</p>`;
+  return `<div class="wiz-merk-t">MERKMALE</div><div class="wiz-list">${klZeile}${rows}</div>${wahl}${luHtml}`;
 }
 
 /* ===== Ablauf ===== */
@@ -235,6 +317,12 @@ async function wizDoEtikett(dataUrl, auchBarcode){
       }
     }
     if(erg.barcode && erg.barcode.itemRef){ WIZ.barcodeRef=erg.barcode.itemRef; WIZ.fields.ref=erg.barcode.itemRef; }
+    /* MERKMALE: Denselben Etikettentext noch einmal auswerten — diesmal nach
+       typisierten Eigenschaften. Der Volltext liegt schon vor, das kostet
+       nichts extra. Die aufgelöste REF geht mit ein, damit die REF-Grammatik
+       greifen kann (LA6EBU40SH → 6 F · EBU 4.0 · Seitenlöcher). */
+    WIZ.text=erg.text||'';
+    wizMerkAuswerten();
   }catch(e){ toast('Etikett konnte nicht gelesen werden: '+((e&&e.message)||e), true); }
   WIZ.busy=false; WIZ.schritt=2; wizRender();
 }
@@ -245,6 +333,7 @@ function wizPickRef(ref){
   WIZ.fields.ref=ref;
   WIZ.refInfo={ ref, wie:'gewählt', sicher:true, kandidaten:[] };
   if(WIZ.rohRef && typeof refLearn==='function') refLearn(WIZ.rohRef, ref);
+  wizMerkAuswerten();     /* andere REF → andere Grammatik → andere Merkmale */
   wizRender();
 }
 
@@ -259,9 +348,24 @@ function wizApply(){
   /* Lernschleife vorbereiten: was die OCR roh gelesen hat, merken. */
   if(typeof ocrLastRead!=='undefined') ocrLastRead={ roh:WIZ.rohRef||'', wie:(WIZ.refInfo&&WIZ.refInfo.wie)||'roh', at:Date.now() };
   const bilder=[WIZ.fotoEtikett, WIZ.fotoBarcode].filter(Boolean);
+  const merkVor=WIZ.merk;
   wizClose();
   if(typeof catCheckForm==='function') catCheckForm();
   if(fotosAn && bilder.length && typeof scanGalerieAddMany==='function') scanGalerieAddMany(bilder);
-  const n=Object.keys(filled).length;
-  toast(n?('Übernommen: '+n+' Feld'+(n===1?'':'er')+' – bitte prüfen.'):'Nichts zu übernehmen (Felder bereits gefüllt).');
+  /* Merkmale zuletzt: Der Klassenwechsel baut die Felder neu auf, deshalb
+     erst nach ocrFillForm. */
+  let merkInfo={ gefuellt:[], abweichend:[] };
+  if(merkVor && typeof scanMerkUebernehmen==='function') merkInfo=scanMerkUebernehmen(merkVor);
+  const n=Object.keys(filled).length, mn=merkInfo.gefuellt.length;
+  const teile=[];
+  if(n) teile.push(n+' Feld'+(n===1?'':'er'));
+  if(mn) teile.push(mn+' Merkmal'+(mn===1?'':'e'));
+  toast(teile.length?('Übernommen: '+teile.join(' und ')+' – bitte prüfen.'):'Nichts zu übernehmen (Felder bereits gefüllt).');
+  /* Abweichungen NICHT stillschweigend auflösen: Was schon eingetragen war,
+     bleibt stehen — der Unterschied wird aber benannt. */
+  if(merkInfo.abweichend.length){
+    const a=merkInfo.abweichend[0];
+    setTimeout(()=>toast('Abweichung: '+a.label+' steht als „'+a.alt+'", das Etikett sagt „'+a.neu+'". Eingetragenes bleibt.'
+      +(merkInfo.abweichend.length>1?(' (und '+(merkInfo.abweichend.length-1)+' weitere)'):''), true), 900);
+  }
 }

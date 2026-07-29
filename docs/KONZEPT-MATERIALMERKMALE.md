@@ -318,10 +318,12 @@ Arbeitsliste statt zum Bauchgefühl.
   4 Kompatibilitätsregeln
 * `public/js/features/merkmale.js` — reine, testbare Erkennungsmaschine
 * `test/merkmale.test.js` — 59 Tests gegen 26 echte Etikettentexte
-* `e2e/matmerkmale.js` — 21 Prüfungen im echten Browser: Klassenwahl,
+* `test/wizmerkmale.test.js` — 23 Tests der Assistenten-Auswertung (Vorschlag,
+  Wahl, Verwerfen, Anzeige)
+* `e2e/matmerkmale.js` — 34 Prüfungen im echten Browser: Klassenwahl,
   klassenabhängige Felder, Speichern und Wiederanzeigen, Klassenwechsel ohne
-  Datenverlust, Warnung statt Ablehnung, der ND/LD-Fall an SureFlex M/L, und
-  die Rückfallebene ohne Katalog
+  Datenverlust, Warnung statt Ablehnung, der ND/LD-Fall an SureFlex M/L, der
+  ganze Weg durch den Foto-Assistenten, und die Rückfallebene ohne Katalog
 
 **Verdrahtet (Schritt 1):** Der Materialstammsatz trägt jetzt zwei neue Felder
 — `klasse` und `merkmale` — und der Material-Editor bietet dafür eine
@@ -345,11 +347,36 @@ Drei Festlegungen dabei:
 Fehlt die Katalogdatei, erscheint der Block gar nicht und die Maske verhält
 sich exakt wie vorher (end-to-end geprüft).
 
+**Verdrahtet (Schritt 2):** Der Foto-Assistent nutzt denselben Etikettentext
+ein zweites Mal. Das kostet keine zusätzliche Aufnahme und keinen zusätzlichen
+Handgriff — der Volltext liegt aus der Texterkennung schon vor. Auf der
+Prüfseite steht unter den Stammfeldern jetzt ein Merkmalsblock:
+
+* **Klasse zuerst.** Was das Etikett verrät („Führungskatheter"), steht oben,
+  mit dem Vermerk, ob die Zuordnung sicher ist.
+* **Vorschlag, nicht Setzung.** Jedes Merkmal nennt seine Herkunft
+  („beschriftetes Feld", „aus der REF", „Etikett (gelesen)") und trägt ein ✕:
+  Wer einen Vorschlag falsch findet, klickt ihn weg, statt hinterher im
+  Formular aufzuräumen. Weggeklicktes bleibt weg — auch als Frage, auch nach
+  einer erneuten Auswertung.
+* **Mehrdeutiges wird gefragt, nicht entschieden.** Der ROTAWIRE-Fall (0.009″
+  Schaft, 0.014″ Spitze) erscheint als Auswahl mit einem zusätzlichen
+  „weglassen". Erst die Wahl macht daraus einen Wert — mit Herkunft `mensch`,
+  und die überlebt jede Neuauswertung.
+* **Übernommen wird nur in leere Felder.** `scanMerkUebernehmen` setzt die
+  Klasse nur, wenn keine gewählt ist, und füllt nur, was leer ist. Eine
+  Abweichung („7 F steht drin, das Etikett sagt 6 F") wird in einer zweiten
+  Meldung benannt und ausdrücklich **nicht** aufgelöst.
+* **Was fehlt, wird gesagt.** Die Lückenliste erscheint auch im Assistenten:
+  „Nicht auf dem Etikett gefunden: Innendurchmesser · Nutzlänge".
+
+Ohne Katalog fällt der Merkmalsteil weg und die Feldübernahme läuft wie
+bisher (end-to-end geprüft).
+
 **Noch nicht verdrahtet:**
 
 1. ~~Merkmalsblock im Material-Editor~~ — erledigt
-2. Anbindung an den Foto-Assistenten: gefundene Merkmale als Vorschlag,
-   mehrdeutige als Auswahl
+2. ~~Anbindung an den Foto-Assistenten~~ — erledigt
 3. Merkmals-Editor in der Materialverwaltung (Grundsatz ⑤)
 4. Suche und Filter über Merkmale („alle 6-F-Führungskatheter mit
    Seitenlöchern")

@@ -14,7 +14,9 @@
      4. Ein Klassenwechsel verliert keine schon eingetippte Handarbeit.
      5. Unplausible Werte werden gemeldet — aber NICHT abgelehnt.
      6. Zwei Varianten derselben Familie werden unterscheidbar.
-     7. Fehlt der Katalog, bleibt die Maske exakt wie vorher. */
+     7. Fehlt der Katalog, bleibt die Maske exakt wie vorher.
+     8. Der Foto-Assistent schlägt Merkmale aus demselben Etikettenfoto vor:
+        Vorschlag statt Setzung, Frage bei Mehrdeutigem, Eingetragenes bleibt. */
 'use strict';
 const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
@@ -175,6 +177,139 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('ohne Katalog erscheint kein Merkmalsblock', ohne.hatSelect === false);
   check('… die übrige Maske bleibt vollständig', ohne.hatStandardfelder === true);
   check('… und Speichern funktioniert unverändert', ohne.gespeichert && ohne.klasse === undefined);
+
+  // ═══════════ 8. Der Foto-Assistent schlägt Merkmale vor ═══════════
+  /* Kein zweites Foto, kein zweiter Handgriff: derselbe Etikettentext wird
+     ein zweites Mal ausgewertet, diesmal nach Merkmalen. Vorgeschlagen —
+     nicht gesetzt: mehrdeutiges fragt, Eingetragenes bleibt. */
+  const assistent = await A.page.evaluate(() => {
+    const meldungen = [];
+    const echt = window.toast;
+    window.toast = (m, err) => { meldungen.push(String(m)); if (echt) echt(m, err); };
+
+    openScanItem('m:e2e-wiz', true);
+    ocrWizStart();
+    /* Schritt ② ohne Kamera: Etikettentext setzen wie nach der Texterkennung. */
+    WIZ.text = `Launcher GUIDE CATHETER
+      de Führungskatheter
+      6Fr
+      0.071 in
+      EBU4.0
+      SH
+      REF Catalog number LA6EBU40SH
+      Do not reuse
+      STERILE EO Sterilized using ethylene oxide`;
+    WIZ.fields = { ref: 'LA6EBU40SH', hersteller: 'Medtronic' };
+    WIZ.refInfo = { wie: 'exakt', sicher: true, kandidaten: [] };
+    WIZ.schritt = 2;
+    wizMerkAuswerten();
+    wizRender();
+    const seite = document.getElementById('wizBody').textContent;
+    const vorschlaege = (WIZ.merk && WIZ.merk.merkmale || []).length;
+    const klasse = WIZ.merk && WIZ.merk.klasse;
+    const dropKnopf = !!document.querySelector('#wizBody .wiz-drop');
+    wizApply();
+    const zu = !document.querySelector('#ocrWiz.show');
+    const lese = (id) => { const e = document.querySelector(`#scMerkFelder .merk-f[data-mid="${id}"]`); return e ? e.value : null; };
+    const selKlasse = (document.getElementById('scMerkKlasse') || {}).value;
+    window.toast = echt;
+    return { seite, vorschlaege, klasse, dropKnopf, zu, meldungen,
+      adFr: lese('ad_fr'), kurve: lese('kurvenform'), steril: lese('steril'), selKlasse };
+  });
+  check('Assistent wertet den Etikettentext auch nach Merkmalen aus',
+    assistent.vorschlaege >= 3 && assistent.klasse === 'fuehrungskatheter');
+  check('… und zeigt sie auf der Prüfseite mit Herkunft',
+    assistent.seite.includes('MERKMALE') && /beschriftetes Feld|aus der REF|Etikett/.test(assistent.seite));
+  check('… jeder Vorschlag ist wegklickbar', assistent.dropKnopf);
+  check('Übernehmen setzt die Klasse am Stammsatz',
+    assistent.zu && assistent.selKlasse === 'fuehrungskatheter');
+  check('… und füllt die Merkmalsfelder', assistent.adFr === '6' && assistent.kurve === 'EBU4.0');
+  check('… und meldet, wie viel übernommen wurde',
+    assistent.meldungen.some(m => /Merkmal/.test(m) && /Übernommen/.test(m)));
+
+  const eingetragen = await A.page.evaluate(async () => {
+    const meldungen = [];
+    const echt = window.toast;
+    window.toast = (m, err) => { meldungen.push(String(m)); if (echt) echt(m, err); };
+
+    openScanItem('m:e2e-wiz2', true);
+    /* Der Mensch war zuerst da: 7 F von Hand eingetragen. */
+    const sel = document.getElementById('scMerkKlasse');
+    sel.value = 'fuehrungskatheter'; scanMerkKlasseWechsel();
+    document.querySelector('#scMerkFelder .merk-f[data-mid="ad_fr"]').value = '7';
+
+    ocrWizStart();
+    WIZ.text = `Launcher GUIDE CATHETER
+      de Führungskatheter
+      6Fr
+      EBU4.0
+      REF Catalog number LA6EBU40SH`;
+    WIZ.fields = { ref: 'LA6EBU40SH' };
+    WIZ.schritt = 2;
+    wizMerkAuswerten();
+    wizApply();
+    const lese = (id) => { const e = document.querySelector(`#scMerkFelder .merk-f[data-mid="${id}"]`); return e ? e.value : null; };
+    /* Die Abweichungsmeldung kommt bewusst verzögert (nach der Erfolgsmeldung). */
+    await new Promise(f => setTimeout(f, 1200));
+    window.toast = echt;
+    return { adFr: lese('ad_fr'), kurve: lese('kurvenform'), meldungen };
+  });
+  check('Eingetragenes wird NICHT überschrieben (7 F bleibt 7 F)', eingetragen.adFr === '7');
+  check('… leere Felder werden trotzdem gefüllt', eingetragen.kurve === 'EBU4.0');
+  check('… und der Unterschied wird benannt, nicht stillschweigend aufgelöst',
+    eingetragen.meldungen.some(m => m.includes('Abweichung')));
+
+  const wahl = await A.page.evaluate(() => {
+    openScanItem('m:e2e-wiz3', true);
+    ocrWizStart();
+    /* ROTAWIRE: 0.009" Schaft, 0.014" Spitze — beides gedruckt, keins „das" Maß. */
+    WIZ.text = `ROTAWIRE Drive Guidewire
+      Boston Scientific
+      0.009 in
+      0.014 in
+      Sterile EO
+      Single use`;
+    WIZ.fields = {};
+    WIZ.schritt = 2;
+    wizMerkAuswerten();
+    wizRender();
+    const seite = document.getElementById('wizBody').textContent;
+    const offen = (WIZ.merk.mehrdeutig || []).some(x => x.id === 'draht_in');
+    const vorWahl = (WIZ.merk.merkmale || []).some(m => m.id === 'draht_in');
+    wizPickMerk('draht_in', '0.014');
+    const nachWahl = (WIZ.merk.merkmale || []).filter(m => m.id === 'draht_in')[0];
+    wizApply();
+    const feld = document.querySelector('#scMerkFelder .merk-f[data-mid="draht_in"]');
+    return { seite, offen, vorWahl, gewaehlt: nachWahl && nachWahl.wert,
+      herkunft: nachWahl && nachWahl.herkunft, imFeld: feld ? feld.value : null };
+  });
+  check('mehrdeutiges Merkmal wird zur Wahl gestellt, nicht gesetzt',
+    wahl.offen && !wahl.vorWahl && wahl.seite.includes('bitte auswählen'));
+  check('die Wahl des Menschen zählt als Entscheidung',
+    wahl.gewaehlt === '0.014' && wahl.herkunft === 'mensch');
+  check('… und landet beim Übernehmen im Formular', wahl.imFeld === '0.014');
+
+  const ohneKat = await A.page.evaluate(() => {
+    const sicher = MERKKAT;
+    MERKKAT = { merkmale: [], klassen: [], einheiten: {}, ref_grammatik: [], kompatibilitaet: { regeln: [] } };
+    openScanItem('m:e2e-wiz4', true);
+    ocrWizStart();
+    WIZ.text = 'Launcher GUIDE CATHETER 6Fr EBU4.0';
+    WIZ.fields = { ref: 'LA6EBU40SH', hersteller: 'Medtronic' };
+    WIZ.schritt = 2;
+    wizMerkAuswerten();
+    wizRender();
+    const seite = document.getElementById('wizBody').textContent;
+    const merk = WIZ.merk;
+    wizApply();
+    const ref = (document.getElementById('scRef') || {}).value;
+    MERKKAT = sicher;
+    return { seite, merk, ref, zu: !document.querySelector('#ocrWiz.show') };
+  });
+  check('ohne Katalog zeigt der Assistent keinen Merkmalsteil',
+    ohneKat.merk === null && !ohneKat.seite.includes('MERKMALE'));
+  check('… und die Feldübernahme läuft unverändert weiter',
+    ohneKat.zu && ohneKat.ref === 'LA6EBU40SH');
 
   check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.log('   ', A.errs.slice(0, 4));
