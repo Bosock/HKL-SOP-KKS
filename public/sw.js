@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v43';
+const CACHE_VERSION = 'v44';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -67,6 +67,7 @@ const SHELL = [
   'js/features/popups.js',
   'js/features/variants.js',
   'js/features/matref.js',
+  'js/features/merkmale.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
@@ -80,6 +81,7 @@ const SHELL = [
   'data/hkl_standards_export.json',
   'data/material_catalog.json',
   'data/cleanup_suggestions.json',
+  'data/merkmale.json',
 ];
 
 /* Alle mitgelieferten Datendateien unter /data/*.json (Standards, Referenz-

@@ -103,3 +103,7 @@ selbsterklärend und entsprechen 1:1 dem Datenmodell.
 - **Merkmal-Vorlagen je Kategorie** (z. B. „Nahtmaterial hat immer Stärke,
   Struktur, Nadel"): sinnvoller Folgeschritt, sobald sich aus der Nutzung
   wiederkehrende Muster zeigen (die Namens-Datalist sammelt sie bereits).
+  → Inzwischen aufgegriffen in **`KONZEPT-MATERIALMERKMALE.md`**: ein
+  typisierter Merkmalskatalog am Material*stammsatz*, aus dem Etikett gewonnen,
+  mit Klassen, Einheiten und Kompatibilität. Die hier beschriebenen freien
+  Merkmale am *Eintrag* bleiben davon unberührt.

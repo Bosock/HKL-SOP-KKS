@@ -1,0 +1,2680 @@
+{
+ "_hinweis": "MERKMALSKATALOG — was ein HKL-Material auszeichnet, maschinenlesbar. Aus echten Etiketten abgeleitet. Diese Datei ist DATEN, kein Code: neue Merkmale, Klassen und Erkennungsmuster werden hier (oder im Merkmals-Editor der App) gepflegt, ohne dass jemand programmiert.",
+ "_grundsatz": "Leer schlägt falsch. Ein Merkmal wird nur gesetzt, wenn es plausibel ist UND eindeutig zugeordnet werden kann. Jeder Wert führt mit, WOHER er kommt (anker/ref/muster/katalog/mensch).",
+ "version": 1,
+ "einheiten": {
+  "_hinweis": "Umrechnung auf die Leiteinheit. French ist definiert als 1 F = 1/3 mm.",
+  "mm": {
+   "mm": 1
+  },
+  "cm": {
+   "mm": 10,
+   "cm": 1
+  },
+  "in": {
+   "mm": 25.4
+  },
+  "F": {
+   "mm": 0.3333333
+  },
+  "G": {
+   "_tabelle": {
+    "14": 2.11,
+    "16": 1.65,
+    "17": 1.47,
+    "18": 1.27,
+    "19": 1.07,
+    "20": 0.9,
+    "21": 0.82,
+    "22": 0.72,
+    "23": 0.64,
+    "25": 0.51
+   }
+  },
+  "atm": {
+   "psi": 14.6959
+  },
+  "psi": {
+   "atm": 0.068046
+  }
+ },
+ "klassen": [
+  {
+   "id": "fuehrungskatheter",
+   "label": "Führungskatheter (Guiding)",
+   "worte": [
+    "guide catheter",
+    "guiding catheter",
+    "führungskatheter",
+    "fuehrungskatheter",
+    "guidekateter",
+    "cathéter-guide"
+   ],
+   "leit": [
+    "ad_fr",
+    "kurvenform",
+    "seitenloecher",
+    "id_mm",
+    "nutzlaenge_cm"
+   ]
+  },
+  {
+   "id": "diagnostikkatheter",
+   "label": "Diagnostikkatheter",
+   "worte": [
+    "diagnostic catheter",
+    "angiographic catheter",
+    "diagnostikkatheter",
+    "angiographiekatheter"
+   ],
+   "leit": [
+    "ad_fr",
+    "kurvenform",
+    "nutzlaenge_cm"
+   ]
+  },
+  {
+   "id": "guide_extension",
+   "label": "Verlängerungskatheter (Guide-Extension)",
+   "worte": [
+    "guide extension",
+    "guideliner",
+    "guidezilla",
+    "telescope",
+    "extension catheter"
+   ],
+   "leit": [
+    "ad_fr",
+    "id_mm",
+    "min_guiding_id_mm",
+    "arbeitslaenge_cm"
+   ]
+  },
+  {
+   "id": "mikrokatheter",
+   "label": "Mikrokatheter",
+   "worte": [
+    "microcatheter",
+    "micro catheter",
+    "mikrokatheter",
+    "support catheter"
+   ],
+   "leit": [
+    "ad_fr",
+    "id_in",
+    "nutzlaenge_cm",
+    "draht_max_in"
+   ]
+  },
+  {
+   "id": "ballon",
+   "label": "Ballonkatheter / Dilatation",
+   "worte": [
+    "balloon catheter",
+    "ptca balloon",
+    "dilatation catheter",
+    "ballonkatheter",
+    "dilatationskatheter",
+    "cutting balloon",
+    "scoring"
+   ],
+   "leit": [
+    "ballon_mm",
+    "ballon_laenge_mm",
+    "np_atm",
+    "rbp_atm",
+    "system_rx_otw"
+   ]
+  },
+  {
+   "id": "stent",
+   "label": "Stent",
+   "worte": [
+    "stent system",
+    "coronary stent",
+    "stentsystem",
+    "koronarstent",
+    "eluting stent",
+    "stentgraft"
+   ],
+   "leit": [
+    "stent_mm",
+    "stent_laenge_mm",
+    "wirkstoff",
+    "np_atm",
+    "rbp_atm",
+    "min_guiding_fr"
+   ]
+  },
+  {
+   "id": "fuehrungsdraht",
+   "label": "Führungsdraht",
+   "worte": [
+    "guide wire",
+    "guidewire",
+    "führungsdraht",
+    "fuehrungsdraht",
+    "pci guide wire",
+    "ledekateter"
+   ],
+   "leit": [
+    "draht_in",
+    "draht_laenge_cm",
+    "spitzenform",
+    "beschichtung",
+    "roentgen_laenge_cm"
+   ]
+  },
+  {
+   "id": "schleuse",
+   "label": "Schleuse / Introducer",
+   "worte": [
+    "introducer",
+    "sheath",
+    "schleuse",
+    "einführbesteck",
+    "delivery system",
+    "delivery sheath"
+   ],
+   "leit": [
+    "schleuse_fr",
+    "schleuse_laenge_cm",
+    "winkel_grad",
+    "id_mm",
+    "od_mm"
+   ],
+   "hinweis": "Bei Schleusen bezeichnet die French-Zahl den INNENdurchmesser, bei Kathetern den AUSSENdurchmesser. Nicht vermischen."
+  },
+  {
+   "id": "einschwemmkatheter",
+   "label": "Einschwemm-/Ballonflotationskatheter",
+   "worte": [
+    "balloon flotation",
+    "einschwemmkatheter",
+    "wedge",
+    "swan-ganz",
+    "flotation catheter",
+    "pulmonalis"
+   ],
+   "leit": [
+    "ad_fr",
+    "nutzlaenge_cm",
+    "lumenzahl",
+    "draht_empf_in",
+    "spitzenform"
+   ]
+  },
+  {
+   "id": "ablation_rf",
+   "label": "Ablationskatheter (HF)",
+   "worte": [
+    "ablation catheter",
+    "ablationskatheter",
+    "rf ablation",
+    "temperature ablation",
+    "irrigated"
+   ],
+   "leit": [
+    "spitze_mm",
+    "kurve_groesse",
+    "elektrodenabstand_mm",
+    "ad_fr",
+    "gekuehlt"
+   ],
+   "nicht": [
+    "cryoablation",
+    "kryoablation",
+    "cryoballoon",
+    "kryoballon",
+    "arctic front",
+    "freezor"
+   ]
+  },
+  {
+   "id": "ablation_kryo",
+   "label": "Kryoablationskatheter",
+   "worte": [
+    "cryoablation",
+    "kryoablation",
+    "cryoballoon",
+    "kryoballon",
+    "freezor",
+    "arctic front"
+   ],
+   "leit": [
+    "ballon_mm",
+    "spitze_mm",
+    "ad_fr",
+    "nutzlaenge_cm",
+    "kurvenradius_mm"
+   ]
+  },
+  {
+   "id": "ep_katheter",
+   "label": "EP-/Mapping-Katheter",
+   "worte": [
+    "electrophysiology",
+    "diagnostic ep",
+    "mapping catheter",
+    "ep katheter",
+    "steuerbarer katheter",
+    "decapolar",
+    "quadripolar"
+   ],
+   "leit": [
+    "ad_fr",
+    "polzahl",
+    "elektrodenabstand_mm",
+    "kurve_groesse",
+    "steuerbar"
+   ]
+  },
+  {
+   "id": "transseptal",
+   "label": "Transseptal-/Punktionsnadel",
+   "worte": [
+    "transseptal",
+    "punktionsnadel",
+    "brockenbrough",
+    "needle"
+   ],
+   "leit": [
+    "nadel_g",
+    "nadel_laenge_mm",
+    "winkel_grad"
+   ]
+  },
+  {
+   "id": "implantat",
+   "label": "Implantat (Okkluder / Klappe)",
+   "worte": [
+    "occluder",
+    "okkluder",
+    "prosthesis",
+    "heart valve",
+    "herzklappe",
+    "transcatheter valve"
+   ],
+   "leit": [
+    "implantat_mm",
+    "seriennummer"
+   ]
+  },
+  {
+   "id": "sonde",
+   "label": "Schrittmacher-/ICD-Sonde",
+   "worte": [
+    "pacing lead",
+    "icd lead",
+    "sonde",
+    "elektrode lead",
+    "defibrillation lead"
+   ],
+   "leit": [
+    "ad_fr",
+    "sonde_laenge_cm",
+    "fixierung",
+    "seriennummer"
+   ]
+  },
+  {
+   "id": "verschluss",
+   "label": "Verschlusssystem (vaskulär)",
+   "worte": [
+    "closure device",
+    "vascular closure",
+    "verschlusssystem",
+    "angio-seal",
+    "proglide"
+   ],
+   "leit": [
+    "schleuse_fr",
+    "resorbierbar"
+   ]
+  },
+  {
+   "id": "zubehoer_druck",
+   "label": "Druckzubehör (Hahnbank / Leitung)",
+   "worte": [
+    "hahnbank",
+    "stopcock",
+    "manifold",
+    "druckleitung",
+    "hochdruckschlauch",
+    "hd-schlauch",
+    "pressure line"
+   ],
+   "leit": [
+    "anzahl_haehne",
+    "max_druck_psi",
+    "schlauch_laenge_cm",
+    "anschluss"
+   ]
+  },
+  {
+   "id": "textil",
+   "label": "Kompresse / Tupfer / Abdeckung",
+   "worte": [
+    "kompresse",
+    "compress",
+    "tupfer",
+    "gauze",
+    "abdeckung",
+    "drape",
+    "vlies",
+    "telacomp"
+   ],
+   "leit": [
+    "masse_cm",
+    "faedigkeit",
+    "lagigkeit",
+    "stueck_packung",
+    "steril"
+   ]
+  },
+  {
+   "id": "loesung",
+   "label": "Lösung / Arzneimittel / Kontrastmittel",
+   "worte": [
+    "infusionslösung",
+    "infusionsloesung",
+    "injektionslösung",
+    "solution for infusion",
+    "irrigation",
+    "spüllösung",
+    "kontrastmittel",
+    "contrast"
+   ],
+   "leit": [
+    "volumen_ml",
+    "konzentration_pct",
+    "verwendungszweck",
+    "osmolaritaet",
+    "ph_wert"
+   ]
+  },
+  {
+   "id": "set",
+   "label": "Prozedur-Set / Sieb",
+   "worte": [
+    "procedure pack",
+    "prozedur-set",
+    "kardiologie-set",
+    "tray",
+    "kit"
+   ],
+   "leit": [
+    "stueck_packung",
+    "inhalt"
+   ]
+  },
+  {
+   "id": "zubehoer_implantat",
+   "label": "Zubehör zu Implantat (Lade-/Einführsystem)",
+   "worte": [
+    "loading system",
+    "ladesystem",
+    "delivery system for",
+    "introducer system",
+    "zasouvaci"
+   ],
+   "leit": [
+    "rolle",
+    "passt_zu"
+   ],
+   "hinweis": "Lade- und Einführsystem sehen gleich aus und stehen nebeneinander im Schrank. Die REF unterscheidet sie über das Präfix (L- / D-)."
+  },
+  {
+   "id": "allgemein",
+   "label": "Allgemein / nicht zugeordnet",
+   "worte": [],
+   "leit": []
+  }
+ ],
+ "merkmale": [
+  {
+   "id": "ad_fr",
+   "label": "Außendurchmesser",
+   "kurz": "AD",
+   "typ": "mass",
+   "einheit": "F",
+   "fenster": [
+    1,
+    34
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "fuehrungskatheter",
+    "diagnostikkatheter",
+    "guide_extension",
+    "mikrokatheter",
+    "einschwemmkatheter",
+    "ablation_rf",
+    "ablation_kryo",
+    "ep_katheter",
+    "sonde"
+   ],
+   "anker": [
+    "outer diameter",
+    "external diameter",
+    "außendurchmesser",
+    "aussendurchmesser",
+    "o.d.",
+    "catheter size",
+    "shaft",
+    "schaft"
+   ],
+   "muster": [
+    "\\b(\\d{1,2}(?:[.,]\\d)?)\\s*(?:French|Fr\\.|Fr|F)(?![A-Za-z0-9])"
+   ],
+   "hinweis": "Vorsicht bei Ablationskathetern: Schaft und Spitze können unterschiedliche French haben (z. B. Blazer II XP: Schaft 7F, Spitze 8F)."
+  },
+  {
+   "id": "schleuse_fr",
+   "label": "Schleusengröße",
+   "kurz": "Fr",
+   "typ": "mass",
+   "einheit": "F",
+   "fenster": [
+    3,
+    26
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "schleuse",
+    "verschluss"
+   ],
+   "anker": [
+    "sheath size",
+    "introducer size",
+    "schleusengröße",
+    "fr."
+   ],
+   "muster": [
+    "(?:Fr\\.?|French)\\s*(\\d{1,2}(?:[.,]\\d)?)(?![A-Za-z0-9])",
+    "\\b(\\d{1,2}(?:[.,]\\d)?)\\s*(?:French|Fr\\.|Fr|F)(?![A-Za-z0-9])"
+   ],
+   "hinweis": "Bei der Schleuse ist die French-Zahl der INNENdurchmesser — sie sagt, welcher Katheter hineinpasst."
+  },
+  {
+   "id": "id_mm",
+   "label": "Innendurchmesser",
+   "kurz": "ID",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    0.3,
+    8
+   ],
+   "rang": 20,
+   "badge": true,
+   "klassen": [
+    "fuehrungskatheter",
+    "diagnostikkatheter",
+    "guide_extension",
+    "schleuse",
+    "einschwemmkatheter"
+   ],
+   "anker": [
+    "inner diameter",
+    "innendurchmesser",
+    "i.d.",
+    "lumen diameter",
+    "glid"
+   ],
+   "muster": [
+    "\\bID\\b\\s*[:=]?\\s*(\\d{1,2}[.,]\\d{1,3})\\s*mm"
+   ]
+  },
+  {
+   "id": "id_in",
+   "label": "Innendurchmesser (Zoll)",
+   "kurz": "ID″",
+   "typ": "mass",
+   "einheit": "in",
+   "fenster": [
+    0.01,
+    0.3
+   ],
+   "rang": 21,
+   "klassen": [
+    "fuehrungskatheter",
+    "guide_extension",
+    "mikrokatheter"
+   ],
+   "anker": [
+    "inner diameter",
+    "i.d.",
+    "glid"
+   ],
+   "muster": [
+    "(0[.,]\\d{3})\\s*(?:in|\")"
+   ]
+  },
+  {
+   "id": "od_mm",
+   "label": "Außendurchmesser (mm)",
+   "kurz": "AD mm",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    0.3,
+    10
+   ],
+   "rang": 22,
+   "klassen": [
+    "fuehrungskatheter",
+    "schleuse",
+    "guide_extension",
+    "einschwemmkatheter"
+   ],
+   "anker": [
+    "outer diameter",
+    "external diameter",
+    "o.d."
+   ],
+   "muster": [
+    "\\bOD\\b\\s*[:=]?\\s*(\\d{1,2}[.,]\\d{1,3})\\s*mm"
+   ]
+  },
+  {
+   "id": "nutzlaenge_cm",
+   "label": "Nutzlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    20,
+    200
+   ],
+   "rang": 30,
+   "badge": true,
+   "klassen": [
+    "fuehrungskatheter",
+    "diagnostikkatheter",
+    "mikrokatheter",
+    "einschwemmkatheter",
+    "ablation_rf",
+    "ablation_kryo",
+    "ep_katheter",
+    "ballon"
+   ],
+   "anker": [
+    "usable length",
+    "working length",
+    "effective length",
+    "nutzlänge",
+    "arbeitslänge",
+    "length",
+    "länge"
+   ],
+   "muster": [
+    "(?:length|länge)\\s*[:=]?\\s*(\\d{2,3}(?:[.,]\\d)?)\\s*(?:±\\s*\\d+(?:[.,]\\d+)?\\s*)?cm(?![A-Za-z])",
+    "(\\d{2,3}(?:[.,]\\d)?)\\s*(?:±\\s*\\d+(?:[.,]\\d+)?\\s*)?cm(?![A-Za-z])"
+   ]
+  },
+  {
+   "id": "arbeitslaenge_cm",
+   "label": "Arbeitslänge",
+   "kurz": "AL",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    20,
+    200
+   ],
+   "rang": 31,
+   "klassen": [
+    "guide_extension"
+   ],
+   "anker": [
+    "working length",
+    "arbeitslänge"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "schleuse_laenge_cm",
+   "label": "Schleusenlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    3,
+    120
+   ],
+   "rang": 30,
+   "badge": true,
+   "klassen": [
+    "schleuse"
+   ],
+   "anker": [
+    "sheath length",
+    "length",
+    "länge"
+   ],
+   "muster": [
+    "(\\d{1,3}(?:[.,]\\d)?)\\s*(?:±\\s*\\d+(?:[.,]\\d+)?\\s*)?cm(?![A-Za-z])"
+   ]
+  },
+  {
+   "id": "kurvenform",
+   "label": "Kurvenform",
+   "kurz": "Kurve",
+   "typ": "text",
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "fuehrungskatheter",
+    "diagnostikkatheter"
+   ],
+   "anker": [
+    "curve",
+    "kurve",
+    "shape",
+    "tip shape"
+   ],
+   "muster": [
+    "\\b(EBU\\s?\\d(?:[.,]\\d)?|XB\\s?\\d(?:[.,]\\d)?|BL\\s?\\d(?:[.,]\\d)?|CLS\\s?\\d(?:[.,]\\d)?)\\b",
+    "\\b(JR\\s?\\d(?:[.,]\\d)?|JL\\s?\\d(?:[.,]\\d)?|AL\\s?\\d(?:[.,]\\d)?|AR\\s?\\d(?:[.,]\\d)?|IM|MP|LIMA|RIMA|PIG(?:TAIL)?|TIG|MPA\\d?)\\b"
+   ],
+   "hinweis": "Die klinisch wichtigste Unterscheidung überhaupt. Steht oft NUR im Freitextfeld und in der REF, nie in einem beschrifteten Feld.",
+   "mehrfach": "erste"
+  },
+  {
+   "id": "seitenloecher",
+   "label": "Seitenlöcher",
+   "kurz": "SH",
+   "typ": "ja_nein",
+   "rang": 13,
+   "badge": true,
+   "klassen": [
+    "fuehrungskatheter",
+    "diagnostikkatheter"
+   ],
+   "anker": [
+    "side holes",
+    "seitenlöcher"
+   ],
+   "muster": [
+    "\\b(SH|S\\.H\\.|SIDE\\s?HOLES?)\\b"
+   ],
+   "hinweis": "„SH\" am Ende der REF oder als eigenes Wort. Für die Pflege ein Sicherheitsmerkmal (Druckkurve, Verschluss der Ostien).",
+   "streng": true
+  },
+  {
+   "id": "kurve_groesse",
+   "label": "Kurvengröße",
+   "kurz": "Kurve",
+   "typ": "liste",
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "ablation_rf",
+    "ep_katheter"
+   ],
+   "werte": [
+    "SMALL",
+    "MEDIUM",
+    "LARGE",
+    "EXTRA LARGE",
+    "ASYMMETRIC",
+    "STANDARD"
+   ],
+   "anker": [
+    "curve"
+   ],
+   "muster": [
+    "\\b(SMALL|MEDIUM|LARGE|EXTRA\\s+LARGE)\\s+CURVE\\b",
+    "\\bCURVE\\s*[:/]?\\s*(SMALL|MEDIUM|LARGE)\\b"
+   ],
+   "abbild": {
+    "EXTRA LARGE": "EXTRA LARGE",
+    "LARGE": "LARGE",
+    "MEDIUM": "MEDIUM",
+    "SMALL": "SMALL"
+   }
+  },
+  {
+   "id": "distal_form",
+   "label": "Distale Form",
+   "kurz": "Distal",
+   "typ": "liste",
+   "rang": 14,
+   "klassen": [
+    "ablation_rf",
+    "ep_katheter"
+   ],
+   "werte": [
+    "STD DISTAL",
+    "ASYM DISTAL",
+    "STANDARD",
+    "ASYMMETRIC"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(STD|ASYM(?:METRIC)?)\\s+DISTAL\\b"
+   ],
+   "abbild": {
+    "ASYM": "ASYM DISTAL",
+    "ASYMMETRIC": "ASYM DISTAL",
+    "STD": "STD DISTAL"
+   }
+  },
+  {
+   "id": "spitze_mm",
+   "label": "Spitzenlänge",
+   "kurz": "Spitze",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    2,
+    12
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "ablation_rf",
+    "ablation_kryo"
+   ],
+   "anker": [
+    "tip length",
+    "spitzenlänge",
+    "tip"
+   ],
+   "muster": [
+    "\\b([48]|3[.,]5|6|10)\\s*mm\\s*(?:tip|spitze|x\\s*\\d{1,2}\\s*F)"
+   ],
+   "hinweis": "4 mm gegen 8 mm entscheidet über die Läsionstiefe. Steht meist als „8mm x 8F\" ganz oben auf der Schachtel."
+  },
+  {
+   "id": "elektrodenabstand_mm",
+   "label": "Elektrodenabstand",
+   "kurz": "Abstand",
+   "typ": "text",
+   "rang": 15,
+   "klassen": [
+    "ablation_rf",
+    "ep_katheter",
+    "ablation_kryo"
+   ],
+   "anker": [
+    "electrode spacing",
+    "spacing",
+    "elektrodenabstand"
+   ],
+   "muster": [
+    "\\b(\\d(?:[.,]\\d)?(?:\\s*-\\s*\\d(?:[.,]\\d)?){1,3})\\s*mm\\s*(?:spacing|abstand)"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "polzahl",
+   "label": "Polzahl",
+   "kurz": "Pole",
+   "typ": "zahl",
+   "fenster": [
+    2,
+    64
+   ],
+   "rang": 16,
+   "klassen": [
+    "ep_katheter"
+   ],
+   "anker": [
+    "electrodes",
+    "poles",
+    "pole"
+   ],
+   "muster": [
+    "\\b(\\d{1,2})\\s*(?:-?polig|poles?|electrodes?)\\b",
+    "\\b(QUADRI|DECA|DUODECA|OCTA|HEXA)POLAR\\b"
+   ],
+   "abbild": {
+    "DECA": "10",
+    "DUODECA": "12",
+    "HEXA": "6",
+    "OCTA": "8",
+    "QUADRI": "4"
+   }
+  },
+  {
+   "id": "gekuehlt",
+   "label": "Gekühlt / Irrigation",
+   "kurz": "gekühlt",
+   "typ": "ja_nein",
+   "rang": 17,
+   "klassen": [
+    "ablation_rf"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(IRRIGATED|OPEN\\s?IRRIGATION|GEK(?:Ü|UE)HLT|COOLED)\\b"
+   ]
+  },
+  {
+   "id": "steuerbar",
+   "label": "Steuerbar",
+   "kurz": "steuerbar",
+   "typ": "liste",
+   "rang": 18,
+   "klassen": [
+    "ep_katheter",
+    "ablation_rf",
+    "schleuse"
+   ],
+   "werte": [
+    "nicht steuerbar",
+    "unidirektional",
+    "bidirektional"
+   ],
+   "anker": [
+    "deflection",
+    "steuerung"
+   ],
+   "muster": [
+    "\\b(BI-?DIRECTIONAL|UNI-?DIRECTIONAL|STEERABLE|DEFLECTABLE)\\b"
+   ],
+   "abbild": {
+    "BI DIRECTIONAL": "bidirektional",
+    "BIDIRECTIONAL": "bidirektional",
+    "DEFLECTABLE": "steuerbar",
+    "STEERABLE": "steuerbar",
+    "UNI DIRECTIONAL": "unidirektional",
+    "UNIDIRECTIONAL": "unidirektional"
+   }
+  },
+  {
+   "id": "kurvenradius_mm",
+   "label": "Kurvenradius",
+   "kurz": "Radius",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    10,
+    120
+   ],
+   "rang": 19,
+   "klassen": [
+    "ablation_kryo",
+    "ablation_rf"
+   ],
+   "anker": [
+    "curve radius",
+    "radius"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "ballon_mm",
+   "label": "Ballondurchmesser",
+   "kurz": "Ø",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    1.0,
+    40
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "ballon",
+    "ablation_kryo"
+   ],
+   "anker": [
+    "balloon diameter",
+    "ballondurchmesser",
+    "diameter"
+   ],
+   "muster": [
+    "\\b(2[0-9]|3[0-5])\\s*mm\\b"
+   ]
+  },
+  {
+   "id": "ballon_laenge_mm",
+   "label": "Ballonlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    4,
+    300
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "ballon"
+   ],
+   "anker": [
+    "balloon length",
+    "ballonlänge"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "stent_mm",
+   "label": "Stentdurchmesser",
+   "kurz": "Ø",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    1.5,
+    12
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "stent"
+   ],
+   "anker": [
+    "diameter",
+    "durchmesser"
+   ],
+   "muster": [
+    "\\b([1-9](?:[.,]\\d{1,2})?)\\s*mm\\s*[xX×]\\s*\\d{1,3}\\s*mm\\b"
+   ]
+  },
+  {
+   "id": "stent_laenge_mm",
+   "label": "Stentlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    5,
+    80
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "stent"
+   ],
+   "anker": [
+    "length",
+    "länge"
+   ],
+   "muster": [
+    "\\b\\d(?:[.,]\\d{1,2})?\\s*mm\\s*[xX×]\\s*(\\d{1,3})\\s*mm\\b"
+   ]
+  },
+  {
+   "id": "wirkstoff",
+   "label": "Wirkstoff (Beschichtung)",
+   "kurz": "Wirkstoff",
+   "typ": "liste",
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "stent",
+    "ballon"
+   ],
+   "werte": [
+    "Sirolimus",
+    "Everolimus",
+    "Zotarolimus",
+    "Biolimus",
+    "Paclitaxel",
+    "Umirolimus",
+    "keiner"
+   ],
+   "anker": [
+    "eluting",
+    "drug"
+   ],
+   "muster": [
+    "\\b(SIROLIMUS|EVEROLIMUS|ZOTAROLIMUS|BIOLIMUS|PACLITAXEL|UMIROLIMUS)\\b"
+   ],
+   "abbild": {
+    "BIOLIMUS": "Biolimus",
+    "EVEROLIMUS": "Everolimus",
+    "PACLITAXEL": "Paclitaxel",
+    "SIROLIMUS": "Sirolimus",
+    "UMIROLIMUS": "Umirolimus",
+    "ZOTAROLIMUS": "Zotarolimus"
+   }
+  },
+  {
+   "id": "plattform_material",
+   "label": "Plattform-Material",
+   "kurz": "Material",
+   "typ": "liste",
+   "rang": 13,
+   "klassen": [
+    "stent"
+   ],
+   "werte": [
+    "Kobalt-Chrom",
+    "Platin-Chrom",
+    "Edelstahl",
+    "Nitinol",
+    "Magnesium",
+    "Polymer"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(COBALT\\s*CHROMIUM|KOBALT-?CHROM|PLATINUM\\s*CHROMIUM|STAINLESS\\s*STEEL|NITINOL|MAGNESIUM)\\b"
+   ],
+   "abbild": {
+    "COBALT CHROMIUM": "Kobalt-Chrom",
+    "KOBALT CHROM": "Kobalt-Chrom",
+    "MAGNESIUM": "Magnesium",
+    "NITINOL": "Nitinol",
+    "PLATINUM CHROMIUM": "Platin-Chrom",
+    "STAINLESS STEEL": "Edelstahl"
+   }
+  },
+  {
+   "id": "np_atm",
+   "label": "Nenndruck (NP)",
+   "kurz": "NP",
+   "typ": "mass",
+   "einheit": "atm",
+   "fenster": [
+    4,
+    20
+   ],
+   "rang": 20,
+   "klassen": [
+    "stent",
+    "ballon"
+   ],
+   "anker": [
+    "nominal pressure",
+    "np",
+    "nenndruck"
+   ],
+   "muster": [
+    "NP\\s*[:=]?\\s*(\\d{1,2})"
+   ]
+  },
+  {
+   "id": "rbp_atm",
+   "label": "Berstdruck (RBP)",
+   "kurz": "RBP",
+   "typ": "mass",
+   "einheit": "atm",
+   "fenster": [
+    8,
+    35
+   ],
+   "rang": 21,
+   "badge": true,
+   "klassen": [
+    "stent",
+    "ballon"
+   ],
+   "anker": [
+    "rated burst pressure",
+    "rbp",
+    "berstdruck"
+   ],
+   "muster": [
+    "RBP\\s*[:=]?\\s*(\\d{1,2})"
+   ]
+  },
+  {
+   "id": "dilatationsgrenze_mm",
+   "label": "Dilatationsgrenze",
+   "kurz": "max Ø",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    1.5,
+    12
+   ],
+   "rang": 22,
+   "klassen": [
+    "stent"
+   ],
+   "anker": [
+    "dilatation limit",
+    "dilatationsgrenze"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "system_rx_otw",
+   "label": "System",
+   "kurz": "System",
+   "typ": "liste",
+   "rang": 23,
+   "klassen": [
+    "stent",
+    "ballon",
+    "mikrokatheter"
+   ],
+   "werte": [
+    "Rapid Exchange (RX)",
+    "Over-the-Wire (OTW)"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(RAPID\\s*EXCHANGE|OVER[- ]THE[- ]WIRE|\\bOTW\\b|\\bRX\\b(?!\\s*only))\\b"
+   ],
+   "hinweis": "„Rx only\" auf US-Etiketten heißt verschreibungspflichtig und ist NICHT Rapid Exchange. Deshalb im Muster ausgeschlossen.",
+   "abbild": {
+    "OTW": "Over-the-Wire (OTW)",
+    "OVER THE WIRE": "Over-the-Wire (OTW)",
+    "RAPID EXCHANGE": "Rapid Exchange (RX)",
+    "RX": "Rapid Exchange (RX)"
+   }
+  },
+  {
+   "id": "draht_in",
+   "label": "Drahtdurchmesser",
+   "kurz": "Ø″",
+   "typ": "mass",
+   "einheit": "in",
+   "fenster": [
+    0.008,
+    0.045
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "diameter",
+    "durchmesser"
+   ],
+   "muster": [
+    "(0[.,]0\\d{2})\\s*(?:in|\"|″|inch)"
+   ],
+   "mehrfach": "max"
+  },
+  {
+   "id": "draht_laenge_cm",
+   "label": "Drahtlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    40,
+    500
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "length",
+    "länge"
+   ],
+   "muster": [
+    "(\\d{2,3}(?:[.,]\\d)?)\\s*(?:±\\s*\\d+(?:[.,]\\d+)?\\s*)?cm(?![A-Za-z])"
+   ],
+   "mehrfach": "max",
+   "hinweis": "Auf dem Etikett stehen mehrere Längen (Gesamtlänge, hydrophile Strecke, röntgendichte Spitze). Die Gesamtlänge ist die größte."
+  },
+  {
+   "id": "spitzen_durchmesser_mm",
+   "label": "Spitzendurchmesser",
+   "kurz": "Tip Ø",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    0.1,
+    1.2
+   ],
+   "rang": 13,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "tip",
+    "spitze"
+   ],
+   "muster": []
+  },
+  {
+   "id": "spitzenform",
+   "label": "Spitzenform",
+   "kurz": "Spitze",
+   "typ": "liste",
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "fuehrungsdraht",
+    "einschwemmkatheter",
+    "diagnostikkatheter"
+   ],
+   "anker": [
+    "tip shape",
+    "spitzenform",
+    "tip"
+   ],
+   "muster": [
+    "\\b(PRE-?SHAPE[D]?|STRAIGHT|ANGLED|J-?TIP|SOFT\\s?J|SOFTJ|PIGTAIL|SPIRAL)\\b"
+   ],
+   "abbild": {
+    "ANGLED": "abgewinkelt",
+    "J TIP": "J-Tip",
+    "PIGTAIL": "Pigtail",
+    "PRE SHAPE": "vorgeformt",
+    "PRE SHAPED": "vorgeformt",
+    "PRESHAPE": "vorgeformt",
+    "PRESHAPED": "vorgeformt",
+    "SOFT J": "Soft-J",
+    "SOFTJ": "Soft-J",
+    "SPIRAL": "Spiral",
+    "STRAIGHT": "gerade"
+   },
+   "mehrfach": "erste",
+   "werte": [
+    "vorgeformt",
+    "gerade",
+    "abgewinkelt",
+    "J-Tip",
+    "Soft-J",
+    "Pigtail",
+    "Spiral"
+   ]
+  },
+  {
+   "id": "tip_load_g",
+   "label": "Spitzenkraft (Tip Load)",
+   "kurz": "g",
+   "typ": "mass",
+   "einheit": "g",
+   "fenster": [
+    0.3,
+    60
+   ],
+   "rang": 14,
+   "badge": true,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "tip load",
+    "spitzenkraft"
+   ],
+   "muster": [
+    "\\b(\\d{1,2}(?:[.,]\\d)?)\\s*(?:g|gf|gram)\\s*(?:tip\\s*load)?"
+   ],
+   "hinweis": "Steht auf vielen Etiketten NICHT, obwohl klinisch zentral (CTO-Draht). Typischer Fall für Anreicherung aus Hersteller-/EUDAMED-Daten mit Status „unbestätigt\"."
+  },
+  {
+   "id": "kernmaterial",
+   "label": "Kernmaterial",
+   "kurz": "Kern",
+   "typ": "liste",
+   "rang": 16,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "werte": [
+    "Edelstahl",
+    "Nitinol",
+    "Kobalt-Legierung",
+    "Hybrid"
+   ],
+   "anker": [],
+   "muster": [
+    "\\bCONTAINS\\s+CO\\s*\\(COBALT\\)",
+    "\\b(NITINOL|STAINLESS\\s*STEEL)\\b"
+   ],
+   "abbild": {
+    "CONTAINS CO (COBALT)": "Kobalt-Legierung",
+    "NITINOL": "Nitinol",
+    "STAINLESS STEEL": "Edelstahl"
+   }
+  },
+  {
+   "id": "beschichtung",
+   "label": "Beschichtung",
+   "kurz": "Coating",
+   "typ": "liste",
+   "rang": 15,
+   "badge": true,
+   "klassen": [
+    "fuehrungsdraht",
+    "schleuse",
+    "mikrokatheter",
+    "fuehrungskatheter"
+   ],
+   "anker": [
+    "coating",
+    "coated with",
+    "beschichtung"
+   ],
+   "muster": [
+    "\\b(HYDROPHILIC|HYDROPHOBIC|PTFE|SILICONE|SLIP-?COAT|M\\s?COAT|HYDROMER)\\b"
+   ],
+   "abbild": {
+    "HYDROPHILIC": "hydrophil",
+    "HYDROPHOBIC": "hydrophob",
+    "M COAT": "M coat (hydrophil)",
+    "PTFE": "PTFE",
+    "SILICONE": "Silikon",
+    "SLIP COAT": "SLIP-COAT (hydrophil)"
+   },
+   "mehrfach": "erste",
+   "werte": [
+    "hydrophil",
+    "hydrophob",
+    "PTFE",
+    "Silikon",
+    "SLIP-COAT (hydrophil)",
+    "M coat (hydrophil)"
+   ]
+  },
+  {
+   "id": "beschichtung_laenge_cm",
+   "label": "Beschichtungslänge",
+   "kurz": "Coat L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    1,
+    400
+   ],
+   "rang": 17,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "hydrophilic coating",
+    "coating length"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "roentgen_laenge_cm",
+   "label": "Röntgendichte Länge",
+   "kurz": "RO",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    1,
+    100
+   ],
+   "rang": 18,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "radiopaque length",
+    "radiopaque",
+    "röntgendicht"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "verlaengerbar",
+   "label": "Verlängerbar",
+   "kurz": "verläng.",
+   "typ": "ja_nein",
+   "rang": 19,
+   "klassen": [
+    "fuehrungsdraht"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(EXTENDABLE|DOC\\s*COMPATIBLE|VERL(?:Ä|AE)NGERBAR)\\b"
+   ]
+  },
+  {
+   "id": "lumenzahl",
+   "label": "Anzahl Lumen",
+   "kurz": "Lumen",
+   "typ": "zahl",
+   "fenster": [
+    1,
+    6
+   ],
+   "rang": 14,
+   "badge": true,
+   "klassen": [
+    "einschwemmkatheter",
+    "fuehrungskatheter",
+    "mikrokatheter",
+    "sonde"
+   ],
+   "anker": [
+    "lumen",
+    "lumina",
+    "number of lumens"
+   ],
+   "muster": [
+    "\\b(?:LUMEN|LUMINA)\\s*[:=]?\\s*([1-6])\\b",
+    "\\b([1-6])\\s*-?\\s*(?:LUMEN|LUMINA)\\b"
+   ]
+  },
+  {
+   "id": "draht_empf_in",
+   "label": "Empfohlener Draht",
+   "kurz": "Draht",
+   "typ": "mass",
+   "einheit": "in",
+   "fenster": [
+    0.008,
+    0.045
+   ],
+   "rang": 25,
+   "badge": true,
+   "beziehung": "braucht",
+   "klassen": [
+    "einschwemmkatheter",
+    "fuehrungskatheter",
+    "diagnostikkatheter",
+    "schleuse",
+    "stent",
+    "ballon",
+    "mikrokatheter",
+    "guide_extension"
+   ],
+   "anker": [
+    "recommended guide wire",
+    "guide wire size",
+    "guidewire",
+    "empfohlener draht",
+    "wire compatibility",
+    "max wire"
+   ],
+   "muster": [
+    "(0[.,]0\\d{2})\\s*(?:in|\"|″)"
+   ],
+   "hinweis": "Kompatibilitätsmerkmal: sagt, WELCHER Draht hineinpasst. Das ist die Frage, die im Labor tatsächlich gestellt wird.",
+   "mehrfach": "max"
+  },
+  {
+   "id": "draht_max_in",
+   "label": "Max. Drahtdurchmesser",
+   "kurz": "max Draht",
+   "typ": "mass",
+   "einheit": "in",
+   "fenster": [
+    0.008,
+    0.045
+   ],
+   "rang": 26,
+   "beziehung": "braucht",
+   "klassen": [
+    "mikrokatheter",
+    "guide_extension"
+   ],
+   "anker": [
+    "maximum guide wire",
+    "max wire"
+   ],
+   "muster": [],
+   "mehrfach": "max",
+   "nur_anker": true
+  },
+  {
+   "id": "min_guiding_id_mm",
+   "label": "Braucht Führungskatheter-ID ≥",
+   "kurz": "min ID",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    0.8,
+    4
+   ],
+   "rang": 27,
+   "badge": true,
+   "beziehung": "passt_in",
+   "klassen": [
+    "guide_extension",
+    "mikrokatheter"
+   ],
+   "anker": [
+    "gcid",
+    "guide catheter inner diameter",
+    "minimum guide catheter"
+   ],
+   "muster": [],
+   "hinweis": "GuideLiner & Co. drucken das als „GCID\". Damit kann die App beantworten: „Welcher Guiding nimmt diese Extension auf?\"",
+   "nur_anker": true
+  },
+  {
+   "id": "min_guiding_fr",
+   "label": "Braucht Führungskatheter ≥",
+   "kurz": "min Guiding",
+   "typ": "mass",
+   "einheit": "F",
+   "fenster": [
+    4,
+    12
+   ],
+   "rang": 27,
+   "badge": true,
+   "beziehung": "passt_in",
+   "klassen": [
+    "stent",
+    "ballon",
+    "mikrokatheter"
+   ],
+   "anker": [
+    "min. guiding catheter",
+    "minimum guiding",
+    "guiding catheter"
+   ],
+   "muster": [
+    "(?:MIN\\.?\\s*GUID(?:ING|E)\\s*CATH(?:ETER)?)\\s*[≥>]?\\s*(\\d)\\s*F",
+    "[≥>]\\s*(\\d)\\s*F\\b"
+   ]
+  },
+  {
+   "id": "material",
+   "label": "Material",
+   "kurz": "Material",
+   "typ": "liste",
+   "rang": 40,
+   "klassen": [
+    "einschwemmkatheter",
+    "fuehrungskatheter",
+    "schleuse",
+    "diagnostikkatheter",
+    "sonde"
+   ],
+   "werte": [
+    "PUR",
+    "PVC",
+    "PEBAX",
+    "Nylon",
+    "PTFE",
+    "Silikon",
+    "PE"
+   ],
+   "anker": [
+    "material"
+   ],
+   "muster": [
+    "\\b(PUR|POLYURETHAN[E]?|PVC|PEBAX|NYLON|PTFE|SILIKON|SILICONE)\\b"
+   ],
+   "abbild": {
+    "POLYURETHAN": "PUR",
+    "POLYURETHANE": "PUR",
+    "SILICONE": "Silikon"
+   }
+  },
+  {
+   "id": "winkel_grad",
+   "label": "Winkel",
+   "kurz": "°",
+   "typ": "mass",
+   "einheit": "°",
+   "fenster": [
+    0,
+    180
+   ],
+   "rang": 15,
+   "badge": true,
+   "klassen": [
+    "schleuse",
+    "transseptal",
+    "implantat"
+   ],
+   "anker": [
+    "angle",
+    "winkel",
+    "curve"
+   ],
+   "muster": [
+    "\\b(\\d{2,3})\\s*°"
+   ],
+   "hinweis": "Bei Delivery-Sheaths (z. B. Amplatzer Trevisio 45°) ein echtes Variantenmerkmal — steht nur als farbige Ecke auf der Schachtel."
+  },
+  {
+   "id": "dilatator_dabei",
+   "label": "Dilatator enthalten",
+   "kurz": "Dilat.",
+   "typ": "ja_nein",
+   "rang": 30,
+   "klassen": [
+    "schleuse"
+   ],
+   "anker": [
+    "dilator",
+    "dilatator"
+   ],
+   "muster": [
+    "\\bDILAT(?:OR|ATOR)\\b"
+   ]
+  },
+  {
+   "id": "nadel_g",
+   "label": "Punktionsnadel",
+   "kurz": "G",
+   "typ": "mass",
+   "einheit": "G",
+   "fenster": [
+    14,
+    25
+   ],
+   "rang": 31,
+   "klassen": [
+    "schleuse",
+    "transseptal"
+   ],
+   "anker": [
+    "needle",
+    "nadel",
+    "metallic"
+   ],
+   "muster": [
+    "\\b(1[4-9]|2[0-5])\\s*G\\b(?!\\w)"
+   ]
+  },
+  {
+   "id": "nadel_laenge_mm",
+   "label": "Nadellänge",
+   "kurz": "Nadel L",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    10,
+    200
+   ],
+   "rang": 32,
+   "klassen": [
+    "schleuse",
+    "transseptal"
+   ],
+   "anker": [
+    "needle length"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "anzahl_haehne",
+   "label": "Anzahl Hähne",
+   "kurz": "Hähne",
+   "typ": "zahl",
+   "fenster": [
+    1,
+    6
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "zubehoer_druck"
+   ],
+   "anker": [
+    "stopcocks",
+    "hähne"
+   ],
+   "muster": [
+    "\\b([1-6])\\s*-?\\s*fach\\b",
+    "\\b([1-6])\\s*(?:-way|way)\\b"
+   ]
+  },
+  {
+   "id": "max_druck_psi",
+   "label": "Max. Druck",
+   "kurz": "max",
+   "typ": "mass",
+   "einheit": "psi",
+   "fenster": [
+    50,
+    1500
+   ],
+   "rang": 11,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "zubehoer_druck",
+    "ballon",
+    "schleuse"
+   ],
+   "anker": [
+    "max pressure",
+    "maximum pressure",
+    "max.",
+    "druckfestigkeit"
+   ],
+   "muster": [
+    "max\\.?\\s*(\\d{3,4})\\s*psi",
+    "(\\d{3,4})\\s*psi"
+   ],
+   "hinweis": "Sicherheitsmerkmal. Ein Hochdruckschlauch mit 500 psi darf nicht mit einer Injektorleitung verwechselt werden."
+  },
+  {
+   "id": "schlauch_laenge_cm",
+   "label": "Schlauchlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    10,
+    500
+   ],
+   "rang": 12,
+   "klassen": [
+    "zubehoer_druck"
+   ],
+   "anker": [
+    "length",
+    "länge"
+   ],
+   "muster": []
+  },
+  {
+   "id": "anschluss",
+   "label": "Anschluss",
+   "kurz": "Anschluss",
+   "typ": "liste",
+   "rang": 13,
+   "klassen": [
+    "zubehoer_druck",
+    "loesung"
+   ],
+   "werte": [
+    "Luer-Lock",
+    "Luer-Slip",
+    "ON (ohne Nadel)",
+    "Rotationsadapter"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(LUER-?LOCK|LUER-?SLIP)\\b"
+   ]
+  },
+  {
+   "id": "masse_cm",
+   "label": "Maße",
+   "kurz": "Maß",
+   "typ": "text",
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "textil"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(\\d{1,2}\\s*(?:cm)?\\s*[xX×]\\s*\\d{1,2}\\s*cm)\\b"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "faedigkeit",
+   "label": "Fädigkeit",
+   "kurz": "Fäden",
+   "typ": "zahl",
+   "fenster": [
+    4,
+    30
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "textil"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(\\d{1,2})\\s*(?:#|-?f(?:ä|ae)dig\\b|threads?\\b)"
+   ]
+  },
+  {
+   "id": "lagigkeit",
+   "label": "Lagigkeit",
+   "kurz": "Lagen",
+   "typ": "zahl",
+   "fenster": [
+    2,
+    32
+   ],
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "textil"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(\\d{1,2})\\s*(?:-?lagig\\b|-?ply\\b|plies\\b|Lagen\\b)"
+   ]
+  },
+  {
+   "id": "roentgenfaden",
+   "label": "Röntgenfaden",
+   "kurz": "RO-Faden",
+   "typ": "ja_nein",
+   "rang": 13,
+   "klassen": [
+    "textil"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(R(?:Ö|OE)NTGEN(?:KONTRAST)?FADEN|X-?RAY\\s*DETECTABLE|RADIOPAQUE\\s*THREAD)\\b"
+   ]
+  },
+  {
+   "id": "volumen_ml",
+   "label": "Volumen",
+   "kurz": "ml",
+   "typ": "mass",
+   "einheit": "ml",
+   "fenster": [
+    1,
+    5000
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [
+    "volume",
+    "volumen",
+    "inhalt"
+   ],
+   "muster": [
+    "\\b(\\d{1,4})\\s*ml\\b"
+   ]
+  },
+  {
+   "id": "konzentration_pct",
+   "label": "Konzentration",
+   "kurz": "%",
+   "typ": "mass",
+   "einheit": "%",
+   "fenster": [
+    0.01,
+    100
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(\\d{1,2}(?:[.,]\\d{1,2})?)\\s*%"
+   ]
+  },
+  {
+   "id": "verwendungszweck",
+   "label": "Verwendungszweck",
+   "kurz": "Zweck",
+   "typ": "liste",
+   "rang": 5,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "loesung"
+   ],
+   "werte": [
+    "zur Injektion",
+    "zur Infusion",
+    "zur Spülung (NICHT zur Injektion)",
+    "zur äußeren Anwendung"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(NOT\\s+FOR\\s+INJECTION)\\b",
+    "\\b(FOR\\s+IRRIGATION)\\b",
+    "\\b(ZUR\\s+INTRAVEN(?:Ö|OE)SEN\\s+ANWENDUNG)\\b",
+    "\\b(SP(?:Ü|UE)LL(?:Ö|OE)SUNG)\\b"
+   ],
+   "hinweis": "Sicherheitskritisch: „For irrigation / Not for injection\" sieht einer Injektionslösung zum Verwechseln ähnlich. Muss ganz oben stehen und rot sein.",
+   "abbild": {
+    "FOR IRRIGATION": "zur Spülung (NICHT zur Injektion)",
+    "NOT FOR INJECTION": "zur Spülung (NICHT zur Injektion)",
+    "SPUELLOESUNG": "zur Spülung (NICHT zur Injektion)",
+    "SPÜLLÖSUNG": "zur Spülung (NICHT zur Injektion)",
+    "ZUR INTRAVENÖSEN ANWENDUNG": "zur Infusion"
+   }
+  },
+  {
+   "id": "osmolaritaet",
+   "label": "Osmolarität",
+   "kurz": "mosm/l",
+   "typ": "mass",
+   "einheit": "mosm/l",
+   "fenster": [
+    50,
+    2500
+   ],
+   "rang": 20,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [
+    "osmolarität",
+    "osmolarity",
+    "theoretische osmolarität"
+   ],
+   "muster": [
+    "(\\d{3,4})\\s*mosm"
+   ]
+  },
+  {
+   "id": "ph_wert",
+   "label": "pH-Wert",
+   "kurz": "pH",
+   "typ": "text",
+   "rang": 21,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [
+    "ph"
+   ],
+   "muster": [
+    "pH\\s*[:=]?\\s*(\\d(?:[.,]\\d)?\\s*[-–]\\s*\\d(?:[.,]\\d)?)",
+    "pH\\s*[:=]?\\s*(\\d(?:[.,]\\d)?)"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "elektrolyte",
+   "label": "Elektrolyte",
+   "kurz": "Elektrolyte",
+   "typ": "text",
+   "rang": 22,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [
+    "elektrolyte",
+    "electrolytes"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "zulassungsnummer",
+   "label": "Zulassungsnummer",
+   "kurz": "Zul.-Nr.",
+   "typ": "text",
+   "rang": 60,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [
+    "z.nr",
+    "zul.-nr",
+    "zulassungsnummer",
+    "reg. no"
+   ],
+   "muster": [
+    "\\b(\\d{4,6}\\.\\d{2}\\.\\d{2})\\b"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "apothekenpflichtig",
+   "label": "Apothekenpflichtig",
+   "kurz": "Apo",
+   "typ": "ja_nein",
+   "rang": 61,
+   "klassen": [
+    "loesung"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(APOTHEKENPFLICHTIG)\\b"
+   ]
+  },
+  {
+   "id": "verschreibungspflichtig",
+   "label": "Verschreibungspflichtig",
+   "kurz": "Rx",
+   "typ": "ja_nein",
+   "rang": 62,
+   "klassen": [
+    "loesung",
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(RX\\s*ONLY|REZEPTPFLICHTIG|VERSCHREIBUNGSPFLICHTIG)\\b"
+   ]
+  },
+  {
+   "id": "implantat_mm",
+   "label": "Implantatgröße",
+   "kurz": "Ø",
+   "typ": "mass",
+   "einheit": "mm",
+   "fenster": [
+    4,
+    40
+   ],
+   "rang": 10,
+   "badge": true,
+   "klassen": [
+    "implantat"
+   ],
+   "anker": [
+    "size",
+    "größe"
+   ],
+   "muster": [],
+   "nur_anker": true
+  },
+  {
+   "id": "seriennummer",
+   "label": "Seriennummer",
+   "kurz": "SN",
+   "typ": "text",
+   "rang": 70,
+   "klassen": [
+    "implantat",
+    "sonde",
+    "stent"
+   ],
+   "anker": [
+    "serial number",
+    "seriennummer",
+    "sn"
+   ],
+   "muster": [],
+   "mehrfach": "erste",
+   "nur_anker": true
+  },
+  {
+   "id": "stueck_packung",
+   "label": "Stück je Packung",
+   "kurz": "Stk",
+   "typ": "zahl",
+   "fenster": [
+    1,
+    5000
+   ],
+   "rang": 50,
+   "klassen": [
+    "textil",
+    "set",
+    "zubehoer_druck",
+    "loesung",
+    "allgemein",
+    "fuehrungsdraht"
+   ],
+   "anker": [
+    "contents",
+    "quantity",
+    "package contents",
+    "inhalt",
+    "ve"
+   ],
+   "muster": [
+    "(?:^|\\s)[xX](\\d{2,4})\\b",
+    "(?:CONTENTS|QUANTITY|INHALT)\\s*[:=]?\\s*\\(?(\\d{1,4})\\)?"
+   ]
+  },
+  {
+   "id": "steril",
+   "label": "Steril",
+   "kurz": "steril",
+   "typ": "liste",
+   "rang": 41,
+   "badge": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "werte": [
+    "steril (EO)",
+    "steril (Strahlen)",
+    "steril (Dampf)",
+    "steril",
+    "unsteril"
+   ],
+   "anker": [],
+   "muster": [
+    "\\bSTERILE?\\s*\\|?\\s*(EO)\\b",
+    "\\bSTERILE?\\s*\\|?\\s*(R)\\b",
+    "\\bSTERILE?\\s*\\|?\\s*(VH2O2|STEAM)\\b",
+    "\\b(NON-?STERILE|UNSTERIL)\\b",
+    "\\b(STERILE?)\\b"
+   ],
+   "abbild": {
+    "EO": "steril (EO)",
+    "NON STERILE": "unsteril",
+    "R": "steril (Strahlen)",
+    "STEAM": "steril (Dampf)",
+    "STERIL": "steril",
+    "STERILE": "steril",
+    "UNSTERIL": "unsteril",
+    "VH2O2": "steril (Plasma)"
+   }
+  },
+  {
+   "id": "einmalgebrauch",
+   "label": "Einmalgebrauch",
+   "kurz": "Einmal",
+   "typ": "ja_nein",
+   "rang": 42,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(DO\\s*NOT\\s*RE-?USE|SINGLE\\s*USE|NUR\\s*ZUR\\s*EINMALIGEN|EINMALGEBRAUCH)\\b"
+   ],
+   "abbild": {
+    "DO NOT REUSE": "ja",
+    "SINGLE USE": "ja",
+    "NUR ZUR EINMALIGEN": "ja",
+    "EINMALGEBRAUCH": "ja"
+   }
+  },
+  {
+   "id": "resterilisierbar",
+   "label": "Resterilisierbar",
+   "kurz": "Rester.",
+   "typ": "ja_nein",
+   "rang": 43,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(DO\\s*NOT\\s*RESTERILIZE|NICHT\\s*RESTERILISIEREN)\\b"
+   ],
+   "abbild": {
+    "DO NOT RESTERILIZE": "nein",
+    "NICHT RESTERILISIEREN": "nein"
+   },
+   "hinweis": "Auf Etiketten steht die VERNEINUNG („Do not resterilize\"). Ohne Abbildung würde daraus fälschlich ein „ja\"."
+  },
+  {
+   "id": "latex",
+   "label": "Latex",
+   "kurz": "Latex",
+   "typ": "liste",
+   "rang": 44,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "werte": [
+    "latexfrei",
+    "enthält Naturlatex",
+    "unbekannt"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(DOES\\s*NOT\\s*CONTAIN\\s*NATURAL\\s*RUBBER\\s*LATEX|LATEX-?FREE|LATEXFREI)\\b",
+    "\\b(CONTAINS\\s*NATURAL\\s*RUBBER\\s*LATEX|ENTH(?:Ä|AE)LT\\s*LATEX)\\b"
+   ],
+   "hinweis": "Das Latex-Symbol allein ist mehrdeutig — durchgestrichen heißt latexfrei, ohne Durchstreichung heißt latexhaltig. Ein OCR liest den Unterschied NICHT. Deshalb bleibt der Wert ohne Klartext „unbekannt\". Leer schlägt falsch.",
+   "abbild": {
+    "CONTAINS NATURAL RUBBER LATEX": "enthält Naturlatex",
+    "DOES NOT CONTAIN NATURAL RUBBER LATEX": "latexfrei",
+    "ENTHÄLT LATEX": "enthält Naturlatex",
+    "LATEX FREE": "latexfrei",
+    "LATEXFREI": "latexfrei"
+   }
+  },
+  {
+   "id": "dehp",
+   "label": "Weichmacher (DEHP/PHT)",
+   "kurz": "DEHP",
+   "typ": "ja_nein",
+   "rang": 45,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(DEHP|PHT)\\b"
+   ]
+  },
+  {
+   "id": "mr_sicherheit",
+   "label": "MR-Sicherheit",
+   "kurz": "MR",
+   "typ": "liste",
+   "rang": 46,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "allgemein",
+    "implantat",
+    "sonde"
+   ],
+   "werte": [
+    "MR safe",
+    "MR conditional",
+    "MR unsafe",
+    "unbekannt"
+   ],
+   "anker": [],
+   "muster": [
+    "\\bMR\\s*(SAFE|CONDITIONAL|UNSAFE)\\b"
+   ],
+   "abbild": {
+    "CONDITIONAL": "MR conditional",
+    "SAFE": "MR safe",
+    "UNSAFE": "MR unsafe"
+   }
+  },
+  {
+   "id": "gefahrstoff",
+   "label": "Gefahrstoff (CAS)",
+   "kurz": "CAS",
+   "typ": "text",
+   "rang": 47,
+   "warnung": true,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [
+    "contains hazardous substances",
+    "cas"
+   ],
+   "muster": [
+    "CAS\\s*#?\\s*(\\d{2,7}-\\d{2}-\\d)",
+    "\\b(7440-48-4)\\b"
+   ],
+   "hinweis": "7440-48-4 ist Cobalt — steht auf sehr vielen Katheteretiketten und ist für die Allergie-Anamnese relevant.",
+   "mehrfach": "erste"
+  },
+  {
+   "id": "lagertemperatur",
+   "label": "Lagertemperatur",
+   "kurz": "°C",
+   "typ": "text",
+   "rang": 48,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [
+    "store at",
+    "lagerung"
+   ],
+   "muster": [
+    "\\b(\\d{1,2}\\s*°?C?\\s*(?:bis|to|[-–])\\s*\\d{1,2}\\s*°C)\\b"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "ce_stelle",
+   "label": "Benannte Stelle (CE)",
+   "kurz": "CE",
+   "typ": "text",
+   "rang": 63,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [
+    "ce"
+   ],
+   "muster": [
+    "\\bCE\\s*(\\d{4})\\b"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "herkunftsland",
+   "label": "Herstellungsland",
+   "kurz": "Land",
+   "typ": "text",
+   "rang": 64,
+   "klassen": [
+    "allgemein"
+   ],
+   "anker": [
+    "made in",
+    "manufactured in",
+    "country of origin",
+    "product of"
+   ],
+   "muster": [
+    "^\\s*:?\\s*([A-ZÄÖÜ]{3,}|[A-ZÄÖÜ][a-zäöüß]+(?:\\s+(?:Republic|Kingdom|States|Emirates))?)"
+   ],
+   "mehrfach": "erste",
+   "streng": true,
+   "nur_anker": true
+  },
+  {
+   "id": "sonde_laenge_cm",
+   "label": "Sondenlänge",
+   "kurz": "L",
+   "typ": "mass",
+   "einheit": "cm",
+   "fenster": [
+    30,
+    120
+   ],
+   "rang": 11,
+   "badge": true,
+   "klassen": [
+    "sonde"
+   ],
+   "anker": [
+    "lead length",
+    "sondenlänge",
+    "length"
+   ],
+   "muster": [
+    "(\\d{2,3}(?:[.,]\\d)?)\\s*(?:±\\s*\\d+(?:[.,]\\d+)?\\s*)?cm(?![A-Za-z])"
+   ]
+  },
+  {
+   "id": "fixierung",
+   "label": "Fixierung",
+   "kurz": "Fixierung",
+   "typ": "liste",
+   "rang": 12,
+   "badge": true,
+   "klassen": [
+    "sonde"
+   ],
+   "werte": [
+    "aktiv (Schraube)",
+    "passiv (Anker)"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(ACTIVE\\s*FIXATION|SCREW-?IN|AKTIVE?\\s*FIXIERUNG)\\b",
+    "\\b(PASSIVE\\s*FIXATION|TINED|PASSIVE?\\s*FIXIERUNG)\\b"
+   ],
+   "abbild": {
+    "ACTIVE FIXATION": "aktiv (Schraube)",
+    "SCREW IN": "aktiv (Schraube)",
+    "AKTIVE FIXIERUNG": "aktiv (Schraube)",
+    "PASSIVE FIXATION": "passiv (Anker)",
+    "TINED": "passiv (Anker)",
+    "PASSIVE FIXIERUNG": "passiv (Anker)"
+   }
+  },
+  {
+   "id": "resorbierbar",
+   "label": "Resorbierbar",
+   "kurz": "resorb.",
+   "typ": "ja_nein",
+   "rang": 20,
+   "klassen": [
+    "verschluss",
+    "implantat"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(RESORB(?:IERBAR|ABLE)|BIORESORBABLE|ABSORBABLE)\\b"
+   ]
+  },
+  {
+   "id": "inhalt",
+   "label": "Set-Inhalt",
+   "kurz": "Inhalt",
+   "typ": "text",
+   "rang": 30,
+   "klassen": [
+    "set"
+   ],
+   "anker": [
+    "contents",
+    "inhalt",
+    "package contents"
+   ],
+   "muster": [],
+   "mehrfach": "erste",
+   "nur_anker": true
+  },
+  {
+   "id": "passt_zu",
+   "label": "Passt zu",
+   "kurz": "passt zu",
+   "typ": "text",
+   "rang": 10,
+   "badge": true,
+   "beziehung": "gehoert_zu",
+   "klassen": [
+    "zubehoer_implantat"
+   ],
+   "anker": [
+    "for use with",
+    "kompatibel mit",
+    "passend zu"
+   ],
+   "muster": [
+    "\\b(EVOLUTFX-\\d{2}|SAPIEN\\s?\\d|ACURATE\\s?\\w+|NAVITOR\\s?\\d{2})\\b"
+   ],
+   "mehrfach": "erste"
+  },
+  {
+   "id": "rolle",
+   "label": "Rolle im System",
+   "kurz": "Rolle",
+   "typ": "liste",
+   "rang": 5,
+   "badge": true,
+   "warnung": true,
+   "klassen": [
+    "zubehoer_implantat"
+   ],
+   "werte": [
+    "Loading-System",
+    "Delivery-System",
+    "Zubehör"
+   ],
+   "anker": [],
+   "muster": [
+    "\\b(LOADING\\s*SYSTEM|LADESYSTEM)\\b",
+    "\\b(DELIVERY\\s*SYSTEM|EINF(?:Ü|UE)HRSYSTEM)\\b"
+   ],
+   "abbild": {
+    "LOADING SYSTEM": "Loading-System",
+    "LADESYSTEM": "Loading-System",
+    "DELIVERY SYSTEM": "Delivery-System",
+    "EINFÜHRSYSTEM": "Delivery-System"
+   },
+   "hinweis": "Lade- und Einführsystem liegen nebeneinander im Schrank und sehen gleich aus. Die REF unterscheidet sie über das Präfix L- / D-."
+  }
+ ],
+ "ref_grammatik": [
+  {
+   "_hinweis": "REF-GRAMMATIK: Varianten stecken fast immer in der Artikelnummer. Wer die Grammatik eines Herstellers kennt, liest die Variante aus der REF — ohne die 1-mm-Kleinschrift zu entziffern. Belegt an echten Etiketten.",
+   "id": "medtronic_launcher",
+   "hersteller": "Medtronic",
+   "familie": "Launcher",
+   "muster": "^LA(\\d)([A-Z]{2,4})(\\d{2})(SH|MS)?$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "ad_fr",
+     "einheit": "F"
+    },
+    {
+     "gruppe": 2,
+     "merkmal": "kurvenform",
+     "anhaengen": 3,
+     "trenner": ""
+    },
+    {
+     "gruppe": 4,
+     "merkmal": "seitenloecher",
+     "wenn": {
+      "SH": "ja",
+      "MS": "nein"
+     }
+    }
+   ],
+   "beispiel": {
+    "ref": "LA6EBU40SH",
+    "ergibt": "6 F · EBU4.0 · mit Seitenlöchern"
+   }
+  },
+  {
+   "id": "abbott_trevisio",
+   "hersteller": "Abbott",
+   "familie": "Amplatzer Trevisio",
+   "muster": "^9-ATV(\\d{1,2})F(\\d{2,3})/(\\d{2,3})$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "schleuse_fr",
+     "einheit": "F"
+    },
+    {
+     "gruppe": 2,
+     "merkmal": "winkel_grad",
+     "einheit": "°"
+    },
+    {
+     "gruppe": 3,
+     "merkmal": "schleuse_laenge_cm",
+     "einheit": "cm"
+    }
+   ],
+   "beispiel": {
+    "ref": "9-ATV12F45/80",
+    "ergibt": "12 F · 45° · 80 cm"
+   }
+  },
+  {
+   "id": "smt_supraflex",
+   "hersteller": "Sahajanand Medical Technologies",
+   "familie": "Supraflex Cruz",
+   "muster": "^FGTO(\\d{3})(\\d{3})$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "stent_mm",
+     "einheit": "mm",
+     "teiler": 100
+    },
+    {
+     "gruppe": 2,
+     "merkmal": "stent_laenge_mm",
+     "einheit": "mm"
+    }
+   ],
+   "beispiel": {
+    "ref": "FGTO275020",
+    "ergibt": "2,75 mm × 20 mm"
+   }
+  },
+  {
+   "id": "terumo_radifocus",
+   "hersteller": "Terumo",
+   "familie": "Radifocus Introducer II",
+   "muster": "^RM\\*?RF(\\d)([JS])(\\d{2})([A-Z]{0,2})$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "schleuse_fr",
+     "einheit": "F"
+    },
+    {
+     "gruppe": 2,
+     "merkmal": "spitzenform",
+     "wenn": {
+      "J": "J-Tip",
+      "S": "gerade"
+     }
+    },
+    {
+     "gruppe": 3,
+     "merkmal": "schleuse_laenge_cm",
+     "einheit": "cm"
+    }
+   ],
+   "beispiel": {
+    "ref": "RM*RF5J16PQ",
+    "ergibt": "5 F · J-Draht · 16 cm Schleuse"
+   }
+  },
+  {
+   "id": "medtronic_afa",
+   "hersteller": "Medtronic",
+   "familie": "Arctic Front Advance",
+   "muster": "^AFAPRO(\\d{2})$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "ballon_mm",
+     "einheit": "mm"
+    }
+   ],
+   "beispiel": {
+    "ref": "AFAPRO28",
+    "ergibt": "28-mm-Kryoballon"
+   }
+  },
+  {
+   "id": "medtronic_evolut_load",
+   "hersteller": "Medtronic",
+   "familie": "Evolut FX",
+   "muster": "^([LD])-EVOLUTFX-(\\d{2})(\\d{2})$",
+   "felder": [
+    {
+     "gruppe": 1,
+     "merkmal": "rolle",
+     "wenn": {
+      "L": "Loading-System",
+      "D": "Delivery-System"
+     }
+    }
+   ],
+   "beispiel": {
+    "ref": "L-EVOLUTFX-2329",
+    "ergibt": "Loading-System für Klappengrößen 23–29 mm"
+   },
+   "hinweis": "Zubehör-Fallstrick: „L-\" und „D-\" unterscheiden Lade- von Einführsystem. Wer das verwechselt, holt das falsche Set aus dem Schrank."
+  }
+ ],
+ "kompatibilitaet": {
+  "_hinweis": "Beziehungsmerkmale beantworten die Frage, die im Labor wirklich gestellt wird: „Passt das zusammen?\". Sie werden aus den Merkmalen mit dem Feld `beziehung` gebildet.",
+  "regeln": [
+   {
+    "id": "draht_in_katheter",
+    "frage": "Welcher Draht passt in dieses Produkt?",
+    "links": {
+     "merkmal": "draht_empf_in"
+    },
+    "rechts": {
+     "klasse": "fuehrungsdraht",
+     "merkmal": "draht_in"
+    },
+    "vergleich": ">=",
+    "toleranz_mm": 0.02
+   },
+   {
+    "id": "extension_in_guiding",
+    "frage": "Welcher Führungskatheter nimmt diese Extension auf?",
+    "links": {
+     "merkmal": "min_guiding_id_mm"
+    },
+    "rechts": {
+     "klasse": "fuehrungskatheter",
+     "merkmal": "id_mm"
+    },
+    "vergleich": "<="
+   },
+   {
+    "id": "katheter_in_schleuse",
+    "frage": "Passt dieser Katheter durch die Schleuse?",
+    "links": {
+     "merkmal": "ad_fr"
+    },
+    "rechts": {
+     "klasse": "schleuse",
+     "merkmal": "schleuse_fr"
+    },
+    "vergleich": "<="
+   },
+   {
+    "id": "stent_braucht_guiding",
+    "frage": "Welcher Führungskatheter reicht für diesen Stent?",
+    "links": {
+     "merkmal": "min_guiding_fr"
+    },
+    "rechts": {
+     "klasse": "fuehrungskatheter",
+     "merkmal": "ad_fr"
+    },
+    "vergleich": "<="
+   }
+  ]
+ }
+}
