@@ -148,7 +148,7 @@ Allergieangabe, auf die sich jemand verlässt.
 ## 5. Was die Klassen unterscheidet
 
 Ein Draht hat keine Kurvenform, eine Kompresse keinen Berstdruck. Der Katalog
-kennt **22 Materialklassen**; jede bringt ihren eigenen Merkmalssatz mit, dazu
+kennt **28 Materialklassen**; jede bringt ihren eigenen Merkmalssatz mit, dazu
 die Merkmale, die für alles gelten (steril, Einmalgebrauch, Latex, MR, CAS).
 
 Erkannt wird die Klasse über Signalwörter — mit **Ausschlusswörtern**, denn
