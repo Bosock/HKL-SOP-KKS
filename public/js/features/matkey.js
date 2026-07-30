@@ -47,8 +47,29 @@ function matKeyCacheLeeren(){ matKeyCache = null; matKeyZerlCache = null; matKey
 /* Ist der Baustein überhaupt einsatzbereit? Fehlt die Katalogdatei, verhält
    sich die App exakt wie vorher — das ist die Rückfallebene. */
 function matKeyBereit(){
-  return typeof zerlege==='function' && typeof ZERLKAT!=='undefined'
-    && ZERLKAT && Array.isArray(ZERLKAT.putzen) && !!(ZERLKAT.taetigkeit);
+  if(typeof zerlege!=='function' || typeof ZERLKAT==='undefined' || !ZERLKAT) return false;
+  /* Leere Listen sind KEIN Katalog. Der Vorgabewert im Modul ist bewusst leer,
+     damit die App auch ohne die Datei startet — dann darf sich die Brücke aber
+     nicht als einsatzbereit melden, sonst fällt niemand auf material_key
+     zurück und der Assistent zeigt eine leere Maske statt einer Erklärung. */
+  const verben = (ZERLKAT.taetigkeit && ZERLKAT.taetigkeit.verben) || [];
+  return Array.isArray(ZERLKAT.putzen) && ZERLKAT.putzen.length>0 && verben.length>0;
+}
+
+/* Schlüssel für eine Bestätigung, die für JEDES Vorkommen desselben Textes
+   gilt. „OP-Lampengriff" steht 46× im Bestand — wer das einmal entscheidet,
+   soll es nicht 46× entscheiden müssen.
+
+   Damit hat die Zerlegung dieselbe Reichweiten-Logik wie der Rest der App:
+     📍 diese Stelle  → ZERLDB[cid]
+     🌐 überall       → ZERLDB['t:<Text>']
+   Die Stelle schlägt das Überall — wie bei QE.cid vor QE.mat. */
+function zerlTextKey(e){
+  if(!e) return null;
+  const t = e.anzeige_text || e.roh_text || '';
+  if(!t || typeof zerlSlug!=='function') return null;
+  const s = zerlSlug(t);
+  return s ? ('t:'+s) : null;
 }
 
 /* Die geltende Zerlegung einer Stelle: Vorschlag der Engine, überlagert von
@@ -60,7 +81,9 @@ function zerlFuer(e, cid){
   let erg = null;
   if(matKeyBereit()){
     const vorschlag = zerlege(e, ZERLKAT);
-    const bestaetigt = (cid && ZERLDB[cid]) || null;
+    /* Reichweite: die Stelle vor dem Überall. */
+    const tk = zerlTextKey(e);
+    const bestaetigt = (cid && ZERLDB[cid]) || (tk && ZERLDB[tk]) || null;
     erg = (typeof zerlVereinen==='function') ? zerlVereinen(vorschlag, bestaetigt) : vorschlag;
   }
   if(cid) matKeyZerlCache[cid] = erg;

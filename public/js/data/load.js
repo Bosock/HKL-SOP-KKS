@@ -16,6 +16,17 @@ async function loadMaterialData(){
   try{ const r=await fetch('data/cleanup_suggestions.json',{cache:'no-store'}); if(r.ok && typeof cleanupSetData==='function') cleanupSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/merkmale.json',{cache:'no-store'}); if(r.ok && typeof merkSetData==='function') merkSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/zerlegung.json',{cache:'no-store'}); if(r.ok && typeof zerlSetData==='function') zerlSetData(await r.json()); }catch(e){}
+  /* WICHTIG: Diese Kataloge kommen NACH dem ersten Rendern an. Bis dahin hat
+     buildMaterialIndex() für jede Stelle „keine Zerlegung" zwischengespeichert
+     — und würde das behalten. Also: Speicher verwerfen und den Materialindex
+     neu aufbauen, sonst wirkt der Zerlegungs-Katalog erst beim nächsten Start.
+     (Genau dieser Fehler ist im End-to-End-Test aufgefallen, nicht im
+     Unit-Test: In Node lag der Katalog immer schon vor.) */
+  if(typeof matKeyCacheLeeren==='function'){
+    matKeyCacheLeeren();
+    if(typeof buildMaterialIndex==='function') buildMaterialIndex();
+    try{ if(typeof mode!=='undefined' && mode==='use' && typeof nav!=='undefined' && !nav.length && typeof renderStandards==='function') renderStandards($('searchInput')?$('searchInput').value:''); }catch(e){}
+  }
 }
 
 /* ============ Material-Index ============ */
