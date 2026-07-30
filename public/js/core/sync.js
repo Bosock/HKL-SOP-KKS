@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -45,6 +45,9 @@ function hydrateVars(){
   MATLINK=loadJSON('hkl_matlink',{});
   MATPROPS=loadJSON('hkl_matprops',[]); if(!Array.isArray(MATPROPS)) MATPROPS=[];
   if(typeof CLEANUP_DONE!=='undefined') CLEANUP_DONE=loadJSON('hkl_cleanup_done',{});
+  if(typeof ZERLDB!=='undefined'){ ZERLDB=loadJSON('hkl_zerlegung',{}); if(!ZERLDB||typeof ZERLDB!=='object') ZERLDB={};
+    if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren(); }
+  if(typeof GERAETE!=='undefined'){ GERAETE=loadJSON('hkl_geraete',{}); if(!GERAETE||typeof GERAETE!=='object') GERAETE={}; }
   if(typeof GUIDES!=='undefined'){ GUIDES=loadJSON('hkl_guides',[]); if(!Array.isArray(GUIDES)) GUIDES=[]; }
   if(typeof POPUPS!=='undefined'){ POPUPS=loadJSON('hkl_popups',[]); if(!Array.isArray(POPUPS)) POPUPS=[]; }
   if(typeof VARIANTS!=='undefined'){ VARIANTS=loadJSON('hkl_variants',{aerzte:[],data:{}});

@@ -119,7 +119,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('matAdminLink verknüpft/löst ein Material im Panel', r8.linked && r8.unlinked);
 
   // 9) Material-ZENTRALE: „care" führt jetzt in die konsolidierte Ansicht
-  //    (vier Register). Der frühere zweite Hub ist entfernt — hier wird nur
+  //    (fünf Register, inkl. Geräte). Der frühere zweite Hub ist entfernt — hier wird nur
   //    geprüft, dass der Einstieg dort landet; Details deckt e2e/matcenter.js ab.
   const r9 = await A.page.evaluate(() => {
     setMode('care');
@@ -136,7 +136,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     };
   });
   check('„care" öffnet die Material-Zentrale (nicht mehr den alten Hub)', r9.zentrale && r9.alterHubWeg);
-  check('… mit vier Registern, Scan-Knopf und „Material anlegen"', r9.register === 4 && r9.scanBtn && r9.newBtn);
+  check('… mit fünf Registern, Scan-Knopf und „Material anlegen"', r9.register === 5 && r9.scanBtn && r9.newBtn);
   check('… listet Materialien (' + r9.rows + ') inkl. Vorkommen (wo benutzt)', r9.rows > 0 && r9.rowsShowWhere);
 
   // 10) openMaterial: bereitet Stammsatz aus Alt-Pflegedaten VOR (Editor zeigt

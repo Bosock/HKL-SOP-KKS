@@ -20,9 +20,12 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const shown = document.querySelectorAll('#scr-care .mc-tab').length;
     return { names, shown, active: document.querySelector('#scr-care .mc-tab.on .mc-tab-l').textContent };
   });
-  r.check('Zentrale hat vier Register', tabs.shown === 4);
-  r.check('Register heißen Material · Einträge · Ordnung · Prüfen',
-    ['Material', 'Einträge', 'Ordnung', 'Prüfen'].every(n => tabs.names.includes(n)));
+  /* Fünf Register, seit Geräte einen eigenen Stamm haben (features/geraete.js):
+     Ein Gerät ist ein Exemplar mit Saal, Inventarnummer und Prüftermin — das
+     gehört nicht in dieselbe Liste wie Verbrauchsmaterial. */
+  r.check('Zentrale hat fünf Register', tabs.shown === 5);
+  r.check('Register heißen Material · Einträge · Ordnung · Geräte · Prüfen',
+    ['Material', 'Einträge', 'Ordnung', 'Geräte', 'Prüfen'].every(n => tabs.names.includes(n)));
   r.check('Startet im Register „Material"', tabs.active === 'Material');
 
   // ─────────── Register „Einträge" ───────────
@@ -134,7 +137,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     //    nicht mehr im entfernten Alt-Hub.
     openScanHub();
     const zurueckInZentrale = document.getElementById('scr-care').classList.contains('active')
-      && document.querySelectorAll('#scr-care .mc-tab').length === 4;
+      && document.querySelectorAll('#scr-care .mc-tab').length === 5;
 
     // 3) Reiter tragen die ARIA-Tab-Semantik (W3C APG).
     const tabs = [...document.querySelectorAll('#scr-care .mc-tab')];

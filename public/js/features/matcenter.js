@@ -112,20 +112,25 @@ function renderMatCenter(){
       ${tab('material','📦','Material',rows.length)}
       ${tab('eintraege','📄','Einträge','')}
       ${tab('ordnung','🗂','Ordnung','')}
+      ${tab('geraete','🖥','Geräte',(typeof geraetBilanz==='function'?(geraetBilanz().gesamt||''):''))}
       ${tab('pruefen','✅','Prüfen',todo||'')}
     </div>`;
   html+=`<div id="mcPanel" role="tabpanel" aria-labelledby="mctab-${mcTab}">`;
   if(mcTab==='material') html+=mcMaterialHTML(offen);
   else if(mcTab==='eintraege') html+=mcEntriesHTML();
   else if(mcTab==='ordnung') html+=mcOrdnungHTML();
+  else if(mcTab==='dubletten') html+=mcDublettenHTML();
+  else if(mcTab==='geraete') html+=mcGeraeteHTML();
   else html+=mcPruefenHTML(gaps,legacy);
   html+=`</div>`;
   box.innerHTML=html;
 }
 function mcGo(t){ mcTab=t; mcQ=''; mcFilter='alle'; renderMatCenter();
+  /* „dubletten" ist eine Unterseite von „Prüfen" und hat keinen eigenen
+     Reiter — dann bleibt der Fokus, wo er ist. */
   const el=document.getElementById('mctab-'+t); if(el){ try{ el.focus(); }catch(e){} } }
 /* Pfeiltasten-Navigation zwischen den Reitern (ARIA-APG „Tabs"). */
-const MC_TABS=['material','eintraege','ordnung','pruefen'];
+const MC_TABS=['material','eintraege','ordnung','geraete','pruefen'];
 function mcTabKey(ev){
   const i=MC_TABS.indexOf(mcTab); let j=-1;
   if(ev.key==='ArrowRight') j=(i+1)%MC_TABS.length;
@@ -304,6 +309,8 @@ function mcPruefenHTML(gaps,legacy){
     const filt=(l.key==='foto'||l.key==='preis'||l.key==='lagerort')?l.key:'alle';
     todo+=row(l.ico,'Material '+l.label,n,'am Material ergänzen',"mcJump('material','"+filt+"')"); });
   todo+=row('🧬','Mögliche Duplikate',groups.length,'gleiche Materialien zu einem Stammsatz zusammenführen',"mcMergeFirst()");
+  const dubl=mcDubletten();
+  todo+=row('✏️','Schreibweisen & Tippfehler',dubl.length,'fast gleiche Namen — je Paar entscheiden, ob es dasselbe ist',"mcGo('dubletten')");
   todo+=row('🧹','Standard-Texte aufräumen',cleanupOffen,'Material vom Text trennen (Verwendung, Bedingung, Standort)',"openCleanup()");
 
   /* Alt-Daten: einmalige Übernahme in die Stammsätze */
@@ -327,6 +334,54 @@ function mcPruefenHTML(gaps,legacy){
 }
 function mcJump(tab,filter){ mcTab=tab; mcFilter=filter||'alle'; mcQ=''; renderMatCenter(); }
 function mcMergeFirst(){ if(typeof matHubMerge==='function'){ matHubMerge(0); mcTab='pruefen'; renderMatCenter(); } }
+
+/* ===== Beinah-Dubletten (Tippfehler) ===== */
+/* Gegen die KANONISCHEN Schlüssel gerechnet, nicht gegen die alten Sätze —
+   sonst vergleicht man Tippfehler in Nebensätzen statt in Produktnamen. */
+function mcDubletten(){
+  if(typeof matDubletten!=='function') return [];
+  const seen=new Map();
+  if(typeof MAT_INDEX!=='undefined') MAT_INDEX.forEach(m=>{
+    if(!seen.has(m.key)) seen.set(m.key,{key:m.key,name:m.name,count:m.vorkommen||0}); });
+  const paare=matDubletten([...seen.values()]);
+  /* Schon auf denselben Stammsatz gelegte Paare sind erledigt. */
+  return paare.filter(p=>{
+    if(typeof MC_DUB_OK==='object' && MC_DUB_OK && MC_DUB_OK[p.a+'||'+p.b]) return false;
+    const ca=(typeof canonId==='function')?canonId(p.a):null;
+    const cb=(typeof canonId==='function')?canonId(p.b):null;
+    return !(ca && cb && ca===cb);
+  });
+}
+function mcDublettenHTML(){
+  const paare=mcDubletten();
+  if(!paare.length) return `<div class="empty"><div class="ei">✅</div><h3>Keine auffälligen Schreibweisen</h3>
+    <p>Es gibt keine Namenspaare mehr, die sich nur um Tippfehler unterscheiden.</p></div>`;
+  const rows=paare.slice(0,60).map((p,i)=>`<div class="mc-dub">
+    <div class="mc-dub-h"><span class="mc-dub-n">${Math.round(p.naehe*100)} % gleich</span>
+      <span class="mc-dub-w">${p.wirkung} Vorkommen</span></div>
+    <div class="mc-dub-a">${esc(p.aName)}</div>
+    <div class="mc-dub-b">${esc(p.bName)}</div>
+    <div class="mc-dub-act">
+      <button class="btn btn-pri" data-a="${esc(p.a)}" data-b="${esc(p.b)}" onclick="mcDublettenMerge(this.dataset.a,this.dataset.b)">Dasselbe – zusammenführen</button>
+      <button class="btn btn-sec" data-a="${esc(p.a)}" data-b="${esc(p.b)}" onclick="mcDublettenTrennen(this.dataset.a,this.dataset.b)">Verschiedene Produkte</button>
+    </div></div>`).join('');
+  return `<div class="mc-hint">Diese Namen unterscheiden sich nur um wenige Zeichen. Das ist <b>meist</b> ein Tippfehler aus der Word-Vorlage — es kann aber auch eine echte Variante sein (etwa zwei Klappengrößen). Deshalb entscheidet hier ein Mensch, Paar für Paar.</div>
+    ${rows}${paare.length>60?`<div class="mc-hint">… und ${paare.length-60} weitere. Die Liste wird kürzer, je mehr entschieden ist.</div>`:''}`;
+}
+let MC_DUB_OK=(typeof loadJSON==='function')?loadJSON('hkl_dubl_ok',{}):{};
+function mcDublettenMerge(a,b){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>mcDublettenMerge(a,b)); return; } }
+  if(typeof matHubMergePaar==='function' && matHubMergePaar(a,b)){
+    if(typeof toast==='function') toast('Zusammengeführt – Foto, Preis und Merkmale gelten jetzt für beide');
+  }
+  renderMatCenter();
+}
+function mcDublettenTrennen(a,b){
+  MC_DUB_OK[a+'||'+b]=true;
+  if(typeof saveJSON==='function') saveJSON('hkl_dubl_ok',MC_DUB_OK);
+  if(typeof toast==='function') toast('Als verschiedene Produkte vermerkt');
+  renderMatCenter();
+}
 
 /* ===== Alt-Daten-Übernahme (nicht-destruktiv, wiederholbar) ===== */
 /* Füllt LEERE Felder eines Stammsatzes aus einem Alt-Datensatz. Überschreibt
@@ -380,4 +435,84 @@ function mcMigrateCatalog(){
   if(typeof buildMaterialIndex==='function') buildMaterialIndex();
   mcRowCache=null; renderMatCenter();
   toast(n+' Katalog-Positionen übernommen');
+}
+
+/* ===== Register: GERÄTE =====
+   Ein Gerät ist ein Exemplar, kein Verbrauchsartikel. Diese Ansicht beantwortet
+   die vier Fragen, die im Labor jede Schicht gestellt werden: Wo steht es?
+   Welche Inventarnummer? Wann wurde es geprüft? Wen rufe ich an? */
+let mcGeraetOffen=null;   /* aufgeklappter Gerätesatz (Schlüssel) */
+
+function mcGeraeteHTML(){
+  if(typeof geraetListe!=='function') return '';
+  const liste=geraetListe(); const b=geraetBilanz();
+  if(!liste.length) return `<div class="empty"><div class="ei">🖥</div><h3>Keine Geräte gefunden</h3>
+    <p>In den Standards steht keine Zeile, die als Gerät eingestuft ist. Sobald die Zerlegung eine Zeile als Gerät erkennt, erscheint sie hier.</p></div>`;
+  const kopf=`<div class="mc-hint">Ein Gerät ist ein <b>Exemplar</b>, kein Verbrauchsartikel: Es steht in einem bestimmten Saal, hat eine Inventarnummer, eine Anleitung und einen Prüftermin. Tätigkeiten wie „Raumkontrolle" stehen hier bewusst <b>nicht</b> mehr — die Zerlegung hat sie aussortiert.</div>
+    <div class="mc-gbil">
+      <span><b>${b.gesamt}</b> Geräte</span>
+      <span><b>${b.gepflegt}</b> gepflegt</span>
+      ${b.ohneSaal?`<span class="warn"><b>${b.ohneSaal}</b> ohne Saal</span>`:''}
+      ${b.pruefFaellig?`<span class="warn"><b>${b.pruefFaellig}</b> Prüfung überfällig</span>`:''}
+      ${b.pruefBald?`<span><b>${b.pruefBald}</b> Prüfung bald</span>`:''}
+    </div>`;
+  const rows=liste.map(g=>{
+    const rec=g.rec; const st=(typeof geraetPruefStatus==='function')?geraetPruefStatus(rec):'unbekannt';
+    const kurz=(typeof geraetKurz==='function')?geraetKurz(rec):'';
+    const luecken=(typeof geraetLuecken==='function')?geraetLuecken(rec):[];
+    const auf=(mcGeraetOffen===g.key);
+    return `<div class="mc-ger${st==='faellig'?' faellig':''}">
+      <div class="mc-ger-h" onclick="mcGeraetToggle(this.dataset.k)" data-k="${esc(g.key)}">
+        <span class="mc-ger-ico">🖥</span>
+        <span class="mc-ger-main"><span class="mc-ger-n">${esc((rec&&rec.name)||g.name)}</span>
+          <span class="mc-ger-s">${esc(kurz||'noch nichts erfasst')} · ${g.vorkommen}× in ${g.standards} Standard${g.standards===1?'':'s'}</span></span>
+        ${luecken.length?`<span class="mc-ger-l">${luecken.length} offen</span>`:'<span class="mc-ger-ok">✓</span>'}
+        <span class="chev">${auf?'⌄':'›'}</span></div>
+      ${auf?mcGeraetForm(g):''}</div>`;
+  }).join('');
+  return kopf+rows;
+}
+
+function mcGeraetForm(g){
+  const rec=g.rec||{};
+  const felder=(typeof GERAET_FELDER!=='undefined'?GERAET_FELDER:[]).map(f=>{
+    const id='ger_'+f.key;
+    const wert=(f.key==='name')?((rec.name!=null&&rec.name!=='')?rec.name:g.name):(rec[f.key]||'');
+    if(f.typ==='guide'){
+      const gs=(typeof GUIDES!=='undefined'&&Array.isArray(GUIDES))?GUIDES:[];
+      const opts=gs.map(x=>`<option value="${esc(x.id)}"${rec.anleitung===x.id?' selected':''}>${esc(x.titel||x.id)}</option>`).join('');
+      return `<div class="cl-field"><label class="flabel" for="${id}">${esc(f.label)}</label>
+        <select class="loc-input" id="${id}"><option value="">— keine —</option>${opts}</select>
+        ${gs.length?'':'<div class="cl-hint">Es gibt noch keine Anleitungen in der App.</div>'}</div>`;
+    }
+    const typ=(f.typ==='datum')?'date':(f.typ==='zahl'?'number':'text');
+    return `<div class="cl-field"><label class="flabel" for="${id}">${esc(f.label)}</label>
+      <input class="loc-input" type="${typ}" id="${id}" value="${esc(wert)}" placeholder="${esc(f.ph||'')}"></div>`;
+  }).join('');
+  const naechste=(typeof geraetNaechstePruefung==='function')?geraetNaechstePruefung(rec):null;
+  return `<div class="mc-ger-b">
+    ${naechste?`<div class="mc-ger-pruef">Nächste Prüfung: <b>${esc(naechste)}</b></div>`:''}
+    <div class="cl-fields">${felder}</div>
+    <div class="cl-actions">
+      <button class="btn btn-pri" data-k="${esc(g.key)}" onclick="mcGeraetSpeichern(this.dataset.k)">Speichern</button>
+      <button class="btn btn-sec" onclick="mcGeraetToggle(null)">Schließen</button>
+      ${g.rec?`<button class="btn btn-sec" data-k="${esc(g.key)}" onclick="mcGeraetLoeschen(this.dataset.k)">Angaben verwerfen</button>`:''}
+    </div></div>`;
+}
+
+function mcGeraetToggle(k){ mcGeraetOffen=(mcGeraetOffen===k)?null:k; renderMatCenter(); }
+function mcGeraetSpeichern(k){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>mcGeraetSpeichern(k)); return; } }
+  const felder={};
+  (typeof GERAET_FELDER!=='undefined'?GERAET_FELDER:[]).forEach(f=>{
+    const el=$('ger_'+f.key); if(el) felder[f.key]=el.value.trim();
+  });
+  if(typeof geraetSetzen==='function') geraetSetzen(k, felder);
+  if(typeof toast==='function') toast('Gerät gespeichert');
+  renderMatCenter();
+}
+function mcGeraetLoeschen(k){
+  if(typeof confirm==='function' && !confirm('Alle Angaben zu diesem Gerät verwerfen?')) return;
+  if(typeof geraetLoeschen==='function') geraetLoeschen(k);
+  mcGeraetOffen=null; renderMatCenter();
 }

@@ -55,12 +55,17 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const first = cleanupQueue()[0];
     const before = Object.keys(GTINDB).length;
     // Kern-Feld bewusst überschreiben, um die Editierbarkeit zu prüfen.
-    const kern = document.getElementById('clKern'); const editedName = (kern.value || first.name);
-    cleanupApply(first.key);
-    const id = canonId(first.key);
+    const kern = document.getElementById('clKern'); const editedName = (kern.value || first.text);
+    /* Der Assistent arbeitet seit der Zerlegung an TEXTEN (eine Entscheidung
+       gilt für alle Stellen), nicht mehr an einzelnen material_keys. */
+    if (!kern.value) kern.value = 'E2E Aufgeräumt';
+    cleanupSetArt('produkt');
+    cleanupApply(first.tkey);
+    const key = zerlSlug(document.getElementById('clKern') ? 'E2E Aufgeräumt' : '');
+    const id = canonId(kern.value ? zerlSlug(kern.value) : key);
     const rec = id ? GTINDB[id] : null;
-    return { empty: false, key: first.key, linked: !!id, name: rec && rec.name, kat: rec && rec.kategorie,
-      done: cleanupIsDone(first.key), grew: Object.keys(GTINDB).length >= before, editedName };
+    return { empty: false, key: first.tkey, linked: !!id, name: rec && rec.name, kat: rec && rec.kategorie,
+      done: cleanupIsDone(first.tkey), grew: Object.keys(GTINDB).length >= before, editedName };
   });
   r.check('Aufräum-Warteschlange ist nicht leer', clean.empty !== true);
   r.check('Übernehmen legt/verknüpft einen Stammsatz', clean.linked === true);
