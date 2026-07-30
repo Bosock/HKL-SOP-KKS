@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "_zweck": "Regelwerk für die Zerlegung verdichteter Standard-Zeilen in Produkt · Verwendung · Position. Eine Word-Tabellenzeile beschreibt vier Sachverhalte gleichzeitig ('1x 500ml NaCl-Flasche in die große Coro-Set-Schale, auf Ansage' = Menge + Produkt + Ziel + Bedingung). Die App hat daraus bisher EIN Ding gemacht. Dieses Regelwerk zieht die Sachverhalte auseinander.",
+  "_grundsatz": "Subtraktiv: Was erkannt wird, wird abgezogen. Was übrig bleibt, ist der Produktkern. Was weder abgezogen noch als Kern plausibel ist, kommt als sichtbarer REST zurück — nie verschlucken, nie raten. Leer schlägt falsch.",
+  "_pflege": "Diese Datei ist Fachwissen und wird ohne Programmierung gepflegt. Der Code enthält kein einziges Fachwort. Neue Marker/Verben/Orte hier ergänzen — die Wirkung ist sofort da.",
+  "_belege": "Alle Muster sind an den 1.827 nicht-Fließtext-Einträgen der 47 Standards gemessen; die Häufigkeiten stehen als _treffer an den Blöcken.",
+
+  "putzen": [
+    { "muster": "^\\s*\\d+\\.\\s+", "grund": "führende Ordnungszahl aus der Word-Liste ('9. Wischdesinfektion')" },
+    { "muster": "^\\s*[🔲☐□■▪•\\-–—]+\\s*", "grund": "Kästchen-/Aufzählungszeichen aus der Word-Vorlage" },
+    { "muster": "\\s*[►◄▶◀➡→]+\\s*$", "grund": "Pfeil-Marker am Zeilenende" },
+    { "muster": "\\s{2,}", "ersatz": " ", "grund": "Mehrfach-Leerzeichen" },
+    { "muster": "^[\\s,;:]+|[\\s,;:]+$", "grund": "lose Satzzeichen an den Rändern" }
+  ],
+
+  "artefakte": [
+    { "wert": "en", "grund": "Pluralklammer aus 'Perfusor(en)' — der Import hat '(en)' als Spezifikation gelesen. 23× im Bestand, nie eine echte Angabe.", "_treffer": 23 },
+    { "wert": "e", "grund": "wie 'en', Adjektivendung aus '(e)'" },
+    { "wert": "n", "grund": "wie 'en'" },
+    { "wert": "s", "grund": "Pluralklammer '(s)'" },
+    { "wert": "innen", "grund": "Genderklammer" }
+  ],
+
+  "taetigkeit": {
+    "_bedeutung": "Steht ein Infinitiv am Zeilenende, beschreibt die Zeile ein TUN, kein Ding. 'Raumkontrolle' und 'Strahlenschutz an linke Schiene des Tisches montieren' sind keine Geräte — sie stehen nur in einer Geräte-Rubrik, weil in Word alles eine Zeile mit Kästchen war.",
+    "_treffer": 68,
+    "verben": [
+      "montieren", "anschließen", "anschliessen", "kontrollieren", "vorbereiten",
+      "richten", "legen", "stellen", "prüfen", "pruefen", "bereitstellen",
+      "aufziehen", "anlegen", "abdecken", "einstellen", "beschriften",
+      "holen", "bringen", "abrufen", "füllen", "fuellen", "befüllen", "befuellen",
+      "spülen", "spuelen", "durchspülen", "durchspuelen", "desinfizieren",
+      "kleben", "positionieren", "anschalten", "einschalten", "ausschalten",
+      "starten", "dokumentieren", "entfernen", "wischen", "einsprühen", "einspruehen",
+      "verwerfen", "drehen", "rotieren", "zusammensuchen", "abdrehen", "hängen",
+      "haengen", "abnehmen", "aufkleben", "rasieren", "messen", "markieren",
+      "trocknen", "wechseln", "verbinden", "lösen", "loesen", "sichern",
+      "fixieren", "auffüllen", "auffuellen", "zusammenbauen", "aufbauen", "abbauen"
+    ],
+    "substantive": [
+      { "wort": "Raumkontrolle", "grund": "Tätigkeit, im Bestand 44× als Gerät geführt", "_treffer": 44 },
+      { "wort": "Wischdesinfektion", "grund": "Tätigkeit" },
+      { "wort": "Rasur", "grund": "Tätigkeit" },
+      { "wort": "Hautdesinfektion", "grund": "Tätigkeit" },
+      { "wort": "Punktion", "grund": "Tätigkeit" },
+      { "wort": "Lagerung", "grund": "Tätigkeit" },
+      { "wort": "Abdeckung", "grund": "mehrdeutig — kann Tätigkeit ODER Material sein; wird als unklar gemeldet", "unklar": true }
+    ]
+  },
+
+  "bedingung": {
+    "_bedeutung": "Wann gilt die Zeile überhaupt? Das ist keine Produkteigenschaft, sondern eine Regel — sie gehört neben das Produkt, nicht in seinen Namen.",
+    "_treffer": 21,
+    "marker": [
+      "auf Ansage", "bei Bedarf", "nur bei Bedarf", "nur bei", "nur wenn",
+      "evtl.", "eventuell", "ggf.", "gegebenenfalls",
+      "nach Möglichkeit", "nach Moeglichkeit", "wenn möglich", "wenn moeglich",
+      "in Absprache", "in Rücksprache", "in Ruecksprache", "nach Absprache",
+      "abhängig von", "abhaengig von", "je nach",
+      "entfällt oft", "entfaellt oft", "entfällt", "entfaellt",
+      "nicht immer möglich", "nicht immer moeglich", "nicht immer",
+      "in der Regel", "falls", "wenn nötig", "wenn noetig", "bei Vorhandensein",
+      "optional", "wahlweise", "sofern"
+    ]
+  },
+
+  "anweisung": {
+    "_bedeutung": "Ein Satz, der etwas VERLANGT, ist ein Hinweis am Produkt — kein Produktname. '(muss an den Defi angeschlossen werden)' steht heute im Materialnamen.",
+    "_treffer": 11,
+    "marker": [
+      "muss", "müssen", "muessen", "darf nicht", "dürfen nicht", "duerfen nicht",
+      "soll", "sollte", "beachten", "Achtung", "nicht vergessen", "unbedingt",
+      "erst nach", "vorher", "danach", "wird ", "liegt beim", "liegt am"
+    ]
+  },
+
+  "ort": {
+    "_bedeutung": "Wo hole ich es her? Das ist die Grundlage jeder Rüstliste — heute steckt es im Namen oder im Namen einer Unterkategorie.",
+    "_treffer": 36,
+    "woerter": [
+      "Lager", "kleines Lager", "kleinen Lager", "Gerätelager", "Geraetelager",
+      "Keller", "Filmraum", "Film-Raum", "Schaltraum", "Vorbereitungsraum",
+      "Kreislauflabor", "Schrank", "Saal", "Notfallwagen", "Generator",
+      "Raum", "Bettenwarte", "Kühlschrank", "Kuehlschrank", "Apotheke"
+    ],
+    "muster": [
+      "\\b(?:aus dem|aus der|aus den)\\s+([A-ZÄÖÜ][\\wÄÖÜäöüß.\\- ]{2,40})",
+      "\\b(?:liegt beim|liegt am|liegt im|liegt in der)\\s+([A-ZÄÖÜ][\\wÄÖÜäöüß.\\- ]{2,40})"
+    ],
+    "aus_unterkategorie": [
+      { "enthaelt": "Vorbereitungsraum", "ort": "Vorbereitungsraum" },
+      { "enthaelt": "kleinen Lager", "ort": "kleines Lager" },
+      { "enthaelt": "Lager", "ort": "Lager" },
+      { "enthaelt": "aus dem Raum", "ort": "Saal" },
+      { "enthaelt": "Ansage", "ort": null, "bedingung": "auf Ansage" }
+    ]
+  },
+
+  "ziel": {
+    "_bedeutung": "Wohin kommt es? '1ml Heparin in die große Coro-Set-Schale' — das Ziel macht aus einem Produkt eine Verwendung.",
+    "muster": [
+      "\\bin (?:die|den|das|der|dem)\\s+([\\wÄÖÜäöüß][\\wÄÖÜäöüß.\\-™®% ]{2,50})",
+      "\\ban (?:die|den|das|der|dem|s)\\s+([\\wÄÖÜäöüß][\\wÄÖÜäöüß.\\-™®% ]{2,50})",
+      "\\bauf (?:die|den|das|der|dem)\\s+([\\wÄÖÜäöüß][\\wÄÖÜäöüß.\\-™®% ]{2,50})"
+    ]
+  },
+
+  "zweck": {
+    "_bedeutung": "Wozu? 'für die Fixierung des Gerätes' — häufigster Zusatz überhaupt (169×). Gehört zur Verwendung, nicht zum Produktnamen.",
+    "_treffer": 169,
+    "muster": [
+      "\\bf(?:ü|ue)r\\s+(.{2,70})$",
+      "\\bals\\s+([A-ZÄÖÜ].{2,60})$",
+      "\\bzur\\s+([A-ZÄÖÜ].{2,60})$",
+      "\\bzum\\s+([A-ZÄÖÜ].{2,60})$",
+      "\\bpro\\s+(.{2,50})$"
+    ]
+  },
+
+  "alternative": {
+    "_bedeutung": "'Sauerstoffbrille / Maske' sind zwei Produkte in einer Zeile. Solange sie EIN Material sind, kann keins von beiden gepflegt werden.",
+    "_treffer": 88,
+    "trenner": [" ODER ", " oder ", " bzw. ", " bzw ", " | ", " / "],
+    "nicht_trennen": [
+      { "muster": "\\d\\s*/\\s*\\d", "grund": "Maßangaben wie '4/0' oder '23/29'" },
+      { "muster": "\\bml\\s*/\\s*", "grund": "Einheitenbruch" }
+    ]
+  },
+
+  "menge": {
+    "_bedeutung": "Stückzahl und Dosis gehören zur Verwendung. Der Import hat die führende '1x' schon abgetrennt — Dosen im Text (16 % der Zeilen) aber nicht.",
+    "_treffer": 285,
+    "einheiten": ["ml", "l", "mg", "g", "µg", "I.E.", "IE", "Amp.", "Amp", "Ampulle", "Ampullen", "Stück", "Stueck", "Beutel", "Flasche", "Paar"],
+    "muster_dosis": "\\b(\\d+(?:[.,]\\d+)?)\\s*(ml|l|mg|g|µg|I\\.?E\\.?)\\b"
+  },
+
+  "farbe": {
+    "_bedeutung": "Farbe ist eine Produkteigenschaft, keine Bezeichnung. Steht heute 59× in Klammern im Namen.",
+    "_treffer": 59,
+    "werte": ["grün", "gruen", "grüne", "gruene", "grüner", "gelb", "gelbe", "gelber",
+      "orange", "blau", "blaue", "blauer", "rot", "rote", "roter",
+      "weiß", "weiss", "weiße", "schwarz", "lila", "violett", "transparent", "durchsichtig"]
+  },
+
+  "praeparat": {
+    "_bedeutung": "Wirkstoff/Präparat in Klammern ist eine Konkretisierung, kein Name. 'Lokale (Lidocain 1%)' — der Materialschlüssel ist heute 'lokale'.",
+    "_treffer": 35,
+    "woerter": ["Lidocain", "Bupivacain", "Buccain", "Heparin", "Sterofundin", "NaCl",
+      "Propofol", "Fentanyl", "Midazolam", "Braunol", "Softasept", "Protamin",
+      "Adenosin", "Kontrastmittel", "Ringer", "Glucose", "Atropin", "Akrinor"]
+  },
+
+  "eigenschaft": {
+    "_bedeutung": "Kurze Sacheigenschaften in Klammern, die weder Farbe noch Präparat noch Ort sind.",
+    "werte": ["steril", "unsteril", "sterile", "einmal", "mehrweg", "latexfrei", "gefärbt", "gefaerbt", "ungefärbt", "ungefaerbt"]
+  },
+
+  "mass": {
+    "_bedeutung": "Maßangaben in Klammern gehören zu den Größen, nicht zum Namen.",
+    "muster": "^\\s*\\d+(?:[.,]\\d+)?\\s*(?:F|Fr|French|cm|mm|ml|l|mg|Zoll|\")\\s*$"
+  },
+
+  "kern": {
+    "_bedeutung": "Was nach allen Abzügen übrig bleibt. Ist es zu lang oder enthält es noch ein Verb, ist die Zeile keine Produktzeile — dann wird nichts behauptet.",
+    "max_woerter": 6,
+    "min_zeichen": 2,
+    "verdaechtig": [
+      { "muster": "\\bund\\b.*\\bund\\b", "grund": "zwei Verknüpfungen — vermutlich ein Satz" },
+      { "muster": "^\\s*(?:der|die|das|ein|eine|einen|dem|den)\\b", "grund": "beginnt mit Artikel — Satzfragment" }
+    ]
+  },
+
+  "art_regeln": {
+    "_bedeutung": "Die wichtigste Entscheidung der Zerlegung: Ist die Zeile ein PRODUKT, eine TÄTIGKEIT oder ein HINWEIS? Alles andere hängt daran.",
+    "reihenfolge": ["taetigkeit", "hinweis", "produkt"],
+    "hinweis_wenn": ["anweisung_ohne_kern", "kern_zu_lang", "nur_bedingung"]
+  }
+}

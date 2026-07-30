@@ -15,6 +15,7 @@ async function loadMaterialData(){
   try{ const r=await fetch('data/material_catalog.json',{cache:'no-store'}); if(r.ok && typeof catSetData==='function') catSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/cleanup_suggestions.json',{cache:'no-store'}); if(r.ok && typeof cleanupSetData==='function') cleanupSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/merkmale.json',{cache:'no-store'}); if(r.ok && typeof merkSetData==='function') merkSetData(await r.json()); }catch(e){}
+  try{ const r=await fetch('data/zerlegung.json',{cache:'no-store'}); if(r.ok && typeof zerlSetData==='function') zerlSetData(await r.json()); }catch(e){}
 }
 
 /* ============ Material-Index ============ */
