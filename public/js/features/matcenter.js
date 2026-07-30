@@ -112,6 +112,7 @@ function renderMatCenter(){
       ${tab('material','📦','Material',rows.length)}
       ${tab('eintraege','📄','Einträge','')}
       ${tab('ordnung','🗂','Ordnung','')}
+      ${tab('geraete','🖥','Geräte',(typeof geraetBilanz==='function'?(geraetBilanz().gesamt||''):''))}
       ${tab('pruefen','✅','Prüfen',todo||'')}
     </div>`;
   html+=`<div id="mcPanel" role="tabpanel" aria-labelledby="mctab-${mcTab}">`;
@@ -119,6 +120,7 @@ function renderMatCenter(){
   else if(mcTab==='eintraege') html+=mcEntriesHTML();
   else if(mcTab==='ordnung') html+=mcOrdnungHTML();
   else if(mcTab==='dubletten') html+=mcDublettenHTML();
+  else if(mcTab==='geraete') html+=mcGeraeteHTML();
   else html+=mcPruefenHTML(gaps,legacy);
   html+=`</div>`;
   box.innerHTML=html;
@@ -128,7 +130,7 @@ function mcGo(t){ mcTab=t; mcQ=''; mcFilter='alle'; renderMatCenter();
      Reiter — dann bleibt der Fokus, wo er ist. */
   const el=document.getElementById('mctab-'+t); if(el){ try{ el.focus(); }catch(e){} } }
 /* Pfeiltasten-Navigation zwischen den Reitern (ARIA-APG „Tabs"). */
-const MC_TABS=['material','eintraege','ordnung','pruefen'];
+const MC_TABS=['material','eintraege','ordnung','geraete','pruefen'];
 function mcTabKey(ev){
   const i=MC_TABS.indexOf(mcTab); let j=-1;
   if(ev.key==='ArrowRight') j=(i+1)%MC_TABS.length;
@@ -433,4 +435,84 @@ function mcMigrateCatalog(){
   if(typeof buildMaterialIndex==='function') buildMaterialIndex();
   mcRowCache=null; renderMatCenter();
   toast(n+' Katalog-Positionen übernommen');
+}
+
+/* ===== Register: GERÄTE =====
+   Ein Gerät ist ein Exemplar, kein Verbrauchsartikel. Diese Ansicht beantwortet
+   die vier Fragen, die im Labor jede Schicht gestellt werden: Wo steht es?
+   Welche Inventarnummer? Wann wurde es geprüft? Wen rufe ich an? */
+let mcGeraetOffen=null;   /* aufgeklappter Gerätesatz (Schlüssel) */
+
+function mcGeraeteHTML(){
+  if(typeof geraetListe!=='function') return '';
+  const liste=geraetListe(); const b=geraetBilanz();
+  if(!liste.length) return `<div class="empty"><div class="ei">🖥</div><h3>Keine Geräte gefunden</h3>
+    <p>In den Standards steht keine Zeile, die als Gerät eingestuft ist. Sobald die Zerlegung eine Zeile als Gerät erkennt, erscheint sie hier.</p></div>`;
+  const kopf=`<div class="mc-hint">Ein Gerät ist ein <b>Exemplar</b>, kein Verbrauchsartikel: Es steht in einem bestimmten Saal, hat eine Inventarnummer, eine Anleitung und einen Prüftermin. Tätigkeiten wie „Raumkontrolle" stehen hier bewusst <b>nicht</b> mehr — die Zerlegung hat sie aussortiert.</div>
+    <div class="mc-gbil">
+      <span><b>${b.gesamt}</b> Geräte</span>
+      <span><b>${b.gepflegt}</b> gepflegt</span>
+      ${b.ohneSaal?`<span class="warn"><b>${b.ohneSaal}</b> ohne Saal</span>`:''}
+      ${b.pruefFaellig?`<span class="warn"><b>${b.pruefFaellig}</b> Prüfung überfällig</span>`:''}
+      ${b.pruefBald?`<span><b>${b.pruefBald}</b> Prüfung bald</span>`:''}
+    </div>`;
+  const rows=liste.map(g=>{
+    const rec=g.rec; const st=(typeof geraetPruefStatus==='function')?geraetPruefStatus(rec):'unbekannt';
+    const kurz=(typeof geraetKurz==='function')?geraetKurz(rec):'';
+    const luecken=(typeof geraetLuecken==='function')?geraetLuecken(rec):[];
+    const auf=(mcGeraetOffen===g.key);
+    return `<div class="mc-ger${st==='faellig'?' faellig':''}">
+      <div class="mc-ger-h" onclick="mcGeraetToggle(this.dataset.k)" data-k="${esc(g.key)}">
+        <span class="mc-ger-ico">🖥</span>
+        <span class="mc-ger-main"><span class="mc-ger-n">${esc((rec&&rec.name)||g.name)}</span>
+          <span class="mc-ger-s">${esc(kurz||'noch nichts erfasst')} · ${g.vorkommen}× in ${g.standards} Standard${g.standards===1?'':'s'}</span></span>
+        ${luecken.length?`<span class="mc-ger-l">${luecken.length} offen</span>`:'<span class="mc-ger-ok">✓</span>'}
+        <span class="chev">${auf?'⌄':'›'}</span></div>
+      ${auf?mcGeraetForm(g):''}</div>`;
+  }).join('');
+  return kopf+rows;
+}
+
+function mcGeraetForm(g){
+  const rec=g.rec||{};
+  const felder=(typeof GERAET_FELDER!=='undefined'?GERAET_FELDER:[]).map(f=>{
+    const id='ger_'+f.key;
+    const wert=(f.key==='name')?((rec.name!=null&&rec.name!=='')?rec.name:g.name):(rec[f.key]||'');
+    if(f.typ==='guide'){
+      const gs=(typeof GUIDES!=='undefined'&&Array.isArray(GUIDES))?GUIDES:[];
+      const opts=gs.map(x=>`<option value="${esc(x.id)}"${rec.anleitung===x.id?' selected':''}>${esc(x.titel||x.id)}</option>`).join('');
+      return `<div class="cl-field"><label class="flabel" for="${id}">${esc(f.label)}</label>
+        <select class="loc-input" id="${id}"><option value="">— keine —</option>${opts}</select>
+        ${gs.length?'':'<div class="cl-hint">Es gibt noch keine Anleitungen in der App.</div>'}</div>`;
+    }
+    const typ=(f.typ==='datum')?'date':(f.typ==='zahl'?'number':'text');
+    return `<div class="cl-field"><label class="flabel" for="${id}">${esc(f.label)}</label>
+      <input class="loc-input" type="${typ}" id="${id}" value="${esc(wert)}" placeholder="${esc(f.ph||'')}"></div>`;
+  }).join('');
+  const naechste=(typeof geraetNaechstePruefung==='function')?geraetNaechstePruefung(rec):null;
+  return `<div class="mc-ger-b">
+    ${naechste?`<div class="mc-ger-pruef">Nächste Prüfung: <b>${esc(naechste)}</b></div>`:''}
+    <div class="cl-fields">${felder}</div>
+    <div class="cl-actions">
+      <button class="btn btn-pri" data-k="${esc(g.key)}" onclick="mcGeraetSpeichern(this.dataset.k)">Speichern</button>
+      <button class="btn btn-sec" onclick="mcGeraetToggle(null)">Schließen</button>
+      ${g.rec?`<button class="btn btn-sec" data-k="${esc(g.key)}" onclick="mcGeraetLoeschen(this.dataset.k)">Angaben verwerfen</button>`:''}
+    </div></div>`;
+}
+
+function mcGeraetToggle(k){ mcGeraetOffen=(mcGeraetOffen===k)?null:k; renderMatCenter(); }
+function mcGeraetSpeichern(k){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>mcGeraetSpeichern(k)); return; } }
+  const felder={};
+  (typeof GERAET_FELDER!=='undefined'?GERAET_FELDER:[]).forEach(f=>{
+    const el=$('ger_'+f.key); if(el) felder[f.key]=el.value.trim();
+  });
+  if(typeof geraetSetzen==='function') geraetSetzen(k, felder);
+  if(typeof toast==='function') toast('Gerät gespeichert');
+  renderMatCenter();
+}
+function mcGeraetLoeschen(k){
+  if(typeof confirm==='function' && !confirm('Alle Angaben zu diesem Gerät verwerfen?')) return;
+  if(typeof geraetLoeschen==='function') geraetLoeschen(k);
+  mcGeraetOffen=null; renderMatCenter();
 }

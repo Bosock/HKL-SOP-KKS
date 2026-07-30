@@ -494,3 +494,67 @@ test('matDubletten liefert bei leerer Eingabe nichts', () => {
   assert.equal(D.matDubletten([]).length, 0);
   assert.equal(D.matDubletten(null).length, 0);
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   13. Geräte-Stamm: ein Gerät ist ein Exemplar, kein Verbrauchsartikel
+   ═══════════════════════════════════════════════════════════════ */
+
+const GSRC = fs.readFileSync(path.join(ROOT, 'public/js/features/geraete.js'), 'utf8');
+const gctx = vm.createContext({ Date, Math, String, Array, Object, isFinite, parseInt, console });
+vm.runInContext([
+  schnitt(GSRC, 'geraetNaechstePruefung'),
+  schnitt(GSRC, 'geraetPruefStatus'),
+  GSRC.match(/const GERAET_FELDER = \[[\s\S]*?\n\];/)[0],
+  schnitt(GSRC, 'geraetLuecken'),
+  schnitt(GSRC, 'geraetGepflegt'),
+  schnitt(GSRC, 'geraetKurz'),
+  ';globalThis.__G = { geraetNaechstePruefung, geraetPruefStatus, geraetLuecken, geraetGepflegt, geraetKurz, GERAET_FELDER };',
+].join('\n'), gctx);
+const G = gctx.__G;
+
+test('nächste Prüfung wird aus letzter Prüfung + Intervall gerechnet', () => {
+  assert.equal(G.geraetNaechstePruefung({ pruef_letzte: '2026-01-15', pruef_int: '12' }), '2027-01-15');
+  assert.equal(G.geraetNaechstePruefung({ pruef_letzte: '2026-11-30', pruef_int: '6' }), '2027-05-30');
+});
+
+test('ohne Angaben wird kein Termin erfunden', () => {
+  assert.equal(G.geraetNaechstePruefung({ pruef_letzte: '2026-01-15' }), null);
+  assert.equal(G.geraetNaechstePruefung({ pruef_int: '12' }), null);
+  assert.equal(G.geraetNaechstePruefung({ pruef_letzte: 'Unsinn', pruef_int: '12' }), null);
+  assert.equal(G.geraetNaechstePruefung(null), null);
+});
+
+test('Prüfstatus unterscheidet überfällig, bald und ok', () => {
+  const rec = { pruef_letzte: '2026-01-15', pruef_int: '12' };   // nächste: 2027-01-15
+  assert.equal(G.geraetPruefStatus(rec, '2027-02-01'), 'faellig');
+  assert.equal(G.geraetPruefStatus(rec, '2027-01-01'), 'bald');
+  assert.equal(G.geraetPruefStatus(rec, '2026-06-01'), 'ok');
+  assert.equal(G.geraetPruefStatus({}, '2026-06-01'), 'unbekannt');
+});
+
+test('Lückenliste nennt die vier Fragen, die im Labor gestellt werden', () => {
+  const l = G.geraetLuecken(null);
+  assert.ok(l.includes('Saal'));
+  assert.ok(l.includes('Inventarnummer'));
+  assert.ok(l.includes('Ansprechpartner'));
+  const teil = G.geraetLuecken({ name: 'Rhythmia HDx', saal: 'Saal 1' });
+  assert.ok(!teil.includes('Saal'));
+  assert.ok(teil.includes('Inventarnummer'));
+});
+
+test('ein leerer Satz zählt nicht als gepflegt', () => {
+  assert.equal(G.geraetGepflegt(null), false);
+  assert.equal(G.geraetGepflegt({ name: 'Rhythmia' }), false, 'nur der Name reicht nicht');
+  assert.equal(G.geraetGepflegt({ name: 'Rhythmia', saal: 'Saal 1' }), true);
+});
+
+test('Kurzzeile nennt Saal, Inventarnummer und Warnung', () => {
+  const s = G.geraetKurz({ saal: 'Saal 1', inventarnr: '4711', pruef_letzte: '2026-01-15', pruef_int: '12' }, '2027-02-01');
+  assert.ok(s.includes('Saal 1') && s.includes('4711') && s.includes('überfällig'));
+});
+
+test('die Gerätefelder sind Daten, nicht Formularcode', () => {
+  assert.ok(Array.isArray(G.GERAET_FELDER) && G.GERAET_FELDER.length >= 10);
+  assert.ok(G.GERAET_FELDER.every(f => f.key && f.label));
+  assert.ok(G.GERAET_FELDER.some(f => f.typ === 'guide'), 'eine Anleitung ist verknüpfbar');
+});

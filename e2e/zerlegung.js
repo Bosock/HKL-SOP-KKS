@@ -210,6 +210,36 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('„Verschiedene Produkte" merkt sich die Entscheidung',
     dubNein.leer || dubNein.nachher === dubNein.vorher - 1);
 
+  // ═══════════ 11. Geräte-Stamm ═══════════
+  const ger = await A.page.evaluate(() => {
+    mode = 'care'; renderCare(); show('scr-care');
+    mcGo('geraete');
+    const liste = geraetListe();
+    const txt = document.getElementById('scr-care').textContent;
+    const raum = liste.filter(g => /Raumkontrolle/i.test(g.name)).length;
+    if (!liste.length) return { leer: true };
+    // Ersten Gerätesatz öffnen und ausfüllen
+    mcGeraetToggle(liste[0].key);
+    const hatFelder = !!document.getElementById('ger_inventarnr') && !!document.getElementById('ger_saal');
+    document.getElementById('ger_saal').value = 'Saal 1';
+    document.getElementById('ger_inventarnr').value = '4711';
+    document.getElementById('ger_ansprech').value = 'Medizintechnik';
+    document.getElementById('ger_pruef_letzte').value = '2026-01-15';
+    document.getElementById('ger_pruef_int').value = '12';
+    mcGeraetSpeichern(liste[0].key);
+    const rec = GERAETE[liste[0].key];
+    const b = geraetBilanz('2027-02-01');
+    return { leer: false, anzahl: liste.length, raum, hatFelder, txt,
+      gespeichert: !!rec, saal: rec && rec.saal,
+      naechste: geraetNaechstePruefung(rec), faellig: b.pruefFaellig };
+  });
+  check(`Geräteliste entsteht aus den Standards (${ger.anzahl || 0})`, !ger.leer && ger.anzahl > 0);
+  check('… und „Raumkontrolle" steht NICHT mehr darin', ger.raum === 0);
+  check('… mit Feldern für Saal, Inventarnummer und Ansprechpartner', ger.hatFelder === true);
+  check('Gerätesatz wird gespeichert', ger.gespeichert === true && ger.saal === 'Saal 1');
+  check('… und der nächste Prüftermin wird gerechnet', ger.naechste === '2027-01-15');
+  check('… überfällige Prüfungen werden gezählt', ger.faellig >= 1);
+
   check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.log('   ', A.errs.slice(0, 4));
 
