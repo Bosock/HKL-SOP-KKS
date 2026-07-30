@@ -46,9 +46,11 @@ test('Heparin: Produkt, Dosis und Ziel werden getrennt', () => {
      „1ml heparin in die große coro-set-schale". */
   const z = zerl('1ml Heparin in die große Coro-Set-Schale');
   assert.equal(z.art, 'produkt');
-  assert.equal(z.produkt.name, '1ml Heparin');
+  /* Der Wirkstoff ist das Produkt. Die Menge ist Verwendung, nicht Identität —
+     sonst sind „1ml Heparin" und „2ml Heparin" zwei verschiedene Materialien. */
+  assert.equal(z.produkt.name, 'Heparin');
+  assert.equal(z.groesse, '1ml');
   assert.equal(z.ziel, 'große Coro-Set-Schale');
-  assert.equal(z.dosis, '1ml');
 });
 
 test('Heparin-Varianten fallen auf denselben Produktkern zusammen', () => {
@@ -56,9 +58,9 @@ test('Heparin-Varianten fallen auf denselben Produktkern zusammen', () => {
      nur in der Dosis unterscheiden — nicht in der Identität. */
   const a = zerl('1ml Heparin in die große Coro-Set-Schale');
   const b = zerl('2ml Heparin in die große Coro-Set-Schale');
+  assert.equal(a.produkt.slug, b.produkt.slug, 'EIN Material');
+  assert.notEqual(a.groesse, b.groesse, 'zwei Mengen');
   assert.equal(a.ziel, b.ziel);
-  assert.notEqual(a.dosis, b.dosis);
-  assert.ok(a.produkt.slug.includes('heparin') && b.produkt.slug.includes('heparin'));
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -142,7 +144,8 @@ test('Klammer = Präparat', () => {
 test('Klammer = Standort', () => {
   const z = zerl('7F Peel-Off-Schleuse (Saal 3 Schrank rechts an der Wand)', '1x', 'Material aus dem Raum');
   assert.equal(z.ort, 'Saal 3 Schrank rechts an der Wand');
-  assert.equal(z.produkt.name, '7F Peel-Off-Schleuse');
+  assert.equal(z.produkt.name, 'Peel-Off-Schleuse');
+  assert.equal(z.groesse, '7F');
 });
 
 test('Klammer = Anweisung', () => {
@@ -156,7 +159,8 @@ test('Klammer = Bedingung', () => {
   const z = zerl('0er ETHIBONDEXCEL™ für die Fixierung des Gerätes (entfällt oft)');
   assert.equal(z.bedingung, 'entfällt oft');
   assert.equal(z.zweck, 'die Fixierung des Gerätes');
-  assert.equal(z.produkt.name, '0er ETHIBONDEXCEL™');
+  assert.equal(z.produkt.name, 'ETHIBONDEXCEL™');
+  assert.equal(z.groesse, '0er');
 });
 
 test('Klammer = Erläuterung (nicht raten, benennen)', () => {
@@ -183,7 +187,8 @@ test('Sauerstoffbrille / Maske sind zwei Dinge', () => {
 
 test('„oder" trennt ebenfalls', () => {
   const z = zerl('4-0er MONOCRYL™ Hautnaht oder Steri-Strips™', '1x', 'Material auf Ansage');
-  assert.equal(z.produkt.name, '4-0er MONOCRYL™ Hautnaht');
+  assert.equal(z.produkt.name, 'MONOCRYL™ Hautnaht');
+  assert.equal(z.groesse, '4-0er');
   assert.ok(z.alternativen.includes('Steri-Strips™'));
 });
 
@@ -192,6 +197,40 @@ test('Maßbrüche werden NICHT getrennt', () => {
   const z = Z.zerlAlternativen('4/0 Prolene Naht', KAT);
   assert.equal(z.weitere.length, 0);
   assert.equal(z.erste, '4/0 Prolene Naht');
+});
+
+test('gleiche Schleuse in drei Größen ist EIN Produkt', () => {
+  /* Der teuerste Einzelbefund der Analyse: Solange die Größe im Namen steht,
+     ist jede Größe ein eigenes Material — mit eigenem Foto, eigenem Preis,
+     eigenem Merkmalssatz. Die Größe gehört zu den Merkmalen. */
+  const a = zerl('6F Peel-Off-Schleuse');
+  const b = zerl('7F Peel-Off-Schleuse');
+  const c = zerl('9F Peel-Off-Schleuse');
+  assert.equal(a.produkt.slug, b.produkt.slug);
+  assert.equal(b.produkt.slug, c.produkt.slug);
+  assert.equal(a.groesse, '6F');
+  assert.equal(c.groesse, '9F');
+});
+
+test('die Größe wird abgetrennt, aber nie verschluckt', () => {
+  const z = zerl('500ml NaCl-Flasche');
+  assert.equal(z.produkt.name, 'NaCl-Flasche');
+  assert.equal(z.groesse, '500ml');
+  assert.ok(z.mass.includes('500ml'), 'sie steht bei den Maßen');
+  assert.ok(z.spur.some(s => s.schritt === 'Größe'), 'und in der Spur');
+});
+
+test('eine reine Größenangabe bleibt unangetastet', () => {
+  /* Aus „500ml" allein darf kein leerer Produktname werden. */
+  const z = zerl('500ml');
+  assert.equal(z.groesse, null);
+  assert.ok(z.produkt === null || z.produkt.name === '500ml');
+});
+
+test('Zahlen, die zum Namen gehören, bleiben stehen', () => {
+  const z = zerl('Hochdruck-3-Wegehahn');
+  assert.equal(z.groesse, null);
+  assert.equal(z.produkt.name, 'Hochdruck-3-Wegehahn');
 });
 
 /* ═══════════════════════════════════════════════════════════════

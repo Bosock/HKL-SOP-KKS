@@ -24,8 +24,14 @@ function buildMaterialIndex(){
   const map=new Map();
   DB.standards.forEach(std=>{ (std.rubriken||[]).forEach((rub,ri)=>{ (rub.sub_bereiche||[]).forEach((sb,si)=>{ (sb.eintraege||[]).forEach((e,ei)=>{
     if(e.ist_fliesstext) return; const cid=cidOf(std.id,ri,si,ei); if(qeGet(e,cid,'hidden')===true) return; const nat=effNatur(e,cid);
-    if(!natOf(nat).beschaffbar) return; const key=e.material_key; if(!key) return;
-    if(!map.has(key)) map.set(key,{key,name:e.anzeige_text||key,typ:nat,vorkommen:0,groessen:e.groessen||[]}); map.get(key).vorkommen++;
+    if(!natOf(nat).beschaffbar) return;
+    /* Identität kommt aus der Zerlegung, wenn es eine gibt — sonst wie bisher
+       aus material_key. Eine als Tätigkeit erkannte Zeile („Raumkontrolle")
+       liefert KEINEN Schlüssel und taucht damit nicht mehr als Material auf. */
+    const key=(typeof effMatKey==='function')?effMatKey(e,cid):e.material_key; if(!key) return;
+    const z=(typeof zerlFuer==='function')?zerlFuer(e,cid):null;
+    const anz=(z&&z.art==='produkt'&&z.produkt)?z.produkt.name:(e.anzeige_text||key);
+    if(!map.has(key)) map.set(key,{key,name:anz,typ:nat,vorkommen:0,groessen:e.groessen||[]}); map.get(key).vorkommen++;
   }); }); }); });
   MAT_INDEX=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'de'));
 }

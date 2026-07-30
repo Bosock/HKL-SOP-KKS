@@ -27,6 +27,7 @@
    buildMaterialIndex() verwirft den Cache, wenn sich die Daten ändern. */
 let matStdMapCache=null;
 function invalidateMatCaches(){ matStdMapCache=null;
+  if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
   if(typeof mcRowCache!=='undefined') mcRowCache=null;
   if(typeof mcEntryCache!=='undefined') mcEntryCache=null; }
 function matStdMap(){ if(matStdMapCache) return matStdMapCache;

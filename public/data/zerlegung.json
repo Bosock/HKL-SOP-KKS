@@ -160,6 +160,15 @@
     "muster": "^\\s*\\d+(?:[.,]\\d+)?\\s*(?:F|Fr|French|cm|mm|ml|l|mg|Zoll|\")\\s*$"
   },
 
+  "groesse": {
+    "_bedeutung": "Die FÜHRENDE Größenangabe ist der wichtigste Einzelbefund für die Identität. 'Peel-Off-Schleuse' in 6F, 7F und 9F ist EIN Produkt in drei Größen — nicht drei Produkte. Solange die Größe im Namen steckt, kann man das Produkt weder einmal pflegen noch die Größen vergleichen. Die Größe gehört zu den Merkmalen (data/merkmale.json), der Name zum Produkt.",
+    "_treffer": 327,
+    "_belege": "0er (51×) · 500ml (47×) · 6F (35×) · 11er (28×) · 20ml (24×) · 7F (19×) · 9F (14×)",
+    "muster_vorn": "^\\s*(\\d+(?:[.,\\-]\\d+)?\\s*(?:French|Fr|F|Ch|ml|mg|cm|mm|er|G|L|l)\\b\\.?)\\s*",
+    "min_rest_woerter": 1,
+    "min_rest_zeichen": 3
+  },
+
   "kern": {
     "_bedeutung": "Was nach allen Abzügen übrig bleibt. Ist es zu lang oder enthält es noch ein Verb, ist die Zeile keine Produktzeile — dann wird nichts behauptet.",
     "max_woerter": 6,

@@ -268,6 +268,26 @@ function zerlDosis(text, katalog){
   return { rest:t, wert: zerlNorm(g[0]) };   /* NICHT abziehen: „500ml NaCl-Flasche" braucht die Angabe im Namen */
 }
 
+/* Führende Größenangabe abtrennen: „6F Peel-Off-Schleuse" → Größe 6F,
+   Produkt „Peel-Off-Schleuse". Der folgenreichste Einzelschritt für die
+   Identität — 327 Zeilen im Bestand beginnen mit einem Maß, und solange das
+   Maß im Namen steht, ist jede Größe ein eigenes Material.
+
+   Abgetrennt wird NUR, wenn danach noch ein tragfähiger Name übrig bleibt:
+   aus „500ml" allein darf kein leerer Produktname werden. */
+function zerlGroesse(text, katalog){
+  const k = katalog || ZERLKAT; const t = zerlNorm(text);
+  const rx = zerlRegex((k.groesse&&k.groesse.muster_vorn)||'', 'i');
+  if(!rx) return { rest:t, wert:null };
+  const g = t.match(rx);
+  if(!g) return { rest:t, wert:null };
+  const rest = zerlNorm(t.slice(g[0].length));
+  const minW = (k.groesse&&k.groesse.min_rest_woerter)||1;
+  const minZ = (k.groesse&&k.groesse.min_rest_zeichen)||3;
+  if(rest.split(/\s+/).filter(Boolean).length < minW || rest.length < minZ) return { rest:t, wert:null };
+  return { rest:rest, wert:zerlNorm(g[1]) };
+}
+
 /* ═══ Der Produktkern ════════════════════════════════════════ */
 
 /* Kanonischer Schlüssel: kleingeschrieben, ohne Marken-, Sonder- und
@@ -331,7 +351,7 @@ function zerlege(e, katalog){
   const k = katalog || ZERLKAT;
   const z = { art:'unklar', sicher:false, produkt:null, menge:null, dosis:null,
     ziel:null, zweck:null, bedingung:null, ort:null, hinweis:null, farbe:null,
-    praeparat:null, mass:[], eigenschaften:[], alternativen:[], erlaeuterung:[],
+    praeparat:null, groesse:null, mass:[], eigenschaften:[], alternativen:[], erlaeuterung:[],
     rest:null, spur:[], roh:null };
   if(!e) return z;
 
@@ -425,7 +445,12 @@ function zerlege(e, katalog){
   /* ⑩ Menge aus dem Import übernehmen */
   z.menge = e.menge || null;
 
-  /* ⑪ Der Rest ist der Produktkern — wenn er plausibel ist. */
+  /* ⑪ Führende Größe abtrennen — sie gehört zu den Merkmalen, nicht zum Namen.
+        „6F/7F/9F Peel-Off-Schleuse" ist EIN Produkt in drei Größen. */
+  const gr = zerlGroesse(t, k);
+  if(gr.wert){ z.groesse = gr.wert; z.mass.push(gr.wert); spur('Größe', gr.wert); t = gr.rest; }
+
+  /* ⑫ Der Rest ist der Produktkern — wenn er plausibel ist. */
   const kern = zerlNorm(t);
   const pl = zerlKernPlausibel(kern, k);
   if(pl.ok){
@@ -437,14 +462,14 @@ function zerlege(e, katalog){
     z.art = 'hinweis'; z.sicher = true;
     spur('reiner Hinweis', z.hinweis);
   } else if(zerlHandlungsWort(kern, k)){
-    /* ⑫ Kein brauchbarer Produktkern, aber ein Handlungswort steckt drin:
+    /* ⑬ Kein brauchbarer Produktkern, aber ein Handlungswort steckt drin:
           „Dreifache Wischdesinfektion des OP-Gebietes mit Softasept® N".
           Das ist ein Tun. Positiver Beleg schlägt Ratlosigkeit — aber die
           Zeile bleibt als Rest sichtbar, damit der Mensch sie sieht. */
     z.art = 'taetigkeit'; z.sicher = false; z.rest = kern || null;
     spur('Tätigkeit (Handlungswort im Satz)', zerlHandlungsWort(kern, k));
   } else {
-    /* ⑬ Nichts behaupten. Der Mensch entscheidet — und sieht, woran es lag. */
+    /* ⑭ Nichts behaupten. Der Mensch entscheidet — und sieht, woran es lag. */
     z.art = 'unklar'; z.sicher = false; z.rest = kern || null;
     spur('unklar', pl.grund);
   }
@@ -474,6 +499,7 @@ function zerlFelder(z){
   if(z.produkt) f.push('produkt');
   if(z.menge) f.push('menge');
   if(z.dosis) f.push('dosis');
+  if(z.groesse) f.push('groesse');
   if(z.ziel) f.push('ziel');
   if(z.zweck) f.push('zweck');
   if(z.bedingung) f.push('bedingung');
@@ -491,7 +517,7 @@ function zerlFelder(z){
 function zerlVereinen(vorschlag, bestaetigt){
   const aus = {};
   const felder = ['art','produkt','menge','dosis','ziel','zweck','bedingung','ort',
-    'hinweis','farbe','praeparat','alternativen','erlaeuterung','eigenschaften','mass','rest'];
+    'hinweis','farbe','praeparat','groesse','alternativen','erlaeuterung','eigenschaften','mass','rest'];
   felder.forEach(f=>{
     const b = bestaetigt && bestaetigt[f];
     const leer = (b===undefined || b===null || b==='' || (Array.isArray(b)&&!b.length));

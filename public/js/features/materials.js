@@ -62,8 +62,15 @@ function matPropAdd(label){ label=(label||'').trim(); if(!label) return null;
   const key=matPropSlug(label, MATPROPS); MATPROPS.push({key,label}); saveMatprops(); return key; }
 /* Stammsatz zu einem material_key (oder null). Braucht GTINDB (scanner.js). */
 function canonOf(materialKey){ if(!materialKey||typeof GTINDB==='undefined') return null;
-  const id=MATLINK[materialKey]; if(!id) return null; return GTINDB[id]||null; }
-function canonId(materialKey){ return (materialKey&&MATLINK[materialKey])||null; }
+  const id=canonId(materialKey); if(!id) return null; return GTINDB[id]||null; }
+/* Liest die Verknüpfung über den kanonischen Schlüssel UND alle Alt-Schreib-
+   weisen (features/matkey.js). So findet eine Zeile, die früher „map 152"
+   hieß, den Stammsatz, der unter „map152" verknüpft wurde — ohne dass
+   irgendetwas umgeschrieben werden musste. */
+function canonId(materialKey){ if(!materialKey) return null;
+  if(MATLINK[materialKey]) return MATLINK[materialKey];
+  if(typeof matKeyLesen==='function'){ const v=matKeyLesen(MATLINK, materialKey); if(v) return v; }
+  return null; }
 function matLinkTo(materialKey, id){ if(!materialKey||!id) return; MATLINK[materialKey]=id; saveMatlink(); }
 function matUnlink(materialKey){ if(materialKey in MATLINK){ delete MATLINK[materialKey]; saveMatlink(); } }
 /* Legt einen manuellen Stammsatz (ohne Barcode) aus einem Namen an und gibt

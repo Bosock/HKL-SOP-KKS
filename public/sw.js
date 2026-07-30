@@ -69,6 +69,7 @@ const SHELL = [
   'js/features/matref.js',
   'js/features/merkmale.js',
   'js/features/zerlegung.js',
+  'js/features/matkey.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
