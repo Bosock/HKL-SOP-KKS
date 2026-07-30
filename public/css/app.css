@@ -837,3 +837,12 @@
 .cl-spur[open] > summary::before { content:'▾ '; }
 .cl-spur-row { display:grid; grid-template-columns:150px 1fr; gap:10px; padding:5px 12px; font-size:12.5px; border-top:1px solid var(--line); }
 .cl-spur-s { color:var(--text-dim); }
+
+/* ═══ Beinah-Dubletten (features/matcenter.js) ═══ */
+.mc-dub { border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:9px; background:var(--surface); }
+.mc-dub-h { display:flex; gap:10px; align-items:center; margin-bottom:7px; }
+.mc-dub-n { font-size:11.5px; font-weight:800; color:var(--accent); }
+.mc-dub-w { font-size:11.5px; color:var(--text-dim); }
+.mc-dub-a, .mc-dub-b { font-size:13.5px; color:var(--text); padding:5px 9px; border-radius:8px; background:var(--surface-2); margin-bottom:5px; word-break:break-word; }
+.mc-dub-act { display:flex; gap:8px; margin-top:8px; }
+.mc-dub-act .btn { flex:1; min-height:42px; font-size:12.5px; }

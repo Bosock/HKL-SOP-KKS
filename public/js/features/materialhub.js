@@ -110,6 +110,25 @@ function matHubNew(){
 }
 /* Duplikat-Gruppe im Hub zusammenführen (wie im Verwaltungs-Panel, re-rendert
    aber den Hub). */
+/* Zwei konkrete Schlüssel auf EINEN Stammsatz legen. Für die Dublettenliste:
+   Dort steht immer ein PAAR zur Entscheidung, keine Normalform-Gruppe. */
+function matHubMergePaar(a, b){
+  if(!a || !b) return false;
+  const list=(typeof matDistinctList==='function')?matDistinctList():[];
+  let id=null;
+  [a,b].forEach(k=>{ if(id) return; const c=(typeof canonId==='function')?canonId(k):null; if(c) id=c; });
+  if(!id){
+    const first=list.find(x=>x.key===a)||list.find(x=>x.key===b);
+    id=(typeof matCreateStamm==='function')
+      ? matCreateStamm(first?first.name:a, first?matSeedFromCare(a,first.name):null) : null;
+  }
+  if(!id) return false;
+  if(typeof matLinkTo==='function'){ matLinkTo(a,id); matLinkTo(b,id); }
+  if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
+  if(typeof buildMaterialIndex==='function') buildMaterialIndex();
+  return true;
+}
+
 function matHubMerge(gi){
   const list=(typeof matDistinctList==='function')?matDistinctList():[];
   const groups=(typeof matSuggestGroups==='function')?matSuggestGroups(list):[]; const g=groups[gi]; if(!g||!g.length) return;

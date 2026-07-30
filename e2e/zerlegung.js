@@ -177,6 +177,39 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('… der Assistent erklärt das, statt leer zu bleiben',
     ohne.meldung.includes('Zerlegungs-Regeln fehlen'));
 
+  // ═══════════ 10. Beinah-Dubletten (Tippfehler) ═══════════
+  const dub = await A.page.evaluate(() => {
+    mode = 'care'; renderCare(); show('scr-care');
+    const paare = mcDubletten();
+    mcGo('dubletten');
+    const txt = document.getElementById('scr-care').textContent;
+    const ersteA = paare.length ? paare[0].a : null;
+    const ersteB = paare.length ? paare[0].b : null;
+    let nachMerge = null, gleicherStamm = false;
+    if (ersteA && ersteB) {
+      mcDublettenMerge(ersteA, ersteB);
+      gleicherStamm = !!(canonId(ersteA) && canonId(ersteA) === canonId(ersteB));
+      nachMerge = mcDubletten().length;
+    }
+    return { anzahl: paare.length, txt, vorher: paare.length, nachMerge, gleicherStamm,
+      erste: ersteA && ersteB ? [ersteA, ersteB] : null };
+  });
+  check(`Beinah-Dubletten werden gefunden (${dub.anzahl} Paare)`, dub.anzahl > 0);
+  check('… und als Paar zur Entscheidung gestellt, nicht automatisch zusammengeführt',
+    dub.txt.includes('entscheidet hier ein Mensch') && dub.txt.includes('Verschiedene Produkte'));
+  check('Zusammenführen legt beide auf denselben Stammsatz', dub.gleicherStamm === true);
+  check('… und das Paar verschwindet aus der Liste', dub.nachMerge === dub.vorher - 1);
+
+  const dubNein = await A.page.evaluate(() => {
+    const paare = mcDubletten();
+    if (!paare.length) return { leer: true };
+    const p = paare[0];
+    mcDublettenTrennen(p.a, p.b);
+    return { vorher: paare.length, nachher: mcDubletten().length };
+  });
+  check('„Verschiedene Produkte" merkt sich die Entscheidung',
+    dubNein.leer || dubNein.nachher === dubNein.vorher - 1);
+
   check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.log('   ', A.errs.slice(0, 4));
 

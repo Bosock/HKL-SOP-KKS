@@ -39,6 +39,52 @@ function matSuggestGroups(list){
   return [...m.values()].filter(g=>g.length>=2);
 }
 
+/* Ähnlichkeit zweier Schlüssel als Wert zwischen 0 und 1 (Levenshtein,
+   längennormiert). Rein. `levenshtein` liegt in features/ocr.js. */
+function matAehnlich(a, b){
+  a = String(a||''); b = String(b||'');
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  const max = Math.max(a.length, b.length);
+  if(typeof levenshtein !== 'function') return 0;
+  return 1 - (levenshtein(a, b) / max);
+}
+
+/* BEINAH-Dubletten: Paare, die sich nur um Tippfehler unterscheiden.
+   `matSuggestGroups` findet sie prinzipbedingt NICHT — es vergleicht die
+   Normalform, und „coro"/„koro" oder „distal"/„disatal" haben verschiedene
+   Normalformen. Genau das sind aber die Fälle, die im Bestand vorkommen:
+
+     blazer ii xp large curve std distal  ↔  … std disatal
+     große coro-set-schale …              ↔  große koro-set-schale …
+     jr 4 diagnostikkatheter              ↔  jr4 diagnostikkatheter
+
+   Jedes Paar ist heute zwei Materialien mit getrennter Pflege, getrenntem
+   Foto, getrenntem Preis. Bewusst NICHT automatisch zusammengeführt — ein
+   Tippfehler und eine echte Variante sehen gleich aus („Navitor 23"/„Navitor 25"),
+   und nur ein Mensch kennt den Unterschied. Deshalb: Vorschlagsliste.
+
+   Eingabe [{key,name,count}] → [{a,b,aName,bName,naehe,wirkung}], stärkste
+   Ähnlichkeit zuerst. Rein. */
+function matDubletten(list, minNaehe){
+  const schwelle = (minNaehe==null) ? 0.88 : minNaehe;
+  const xs = (list||[]).filter(x=>x && x.key);
+  const paare = [];
+  for(let i=0;i<xs.length;i++){
+    for(let j=i+1;j<xs.length;j++){
+      const a=xs[i], b=xs[j];
+      /* Nur ähnlich LANGE Schlüssel vergleichen — das spart den teuren
+         Abstand für offensichtlich Verschiedenes (quadratische Schleife). */
+      if(Math.abs(a.key.length-b.key.length) > 4) continue;
+      const n = matAehnlich(a.key, b.key);
+      if(n < schwelle || n === 1) continue;
+      paare.push({ a:a.key, b:b.key, aName:a.name||a.key, bName:b.name||b.key,
+        naehe:Math.round(n*1000)/1000, wirkung:(a.count||0)+(b.count||0) });
+    }
+  }
+  return paare.sort((x,y)=>(y.naehe-x.naehe)||(y.wirkung-x.wirkung));
+}
+
 /* Distinkte Material-Vorkommen (nach material_key) aus allen Standards, mit
    Anzeigename + Häufigkeit. Grundlage für Zusammenführung/Destillation. Braucht
    DB (app-state); ohne DB leere Liste. */

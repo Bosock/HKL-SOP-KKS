@@ -421,3 +421,76 @@ test('Gesamtlauf: das Artefakt „en" taucht in keinem Feld auf', () => {
     (z.erlaeuterung || []).includes('en') || (z.eigenschaften || []).includes('en'));
   assert.equal(treffer.length, 0, `${treffer.length}× steht „en" noch als Wert`);
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   12. Beinah-Dubletten (Tippfehler werden zu eigenen Materialien)
+   ═══════════════════════════════════════════════════════════════ */
+
+const MSRC = fs.readFileSync(path.join(ROOT, 'public/js/features/materials.js'), 'utf8');
+const OSRC = fs.readFileSync(path.join(ROOT, 'public/js/features/ocr.js'), 'utf8');
+function schnitt(quelle, name) {
+  const sig = quelle.indexOf('function ' + name + '(');
+  assert.notEqual(sig, -1, name + ' nicht gefunden');
+  let tiefe = 0;
+  for (let j = quelle.indexOf('{', sig); j < quelle.length; j++) {
+    if (quelle[j] === '{') tiefe++;
+    else if (quelle[j] === '}') { tiefe--; if (tiefe === 0) return quelle.slice(sig, j + 1); }
+  }
+  throw new Error('unbalanciert: ' + name);
+}
+const dctx = vm.createContext({ Math, String, Array, console });
+vm.runInContext([
+  schnitt(OSRC, 'levenshtein'),
+  schnitt(MSRC, 'matAehnlich'),
+  schnitt(MSRC, 'matDubletten'),
+  ';globalThis.__D = { matAehnlich, matDubletten };',
+].join('\n'), dctx);
+const D = dctx.__D;
+
+test('matAehnlich misst längennormiert', () => {
+  assert.equal(D.matAehnlich('abc', 'abc'), 1);
+  assert.equal(D.matAehnlich('', 'abc'), 0);
+  assert.ok(D.matAehnlich('coro set schale', 'koro set schale') > 0.9);
+  assert.ok(D.matAehnlich('schleuse', 'kornzange') < 0.5);
+});
+
+test('matDubletten findet die echten Tippfehler aus dem Bestand', () => {
+  /* Wörtlich aus public/data/hkl_standards_export.json. */
+  const liste = [
+    { key: 'blazer ii xp large curve std distal', name: 'Blazer II XP large curve / std distal', count: 3 },
+    { key: 'blazer ii xp large curve std disatal', name: 'Blazer II XP large curve / std disatal', count: 1 },
+    { key: 'große coro set schale', name: 'große Coro-Set-Schale', count: 9 },
+    { key: 'große koro set schale', name: 'große Koro-Set-Schale', count: 2 },
+    { key: 'kornzange', name: 'Kornzange', count: 20 },
+  ];
+  const p = D.matDubletten(liste);
+  const paare = p.map(x => x.a + ' ↔ ' + x.b);
+  assert.ok(paare.some(s => /distal ↔ .*disatal|disatal ↔ .*distal/.test(s)), 'distal/disatal gefunden');
+  assert.ok(paare.some(s => /coro.*↔.*koro|koro.*↔.*coro/.test(s)), 'coro/koro gefunden');
+  assert.ok(!paare.some(s => /kornzange/.test(s)), 'Kornzange ist mit nichts verwechselbar');
+});
+
+test('matDubletten sortiert nach Ähnlichkeit, dann nach Wirkung', () => {
+  const liste = [
+    { key: 'aaaa bbbb cccc', name: 'A', count: 1 },
+    { key: 'aaaa bbbb cccd', name: 'B', count: 1 },
+    { key: 'xxxx yyyy zzzz', name: 'X', count: 50 },
+    { key: 'xxxx yyyy zzaa', name: 'Y', count: 50 },
+  ];
+  const p = D.matDubletten(liste, 0.8);
+  assert.ok(p.length >= 2);
+  assert.ok(p[0].naehe >= p[p.length - 1].naehe, 'absteigend nach Nähe');
+});
+
+test('matDubletten vergleicht keine offensichtlich verschieden langen Namen', () => {
+  const p = D.matDubletten([
+    { key: 'schleuse', name: 'a', count: 1 },
+    { key: 'schleuse femoral mit dreiwegehahn lang', name: 'b', count: 1 },
+  ]);
+  assert.equal(p.length, 0);
+});
+
+test('matDubletten liefert bei leerer Eingabe nichts', () => {
+  assert.equal(D.matDubletten([]).length, 0);
+  assert.equal(D.matDubletten(null).length, 0);
+});
