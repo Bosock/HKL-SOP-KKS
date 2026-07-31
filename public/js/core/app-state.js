@@ -143,7 +143,13 @@ function stdHidden(s){ return !!(STDE[s.id]&&STDE[s.id].hidden); }
    GEÖFFNETE Standard (curStd) — das reicht für die Anzeige, nicht aber, wenn
    ein anderer Standard ausgewertet werden muss (z. B. beim Duplizieren). Ohne
    drittes Argument verhalten sich alle vier exakt wie bisher. */
-function rubKey(r,idx,std){ const s=std||curStd; return s.id+'|'+(r.__tplid?('tpl:'+r.__tplid):(r.__nrid?('nr:'+r.__nrid):idx)); }
+function rubKey(r,idx,std){ const s=std||curStd;
+  /* Ohne Standard gibt es keinen Schlüssel — dann lieber ein leerer Treffer
+     als ein Absturz. Vorher warf die Funktion eine TypeError, sobald sie für
+     einen ANDEREN als den gerade geöffneten Standard gerufen wurde und das
+     dritte Argument fehlte. Aufgefallen ist das erst zur Laufzeit. */
+  if(!s || !s.id || !r) return '';
+  return s.id+'|'+(r.__tplid?('tpl:'+r.__tplid):(r.__nrid?('nr:'+r.__nrid):idx)); }
 function rubName(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return (e&&e.name)||r.name; }
 function rubHidden(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return !!(e&&e.hidden); }
 function rubOrd(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return (e&&e.ord!=null)?e.ord:idx; }

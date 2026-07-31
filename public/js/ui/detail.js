@@ -318,6 +318,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-popups')){ if(typeof popupEditId!=='undefined'&&popupEditId){ popupCloseEdit(); return; } setMode('use'); return; }
   if(act('scr-variants')){ setMode('use'); return; }
   if(act('scr-diag')){ setMode('use'); return; }
+  if(act('scr-ruest')){ if(typeof ruestSid!=='undefined' && ruestSid) openStandard(ruestSid); else setMode('use'); return; }
   if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }
   if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
     renderStandards(); show('scr-standards'); updateBar();
