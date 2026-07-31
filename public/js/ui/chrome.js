@@ -6,7 +6,6 @@ function toggleTheme(){ const cur=document.documentElement.getAttribute('data-th
 (function initTheme(){ const t=store.get('hkl_theme'); if(t){ document.documentElement.setAttribute('data-theme',t); const tb=$('themeBtn'); if(tb) tb.textContent=t==='light'?'☀':'◐'; } })();
 let tTimer; function toast(msg,err){ const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='toast',2000); }
 
-$('mUse').onclick=()=>setMode('use'); $('mCatalog').onclick=()=>setMode('catalog'); $('mCare').onclick=()=>setMode('care'); $('mAdmin').onclick=()=>setMode('admin');
 $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme; $('menuBtn').onclick=openMenu;
 /* 🔎 immer in der Kopfleiste (UX-Audit H1a): globale Suche in EINEM Tipp. */
 $('searchBtn').onclick=()=>openGlobalSearch();

@@ -282,11 +282,20 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
     renderStandards(); show('scr-standards'); updateBar();
     const sw=$('searchWrap'); if(sw) sw.style.display='block'; return; }
-  if(mode==='care'){ if($('scr-care-item').classList.contains('active')){ renderCare(); show('scr-care'); updateBar(); } return; }
+  /* Produktblatt/Editor: eine Ebene zurück dorthin, wo es geöffnet wurde
+     (features/scanner.js merkt sich die Herkunft beim Öffnen).
+     Früher stand hier eine Prüfung auf `scr-care-item` — einen Bildschirm, den
+     niemand je aktiviert. Die Bedingung war immer falsch, der Zweig kehrte
+     wirkungslos zurück, und der sichtbare ‹-Knopf tat im Material-Editor
+     nichts. Eine Sackgasse, aus der nur das ☰-Menü herausführte. */
+  if(act('scr-scan-item')){ if(typeof scanZurueck==='function' && scanZurueck()) return; }
+  if(act('scr-scan')){ setMode('use'); return; }
+  /* Materialzentrale selbst: wie die übrigen Verwaltungsansichten in die Übersicht. */
+  if(mode==='care'){ setMode('use'); return; }
   if(nav.length>0){ try{ history.back(); }catch(e){ } return; }
   setMode('use'); }
 function gotoState(st){ const d=(st&&st.d)||0;
-  formCtx=null; mode='use'; $('mUse').classList.add('on'); if($('mCatalog'))$('mCatalog').classList.remove('on'); $('mCare').classList.remove('on'); $('mAdmin').classList.remove('on');
+  formCtx=null; mode='use';
   let s=null; if(d>=1&&st&&st.id) s=DB.standards.find(x=>x.id===st.id);
   if(d<=0||(d>=1&&!s)){ nav=[]; $('searchWrap').style.display='block'; renderStandards(); show('scr-standards'); updateBar(); return; }
   curStd=s;

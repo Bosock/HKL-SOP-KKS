@@ -343,6 +343,54 @@ const NICHT_AUSLOESEN = [
   });
   gesten.forEach(g => { r.check('Geste: ' + g.name, g.ok); if (!g.ok) defekte.push({ bildschirm: 'Gesten', ziel: g.name, fehler: g.grund }); });
 
+  /* ── Zurück-Wege: Kein Bildschirm darf eine Sackgasse sein ───── */
+  /* Befund aus diesem Lauf: Im Material-Editor war der ‹-Knopf SICHTBAR und tat
+     NICHTS. goBack() prüfte auf `scr-care-item` — einen Bildschirm, den niemand
+     je aktiviert — und kehrte wirkungslos zurück. Herausgekommen ist man nur
+     über das ☰-Menü. Diese Prüfung sichert jeden Rückweg einzeln ab. */
+  const zurueck = await A.page.evaluate(() => {
+    const akt = () => (document.querySelector('.screen.active') || {}).id;
+    const probe = (name, hin) => {
+      try { hin(); } catch (e) { return { name, fehler: String(e && e.message || e) }; }
+      const vor = akt();
+      const sichtbar = !document.getElementById('backBtn').hidden;
+      goBack();
+      return { name, vor, nach: akt(), sichtbar, weiter: vor !== akt() };
+    };
+    doLogin('1234567');
+    return [
+      probe('Produktblatt aus der Zentrale', () => { mode = 'care'; renderCare(); show('scr-care'); openScanItem('m:zb', false); }),
+      probe('Editor aus der Zentrale', () => { mode = 'care'; renderCare(); show('scr-care'); openScanItem('m:zb', true); }),
+      probe('Produktblatt aus dem Scan-Hub', () => { mode = 'use'; openScanHub(); openScanItem('m:zb', false); }),
+      probe('Produktblatt aus dem Katalog', () => { setMode('catalog'); openScanItem('m:zb', false); }),
+      probe('Produktblatt aus der Verwaltung', () => { setMode('admin'); openScanItem('m:zb', false); }),
+      probe('Produktblatt aus einem Standard', () => { setMode('use'); openStandard(DB.standards[0].id); openRubrik(0); openScanItem('m:zb', false); }),
+      probe('Materialzentrale', () => { mode = 'care'; renderCare(); show('scr-care'); }),
+      probe('Aufräum-Assistent', () => { openCleanup(); }),
+      probe('Diagnose', () => { openDiag(); }),
+      probe('Pop-up-Verwaltung', () => { openPopupAdmin(); }),
+      probe('Ärzte & Varianten', () => { openVariantAdmin(); }),
+      probe('Glossar', () => { openGlossary(); }),
+      probe('Globale Suche', () => { openGlobalSearch(); }),
+    ];
+  });
+  const sackgassen = zurueck.filter(z => !z.fehler && !z.weiter);
+  zurueck.forEach(z => r.check(`Zurück aus: ${z.name}` + (z.fehler ? '' : ` (${z.vor} → ${z.nach})`),
+    !z.fehler && z.weiter === true));
+  sackgassen.forEach(z => defekte.push({ bildschirm: 'Zurück-Wege', ziel: z.name, fehler: 'Sackgasse: bleibt auf ' + z.vor }));
+
+  /* Ein sichtbarer ‹-Knopf MUSS auch etwas tun — das ist die eigentliche Regel. */
+  const luegner = zurueck.filter(z => !z.fehler && z.sichtbar && !z.weiter);
+  r.check('kein sichtbarer Zurück-Knopf ohne Wirkung', luegner.length === 0);
+
+  /* Der Rückweg führt an die HERKUNFT, nicht irgendwohin. */
+  const paare = { 'Produktblatt aus der Zentrale': 'scr-care', 'Editor aus der Zentrale': 'scr-care',
+    'Produktblatt aus dem Scan-Hub': 'scr-scan', 'Produktblatt aus dem Katalog': 'scr-catalog',
+    'Produktblatt aus der Verwaltung': 'scr-admin', 'Produktblatt aus einem Standard': 'scr-detail' };
+  const falsch = zurueck.filter(z => paare[z.name] && z.nach !== paare[z.name]);
+  r.check('… und zwar dorthin, wo geöffnet wurde', falsch.length === 0);
+  if (falsch.length) falsch.forEach(z => console.log(`   ✗ ${z.name}: erwartet ${paare[z.name]}, war ${z.nach}`));
+
   /* ── Abmelden ganz zum Schluss ───────────────────────────────── */
   const ab = await A.page.evaluate(async () => {
     const vorher = window.__err.length;
