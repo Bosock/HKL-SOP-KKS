@@ -558,3 +558,104 @@ test('die Gerätefelder sind Daten, nicht Formularcode', () => {
   assert.ok(G.GERAET_FELDER.every(f => f.key && f.label));
   assert.ok(G.GERAET_FELDER.some(f => f.typ === 'guide'), 'eine Anleitung ist verknüpfbar');
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   14. Konfigurierbarkeit ohne Entwickler (Grundsatz ⑤)
+   ═══════════════════════════════════════════════════════════════ */
+
+const LSRC = fs.readFileSync(path.join(ROOT, 'public/js/core/labels.js'), 'utf8');
+const lctx = vm.createContext({ String, Array, Object, console });
+vm.runInContext(LSRC.replace(
+  "let BEZ = (typeof loadJSON==='function') ? loadJSON('hkl_bezeichnungen', {}) : {};",
+  'let BEZ = {};') + `
+;globalThis.__L = { sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, bezHersteller,
+  bezSetzen, bezGeaendert, bezSetData, bezWert,
+  setBez: (o)=>{ BEZ = o; }, holBez: ()=>BEZ };`, lctx);
+const L = lctx.__L;
+
+test('ohne Datei und ohne Änderung gilt exakt das frühere Verhalten', () => {
+  L.setBez({}); L.bezSetData(null);
+  assert.equal(L.sizeLabel('french'), 'Fr');
+  assert.equal(L.sizeLabel('laenge'), 'Länge');
+  assert.equal(L.sizeLabel('unbekannt'), 'unbekannt');
+  assert.equal(L.typLabel('material'), 'Material');
+  assert.equal(L.typLabel('geraete'), 'Geräte');
+  assert.equal(L.typLabel('sonstige'), 'Ablauf');
+  assert.equal(L.rubrikIcon('Materialien', 'material'), '📦');
+  assert.equal(L.rubrikIcon('Irgendwas', 'geraete'), '🖥');
+  assert.equal(L.rubrikIcon('Irgendwas', 'sonstige'), '📄');
+  assert.equal(L.ukKeywordIcon('Material aus dem Lager'), '📦');
+  assert.equal(L.ukKeywordIcon('Namenlos'), '🗂');
+});
+
+test('die mitgelieferte Datei liefert dieselben Werte wie der Rückfall', () => {
+  /* Sonst hätte man zwei Wahrheiten, die auseinanderlaufen können. */
+  const datei = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data/bezeichnungen.json'), 'utf8'));
+  L.setBez({}); L.bezSetData(datei);
+  assert.equal(L.sizeLabel('french'), 'Fr');
+  assert.equal(L.typLabel('geraete'), 'Geräte');
+  assert.equal(L.rubrikIcon('Materialien', 'material'), '📦');
+  assert.equal(L.ukKeywordIcon('Material auf Ansage'), '📢');
+  assert.ok(L.bezHersteller().includes('Boston Scientific'));
+  assert.ok(L.bezHersteller().length >= 55);
+});
+
+test('ein neuer Lieferant braucht keinen Entwickler', () => {
+  /* Der Alltagsfall: Das Haus bezieht ab morgen von einer neuen Firma. */
+  L.setBez({}); L.bezSetData(null);
+  assert.ok(!L.bezHersteller().includes('Neue Medizintechnik GmbH'));
+  L.bezSetzen('hersteller', 'werte', ['Neue Medizintechnik GmbH', 'Medtronic']);
+  assert.ok(L.bezHersteller().includes('Neue Medizintechnik GmbH'));
+  assert.equal(L.bezGeaendert('hersteller', 'werte'), true);
+});
+
+test('jede Änderung ist rücknehmbar, ohne die Vorgabe zu kennen', () => {
+  L.setBez({}); L.bezSetData(null);
+  L.bezSetzen('groessenarten', 'werte', { french: 'French' });
+  assert.equal(L.sizeLabel('french'), 'French');
+  L.bezSetzen('groessenarten', 'werte', null);           /* leeren = zurücksetzen */
+  assert.equal(L.sizeLabel('french'), 'Fr');
+  assert.equal(L.bezGeaendert('groessenarten', 'werte'), false);
+});
+
+test('eine unvollständige eigene Tabelle verliert keine Vorgabe', () => {
+  /* Wer nur „french" umbenennt, darf nicht alle anderen Größenarten verlieren. */
+  L.setBez({}); L.bezSetData(null);
+  L.bezSetzen('groessenarten', 'werte', { french: 'French' });
+  assert.equal(L.sizeLabel('french'), 'French');
+  assert.equal(L.sizeLabel('laenge'), 'Länge', 'die übrigen bleiben');
+});
+
+test('eigene Änderung schlägt die mitgelieferte Datei', () => {
+  const datei = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data/bezeichnungen.json'), 'utf8'));
+  L.setBez({}); L.bezSetData(datei);
+  assert.equal(L.ukKeywordIcon('Material aus dem Lager'), '📦');
+  L.bezSetzen('unterkategoriesymbole', 'regeln', [{ enthaelt: 'lager', symbol: '🏬' }]);
+  assert.equal(L.ukKeywordIcon('Material aus dem Lager'), '🏬');
+  L.setBez({});
+});
+
+test('Symbole und Rubriknamen sind frei benennbar', () => {
+  L.setBez({}); L.bezSetData(null);
+  L.bezSetzen('rubriktypen', 'werte', { sonstige: 'Prozedur' });
+  assert.equal(L.typLabel('sonstige'), 'Prozedur');
+  assert.equal(L.typLabel('material'), 'Material', 'die übrigen bleiben');
+  L.setBez({});
+});
+
+test('kaputte Konfiguration bringt nichts zum Absturz', () => {
+  L.setBez({ groessenarten: { werte: 'kein Objekt' }, unterkategoriesymbole: { regeln: 'keine Liste' } });
+  assert.doesNotThrow(() => L.sizeLabel('french'));
+  assert.doesNotThrow(() => L.ukKeywordIcon('Lager'));
+  assert.equal(L.ukKeywordIcon('Lager'), '🗂', 'ohne brauchbare Regeln gilt die Vorgabe');
+  L.setBez({});
+});
+
+test('das Fachwissen steht nicht mehr im Quelltext von ocr.js', () => {
+  /* Der eigentliche Prüfpunkt von Grundsatz ⑤: Die 60 Herstellernamen lagen
+     früher als Literal in der Texterkennung. */
+  const ocr = fs.readFileSync(path.join(ROOT, 'public/js/features/ocr.js'), 'utf8');
+  assert.ok(ocr.includes('bezHersteller'), 'ocr.js holt die Liste aus der Konfiguration');
+  assert.ok(!ocr.includes('Irvine Biomedical'), 'die lange Namensliste ist raus');
+  assert.ok(!ocr.includes('Cardinal Health'), 'ebenso');
+});

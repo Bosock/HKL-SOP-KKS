@@ -240,6 +240,81 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('… und der nächste Prüftermin wird gerechnet', ger.naechste === '2027-01-15');
   check('… überfällige Prüfungen werden gezählt', ger.faellig >= 1);
 
+  // ═══════════ 12. Die Anzeige im Saal ═══════════
+  /* Der Grundsatz: Der Word-Satz bleibt stehen, BIS ein Mensch die Zerlegung
+     bestätigt hat. Ein bloßer Vorschlag darf die Anzeige nicht anfassen —
+     im Saal wird nach dem Text gearbeitet, und eine automatische Zerlegung
+     kann falsch sein. */
+  const anzeige = await A.page.evaluate(() => {
+    doLogin('1234567');
+    // Eine Materialzeile mit Ziel/Bedingung suchen
+    let ziel = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((rr, ri) => {
+      if (rr.typ !== 'material' && rr.typ !== 'geraete') return;
+      (rr.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => {
+        if (ziel || e.ist_fliesstext || e.natur === 'ueberschrift') return;
+        const z = zerlege(e, ZERLKAT);
+        if (z.art === 'produkt' && z.produkt && (z.ziel || z.zweck || z.groesse)) {
+          ziel = { sid: s.id, ri, si, ei, cid: cidOf(s.id, ri, si, ei), roh: e.anzeige_text, z };
+        }
+      }));
+    }));
+    if (!ziel) return { keine: true };
+
+    const karte = () => { const e = findEntry(ziel.cid); return entryCardHTML(e, ziel.cid, true); };
+
+    // (a) UNBESTÄTIGT: die Karte muss den Originaltext zeigen
+    const vorher = karte();
+    const zeigtRoh = vorher.includes(ziel.roh.replace(/&/g, '&amp;').replace(/</g, '&lt;'))
+      || vorher.includes(ziel.roh);
+
+    // (b) BESTÄTIGEN
+    const tk = zerlTextKey(findEntry(ziel.cid));
+    zerlBestaetigen(tk, {
+      art: 'produkt', produkt: ziel.z.produkt, groesse: ziel.z.groesse,
+      ziel: ziel.z.ziel, zweck: ziel.z.zweck, bedingung: ziel.z.bedingung, ort: ziel.z.ort,
+    });
+    const nachher = karte();
+
+    // (c) Abschaltbar
+    settings.zerlegung = false;
+    const aus = karte();
+    settings.zerlegung = true;
+
+    // (d) Tätigkeit: bestätigen und prüfen, dass sie kein Material mehr ist
+    let tun = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((rr, ri) =>
+      (rr.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => {
+        if (tun || !/Raumkontrolle/i.test(e.anzeige_text || '')) return;
+        tun = { cid: cidOf(s.id, ri, si, ei), e };
+      }))));
+    let tunKarte = '';
+    if (tun) {
+      zerlBestaetigen(zerlTextKey(tun.e), { art: 'taetigkeit', produkt: null });
+      tunKarte = entryCardHTML(findEntry(tun.cid), tun.cid, true);
+    }
+
+    return { keine: false, roh: ziel.roh, produkt: ziel.z.produkt.name,
+      zeigtRoh, vorher, nachher, aus, tunKarte,
+      hatZiel: !!ziel.z.ziel, hatZweck: !!ziel.z.zweck, hatGroesse: !!ziel.z.groesse };
+  });
+
+  check('unbestätigt: die Karte zeigt weiterhin den Original-Wortlaut',
+    !anzeige.keine && anzeige.zeigtRoh === true);
+  check('bestätigt: die Karte zeigt den sauberen Produktnamen',
+    !anzeige.keine && anzeige.nachher.includes(anzeige.produkt));
+  check('… der Originalsatz bleibt als Titel an der Zeile erhalten',
+    !anzeige.keine && (anzeige.produkt === anzeige.roh || anzeige.nachher.includes('title=')));
+  check('… Verwendung und Position stehen als eigene Angaben da',
+    !anzeige.keine && (!anzeige.hatZiel || anzeige.nachher.includes('tag-ziel'))
+    && (!anzeige.hatZweck || anzeige.nachher.includes('tag-zweck')));
+  /* Strenger als ein Textvergleich: Die Karte muss ZEICHENGLEICH der Fassung
+     vor der Bestätigung entsprechen. Sonst bliebe eine Nebenwirkung übrig. */
+  check('abschaltbar: ohne die Einstellung ist die Karte exakt wie vorher',
+    !anzeige.keine && anzeige.aus === anzeige.vorher);
+  check('bestätigte Tätigkeit wird als solche gezeigt, nicht als Material',
+    !anzeige.keine && anzeige.tunKarte.includes('tun-ico') && !anzeige.tunKarte.includes('kein Lagerort'));
+
   check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.log('   ', A.errs.slice(0, 4));
 

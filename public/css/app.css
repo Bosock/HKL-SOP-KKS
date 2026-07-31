@@ -858,3 +858,21 @@
 .mc-ger-ok { color:var(--ok,#2e9e6b); font-weight:800; }
 .mc-ger-b { padding:0 13px 13px; border-top:1px solid var(--line); }
 .mc-ger-pruef { margin:10px 0; font-size:13px; color:var(--text); }
+
+/* ═══ Zerlegte Anzeige am Eintrag (ui/detail.js) ═══
+   Verwendung und Position bekommen eigene, unterscheidbare Marken — sonst
+   sieht der zerlegte Eintrag aus wie der alte Wortsalat, nur in Kästchen. */
+.tag-ziel  { color:#3d9be0; background:rgba(61,155,224,.13); }
+.tag-zweck { color:#7f95ab; background:rgba(127,149,171,.13); }
+.tag-bed   { color:#d99a2b; background:rgba(217,154,43,.14); }
+.tag-alt   { color:#bd8ce8; background:rgba(189,140,232,.13); }
+.tag-warn  { color:var(--warn); background:rgba(224,90,90,.13); font-weight:600; }
+.tun-ico   { margin-right:5px; opacity:.85; }
+.entry.tun .e-text { font-style:italic; }
+
+/* ═══ Bezeichnungen & Hersteller (features/backup.js) ═══ */
+.bez-sec { font-size:12px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:var(--text-dim); margin:14px 0 4px; }
+.bez-flag { margin-left:8px; font-size:10.5px; font-weight:700; color:var(--accent); text-transform:none; letter-spacing:0; }
+.bez-row { display:grid; grid-template-columns:150px 1fr; gap:10px; align-items:center; margin-bottom:6px; }
+.bez-k { font-size:12.5px; color:var(--text-dim); font-family:ui-monospace,Menlo,monospace; }
+#bezHerst { width:100%; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; line-height:1.5; }

@@ -262,7 +262,7 @@ let reassign=loadJSON('hkl_reassign',{});
 let ukMap=loadJSON('hkl_ukmap',{});
 let ukMeta=loadJSON('hkl_ukmeta',{});
 let UKSEC=loadJSON('hkl_uksections',{});
-let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true}, loadJSON('hkl_settings',{}));
+let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true,zerlegung:true}, loadJSON('hkl_settings',{}));
 let collapsed={};
 let UK_LIST=[];
 
