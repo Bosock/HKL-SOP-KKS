@@ -876,3 +876,33 @@
 .bez-row { display:grid; grid-template-columns:150px 1fr; gap:10px; align-items:center; margin-bottom:6px; }
 .bez-k { font-size:12.5px; color:var(--text-dim); font-family:ui-monospace,Menlo,monospace; }
 #bezHerst { width:100%; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; line-height:1.5; }
+
+/* ═══ Rüstliste (features/ruestliste.js) ═══
+   Bewusst andere Anmutung als der Standard: Hier wird gelaufen und gegriffen,
+   nicht gelesen. Große Trefferflächen, wenig Text, klare Trennung der Wege. */
+.ruest-btn { border-color:var(--accent) !important; color:var(--accent) !important; font-weight:700; }
+.rl-bilanz { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font-size:12.5px; color:var(--text-dim); }
+.rl-fach { margin:16px 0 6px; }
+.rl-fach-t { font-size:13px; font-weight:800; letter-spacing:.4px; color:var(--text); margin-bottom:8px; }
+.rl-reserve { opacity:.92; border-top:1px dashed var(--line); padding-top:12px; }
+.rl-hinweis { color:var(--text-dim); font-size:12.5px; margin:0 0 8px; }
+.rl-ort { margin-bottom:12px; }
+.rl-ort-t { display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--text-dim); padding:6px 2px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+.rl-ort-n { font-size:11px; font-weight:600; text-transform:none; letter-spacing:0; }
+.rl-zeile { display:flex; align-items:center; gap:9px; min-height:52px; padding:8px 11px;
+  border:1px solid var(--line); border-left:4px solid var(--e-col,var(--line));
+  border-radius:11px; margin-bottom:6px; background:var(--surface); cursor:pointer;
+  touch-action:manipulation; }
+.rl-zeile.done { opacity:.5; }
+.rl-zeile.done .rl-name { text-decoration:line-through; }
+.rl-chk { width:24px; height:24px; flex:0 0 24px; border:2px solid var(--line); border-radius:7px;
+  display:flex; align-items:center; justify-content:center; font-size:14px; color:transparent; }
+.rl-zeile.done .rl-chk { background:var(--accent); border-color:var(--accent); color:#fff; }
+.rl-menge { min-width:30px; font-weight:800; font-size:13px; color:var(--text); }
+.rl-ico { font-size:16px; }
+.rl-name { flex:1; font-size:14px; color:var(--text); line-height:1.35; }
+.rl-gr { margin-left:7px; font-size:11.5px; color:var(--text-dim); }
+.rl-bed { font-size:11px; color:#d99a2b; white-space:nowrap; }
+@media print { .pr-z { font-size:12pt; padding:3px 0; } }
