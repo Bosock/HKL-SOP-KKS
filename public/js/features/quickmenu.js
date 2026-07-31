@@ -29,6 +29,11 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sChips(['📍 dieser Eintrag', '👥 alle Geräte']);
   /* Inspektor (Kaskade sichtbar machen): warum sieht dieser Eintrag so aus? */
   h+=sAct('🔍','Warum so?','zeigt, woher Name, Kategorie, Farbe & Co. kommen','openWhySheet()');
+  /* Gehört die Zeile zu einem Baustein, muss das VOR der Änderung dastehen —
+     sonst entsteht hier eine Abweichung, von der niemand etwas weiß. */
+  if(typeof bauFuerCid==='function'){ const bs=bauFuerCid(cid);
+    if(bs.length){ const b=bs[0].baustein; const n=bauVorkommen(b.id).length;
+      h+=sAct('⛓️','Gehört zum Baustein „'+b.name+'"','steht an '+n+' Stellen — dort pflegen gilt überall','showSheet(false);openBausteinAdmin()'); } }
 
   /* ── Inhalt ── */
   h+=sGroup('Inhalt','Was der Eintrag ist');
@@ -52,7 +57,7 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   if(isMat){ h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
   if(isMat&&e.material_key){ const cn=(typeof canonOf==='function')?canonOf(e.material_key):null;
     h+=sAct('🔗', cn?('Verknüpft: '+(cn.name||cn.ref||cn.gtin)):'Mit Produkt verknüpfen', cn?'Stammsatz zeigen / lösen':'Etikett-Produkt zuordnen (destillieren)','renderSheetLink()'); }
-  h+=sAct('🧩','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
+  h+=sAct('🔗','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
   h+=sAct('📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   h+=sAct('⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
   h+=sAct('⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
@@ -211,7 +216,7 @@ function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!
    Reichweiten-Wahl, Journal, „Warum so?" und Geräte-Sync inklusive. */
 function renderSheetZusatz(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const cur=(qeGet(e,cid,'zusatz')||[]);
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">🧩 Eigene Felder</div>
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">🔗 Eigene Felder</div>
     <p class="why-help">Eigene Zusatz-Infos (z. B. „Schrank: B3" oder „nur bei ICD"), die als Badge am Eintrag erscheinen. Du wählst gleich, wo sie gelten.</p>`;
   cur.forEach((f,i)=>{ h+=`<div class="why-row"><span class="why-src">${esc(f.n)}</span><span class="why-val">${esc(f.w||'')}</span><button class="why-undo" data-i="${i}" onclick="sheetZusatzDel(+this.dataset.i)">✕</button></div>`; });
   h+=`<input type="text" id="zfName" class="txtinp" style="width:100%;margin-top:10px" placeholder="Feldname, z. B. Schrank">

@@ -302,6 +302,49 @@ Anpassungen am falschen Eintrag. Nebenbei aufgeräumt: `rubKey`/`rubName`/
 optionalen `std`-Parameter (ohne ihn unverändert). End-to-End:
 `e2e/duplizieren.js`.
 
+## Bausteine — wiederkehrende Handlungsfolgen (`hkl_bausteine`)
+
+Die 47 Standards sind aus voneinander abgeschriebenen Word-Dateien entstanden.
+Die naheliegende Gegenmaßnahme wäre „Rubrik-Vorlagen" — die Messung widerlegt
+das: Auf Rubrik-Ebene liegt die Überschneidung bei 12–24 %, oft bei 0–2
+gemeinsamen Zeilen. Die Wiederholung sitzt eine Ebene tiefer, in
+**zusammenhängenden Folgen von Zeilen**: 1.345 von 2.375 Materialzeilen stecken
+in einer Folge, die in mindestens drei Standards gleich vorkommt; der
+Suchlauf (`bauKandidaten`) liefert am heutigen Bestand **43 überschneidungsfreie
+Folgen** mit zusammen **823 doppelt gepflegten Zeilen**.
+
+Ein Baustein (`features/bausteine.js`) hat deshalb zwei getrennte Teile:
+
+| Feld | Bedeutung |
+|---|---|
+| `schluessel` | Vergleichsform der Original-Zeilen, **eingefroren** → daran werden die Fundstellen wiedergefunden |
+| `zeilen` | der gewollte Inhalt (Text, Menge, `weg`) → das, was gepflegt wird |
+
+Weil der Schlüssel eingefroren ist, verliert ein Baustein seine Fundstellen
+nicht, wenn man eine Zeile umbenennt.
+
+**Die Wirkung läuft über `QE.cid`** — dieselbe Ablage wie das Schnellmenü; es
+gibt keine vierte Auflösungsebene und keine Änderung an den Basisdaten.
+`bauAnwenden` gleicht jede Fundstelle an den Baustein an und merkt sich zu jedem
+Feld, was **vor dem ersten Zugriff des Bausteins** dastand
+(`gesetzt[cid][feld].alt`). `bauLoesen` stellt genau das wieder her — auch
+fremde Eintragungen, die durchgesetzt worden sind. Wer NACH dem Baustein von
+Hand ändert, überschreibt dessen Wert, nicht den Originalzustand; „Lösen" führt
+dann auf den Original zurück (dieser Speicher führt keine Historie).
+
+`bauAbweichungen` listet die Stellen, an denen der Bestand vom Baustein
+abweicht — nicht jede ist ein Fehler, aber jede muss auffallen. Das Schnellmenü
+warnt vor einer Änderung, wenn die Zeile zu einem Baustein gehört.
+`bauEinfuegen` legt die Zeilen als Ergänzungen (`hkl_additions`) in einem
+Standard an — der schnelle Weg, einen neuen Standard aufzubauen, statt ihn
+abzuschreiben.
+
+Der Suchlauf ist teuer (n-Gramme über den ganzen Bestand, ~300 ms) und läuft
+deshalb **nicht beim Start**, sondern erst beim Öffnen der Ansicht; das Ergebnis
+liegt bis zur nächsten Datenänderung im Zwischenspeicher (`bauCacheLeeren`,
+u. a. aus `rebuildDB`). Tests: `test/bausteine.test.js` (33), End-to-End:
+`e2e/bausteine.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

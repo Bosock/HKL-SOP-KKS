@@ -12,6 +12,12 @@ const path = require('path');
 const vm = require('vm');
 
 const BASE = 'http://localhost/';
+/* Die Cache-Version wird AUS sw.js gelesen, nicht abgeschrieben: Sonst
+   scheitert diese Suite bei jeder Versionserhöhung an sich selbst statt an
+   einem echten Fehler. */
+const SW_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'sw.js'), 'utf8');
+const CACHE_VERSION = (SW_SRC.match(/CACHE_VERSION\s*=\s*'([^']+)'/) || [])[1];
+const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const norm = (k) => (typeof k === 'string' ? new URL(k, BASE).href : k.url);
 const mkRes = (id, ok = true) => ({ ok, _id: id, clone() { return this; } });
 
@@ -70,7 +76,7 @@ test('install precaches the app shell', async () => {
   const env = makeEnv();
   env.box.fetchImpl = (input) => mkRes('shell:' + input);
   await env.install();
-  const shell = env.stores.get('hkl-shell-v51');
+  const shell = env.stores.get(SHELL_CACHE);
   assert.ok(shell, 'shell cache exists');
   assert.ok(shell.m.has('http://localhost/index.html'), 'index.html precached');
   assert.ok(shell.m.has('http://localhost/css/app.css'), 'css precached');
@@ -149,7 +155,7 @@ test('activate drops stale hkl caches, keeps current ones', async () => {
   await env.activate();
   const names = await env.caches.keys();
   assert.ok(!names.includes('hkl-shell-v42'), 'old cache removed');
-  assert.ok(names.includes('hkl-shell-v51'), 'current shell cache kept');
+  assert.ok(names.includes(SHELL_CACHE), 'current shell cache kept');
 });
 
 test('sw.js SHELL list stays in sync with index.html <script> tags', () => {

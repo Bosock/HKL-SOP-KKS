@@ -93,6 +93,8 @@ const NICHT_AUSLOESEN = [
     { name: 'Ärzte & Varianten',    oeffnen: `openVariantAdmin()` },
     { name: 'Diagnose',             oeffnen: `openDiag()` },
     { name: 'Scan-Hub',             oeffnen: `openScanHub()` },
+    { name: 'Rüstliste',            oeffnen: `setMode('use'); openRuestliste(DB.standards[0].id)` },
+    { name: 'Bausteine',            oeffnen: `openBausteinAdmin()` },
   ];
 
   /* Login einmal — fast alles ist nur im Verwaltungsmodus sichtbar. */
@@ -114,6 +116,7 @@ const NICHT_AUSLOESEN = [
     try { VARIANTS.aerzte.push({ id: 'a-dk', name: 'Dr. Durchklick', kurz: 'DK', farbe: '#8b5cf6' }); saveVariants && saveVariants(); } catch (e) {}
     try { GERAETE['durchklick'] = { key: 'durchklick', name: 'Testgerät', saal: 'Saal 1' }; saveGeraete(); } catch (e) {}
     try { hintAdd && hintAdd('overview', '', 'Durchklick-Hinweis'); } catch (e) {}
+    try { const k = bauVorschlaege()[0]; if (k) bauAnlegen('Durchklick-Baustein', k.zeilen, k.schluessel); } catch (e) {}
     try { buildMaterialIndex(); } catch (e) {}
   });
 
@@ -372,6 +375,8 @@ const NICHT_AUSLOESEN = [
       probe('Ärzte & Varianten', () => { openVariantAdmin(); }),
       probe('Glossar', () => { openGlossary(); }),
       probe('Globale Suche', () => { openGlobalSearch(); }),
+      probe('Rüstliste', () => { setMode('use'); openRuestliste(DB.standards[0].id); }),
+      probe('Bausteine', () => { openBausteinAdmin(); }),
     ];
   });
   const sackgassen = zurueck.filter(z => !z.fehler && !z.weiter);
@@ -386,7 +391,8 @@ const NICHT_AUSLOESEN = [
   /* Der Rückweg führt an die HERKUNFT, nicht irgendwohin. */
   const paare = { 'Produktblatt aus der Zentrale': 'scr-care', 'Editor aus der Zentrale': 'scr-care',
     'Produktblatt aus dem Scan-Hub': 'scr-scan', 'Produktblatt aus dem Katalog': 'scr-catalog',
-    'Produktblatt aus der Verwaltung': 'scr-admin', 'Produktblatt aus einem Standard': 'scr-detail' };
+    'Produktblatt aus der Verwaltung': 'scr-admin', 'Produktblatt aus einem Standard': 'scr-detail',
+    'Rüstliste': 'scr-rubriken', 'Bausteine': 'scr-admin' };
   const falsch = zurueck.filter(z => paare[z.name] && z.nach !== paare[z.name]);
   r.check('… und zwar dorthin, wo geöffnet wurde', falsch.length === 0);
   if (falsch.length) falsch.forEach(z => console.log(`   ✗ ${z.name}: erwartet ${paare[z.name]}, war ${z.nach}`));
