@@ -116,6 +116,10 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     <div class="bez-sec">Größenarten ${bezGeae('groessenarten','werte')}</div>
     <p class="hint">Beschriftung der Größen-Badges am Eintrag.</p>
     ${grZeilen}
+    <div class="bez-sec">Merkmale der Übersicht ${(typeof FAC_ARTEN!=='undefined'&&FAC_ARTEN.some(a=>bezGeaendert('facetten',a.key)))?'<span class="bez-flag">geändert</span>':''}</div>
+    <p class="hint">Beschriftung der Filterleiste auf der Startseite. „Art" heißt bei TAVI vielleicht besser „Zugang". Leeres Feld = mitgelieferte Vorgabe.</p>
+    ${(typeof FAC_ARTEN!=='undefined'?FAC_ARTEN:[]).map(a=>`<div class="bez-row"><span class="bez-k">${esc(a.vorgabe)}</span>
+      <input class="loc-input" value="${esc(facLabel(a.key))}" data-fk="${esc(a.key)}" onchange="bezSetFacette(this.dataset.fk,this.value)"></div>`).join('')}
     <div class="bez-sec">Rubriknamen ${bezGeae('rubriktypen','werte')}</div>
     ${tpZeilen}
   </div></details>`;
@@ -353,6 +357,13 @@ function bezSetTyp(k,v){
     (typeof bezWert==='function')?(bezWert('rubriktypen','werte',null)||{}):{});
   if((v||'').trim()) tab[k]=v.trim(); else delete tab[k];
   bezSetzen('rubriktypen','werte',tab); renderAdmin();
+}
+/* Merkmalsnamen der Übersicht (features/facetten.js). Der Zweig ist
+   „facetten", das Feld der Merkmalsschlüssel — leeres Feld = Vorgabe. */
+function bezSetFacette(k,v){
+  bezSetzen('facetten', k, (v||'').trim() || null);
+  if(typeof renderStandards==='function') try{ renderStandards(); }catch(e){}
+  renderAdmin();
 }
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }

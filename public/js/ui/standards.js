@@ -6,6 +6,10 @@
 function renderStandards(query){ const box=$('scr-standards'); const q=(query||'').trim().toLowerCase();
   let html=hintsBlockHTML('overview','');
   html+=(typeof segBarHTML==='function')?segBarHTML():'';
+  /* Merkmalsleiste (features/facetten.js): macht aus den Bindestrich-Titeln
+     auswählbare Merkmale. Steht über der Liste, nicht dahinter — sie ist der
+     schnelle Weg, nicht eine Zusatzfunktion. */
+  const facBar=(typeof facBarHTML==='function' && (typeof curSeg==='undefined' || curSeg!=='anleitung'))?facBarHTML():'';
 
   /* ---- Bereich „Anleitungen" ---- */
   if(typeof curSeg!=='undefined' && curSeg==='anleitung'){
@@ -15,16 +19,23 @@ function renderStandards(query){ const box=$('scr-standards'); const q=(query||'
   }
 
   /* ---- Bereich „Standards" ---- */
+  html+=facBar;
   html+=ADMIN?`<button class="sheet-pick-btn" style="margin:0 0 12px" onclick="openStandardForm(null)">＋ Neuer Standard</button>`:'';
+  const facIds=(typeof facTrefferIds==='function')?facTrefferIds():null;
   const list=[];
   DB.standards.forEach(s=>{ const hid=stdHidden(s); if(hid&&!ADMIN) return; const t=stdTitel(s), g=stdGruppe(s);
+    if(facIds && !facIds[s.id]) return;
     if(q && !(t||'').toLowerCase().includes(q) && !(g||'').toLowerCase().includes(q)) return;
     list.push({ id:s.id, titel:t, gruppe:g, std:s, hidden:hid }); });
   if(!list.length){
     /* Die Startsuche findet nur Titel/Gruppen. Bei 0 Treffern die globale
        Inhaltssuche anbieten, sonst lernt man fälschlich „gibt es nicht"
        (UX-Audit M2). Query via data-Attribut, nicht als Inline-Literal. */
-    box.innerHTML=html+`<div class="empty"><div class="ei">🔍</div><h3>Kein Standard gefunden</h3><p>Für „${esc(query)}" gibt es keinen Titel-Treffer.</p><button type="button" class="sheet-pick-btn" style="margin-top:12px" data-q="${esc(query)}" onclick="openGlobalSearch(this.dataset.q)">🔎 In allen Inhalten suchen</button></div>`; return; }
+    const gefiltert=!!(facIds && typeof facAnzahlGewaehlt==='function' && facAnzahlGewaehlt(FACWAHL));
+    box.innerHTML=html+`<div class="empty"><div class="ei">🔍</div><h3>Kein Standard gefunden</h3>
+      <p>${q?`Für „${esc(query)}" gibt es keinen Titel-Treffer.`:'Die gewählten Merkmale lassen nichts übrig.'}</p>
+      ${gefiltert?`<button type="button" class="sheet-pick-btn" style="margin-top:12px" onclick="facZuruecksetzen()">✕ Filter zurücksetzen</button>`:''}
+      ${q?`<button type="button" class="sheet-pick-btn" style="margin-top:12px" data-q="${esc(query)}" onclick="openGlobalSearch(this.dataset.q)">🔎 In allen Inhalten suchen</button>`:''}</div>`; return; }
 
   /* Kosten nur berechnen, wenn danach sortiert wird (spart Arbeit je Render). */
   const sortKey=(typeof curSort!=='undefined')?curSort:'gruppe';

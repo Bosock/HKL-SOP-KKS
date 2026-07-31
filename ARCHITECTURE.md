@@ -302,6 +302,44 @@ Anpassungen am falschen Eintrag. Nebenbei aufgeräumt: `rubKey`/`rubName`/
 optionalen `std`-Parameter (ohne ihn unverändert). End-to-End:
 `e2e/duplizieren.js`.
 
+## Facettierte Übersicht (`hkl_facetten`)
+
+Die Startseite war eine Liste von 47 Titeln mit Bindestrichen
+(`Transfemoral - Edwards - SAPIEN 3 Ultra`). Die Merkmale stehen darin längst —
+aber als Fließtext, aneinandergehängt. Man kann sie lesen, aber nicht danach
+greifen.
+
+`features/facetten.js` zerlegt den Titel und macht die Teile auswählbar. **Im
+Quelltext steht dabei kein Fachwort**; die Bedeutung kommt aus Daten, die die
+Verwaltung selbst pflegt:
+
+| Merkmal | Quelle |
+|---|---|
+| Bereich | die vorhandene Gruppe des Standards |
+| Hersteller | ein Titelteil, der in der **konfigurierbaren** Herstellerliste steht (`bezeichnungen.json`) — steht ein Lieferant nicht darin, ist sein Name ein Merkmal wie jedes andere; geraten wird nichts |
+| Art | der erste verbleibende Titelteil |
+| Ausprägung | die weiteren Titelteile |
+| Freigabe | `frgStatus` (siehe oben) |
+
+Auch die **Namen** der Merkmale sind nur Vorgaben (`bezWert('facetten', …)`) und
+über die Bezeichnungen änderbar — „Art" heißt im TAVI-Bereich vielleicht besser
+„Zugang".
+
+Getrennt wird nur an einem Strich mit **Leerraum an mindestens einer Seite**.
+Das trifft `Transfemoral - Edwards` und auch `LAA- Abbott`, aber nie `Re-PVI`,
+`S-ICD`, `CRT-D`, `Mitra-Clip` oder `Event-Recorder`.
+
+`facBauen` ist echte Facettensuche: Die Zähler einer Merkmalsart rechnen ohne
+die eigene Auswahl (sonst käme man nie zu einem anderen Bereich zurück), und
+eine Auswahl, die auf null führt, wird gar nicht erst angeboten. Gemessen:
+`{}` → 47, `TAVI` → 5, `+Transfemoral` → 3, `+Edwards` → 1.
+
+Die Auswahl ist eine **Ansicht**, kein Inhalt — sie bleibt gerätelokal
+(`hkl_facetten`, nicht in `SHARED_KEYS`). Damit später niemand einen Standard
+„vermisst", steht über der Liste immer sichtbar, wie viele von wie vielen übrig
+sind, mit einem Knopf zum Zurücksetzen; ein leeres Ergebnis bietet denselben
+Knopf an. Tests: `test/facetten.test.js` (23), End-to-End: `e2e/facetten.js`.
+
 ## Freigabe mit Siegel (`STDE[sid].siegel`)
 
 Ein Standard konnte schon vorher „Version 1.2 · Freigegeben · durch X am Y"

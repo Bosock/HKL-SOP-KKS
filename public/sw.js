@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v53';
+const CACHE_VERSION = 'v54';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -74,6 +74,7 @@ const SHELL = [
   'js/features/ruestliste.js',
   'js/features/bausteine.js',
   'js/features/freigabe.js',
+  'js/features/facetten.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',

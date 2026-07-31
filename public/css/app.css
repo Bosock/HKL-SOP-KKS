@@ -961,3 +961,23 @@
   color:var(--text-dim); flex:0 0 auto; }
 .frg-diff-x { flex:1; color:var(--text); }
 .frg-diff.weg .frg-diff-x { text-decoration:line-through; }
+
+/* ===== Facettierte Übersicht (features/facetten.js) ===== */
+.facbar { margin:0 0 12px; }
+.fac-aktiv { display:flex; align-items:center; justify-content:space-between; gap:10px;
+  flex-wrap:wrap; padding:7px 11px; margin-bottom:8px; border-radius:10px;
+  background:var(--accent-bg,rgba(61,155,224,.10)); font-size:12.5px; color:var(--text); }
+.fac-reset { border:0; background:none; color:var(--accent); font-size:12.5px; font-weight:700;
+  cursor:pointer; min-height:32px; padding:0 4px; }
+.fac-reihe { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
+.fac-name { flex:0 0 78px; padding-top:7px; font-size:10.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); }
+.fac-chips { flex:1; display:flex; flex-wrap:wrap; gap:5px; }
+.facchip { display:inline-flex; align-items:center; gap:5px; min-height:32px; padding:4px 10px;
+  border:1px solid var(--line); border-radius:16px; background:var(--surface);
+  color:var(--text); font-size:12.5px; cursor:pointer; touch-action:manipulation; }
+.facchip.on { border-color:var(--accent); background:var(--accent); color:#fff; }
+.facchip .fac-n { font-size:10.5px; opacity:.65; font-variant-numeric:tabular-nums; }
+.facchip.on .fac-n { opacity:.85; }
+.facchip.fac-more { color:var(--text-dim); border-style:dashed; }
+@media (max-width:420px){ .fac-name { flex-basis:100%; padding-top:0; } .fac-reihe { flex-wrap:wrap; } }
