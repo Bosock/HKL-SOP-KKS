@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -86,9 +86,38 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Anzeige-Einstellungen ── */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
-  const anzKeys=['menge','groessen','spez','lagerort','konfidenz','fliesstext']; const anzOn=anzKeys.filter(k=>settings[k]).length;
+  const anzKeys=['menge','groessen','spez','lagerort','konfidenz','fliesstext','zerlegung']; const anzOn=anzKeys.filter(k=>settings[k]).length;
   const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort konfidenz fließtext fliesstext badges">${vsum('👁','Anzeige-Einstellungen','Blendet Zusatzangaben an jedem Eintrag ein/aus (Menge, Größen, Lagerort, Warnung …)',anzOn+'/'+anzKeys.length+' an')}<div class="vpanel-body">
-    ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}
+    ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}${tgl('zerlegung','Aufgeräumte Anzeige (Produkt · Verwendung getrennt)')}
+    <p class="hint">Die aufgeräumte Anzeige greift <b>nur bei Zeilen, die im Aufräum-Assistenten bestätigt wurden</b>. Alles andere bleibt Wort für Wort so stehen, wie es im Standard steht.</p>
+  </div></details>`;
+
+  /* ── Panel: Bezeichnungen & Hersteller ──
+     Fachwissen, das früher nur im Quelltext stand. Wichtigster Punkt: die
+     Herstellerliste — ohne sie bleibt beim Etikett-Scannen das Herstellerfeld
+     leer, und ein neuer Lieferant im Haus ist ein Alltagsereignis. */
+  const bezH=(typeof bezHersteller==='function')?bezHersteller():[];
+  const bezGeae=(z,f)=>(typeof bezGeaendert==='function'&&bezGeaendert(z,f))?'<span class="bez-flag">geändert</span>':'';
+  const grArt=(typeof BEZ_GROESSEN_RUECKFALL!=='undefined')?BEZ_GROESSEN_RUECKFALL:{};
+  const grZeilen=Object.keys(grArt).map(k=>`<div class="bez-row"><span class="bez-k">${esc(k)}</span>
+    <input class="loc-input" value="${esc(sizeLabel(k))}" data-gk="${esc(k)}" onchange="bezSetGroesse(this.dataset.gk,this.value)"></div>`).join('');
+  const tpArt={material:'material',geraete:'geraete',sonstige:'sonstige'};
+  const tpZeilen=Object.keys(tpArt).map(k=>`<div class="bez-row"><span class="bez-k">${esc(k)}</span>
+    <input class="loc-input" value="${esc(typLabel(k))}" data-tk="${esc(k)}" onchange="bezSetTyp(this.dataset.tk,this.value)"></div>`).join('');
+  const pBez=`<details class="vpanel" data-keys="bezeichnungen hersteller lieferant marke größenarten groessenarten rubriktypen symbole ocr etikett">${vsum('🏭','Bezeichnungen & Hersteller','Herstellerliste für den Etikett-Scanner, Größenarten und Rubriknamen — ohne Programmierung',bezH.length+' Hersteller')}<div class="vpanel-body">
+    <p class="hint">Diese Angaben standen früher im Quelltext. Ein leeres Feld stellt die mitgelieferte Vorgabe wieder her.</p>
+    <div class="bez-sec">Hersteller ${bezGeae('hersteller','werte')}</div>
+    <p class="hint">Wird beim Etikett-Scannen erkannt. Einer je Zeile. Steht ein Lieferant nicht darin, bleibt das Herstellerfeld leer — geraten wird nicht.</p>
+    <textarea class="loc-input" id="bezHerst" rows="8" spellcheck="false">${esc(bezH.join('\n'))}</textarea>
+    <div class="p-actions" style="margin-top:8px">
+      <button class="btn btn-pri" onclick="bezSpeichereHersteller()">Herstellerliste speichern</button>
+      <button class="btn btn-sec" onclick="bezSetzen('hersteller','werte',null);renderAdmin();toast('Vorgabe wiederhergestellt')">Vorgabe</button>
+    </div>
+    <div class="bez-sec">Größenarten ${bezGeae('groessenarten','werte')}</div>
+    <p class="hint">Beschriftung der Größen-Badges am Eintrag.</p>
+    ${grZeilen}
+    <div class="bez-sec">Rubriknamen ${bezGeae('rubriktypen','werte')}</div>
+    ${tpZeilen}
   </div></details>`;
 
   /* ── Panel: Kostenübersicht (Plankosten je Standard) ── */
@@ -230,7 +259,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
   html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
-  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte;
+  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
   if(admNewNatOpen){ const inp=$('admNewNatInp'); if(inp){ inp.focus(); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addNat(); } }; } }
@@ -301,6 +330,30 @@ function adminSearch(q){ q=(q||'').trim().toLowerCase(); const toks=q.split(/\s+
   const nh=$('admNoHit'); if(nh) nh.style.display=(toks.length && !panels.some(p=>p.style.display!=='none'))?'':'none';
 }
 function setSetting(k,v){ settings[k]=v; saveJSON('hkl_settings',settings); }
+
+/* ── Bezeichnungen & Hersteller (core/labels.js) ── */
+function bezSpeichereHersteller(){
+  const t=$('bezHerst'); if(!t) return;
+  const liste=t.value.split('\n').map(x=>x.trim()).filter(Boolean);
+  /* Längere Namen zuerst: „Boston Scientific" muss vor „Cook" greifen, sonst
+     gewinnt der kürzere Treffer im selben Etikettentext. */
+  liste.sort((a,b)=>b.length-a.length);
+  bezSetzen('hersteller','werte', liste.length?liste:null);
+  if(typeof toast==='function') toast(liste.length?(liste.length+' Hersteller gespeichert'):'Vorgabe wiederhergestellt');
+  renderAdmin();
+}
+function bezSetGroesse(k,v){
+  const tab=Object.assign({}, (typeof BEZ_GROESSEN_RUECKFALL!=='undefined')?BEZ_GROESSEN_RUECKFALL:{},
+    (typeof bezWert==='function')?(bezWert('groessenarten','werte',null)||{}):{});
+  if((v||'').trim()) tab[k]=v.trim(); else delete tab[k];
+  bezSetzen('groessenarten','werte',tab); renderAdmin();
+}
+function bezSetTyp(k,v){
+  const tab=Object.assign({}, (typeof BEZ_TYPEN_RUECKFALL!=='undefined')?BEZ_TYPEN_RUECKFALL:{},
+    (typeof bezWert==='function')?(bezWert('rubriktypen','werte',null)||{}):{});
+  if((v||'').trim()) tab[k]=v.trim(); else delete tab[k];
+  bezSetzen('rubriktypen','werte',tab); renderAdmin();
+}
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }
 /* UK-Auswahl in „Einstufung prüfen": „＋ Neue Unterkategorie…" öffnet eine

@@ -16,6 +16,7 @@ async function loadMaterialData(){
   try{ const r=await fetch('data/cleanup_suggestions.json',{cache:'no-store'}); if(r.ok && typeof cleanupSetData==='function') cleanupSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/merkmale.json',{cache:'no-store'}); if(r.ok && typeof merkSetData==='function') merkSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/zerlegung.json',{cache:'no-store'}); if(r.ok && typeof zerlSetData==='function') zerlSetData(await r.json()); }catch(e){}
+  try{ const r=await fetch('data/bezeichnungen.json',{cache:'no-store'}); if(r.ok && typeof bezSetData==='function') bezSetData(await r.json()); }catch(e){}
   /* WICHTIG: Diese Kataloge kommen NACH dem ersten Rendern an. Bis dahin hat
      buildMaterialIndex() für jede Stelle „keine Zerlegung" zwischengespeichert
      — und würde das behalten. Also: Speicher verwerfen und den Materialindex

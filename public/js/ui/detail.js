@@ -12,7 +12,23 @@ function entryCardHTML(e,cid,isMatGer){
   const canon=(showThumb&&e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
   const thumbSrc=(canon&&canon.photo)||(care&&care.photo)||'';
   const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
-  const dn=qeGet(e,cid,'name'); let name=(dn!==undefined?dn:e.anzeige_text);
+  /* ZERLEGUNG (features/zerlegung.js): Ist der Text im Aufräum-Assistenten
+     BESTÄTIGT worden, zeigt die Karte den sauberen Produktnamen und hängt
+     Verwendung und Position als eigene Angaben daneben — statt alles in einem
+     Word-Satz zu lassen.
+
+     Drei Sicherungen, weil das die Anzeige im Saal betrifft:
+       ① Nur BESTÄTIGTES. Ein bloßer Vorschlag ändert nichts an der Anzeige —
+          eine automatische Zerlegung kann falsch sein, und im Saal wird nach
+          dem Text gearbeitet.
+       ② Der Originalsatz geht nie verloren: Er steht als Titel an der Zeile
+          und lässt sich im Schnellmenü unter „Warum so?" nachlesen.
+       ③ Abschaltbar (Anzeige-Einstellungen → „Aufgeräumte Anzeige"). */
+  const zerl=(settings.zerlegung!==false && typeof zerlFuer==='function')?zerlFuer(e,cid):null;
+  const zerlAn=!!(zerl && zerl.quelle==='mensch');
+  const zProd=(zerlAn && zerl.art==='produkt' && zerl.produkt)?zerl.produkt.name:null;
+  const dn=qeGet(e,cid,'name');
+  let name=(dn!==undefined?dn:(zProd||e.anzeige_text));
   const mv=qeGet(e,cid,'mengeVal'); let mengeEff=(mv!==undefined?mv:e.menge);
   /* Arztspezifische Variante liegt GANZ OBEN auf der Kaskade: Wer eine Variante
      angewählt hat, sieht deren Werte — der Standard darunter bleibt unberührt. */
@@ -40,9 +56,25 @@ function entryCardHTML(e,cid,isMatGer){
   meta+=specTags(spezEff);
   if(ADMIN&&e.__new) meta+=`<span class="tag" style="color:var(--accent);background:rgba(61,155,224,.13)">neu</span>`;
   const locEff=(canon&&canon.lagerort)||(care&&care.loc)||'';
-  if(settings.lagerort&&showThumb) meta+= locEff?`<span class="tag tag-loc">📍 ${esc(locEff)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
+  const istTaetigkeit=!!(zerlAn && zerl.art==='taetigkeit');
+  /* Ort aus der Zerlegung geht dem Alt-Lagerort vor — er steht am Text, nicht
+     am Stammsatz, und ist damit die genauere Angabe für DIESE Stelle. */
+  const ortEff=(zerlAn && zerl.ort)?zerl.ort:locEff;
+  if(settings.lagerort&&showThumb&&!istTaetigkeit) meta+= ortEff?`<span class="tag tag-loc">📍 ${esc(ortEff)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
   /* Verknüpfter Stammsatz als antippbarer Badge (öffnet die Produktkarte). */
   if(canon){ const cn=canon.name||canon.ref||canon.gtin; meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🔗 ${esc(cn)}</button>`; }
+  /* Verwendung und Position aus der bestätigten Zerlegung — jede Angabe an
+     ihrem eigenen Platz, statt zusammengeschoben im Namen. */
+  if(zerlAn){
+    if(zerl.groesse) meta+=`<span class="size-badge"><span class="st">Größe</span>${esc(zerl.groesse)}</span>`;
+    if(zerl.ziel)      meta+=`<span class="tag tag-ziel">→ ${esc(zerl.ziel)}</span>`;
+    if(zerl.zweck)     meta+=`<span class="tag tag-zweck">für ${esc(zerl.zweck)}</span>`;
+    if(zerl.bedingung) meta+=`<span class="tag tag-bed">⏱ ${esc(zerl.bedingung)}</span>`;
+    if(zerl.praeparat) meta+=`<span class="tag tag-spec">${esc(zerl.praeparat)}</span>`;
+    if(zerl.farbe)     meta+=`<span class="tag tag-spec">${esc(zerl.farbe)}</span>`;
+    (zerl.alternativen||[]).forEach(a=>{ meta+=`<span class="tag tag-alt">oder ${esc(a)}</span>`; });
+    if(zerl.hinweis)   meta+=`<span class="tag tag-warn">⚠ ${esc(zerl.hinweis)}</span>`;
+  }
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   /* Eigenschaften: ist das Material zugeordnet (canon), kommen sie vom Produkt
      (EINE Quelle). Sonst die Eintrags-Merkmale (e.zusatz / Overlay). */
@@ -77,7 +109,15 @@ function entryCardHTML(e,cid,isMatGer){
      Attribut, statt sie aus der DOM-id zurückzurechnen. Zeilen OHNE data-cid
      (z. B. reine Anzeige-Zeilen einer Arzt-Variante) sind damit ausdrücklich
      nicht bedienbar — der Selektor selbst drückt den Vertrag aus. */
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
+  /* Eine bestätigte TÄTIGKEIT ist kein Material: kein Foto, kein Lagerort-Hinweis,
+     dafür ein sichtbares Werkzeug-Zeichen. „Raumkontrolle" hört auf, wie ein
+     Artikel auszusehen, den man aus dem Schrank holt. */
+  const istTun=!!(zerlAn && zerl.art==='taetigkeit');
+  const tunIco=istTun?`<span class="tun-ico" title="Tätigkeit – kein Material">🔧</span>`:'';
+  /* Der Originalsatz bleibt an der Zeile hängen (Titel), auch wenn oben der
+     saubere Produktname steht. Nichts verschwindet. */
+  const rohTitel=(zProd && zProd!==e.anzeige_text)?` title="${esc(e.anzeige_text)}"`:'';
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${tunIco}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }

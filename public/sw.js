@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v49';
+const CACHE_VERSION = 'v50';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -86,6 +86,7 @@ const SHELL = [
   'data/cleanup_suggestions.json',
   'data/merkmale.json',
   'data/zerlegung.json',
+  'data/bezeichnungen.json',
 ];
 
 /* Alle mitgelieferten Datendateien unter /data/*.json (Standards, Referenz-

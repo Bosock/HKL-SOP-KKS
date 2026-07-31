@@ -47,16 +47,11 @@ function extractLabelFields(text){
   const titleCase=(s)=>String(s||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
   /* Bekannte Hersteller (Kardiologie/EP + allgemein). Längster Treffer gewinnt,
      damit „Boston Scientific" vor „Cook" sticht; wort-genau (kein Teilstring). */
-  const BRANDS=['Boston Scientific','St. Jude Medical','St. Jude','St Jude',
-    'Abbott Medical','Abbott','Medtronic','Biotronik','Biosense Webster','Johnson & Johnson',
-    'Baylis Medical','Baylis','Masimo','Osypka','Vanguard','Irvine Biomedical',
-    'Terumo','Cordis','Merit Medical','Merit','Cook Medical','Cook Incorporated','Cook',
-    'B. Braun','B.Braun','Braun','Teleflex','Penumbra','Asahi','Nipro','Edwards',
-    'Biosensors','MicroPort','Japan Lifeline','Lifetech','Cardinal Health','Cardinal',
-    'Argon','Optimed','Balt','Andramed','Angiokard','pfm medical','pfm','Vygon',
-    'Rontis','iVascular','Acandis','Gore','Bard','Bioptimal','Biomerics','Biosense',
-    'Abiomed',
-    'Sterimed','Peter Surgical','Ethicon','Johnson','Natec','MedAlliance'];
+  /* Herstellerliste: seit der Konfigurierbarkeits-Überarbeitung DATEN, nicht
+     Code (core/labels.js → data/bezeichnungen.json, pflegbar in der
+     Verwaltung). Ein neuer Lieferant im Haus ist ein Alltagsereignis und darf
+     kein Entwicklerticket sein. Der Rückfall greift, wenn labels.js fehlt. */
+  const BRANDS=(typeof bezHersteller==='function')?bezHersteller():['Boston Scientific','Abbott','Medtronic','Terumo','Cordis','Biotronik','Edwards','Baylis Medical','Cook Medical','B. Braun'];
   let m;
 
   /* REF: „REF", „REF OEM:", „REF Catalog No.", „Cat.-Nr." … — Rauschwörter

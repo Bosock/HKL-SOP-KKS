@@ -65,12 +65,20 @@ function loadHelpers() {
       geraet: { key: 'geraet', label: 'Gerät', color: '#0c0', icon: '🖥', beschaffbar: false, builtin: true },
     },
   };
-  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, setTimeout, clearTimeout, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true, GTINDB: {}, MATLINK: {}, careMem: {}, PROD: {}, CATALOG: { items: [] } };
+  const ctx = { NATCFG, UK_PALETTE: ['#111', '#222', '#333'], BEZ: {}, BEZDAT: null, Date, JSON, Math, Array, String, Uint8ClampedArray, Float64Array, setTimeout, clearTimeout, location: { protocol: 'https:', hostname: 'example.com' }, MATCAT: {}, CLEANUP: {}, CLEANUP_DONE: {}, FAV: {}, USAGE: {}, GUIDES: [], POPUPS: [], VARIANTS: { aerzte: [], data: {} }, curVariant: '', checks: {}, ADMIN: true, GTINDB: {}, MATLINK: {}, careMem: {}, PROD: {}, CATALOG: { items: [] } };
   vm.createContext(ctx);
   const src = [
     extractConst('esc'),
     extractConst('today'),
     extractConst('cidOf'),
+    extractFn('bezWert'),
+    extractFn('bezSymbol'),
+    extractFn('bezHersteller'),
+    extractConst('BEZ_GROESSEN_RUECKFALL'),
+    extractConst('BEZ_TYPEN_RUECKFALL'),
+    extractConstBlock('BEZ_RUBRIK_RUECKFALL'),
+    extractConstBlock('BEZ_UK_RUECKFALL'),
+    extractConstBlock('BEZ_HERSTELLER_RUECKFALL'),
     extractFn('sizeLabel'),
     extractFn('typLabel'),
     extractFn('rubrikIcon'),
@@ -204,7 +212,7 @@ function loadHelpers() {
     extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText, dupTitel, dupDeep, dupCidShift, dupZaehlung})';
+  const exportExpr = '({esc, today, cidOf, bezWert, bezSymbol, bezHersteller, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText, dupTitel, dupDeep, dupCidShift, dupZaehlung})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
