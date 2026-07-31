@@ -302,6 +302,127 @@ Anpassungen am falschen Eintrag. Nebenbei aufgeräumt: `rubKey`/`rubName`/
 optionalen `std`-Parameter (ohne ihn unverändert). End-to-End:
 `e2e/duplizieren.js`.
 
+## Facettierte Übersicht (`hkl_facetten`)
+
+Die Startseite war eine Liste von 47 Titeln mit Bindestrichen
+(`Transfemoral - Edwards - SAPIEN 3 Ultra`). Die Merkmale stehen darin längst —
+aber als Fließtext, aneinandergehängt. Man kann sie lesen, aber nicht danach
+greifen.
+
+`features/facetten.js` zerlegt den Titel und macht die Teile auswählbar. **Im
+Quelltext steht dabei kein Fachwort**; die Bedeutung kommt aus Daten, die die
+Verwaltung selbst pflegt:
+
+| Merkmal | Quelle |
+|---|---|
+| Bereich | die vorhandene Gruppe des Standards |
+| Hersteller | ein Titelteil, der in der **konfigurierbaren** Herstellerliste steht (`bezeichnungen.json`) — steht ein Lieferant nicht darin, ist sein Name ein Merkmal wie jedes andere; geraten wird nichts |
+| Art | der erste verbleibende Titelteil |
+| Ausprägung | die weiteren Titelteile |
+| Freigabe | `frgStatus` (siehe oben) |
+
+Auch die **Namen** der Merkmale sind nur Vorgaben (`bezWert('facetten', …)`) und
+über die Bezeichnungen änderbar — „Art" heißt im TAVI-Bereich vielleicht besser
+„Zugang".
+
+Getrennt wird nur an einem Strich mit **Leerraum an mindestens einer Seite**.
+Das trifft `Transfemoral - Edwards` und auch `LAA- Abbott`, aber nie `Re-PVI`,
+`S-ICD`, `CRT-D`, `Mitra-Clip` oder `Event-Recorder`.
+
+`facBauen` ist echte Facettensuche: Die Zähler einer Merkmalsart rechnen ohne
+die eigene Auswahl (sonst käme man nie zu einem anderen Bereich zurück), und
+eine Auswahl, die auf null führt, wird gar nicht erst angeboten. Gemessen:
+`{}` → 47, `TAVI` → 5, `+Transfemoral` → 3, `+Edwards` → 1.
+
+Die Auswahl ist eine **Ansicht**, kein Inhalt — sie bleibt gerätelokal
+(`hkl_facetten`, nicht in `SHARED_KEYS`). Damit später niemand einen Standard
+„vermisst", steht über der Liste immer sichtbar, wie viele von wie vielen übrig
+sind, mit einem Knopf zum Zurücksetzen; ein leeres Ergebnis bietet denselben
+Knopf an. Tests: `test/facetten.test.js` (23), End-to-End: `e2e/facetten.js`.
+
+## Freigabe mit Siegel (`STDE[sid].siegel`)
+
+Ein Standard konnte schon vorher „Version 1.2 · Freigegeben · durch X am Y"
+tragen. Das ist genau so lange richtig, wie danach niemand etwas ändert — und
+geändert wird ununterbrochen: eine Menge im Schnellmenü, eine Regel mit
+Reichweite „🌐 alle", ein Baustein, der acht Standards auf einmal anfasst.
+Damit stand im Kopf des Standards ein Vermerk, der etwas bestätigt, das es so
+nicht mehr gibt.
+
+`features/freigabe.js` zieht bei der Freigabe ein **Siegel**: je Zeile ein
+Fingerabdruck der **wirksamen** Werte (Name, Menge, Größen, Spezifikation,
+Kategorie, Unterkategorie — also nach `qeGet`/`effNatur`/`canonUk`), dazu die
+Rubriknamen und ihre Reihenfolge. Gespeichert wird `<8-Hex> <Kurztext>` je
+Zeile; der Kurztext ist nötig, um auch **entfernte** Zeilen benennen zu können.
+Gemessen am heutigen Bestand: 4.769 Zeilen, **207 KB** für alle 47 Siegel
+zusammen, größtes Einzelsiegel 6 KB, Aufbau 14 ms (Grenze `MAX_BODY`: 32 MiB).
+
+`frgStatus` liefert einen von fünf Zuständen:
+
+| Zustand | Bedeutung |
+|---|---|
+| `ohne` | kein Vermerk gepflegt — die App behauptet nichts |
+| `entwurf` | Vermerk vorhanden, nicht freigegeben |
+| `gueltig` | freigegeben und inhaltlich unverändert |
+| `ueberholt` | freigegeben, seither geändert (auch: „Freigegeben" **ohne** Siegel — der Altbestand) |
+| `abgelaufen` | `validTo` verstrichen |
+
+`frgAbgleich` vergleicht als Multimenge und liefert `neu` (mit cid → anspringbar),
+`weg` (mit Kurztext) und `reihenfolge`. Der Zustand steht **ohne
+Verwaltungsrechte** im Kopf des Standards und als Zeichen in der Übersicht —
+ein Vermerk, den nur die Leitung sieht, schützt niemanden.
+
+Das Siegel ist **keine Unterschrift im Rechtssinn und kein Zugriffsschutz**: Es
+ist im Browser gerechnet und liegt im geteilten Zustand (`hkl_stdedits`, also
+schon in `SHARED_KEYS`/`BACKUP_KEYS`). Es beantwortet eine einzige Frage, die
+vorher niemand beantworten konnte: *Ist das noch der Stand, der freigegeben
+wurde?* Die technische Absicherung des Zugangs (Stufe 0) bleibt davon unberührt.
+
+Tests: `test/freigabe.test.js` (23), End-to-End: `e2e/freigabe.js`.
+
+## Bausteine — wiederkehrende Handlungsfolgen (`hkl_bausteine`)
+
+Die 47 Standards sind aus voneinander abgeschriebenen Word-Dateien entstanden.
+Die naheliegende Gegenmaßnahme wäre „Rubrik-Vorlagen" — die Messung widerlegt
+das: Auf Rubrik-Ebene liegt die Überschneidung bei 12–24 %, oft bei 0–2
+gemeinsamen Zeilen. Die Wiederholung sitzt eine Ebene tiefer, in
+**zusammenhängenden Folgen von Zeilen**: 1.345 von 2.375 Materialzeilen stecken
+in einer Folge, die in mindestens drei Standards gleich vorkommt; der
+Suchlauf (`bauKandidaten`) liefert am heutigen Bestand **43 überschneidungsfreie
+Folgen** mit zusammen **823 doppelt gepflegten Zeilen**.
+
+Ein Baustein (`features/bausteine.js`) hat deshalb zwei getrennte Teile:
+
+| Feld | Bedeutung |
+|---|---|
+| `schluessel` | Vergleichsform der Original-Zeilen, **eingefroren** → daran werden die Fundstellen wiedergefunden |
+| `zeilen` | der gewollte Inhalt (Text, Menge, `weg`) → das, was gepflegt wird |
+
+Weil der Schlüssel eingefroren ist, verliert ein Baustein seine Fundstellen
+nicht, wenn man eine Zeile umbenennt.
+
+**Die Wirkung läuft über `QE.cid`** — dieselbe Ablage wie das Schnellmenü; es
+gibt keine vierte Auflösungsebene und keine Änderung an den Basisdaten.
+`bauAnwenden` gleicht jede Fundstelle an den Baustein an und merkt sich zu jedem
+Feld, was **vor dem ersten Zugriff des Bausteins** dastand
+(`gesetzt[cid][feld].alt`). `bauLoesen` stellt genau das wieder her — auch
+fremde Eintragungen, die durchgesetzt worden sind. Wer NACH dem Baustein von
+Hand ändert, überschreibt dessen Wert, nicht den Originalzustand; „Lösen" führt
+dann auf den Original zurück (dieser Speicher führt keine Historie).
+
+`bauAbweichungen` listet die Stellen, an denen der Bestand vom Baustein
+abweicht — nicht jede ist ein Fehler, aber jede muss auffallen. Das Schnellmenü
+warnt vor einer Änderung, wenn die Zeile zu einem Baustein gehört.
+`bauEinfuegen` legt die Zeilen als Ergänzungen (`hkl_additions`) in einem
+Standard an — der schnelle Weg, einen neuen Standard aufzubauen, statt ihn
+abzuschreiben.
+
+Der Suchlauf ist teuer (n-Gramme über den ganzen Bestand, ~300 ms) und läuft
+deshalb **nicht beim Start**, sondern erst beim Öffnen der Ansicht; das Ergebnis
+liegt bis zur nächsten Datenänderung im Zwischenspeicher (`bauCacheLeeren`,
+u. a. aus `rebuildDB`). Tests: `test/bausteine.test.js` (33), End-to-End:
+`e2e/bausteine.js`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

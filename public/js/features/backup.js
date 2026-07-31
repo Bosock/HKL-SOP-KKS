@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -116,6 +116,10 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     <div class="bez-sec">Größenarten ${bezGeae('groessenarten','werte')}</div>
     <p class="hint">Beschriftung der Größen-Badges am Eintrag.</p>
     ${grZeilen}
+    <div class="bez-sec">Merkmale der Übersicht ${(typeof FAC_ARTEN!=='undefined'&&FAC_ARTEN.some(a=>bezGeaendert('facetten',a.key)))?'<span class="bez-flag">geändert</span>':''}</div>
+    <p class="hint">Beschriftung der Filterleiste auf der Startseite. „Art" heißt bei TAVI vielleicht besser „Zugang". Leeres Feld = mitgelieferte Vorgabe.</p>
+    ${(typeof FAC_ARTEN!=='undefined'?FAC_ARTEN:[]).map(a=>`<div class="bez-row"><span class="bez-k">${esc(a.vorgabe)}</span>
+      <input class="loc-input" value="${esc(facLabel(a.key))}" data-fk="${esc(a.key)}" onchange="bezSetFacette(this.dataset.fk,this.value)"></div>`).join('')}
     <div class="bez-sec">Rubriknamen ${bezGeae('rubriktypen','werte')}</div>
     ${tpZeilen}
   </div></details>`;
@@ -258,7 +262,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
   html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;
@@ -353,6 +357,13 @@ function bezSetTyp(k,v){
     (typeof bezWert==='function')?(bezWert('rubriktypen','werte',null)||{}):{});
   if((v||'').trim()) tab[k]=v.trim(); else delete tab[k];
   bezSetzen('rubriktypen','werte',tab); renderAdmin();
+}
+/* Merkmalsnamen der Übersicht (features/facetten.js). Der Zweig ist
+   „facetten", das Feld der Merkmalsschlüssel — leeres Feld = Vorgabe. */
+function bezSetFacette(k,v){
+  bezSetzen('facetten', k, (v||'').trim() || null);
+  if(typeof renderStandards==='function') try{ renderStandards(); }catch(e){}
+  renderAdmin();
 }
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }

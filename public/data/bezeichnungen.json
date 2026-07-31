@@ -2,25 +2,72 @@
   "version": 1,
   "_zweck": "Fachwissen, das bisher im Quelltext stand. Grundsatz ⑤ der App: Was sich im Haus ändert, muss sich OHNE Programmierung ändern lassen. Ein neuer Lieferant ist ein Alltagsereignis, kein Sonderfall — er darf keinen Entwickler brauchen.",
   "_pflege": "Verwaltung → „Bezeichnungen & Hersteller\". Änderungen dort liegen in hkl_bezeichnungen und überlagern diese Datei. Der Code enthält nur noch Rückfallwerte, damit die App auch ohne die Datei startet.",
-
   "hersteller": {
     "_zweck": "Erkennt den Hersteller auf einem Etikett (features/ocr.js). Der längste Treffer gewinnt, damit „Boston Scientific\" vor „Cook\" sticht. Steht ein Lieferant nicht in der Liste, bleibt das Feld leer — geraten wird nicht.",
     "_hinweis": "Ein neuer Lieferant im Haus: hier eintragen, fertig. Vorher war dafür eine Code-Änderung nötig.",
     "werte": [
-      "Boston Scientific", "St. Jude Medical", "St. Jude", "St Jude",
-      "Abbott Medical", "Abbott", "Medtronic", "Biotronik", "Biosense Webster",
-      "Johnson & Johnson", "Baylis Medical", "Baylis", "Masimo", "Osypka",
-      "Vanguard", "Irvine Biomedical", "Terumo", "Cordis", "Merit Medical",
-      "Merit", "Cook Medical", "Cook Incorporated", "Cook", "B. Braun",
-      "B.Braun", "Braun", "Teleflex", "Penumbra", "Asahi", "Nipro", "Edwards",
-      "Biosensors", "MicroPort", "Japan Lifeline", "Lifetech", "Cardinal Health",
-      "Cardinal", "Argon", "Optimed", "Balt", "Andramed", "Angiokard",
-      "pfm medical", "pfm", "Vygon", "Rontis", "iVascular", "Acandis", "Gore",
-      "Bard", "Bioptimal", "Biomerics", "Biosense", "Abiomed", "Sterimed",
-      "Peter Surgical", "Ethicon", "Johnson", "Natec", "MedAlliance"
+      "Boston Scientific",
+      "St. Jude Medical",
+      "St. Jude",
+      "St Jude",
+      "Abbott Medical",
+      "Abbott",
+      "Medtronic",
+      "Biotronik",
+      "Biosense Webster",
+      "Johnson & Johnson",
+      "Baylis Medical",
+      "Baylis",
+      "Masimo",
+      "Osypka",
+      "Vanguard",
+      "Irvine Biomedical",
+      "Terumo",
+      "Cordis",
+      "Merit Medical",
+      "Merit",
+      "Cook Medical",
+      "Cook Incorporated",
+      "Cook",
+      "B. Braun",
+      "B.Braun",
+      "Braun",
+      "Teleflex",
+      "Penumbra",
+      "Asahi",
+      "Nipro",
+      "Edwards",
+      "Biosensors",
+      "MicroPort",
+      "Japan Lifeline",
+      "Lifetech",
+      "Cardinal Health",
+      "Cardinal",
+      "Argon",
+      "Optimed",
+      "Balt",
+      "Andramed",
+      "Angiokard",
+      "pfm medical",
+      "pfm",
+      "Vygon",
+      "Rontis",
+      "iVascular",
+      "Acandis",
+      "Gore",
+      "Bard",
+      "Bioptimal",
+      "Biomerics",
+      "Biosense",
+      "Abiomed",
+      "Sterimed",
+      "Peter Surgical",
+      "Ethicon",
+      "Johnson",
+      "Natec",
+      "MedAlliance"
     ]
   },
-
   "groessenarten": {
     "_zweck": "Wie eine Größenart am Eintrag beschriftet wird (Badge links vom Wert).",
     "werte": {
@@ -35,45 +82,120 @@
       "durchmesser+french": "Ø·Fr"
     }
   },
-
   "rubriktypen": {
     "_zweck": "Klartext für die drei Rubrikarten der Quelldaten.",
-    "werte": { "material": "Material", "geraete": "Geräte", "sonstige": "Ablauf" }
+    "werte": {
+      "material": "Material",
+      "geraete": "Geräte",
+      "sonstige": "Ablauf"
+    }
   },
-
   "rubriksymbole": {
     "_zweck": "Symbol einer Rubrik, wenn keins von Hand vergeben wurde. Der erste passende Eintrag gewinnt — Reihenfolge zählt.",
     "regeln": [
-      { "enthaelt": "saal", "symbol": "🖥" },
-      { "enthaelt": "gerät", "symbol": "🖥" },
-      { "enthaelt": "gerae", "symbol": "🖥" },
-      { "enthaelt": "notfall", "symbol": "🧰" },
-      { "enthaelt": "material", "symbol": "📦" },
-      { "enthaelt": "patient", "symbol": "🫀" },
-      { "enthaelt": "tisch", "symbol": "🩺" },
-      { "enthaelt": "ablauf", "symbol": "📋" },
-      { "enthaelt": "prozedur", "symbol": "📋" },
-      { "enthaelt": "bettenwarte", "symbol": "🛏" },
-      { "enthaelt": "abschließend", "symbol": "✔" },
-      { "enthaelt": "abschliess", "symbol": "✔" }
+      {
+        "enthaelt": "saal",
+        "symbol": "🖥"
+      },
+      {
+        "enthaelt": "gerät",
+        "symbol": "🖥"
+      },
+      {
+        "enthaelt": "gerae",
+        "symbol": "🖥"
+      },
+      {
+        "enthaelt": "notfall",
+        "symbol": "🧰"
+      },
+      {
+        "enthaelt": "material",
+        "symbol": "📦"
+      },
+      {
+        "enthaelt": "patient",
+        "symbol": "🫀"
+      },
+      {
+        "enthaelt": "tisch",
+        "symbol": "🩺"
+      },
+      {
+        "enthaelt": "ablauf",
+        "symbol": "📋"
+      },
+      {
+        "enthaelt": "prozedur",
+        "symbol": "📋"
+      },
+      {
+        "enthaelt": "bettenwarte",
+        "symbol": "🛏"
+      },
+      {
+        "enthaelt": "abschließend",
+        "symbol": "✔"
+      },
+      {
+        "enthaelt": "abschliess",
+        "symbol": "✔"
+      }
     ],
-    "je_typ": { "material": "📦", "geraete": "🖥" },
+    "je_typ": {
+      "material": "📦",
+      "geraete": "🖥"
+    },
     "vorgabe": "📄"
   },
-
   "unterkategoriesymbole": {
     "_zweck": "Symbol eines Material-Abschnitts („Reiter\") anhand seines Namens. Bisher fest im Quelltext und ohne jede Übersteuerung.",
     "regeln": [
-      { "enthaelt": "lager", "symbol": "📦" },
-      { "enthaelt": "vorbereitungsraum", "symbol": "🧰" },
-      { "enthaelt": "raum", "symbol": "🚪" },
-      { "enthaelt": "ansage", "symbol": "📢" },
-      { "enthaelt": "weitere", "symbol": "➕" },
-      { "enthaelt": "notfall", "symbol": "🚨" },
-      { "enthaelt": "bettenwarte", "symbol": "🛏" },
-      { "enthaelt": "zugang", "symbol": "🩸" },
-      { "enthaelt": "aggregat", "symbol": "🔋" }
+      {
+        "enthaelt": "lager",
+        "symbol": "📦"
+      },
+      {
+        "enthaelt": "vorbereitungsraum",
+        "symbol": "🧰"
+      },
+      {
+        "enthaelt": "raum",
+        "symbol": "🚪"
+      },
+      {
+        "enthaelt": "ansage",
+        "symbol": "📢"
+      },
+      {
+        "enthaelt": "weitere",
+        "symbol": "➕"
+      },
+      {
+        "enthaelt": "notfall",
+        "symbol": "🚨"
+      },
+      {
+        "enthaelt": "bettenwarte",
+        "symbol": "🛏"
+      },
+      {
+        "enthaelt": "zugang",
+        "symbol": "🩸"
+      },
+      {
+        "enthaelt": "aggregat",
+        "symbol": "🔋"
+      }
     ],
     "vorgabe": "🗂"
+  },
+  "facetten": {
+    "_zweck": "Beschriftung der Merkmalsleiste auf der Startseite (features/facetten.js). Ein leeres Feld im Verwaltungsmodus stellt diese Vorgabe wieder her.",
+    "gruppe": "Bereich",
+    "art": "Art",
+    "hersteller": "Hersteller",
+    "auspraegung": "Ausprägung",
+    "zustand": "Freigabe"
   }
 }
