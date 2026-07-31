@@ -419,8 +419,68 @@ function scanRowHTML(r){
   const thumb=r.photo?`<div class="mat-thumb"><img src="${esc(r.photo)}" alt=""></div>`:`<div class="mat-thumb">🏷️</div>`;
   return `<div class="mat-row" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,false)">${thumb}<div class="mat-main"><div class="mat-name">${esc(r.name||r.ref||r.gtin||'Produkt')}</div><div class="mat-sub"><span class="gtin-mono">${esc(sub)}</span></div>${badges?`<div class="e-meta" style="margin-top:6px">${badges}</div>`:''}</div></div>`;
 }
+/* Wohin führt das ‹ aus dem Produktblatt/Editor zurück?
+
+   Das Produktblatt ist von SECHS Stellen aus erreichbar: Materialzentrale,
+   Scan-Hub, Katalog, Verwaltung, dem 🔗-Badge an einem Eintrag und dem
+   Schnellmenü im Standard. „Zurück" heißt je nachdem etwas anderes — deshalb
+   wird die Herkunft beim ÖFFNEN festgehalten, statt sie hinterher zu raten.
+
+   Vorher lief die Rückkehr in eine Sackgasse: goBack() prüfte auf einen
+   Bildschirm (`scr-care-item`), der nie aktiv wird, und kehrte wirkungslos
+   zurück. Der ‹-Knopf war sichtbar und tat nichts. */
+let scanHerkunft = null;
+
+function scanMerkeHerkunft(){
+  const akt = document.querySelector('.screen.active');
+  const id = akt ? akt.id : '';
+  /* Wechsel zwischen Ansicht und Bearbeiten: die ursprüngliche Herkunft gilt weiter. */
+  if(id==='scr-scan-item') return;
+  if(id==='scr-scan') scanHerkunft='hub';
+  else if(id==='scr-care') scanHerkunft='zentrale';
+  else if(id==='scr-catalog') scanHerkunft='katalog';
+  else if(id==='scr-detail'||id==='scr-rubriken') scanHerkunft='standard';
+  else if(id==='scr-admin') scanHerkunft='verwaltung';
+  else scanHerkunft = (typeof mode!=='undefined' && mode==='care') ? 'zentrale' : 'uebersicht';
+}
+
+/* Führt die Rückkehr aus. Gibt true zurück, wenn sie behandelt wurde. */
+function scanZurueck(){
+  switch(scanHerkunft){
+    case 'hub':
+      if(typeof openScanHub==='function'){ openScanHub(); return true; }
+      break;
+    case 'katalog':
+      if(typeof setMode==='function'){ setMode('catalog'); return true; }
+      break;
+    case 'verwaltung':
+      if(typeof setMode==='function'){ setMode('admin'); return true; }
+      break;
+    case 'standard': {
+      /* Zurück in den Standard, aus dem heraus geöffnet wurde. */
+      const top=(typeof nav!=='undefined' && nav.length)?nav[nav.length-1]:null;
+      if(top && top.lvl==='rub' && typeof openRubrik==='function'){ openRubrik(top.idx,true); return true; }
+      if(top && top.lvl==='std' && typeof openStandard==='function' && typeof curStd!=='undefined' && curStd){
+        openStandard(curStd.id,true); return true; }
+      if(typeof setMode==='function'){ setMode('use'); return true; }
+      break;
+    }
+    case 'uebersicht':
+      if(typeof setMode==='function'){ setMode('use'); return true; }
+      break;
+  }
+  /* Vorgabe: die Materialzentrale — von dort kommt der Weg am häufigsten. */
+  if(typeof renderMatCenter==='function'){
+    mode='care'; renderMatCenter(); show('scr-care');
+    if(typeof updateBar==='function') updateBar();
+    return true;
+  }
+  return false;
+}
+
 function openScanItem(gArg, edit){
   if(edit && !ADMIN){ promptLoginThen(()=>openScanItem(gArg,true)); return; }
+  scanMerkeHerkunft();
   scanPendingLinkKey=null;   /* direkter Aufruf ist keine „lege-neu-und-verknüpfe"-Aktion */
   const key=gArg?gtinKey(gArg):'';
   const r = key ? (GTINDB[key]||{gtin:key}) : {gtin:''};

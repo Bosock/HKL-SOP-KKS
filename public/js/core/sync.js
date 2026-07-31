@@ -92,7 +92,7 @@ function refreshView(){
     buildMaterialIndex();
     if(mode==='admin'){ renderAdmin(); updateBar(); return; }
     if(mode==='catalog'){ if(!formCtx){ renderCatalog(); updateBar(); } return; }
-    if(mode==='care'){ if(!$('scr-care-item').classList.contains('active')){ renderCare(); updateBar(); } return; }
+    if(mode==='care'){ renderCare(); updateBar(); return; }
     if($('scr-detail').classList.contains('active')){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ const i=top.idx; nav.pop(); openRubrik(i); } }
     else if($('scr-rubriken').classList.contains('active')&&curStd){ openStandard(curStd.id,true); }
     else { renderStandards($('searchInput')?$('searchInput').value:''); }

@@ -25,7 +25,10 @@ function qeGet(e,cid,prop){
 function qeSet(scope,e,cid,prop,val){ if(scope==='mat'&&e.material_key){ (QE.mat[e.material_key]=QE.mat[e.material_key]||{})[prop]=val; } else { (QE.cid[cid]=QE.cid[cid]||{})[prop]=val; } saveQE(); }
 /* Rollentrennung per Anmeldung (Hamburger-Menü). Sitzung überlebt bis 1 h Inaktivität. */
 let ADMIN=authValid();
-function applyAdminUI(){ const mr=$('modesRow'); if(mr) mr.style.display='none'; if(!ADMIN&&mode!=='use') setMode('use'); const mb=$('menuBtn'); if(mb) mb.textContent='☰'; }
+/* Die Moduswahl läuft ausschließlich über das ☰-Menü. Die frühere Reiterleiste
+   im Kopf war seit der Menü-Konsolidierung dauerhaft ausgeblendet, aber an vier
+   Stellen weiterverdrahtet — sie ist jetzt samt Verdrahtung entfernt. */
+function applyAdminUI(){ if(!ADMIN&&mode!=='use') setMode('use'); const mb=$('menuBtn'); if(mb) mb.textContent='☰'; }
 function checkAdminHash(){ if((location.hash||'')!=='#admin') return; try{ location.hash=''; }catch(e){} if(!ADMIN) promptLogin(); }
 function doLogin(pw){ if(checkPw(pw)){ ADMIN=true; store.set('hkl_authuntil', String(Date.now()+AUTH_TTL)); applyAdminUI(); return true; } return false; }
 function promptLogin(){ const pw=prompt('Passwort für den Verwaltungsmodus:'); if(pw==null) return; if(doLogin(pw)){ showSheet(false); toast('Angemeldet – Verwaltungsmodus aktiv'); setMode('admin'); } else { toast('Falsches Passwort',true); } }

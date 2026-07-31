@@ -12,7 +12,10 @@ const files = fs.readdirSync(__dirname)
 let failed = [];
 for (const f of files) {
   console.log('\n━━ e2e/' + f + ' ━━');
-  const res = spawnSync(process.execPath, [path.join(__dirname, f)], { stdio: 'inherit', timeout: 120000 });
+  /* Zeitlimit je Suite. durchklick.js löst rund 170 Bedienelemente einzeln aus
+     und wartet dabei jeweils die 300-ms-Entprellung ab — das dauert ~90 s.
+     240 s lassen auch unter Last Luft, ohne einen echten Hänger zu verdecken. */
+  const res = spawnSync(process.execPath, [path.join(__dirname, f)], { stdio: 'inherit', timeout: 240000 });
   if (res.status !== 0) failed.push(f);
 }
 console.log('\n══════════════════════════════');
