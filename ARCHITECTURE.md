@@ -302,6 +302,46 @@ Anpassungen am falschen Eintrag. Nebenbei aufgeräumt: `rubKey`/`rubName`/
 optionalen `std`-Parameter (ohne ihn unverändert). End-to-End:
 `e2e/duplizieren.js`.
 
+## Freigabe mit Siegel (`STDE[sid].siegel`)
+
+Ein Standard konnte schon vorher „Version 1.2 · Freigegeben · durch X am Y"
+tragen. Das ist genau so lange richtig, wie danach niemand etwas ändert — und
+geändert wird ununterbrochen: eine Menge im Schnellmenü, eine Regel mit
+Reichweite „🌐 alle", ein Baustein, der acht Standards auf einmal anfasst.
+Damit stand im Kopf des Standards ein Vermerk, der etwas bestätigt, das es so
+nicht mehr gibt.
+
+`features/freigabe.js` zieht bei der Freigabe ein **Siegel**: je Zeile ein
+Fingerabdruck der **wirksamen** Werte (Name, Menge, Größen, Spezifikation,
+Kategorie, Unterkategorie — also nach `qeGet`/`effNatur`/`canonUk`), dazu die
+Rubriknamen und ihre Reihenfolge. Gespeichert wird `<8-Hex> <Kurztext>` je
+Zeile; der Kurztext ist nötig, um auch **entfernte** Zeilen benennen zu können.
+Gemessen am heutigen Bestand: 4.769 Zeilen, **207 KB** für alle 47 Siegel
+zusammen, größtes Einzelsiegel 6 KB, Aufbau 14 ms (Grenze `MAX_BODY`: 32 MiB).
+
+`frgStatus` liefert einen von fünf Zuständen:
+
+| Zustand | Bedeutung |
+|---|---|
+| `ohne` | kein Vermerk gepflegt — die App behauptet nichts |
+| `entwurf` | Vermerk vorhanden, nicht freigegeben |
+| `gueltig` | freigegeben und inhaltlich unverändert |
+| `ueberholt` | freigegeben, seither geändert (auch: „Freigegeben" **ohne** Siegel — der Altbestand) |
+| `abgelaufen` | `validTo` verstrichen |
+
+`frgAbgleich` vergleicht als Multimenge und liefert `neu` (mit cid → anspringbar),
+`weg` (mit Kurztext) und `reihenfolge`. Der Zustand steht **ohne
+Verwaltungsrechte** im Kopf des Standards und als Zeichen in der Übersicht —
+ein Vermerk, den nur die Leitung sieht, schützt niemanden.
+
+Das Siegel ist **keine Unterschrift im Rechtssinn und kein Zugriffsschutz**: Es
+ist im Browser gerechnet und liegt im geteilten Zustand (`hkl_stdedits`, also
+schon in `SHARED_KEYS`/`BACKUP_KEYS`). Es beantwortet eine einzige Frage, die
+vorher niemand beantworten konnte: *Ist das noch der Stand, der freigegeben
+wurde?* Die technische Absicherung des Zugangs (Stufe 0) bleibt davon unberührt.
+
+Tests: `test/freigabe.test.js` (23), End-to-End: `e2e/freigabe.js`.
+
 ## Bausteine — wiederkehrende Handlungsfolgen (`hkl_bausteine`)
 
 Die 47 Standards sind aus voneinander abgeschriebenen Word-Dateien entstanden.

@@ -258,7 +258,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
   html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez;
   html+=sec('Daten & Sicherung')+pBackup+pKosten;
   box.innerHTML=html;

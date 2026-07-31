@@ -50,6 +50,7 @@ function hydrateVars(){
   if(typeof GERAETE!=='undefined'){ GERAETE=loadJSON('hkl_geraete',{}); if(!GERAETE||typeof GERAETE!=='object') GERAETE={}; }
   if(typeof BAUSTEINE!=='undefined'){ BAUSTEINE=loadJSON('hkl_bausteine',[]); if(!Array.isArray(BAUSTEINE)) BAUSTEINE=[];
     if(typeof bauCacheLeeren==='function') bauCacheLeeren(); }
+  if(typeof frgCacheLeeren==='function') frgCacheLeeren();
   if(typeof BEZ!=='undefined'){ BEZ=loadJSON('hkl_bezeichnungen',{}); if(!BEZ||typeof BEZ!=='object') BEZ={}; }
   if(typeof GUIDES!=='undefined'){ GUIDES=loadJSON('hkl_guides',[]); if(!Array.isArray(GUIDES)) GUIDES=[]; }
   if(typeof POPUPS!=='undefined'){ POPUPS=loadJSON('hkl_popups',[]); if(!Array.isArray(POPUPS)) POPUPS=[]; }

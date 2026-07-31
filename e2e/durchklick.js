@@ -95,6 +95,7 @@ const NICHT_AUSLOESEN = [
     { name: 'Scan-Hub',             oeffnen: `openScanHub()` },
     { name: 'Rüstliste',            oeffnen: `setMode('use'); openRuestliste(DB.standards[0].id)` },
     { name: 'Bausteine',            oeffnen: `openBausteinAdmin()` },
+    { name: 'Freigabe',             oeffnen: `openFreigabe(DB.standards[0].id)` },
   ];
 
   /* Login einmal — fast alles ist nur im Verwaltungsmodus sichtbar. */
@@ -117,6 +118,9 @@ const NICHT_AUSLOESEN = [
     try { GERAETE['durchklick'] = { key: 'durchklick', name: 'Testgerät', saal: 'Saal 1' }; saveGeraete(); } catch (e) {}
     try { hintAdd && hintAdd('overview', '', 'Durchklick-Hinweis'); } catch (e) {}
     try { const k = bauVorschlaege()[0]; if (k) bauAnlegen('Durchklick-Baustein', k.zeilen, k.schluessel); } catch (e) {}
+    try { frgFreigeben(DB.standards[0].id, 'Durchklick', '1.0');
+      (QE.cid[cidOf(DB.standards[0].id, 0, 0, 0)] = {}).name = 'Durchklick-Änderung';
+      saveQE(); frgCacheLeeren(); } catch (e) {}
     try { buildMaterialIndex(); } catch (e) {}
   });
 
@@ -377,6 +381,7 @@ const NICHT_AUSLOESEN = [
       probe('Globale Suche', () => { openGlobalSearch(); }),
       probe('Rüstliste', () => { setMode('use'); openRuestliste(DB.standards[0].id); }),
       probe('Bausteine', () => { openBausteinAdmin(); }),
+      probe('Freigabe', () => { openFreigabe(DB.standards[0].id); }),
     ];
   });
   const sackgassen = zurueck.filter(z => !z.fehler && !z.weiter);
@@ -392,7 +397,7 @@ const NICHT_AUSLOESEN = [
   const paare = { 'Produktblatt aus der Zentrale': 'scr-care', 'Editor aus der Zentrale': 'scr-care',
     'Produktblatt aus dem Scan-Hub': 'scr-scan', 'Produktblatt aus dem Katalog': 'scr-catalog',
     'Produktblatt aus der Verwaltung': 'scr-admin', 'Produktblatt aus einem Standard': 'scr-detail',
-    'Rüstliste': 'scr-rubriken', 'Bausteine': 'scr-admin' };
+    'Rüstliste': 'scr-rubriken', 'Bausteine': 'scr-admin', 'Freigabe': 'scr-rubriken' };
   const falsch = zurueck.filter(z => paare[z.name] && z.nach !== paare[z.name]);
   r.check('… und zwar dorthin, wo geöffnet wurde', falsch.length === 0);
   if (falsch.length) falsch.forEach(z => console.log(`   ✗ ${z.name}: erwartet ${paare[z.name]}, war ${z.nach}`));

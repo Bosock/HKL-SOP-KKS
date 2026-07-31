@@ -34,9 +34,12 @@ function renderStandards(query){ const box=$('scr-standards'); const q=(query||'
   const row=(x)=>{
     const fav=(typeof favBtnHTML==='function')?favBtnHTML(x.id):'';
     const kost=(sortKey==='kosten'&&x.kosten)?`<span class="std-kost">${esc(fmtEUR(x.kosten))}</span>`:'';
+    /* Freigabe-Zeichen nur, wenn es etwas zu sagen gibt (überholt, abgelaufen,
+       Entwurf) — ein Haken an jedem gültigen Standard wäre nur Rauschen. */
+    const frg=(typeof frgBadgeHTML==='function')?frgBadgeHTML(x.std):'';
     /* Tippen = öffnen, langes Tippen = Bearbeiten-Menü (Admin) — beides über den
        Halte-Detektor (attachHoldNav), daher data-sid statt Inline-onclick. */
-    return `<div class="std" style="${x.hidden?'opacity:.55;':''}" data-sid="${esc(x.id)}"><span class="std-badge">${esc(x.gruppe)}</span><div class="std-main"><div class="std-title">${esc(x.titel)}${x.hidden?' <span style="font-size:11px;color:var(--warn)">ausgeblendet</span>':''}${x.std.__new&&ADMIN?' <span style="font-size:11px;color:var(--accent)">neu</span>':''}</div><div class="std-file">${esc(x.std.dateiname)}</div></div>${kost}${fav}<span class="chev">›</span></div>`;
+    return `<div class="std" style="${x.hidden?'opacity:.55;':''}" data-sid="${esc(x.id)}"><span class="std-badge">${esc(x.gruppe)}</span><div class="std-main"><div class="std-title">${esc(x.titel)}${x.hidden?' <span style="font-size:11px;color:var(--warn)">ausgeblendet</span>':''}${x.std.__new&&ADMIN?' <span style="font-size:11px;color:var(--accent)">neu</span>':''}</div><div class="std-file">${esc(x.std.dateiname)}${frg}</div></div>${kost}${fav}<span class="chev">›</span></div>`;
   };
   if(sortKey==='gruppe'){
     const groups={}; list.forEach(x=>{ (groups[x.gruppe]=groups[x.gruppe]||[]).push(x); });

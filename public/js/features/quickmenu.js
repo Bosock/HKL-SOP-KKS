@@ -81,7 +81,7 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
   h+=sGroup('Inhalt','Titel, Gruppe & Freigabe');
   h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
-  h+=sAct('🏷️','Version & Freigabe','Status und Gültigkeit','showSheet(false);openStdMetaForm()');
+  h+=sAct('🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
   h+=sGroup('Neuen Standard daraus machen','Kopieren statt abtippen');
   h+=sAct('⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
   if(typeof ownHatStruktur==='function' && ownHatStruktur(s.id)){

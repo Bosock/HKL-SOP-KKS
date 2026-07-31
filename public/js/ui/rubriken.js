@@ -7,6 +7,10 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
   let html='';
   /* Arztspezifische Varianten: Reiter „Standard | Dr. X" direkt im Kopf. */
   if(typeof varBarHTML==='function') html+=varBarHTML(s.id);
+  /* Freigabe-Zustand: bewusst VOR dem Verwaltungsblock und ohne ADMIN-Prüfung.
+     Wer im Labor „Freigegeben" liest, verlässt sich darauf — und wer eine
+     überholte Freigabe vor sich hat, muss das genauso sehen wie die Leitung. */
+  if(typeof frgKopfHTML==='function') html+=frgKopfHTML(s);
   if(ADMIN){
     const hiddenNow=stdHidden(s);
     html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center">
@@ -15,8 +19,8 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="openStdSheet()">✎ Bearbeiten</button>
       <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
     </div></div>`;
-    const m=STDE[s.id]||{}; const metaBits=[m.version?('Version '+m.version):'', m.status||'', m.validFrom?('gültig ab '+m.validFrom):'', m.validTo?('bis '+m.validTo):''].filter(Boolean);
-    if(metaBits.length) html+=`<div class="std-meta-line">🏷 ${esc(metaBits.join(' · '))}${m.approvedBy?` · zuletzt: ${esc(m.approvedBy)}`:''}</div>`;
+    /* Version/Status/Freigabe stehen jetzt im Freigabe-Kopf (für alle
+       sichtbar); hier bleibt nur noch der Weg dorthin. */
     const pk=stdPlankosten(s);
     if(pk.items>0){ const miss=pk.items-pk.priced;
       html+=`<div class="banner cost-banner"><div class="cost-total"><span class="cost-lbl">Plankosten</span><span class="cost-val">${fmtEUR(pk.total)}</span></div>

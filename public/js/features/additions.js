@@ -55,6 +55,7 @@ function mergeAdditions(base,add){
 function rebuildDB(){ if(!DB_BASE){ return; } DB=mergeAdditions(DB_BASE,ADDITIONS); mergeCustomIntoDB();
   /* Der Bestand hat sich geändert — die Fundstellen der Bausteine gelten nicht mehr. */
   if(typeof bauCacheLeeren==='function') bauCacheLeeren();
+  if(typeof frgCacheLeeren==='function') frgCacheLeeren();
   if(curStd){ const c=DB.standards.find(s=>s.id===curStd.id); if(c) curStd=c; } }
 function findAddEntry(sid,ri,aid){ const arr=ADDITIONS.entries[sid+'|'+ri]||[]; return arr.find(x=>x._aid===aid)||null; }
 

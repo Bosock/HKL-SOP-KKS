@@ -932,3 +932,32 @@
 .bau-vm { flex:0 0 38px; font-weight:800; font-size:12px; color:var(--text-dim); }
 .vp-badge.warn { background:#d99a2b22; color:#d99a2b; }
 .rl-bilanz .warn { color:#d99a2b; }
+
+/* ===== Freigabe mit Siegel (features/freigabe.js) ===== */
+.frg-kopf { display:flex; align-items:flex-start; gap:9px; padding:10px 12px; margin:0 0 10px;
+  border:1px solid var(--line); border-left:4px solid var(--line); border-radius:11px;
+  background:var(--surface); font-size:13px; line-height:1.4; }
+.frg-ico { font-size:16px; line-height:1.2; flex:0 0 auto; }
+.frg-txt { flex:1; color:var(--text); }
+.frg-extra { display:block; font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+.frg-kopf.frg-gueltig    { border-left-color:#2e9e5b; }
+.frg-kopf.frg-ueberholt  { border-left-color:#d99a2b; background:rgba(217,154,43,.07); }
+.frg-kopf.frg-abgelaufen { border-left-color:#d9534f; background:rgba(217,83,79,.07); }
+.frg-kopf.frg-entwurf    { border-left-color:var(--text-dim); }
+.frg-badge { display:inline-block; margin-left:7px; padding:1px 6px; border-radius:6px;
+  font-size:10.5px; font-weight:700; white-space:nowrap; }
+.frg-badge.frg-ueberholt  { color:#d99a2b; background:rgba(217,154,43,.14); }
+.frg-badge.frg-abgelaufen { color:#d9534f; background:rgba(217,83,79,.14); }
+.frg-badge.frg-entwurf    { color:var(--text-dim); background:rgba(127,149,171,.14); }
+.frg-feld { display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  padding:6px 2px; border-bottom:1px solid var(--line); font-size:13px; }
+.frg-feld span { color:var(--text-dim); }
+.frg-diff { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:7px 9px;
+  border:1px solid var(--line); border-left:4px solid var(--line); border-radius:10px;
+  margin-bottom:6px; background:var(--surface); font-size:13px; }
+.frg-diff.neu { border-left-color:#d99a2b; }
+.frg-diff.weg { border-left-color:#7f95ab; opacity:.8; }
+.frg-diff-t { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--text-dim); flex:0 0 auto; }
+.frg-diff-x { flex:1; color:var(--text); }
+.frg-diff.weg .frg-diff-x { text-decoration:line-through; }
