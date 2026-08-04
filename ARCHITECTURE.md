@@ -452,6 +452,38 @@ Schlüssel nachgetragen werden muss. `renderAdmin()` ruft am Ende
 `fktPanelAnwenden($('scr-admin'))` — ausblenden, umbenennen, umsortieren
 (letzteres nur innerhalb des jeweiligen Themenblocks).
 
+**Die Bearbeiten-Menüs (⋯).** Das meistbenutzte Menü der App — Grundsatz ⑥ —
+läuft über denselben Weg. `quickmenu.js` baut die drei Menüs (`eintrag`,
+`standard`, `rubrik`) nicht mehr durch String-Anhängen, sondern über einen
+**Sammler**: `sheetBauer('<bereich>')` → `S.gruppe(key, titel, sub)` /
+`S.akt(key, ico, label, sub, fn, cls)` → `S.html()`. Der Sammler wendet
+ausblenden · umbenennen · Symbol · Reihenfolge an, kennt einen Schalter für
+ganze Gruppen (`sheetgruppe`) und rendert bei komplett leerem Menü einen
+Hinweis samt Weg zurück statt einer leeren Fläche.
+
+Sortiert wird **nur innerhalb einer Gruppe** — sonst rutschte „Endgültig
+löschen" unter „Inhalt" und die Gefahrenzone wäre keine mehr.
+
+`FKT_SHEET_KATALOG` in `funktionen.js` führt alle Aktionen mit ihren
+Auslieferungswerten, damit die Verwaltung sie auch anzeigen kann, ohne dass ein
+Menü offen ist. Damit der Katalog nicht still veraltet, gleicht
+`test/funktionen.test.js` ihn **maschinell gegen den Quelltext von
+quickmenu.js** ab — in beide Richtungen, Gruppen inklusive Reihenfolge. Ein
+neuer Menüpunkt ohne Katalogeintrag lässt die Tests durchfallen.
+
+Fällt `funktionen.js` aus, liefert `sheetBauer` in `quickmenu.js` einen
+Rückfall-Sammler ohne Einstellungen — die Kern-Bedienung hängt nie an einer
+Komfortfunktion.
+
+**Kopfleiste.** `FKT_KOPF` deckt die drei Symbole oben rechts ab (Lupe,
+GitHub-Anmeldung, Hell/Dunkel); `fktKopfAnwenden()` läuft beim Start
+(`main.js`, nach dem Laden des geteilten Zustands) und nach jedem Sync. `☰`
+und „Zurück" sind nicht erfasst — ohne sie käme man nirgendwo mehr hin.
+
+**Merkmalsleiste.** Jede Art aus `FAC_ARTEN` ist einzeln abschaltbar
+(`fktFacetteAus`, Bereich `facette`). Eine ausgeblendete Art mit **aktiver
+Auswahl** bleibt sichtbar — sonst wirkte ein Filter unsichtbar weiter.
+
 **Eigene Punkte.** `FKT.eigene[]` mit `art` ∈ `standard` · `bildschirm` ·
 `seite` · `adresse`. Bewusst nur diese vier: Ein frei eingebbarer Funktionsname
 wäre eine offene Tür in den Quelltext; `adresse` lässt nur `http(s)://` zu.
@@ -459,8 +491,15 @@ wäre eine offene Tür in den Quelltext; `adresse` lässt nur `http(s)://` zu.
 **Grenze.** `verwaltung`, `anmelden`, `abmelden` und `melden` sind `fest` — wer
 sie ausblenden könnte, sperrte sich mit einem Tipp selbst aus.
 
-Geteilt über `hkl_funktionen` (SHARED_KEYS + `hydrateVars`), gesichert über
-`BACKUP_KEYS`. Tests: `e2e/funktionen.js` (15).
+**Bewusst NICHT erfasst:** die Knöpfe *innerhalb* eines Formulars
+(Abbrechen · Speichern · Zurück · Schließen). „Speichern" ausblenden zu können
+wäre keine Freiheit, sondern eine Falle — das Formular ließe sich öffnen, aber
+nicht abschließen.
+
+**Bereiche im Speicher `hkl_funktionen`:** `menue` · `panel` · `sheet` ·
+`sheetgruppe` · `facette` · `kopf` · `eigene[]`. Geteilt über SHARED_KEYS +
+`hydrateVars`, gesichert über `BACKUP_KEYS`.
+Tests: `test/funktionen.test.js` (18), End-to-End: `e2e/funktionen.js` (29).
 
 ## Bilder an Einträgen (`/api/media`, `hkl_medientexte`)
 

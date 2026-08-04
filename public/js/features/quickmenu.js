@@ -13,6 +13,17 @@ function sGroup(title,sub){ return `<div class="sheet-group"><span class="sg-t">
 /* Wirkungs-Chips (QM-Konzept §1/A): zeigen WO die Änderungen wirken und WER sie
    sieht — einmal gelernt, überall wiedererkannt. Nur feste, sichere Literale. */
 function sChips(arr){ return `<div class="sheet-chips">`+arr.map(c=>`<span class="schip">${c}</span>`).join('')+`</div>`; }
+/* Der Sammler für ein Bearbeiten-Menü kommt aus features/funktionen.js und
+   wendet die Einstellungen des Hauses an (ausblenden, umbenennen, umsortieren).
+   Fehlt das Modul, bleibt das Menü trotzdem vollständig bedienbar — die
+   Kern-Bedienung darf nie an einer Komfortfunktion hängen. */
+function sheetBauer(bereich){
+  if(typeof fktSheetBauer==='function') return fktSheetBauer(bereich);
+  return { _h:'',
+    gruppe(k,titel,sub){ if(titel) this._h += sGroup(titel,sub); },
+    akt(k,ico,label,sub,fn,cls){ this._h += sAct(ico,label,sub,fn,cls); },
+    html(){ return this._h; } };
+}
 /* Das Bearbeiten-Menü zeigt nur, was für DIESES Element sinnvoll ist, gegliedert
    in vier feste Fächer. Material-/Gerätespezifisches (Größen, Spezifikation,
    Unterkategorie, Katalog) erscheint nur bei beschaffbaren Einträgen. */
@@ -27,52 +38,59 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const spez=(function(){const s=qeGet(e,cid,'spez'); const v=(s!==undefined)?s:(Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation); return v||'keine';})();
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Bearbeiten · ${esc(cur.label)}${e._added?' · eigener Eintrag':''}</div><div class="sheet-name">${esc(name)}</div>`;
   h+=sChips(['📍 dieser Eintrag', '👥 alle Geräte']);
+
+  /* Jede Aktion trägt einen SCHLÜSSEL und läuft über den Sammler aus
+     features/funktionen.js. Damit lässt sich jeder einzelne Punkt dieses
+     Menüs in der Verwaltung ausblenden, umbenennen, mit eigenem Symbol
+     versehen und innerhalb seiner Gruppe umsortieren — ohne Programmierung
+     (docs/GRUNDSAETZE.md, Regel A7). Die Namen hier sind Auslieferungswerte,
+     nicht die Wahrheit. */
+  const S = sheetBauer('eintrag');
+
+  S.gruppe('kopf','','');
   /* Inspektor (Kaskade sichtbar machen): warum sieht dieser Eintrag so aus? */
-  h+=sAct('🔍','Warum so?','zeigt, woher Name, Kategorie, Farbe & Co. kommen','openWhySheet()');
+  S.akt('warum','🔍','Warum so?','zeigt, woher Name, Kategorie, Farbe & Co. kommen','openWhySheet()');
   /* Gehört die Zeile zu einem Baustein, muss das VOR der Änderung dastehen —
      sonst entsteht hier eine Abweichung, von der niemand etwas weiß. */
   if(typeof bauFuerCid==='function'){ const bs=bauFuerCid(cid);
     if(bs.length){ const b=bs[0].baustein; const n=bauVorkommen(b.id).length;
-      h+=sAct('⛓️','Gehört zum Baustein „'+b.name+'"','steht an '+n+' Stellen — dort pflegen gilt überall','showSheet(false);openBausteinAdmin()'); } }
+      S.akt('baustein','⛓️','Gehört zum Baustein „'+b.name+'"','steht an '+n+' Stellen — dort pflegen gilt überall','showSheet(false);openBausteinAdmin()'); } }
 
-  /* ── Inhalt ── */
-  h+=sGroup('Inhalt','Was der Eintrag ist');
-  h+=sAct('✏️','Details bearbeiten','Name, Menge, Größe, Kategorie, Warum …','sheetEditDetails()');
-  h+=sAct('🔤','Schnell umbenennen','nur den Anzeigenamen','sheetRename()');
-  h+=sAct('#️⃣','Menge ändern',menge,'sheetEditMenge()');
+  S.gruppe('inhalt','Inhalt','Was der Eintrag ist');
+  S.akt('details','✏️','Details bearbeiten','Name, Menge, Größe, Kategorie, Warum …','sheetEditDetails()');
+  S.akt('umbenennen','🔤','Schnell umbenennen','nur den Anzeigenamen','sheetRename()');
+  S.akt('menge','#️⃣','Menge ändern',menge,'sheetEditMenge()');
   if(isMat){
-    h+=sAct('📏','Größen bearbeiten',groessen,'sheetEditSizes()');
-    h+=sAct('🧷','Spezifikation bearbeiten',spez,'sheetEditSpez()');
+    S.akt('groessen','📏','Größen bearbeiten',groessen,'sheetEditSizes()');
+    S.akt('spez','🧷','Spezifikation bearbeiten',spez,'sheetEditSpez()');
   }
 
-  /* ── Darstellung (Hervorheben gebündelt) ── */
-  h+=sGroup('Darstellung','Wie er auffällt');
-  h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
-  h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',(qeGet(e,cid,'mengeHi')!==undefined?'manuell übersteuert · ':'automatisch bei ≠1x · ')+(mengeEffRaw?'Menge '+mengeEffRaw:'keine Menge'),"sheetToggle('mengeHi')");
-  h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
+  S.gruppe('darstellung','Darstellung','Wie er auffällt');
+  S.akt('wichtig','⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
+  S.akt('mengehi','🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',(qeGet(e,cid,'mengeHi')!==undefined?'manuell übersteuert · ':'automatisch bei ≠1x · ')+(mengeEffRaw?'Menge '+mengeEffRaw:'keine Menge'),"sheetToggle('mengeHi')");
+  S.akt('farbe','🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
   /* Bilder gibt es an JEDER Zeile, nicht nur an Material — ein Handgriff ist
      genauso erklärungsbedürftig wie ein Produkt (features/medien.js). */
   if(typeof medVonEintrag==='function'){ const nb=medVonEintrag(e,cid).length;
-    h+=sAct('🖼️','Bilder', nb?(nb+' Bild'+(nb===1?'':'er')+' — ansehen, ergänzen, ordnen'):'Foto, Bildfolge oder Skizze hinzufügen', "sheetGo('bilder')"); }
+    S.akt('bilder','🖼️','Bilder', nb?(nb+' Bild'+(nb===1?'':'er')+' — ansehen, ergänzen, ordnen'):'Foto, Bildfolge oder Skizze hinzufügen', "sheetGo('bilder')"); }
 
-  /* ── Organisation ── */
-  h+=sGroup('Organisation','Wohin er gehört');
-  h+=sAct('🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
-  if(isMat){ h+=sAct('🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
+  S.gruppe('organisation','Organisation','Wohin er gehört');
+  S.akt('kategorie','🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
+  if(isMat){ S.akt('uk','🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
   if(isMat&&e.material_key){ const cn=(typeof canonOf==='function')?canonOf(e.material_key):null;
-    h+=sAct('🔗', cn?('Verknüpft: '+(cn.name||cn.ref||cn.gtin)):'Mit Produkt verknüpfen', cn?'Stammsatz zeigen / lösen':'Etikett-Produkt zuordnen (destillieren)','renderSheetLink()'); }
-  h+=sAct('🔗','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
-  h+=sAct('📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
-  h+=sAct('⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
-  h+=sAct('⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
-  if(isMat){ h+=sAct('📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
+    S.akt('verknuepfen','🔗', cn?('Verknüpft: '+(cn.name||cn.ref||cn.gtin)):'Mit Produkt verknüpfen', cn?'Stammsatz zeigen / lösen':'Etikett-Produkt zuordnen (destillieren)','renderSheetLink()'); }
+  S.akt('eigenefelder','🔗','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
+  S.akt('verschieben','📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
+  S.akt('hoch','⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
+  S.akt('runter','⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
+  if(isMat){ S.akt('katalog','📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
 
-  /* ── Gefahrenzone ── */
-  h+=sGroup('Gefahrenzone','Entfernen & zurücksetzen');
-  if(e._added){ h+=sAct('🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
-  else { h+=sAct('🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
-  h+=sAct('↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
+  S.gruppe('gefahr','Gefahrenzone','Entfernen & zurücksetzen');
+  if(e._added){ S.akt('loeschen','🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
+  else { S.akt('loeschen','🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
+  S.akt('zuruecksetzen','↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
 
+  h+=S.html();
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h;
 }
@@ -83,16 +101,18 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(x=>x.id===id); if(t) curStd=t; } if(!curStd) return; const s=curStd; const hid=stdHidden(s);
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
   h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
-  h+=sGroup('Inhalt','Titel, Gruppe & Freigabe');
-  h+=sAct('✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
-  h+=sAct('🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
-  h+=sGroup('Neuen Standard daraus machen','Kopieren statt abtippen');
-  h+=sAct('⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
+  const S = sheetBauer('standard');
+  S.gruppe('inhalt','Inhalt','Titel, Gruppe & Freigabe');
+  S.akt('titel','✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
+  S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
+  S.gruppe('kopieren','Neuen Standard daraus machen','Kopieren statt abtippen');
+  S.akt('duplizieren','⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
   if(typeof ownHatStruktur==='function' && ownHatStruktur(s.id)){
-    h+=sAct('＋','Segment hinzufügen','neue Rubrik in diesem eigenen Standard','showSheet(false);ownAddRubrikUI()'); }
-  h+=sGroup('Gefahrenzone','Ausblenden & löschen');
-  h+=sAct(hid?'↩️':'🗑️',hid?'Wieder einblenden':'Ausblenden',hid?'für alle wieder sichtbar':'aus der Nutzung nehmen (wiederherstellbar)','showSheet(false);toggleStdHidden()',hid?'':'danger');
-  if(s.__new){ h+=sAct('🗑️','Endgültig löschen','App-eigenen Standard samt Einträgen entfernen','showSheet(false);deleteNewStandard()','danger'); }
+    S.akt('segment','＋','Segment hinzufügen','neue Rubrik in diesem eigenen Standard','showSheet(false);ownAddRubrikUI()'); }
+  S.gruppe('gefahr','Gefahrenzone','Ausblenden & löschen');
+  S.akt('ausblenden',hid?'↩️':'🗑️',hid?'Wieder einblenden':'Ausblenden',hid?'für alle wieder sichtbar':'aus der Nutzung nehmen (wiederherstellbar)','showSheet(false);toggleStdHidden()',hid?'':'danger');
+  if(s.__new){ S.akt('endgueltig','🗑️','Endgültig löschen','App-eigenen Standard samt Einträgen entfernen','showSheet(false);deleteNewStandard()','danger'); }
+  h+=S.html();
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h; showSheet(true);
 }
@@ -101,20 +121,22 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
 function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const hid=rubHidden(r,idx); const isTpl=!!r.__tplid;
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Rubrik bearbeiten${isTpl?' · Vorlage':(r.__nrid?' · eigene':'')}</div><div class="sheet-name">${esc(rubName(r,idx))}</div>`;
   h+=sChips(['🗂 diese Rubrik', '👥 alle Geräte']);
-  h+=sGroup('Inhalt','Name & Symbol');
-  h+=sAct('✏️','Umbenennen','nur diese Rubrik in diesem Standard','showSheet(false);renameRubrik('+idx+')');
-  h+=sAct('🔣','Symbol ändern','gilt für ALLE Rubriken dieses Namens','showSheet(false);editRubIconFor('+idx+')');
-  h+=sGroup('Organisation','Reihenfolge & Geltung');
-  h+=sAct('⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
-  h+=sAct('⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
-  if(isTpl){ h+=sAct('🌐','Geltungsbereich','in welchen Standards die Rubrik erscheint','showSheet(false);openRubrikForm(\''+esc(r.__tplid)+'\')'); }
-  h+=sGroup('Gefahrenzone','Häkchen & Ausblenden');
-  h+=sAct('♻️','Häkchen zurücksetzen','die Tages-Häkchen dieser Rubrik','showSheet(false);clearRubrikChecks('+idx+')');
+  const S = sheetBauer('rubrik');
+  S.gruppe('inhalt','Inhalt','Name & Symbol');
+  S.akt('umbenennen','✏️','Umbenennen','nur diese Rubrik in diesem Standard','showSheet(false);renameRubrik('+idx+')');
+  S.akt('symbol','🔣','Symbol ändern','gilt für ALLE Rubriken dieses Namens','showSheet(false);editRubIconFor('+idx+')');
+  S.gruppe('organisation','Organisation','Reihenfolge & Geltung');
+  S.akt('hoch','⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
+  S.akt('runter','⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
+  if(isTpl){ S.akt('geltung','🌐','Geltungsbereich','in welchen Standards die Rubrik erscheint','showSheet(false);openRubrikForm(\''+esc(r.__tplid)+'\')'); }
+  S.gruppe('gefahr','Gefahrenzone','Häkchen & Ausblenden');
+  S.akt('haken','♻️','Häkchen zurücksetzen','die Tages-Häkchen dieser Rubrik','showSheet(false);clearRubrikChecks('+idx+')');
   const echtWeg=(typeof ownHatStruktur==='function' && ownHatStruktur(curStd.id) && !r.__nrid && !r.__tplid);
-  h+=sAct(hid?'↩️':'🗑️',
+  S.akt('ausblenden',hid?'↩️':'🗑️',
     hid?'Wieder einblenden':((r.__nrid||echtWeg)?'Endgültig löschen':'Ausblenden'),
     hid?'':((r.__nrid||echtWeg)?'Segment samt Einträgen entfernen':'aus der Anzeige nehmen (wiederherstellbar)'),
     'showSheet(false);toggleRubHidden('+idx+')', hid?'':'danger');
+  h+=S.html();
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h; showSheet(true);
 }

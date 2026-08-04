@@ -125,6 +125,12 @@ function facBauen(posten, wahl){
   const w = wahl||{};
   const aus = [];
   FAC_ARTEN.forEach(a=>{
+    /* Im UX-Audit war die Leiste „zu groß" — auf dem Tablet füllte sie fast den
+       ersten Bildschirm. Welche Merkmale ein Haus wirklich braucht, weiß nur
+       das Haus: Jede Art ist einzeln abschaltbar (features/funktionen.js).
+       Eine ausgeblendete Art mit aktiver Auswahl bleibt sichtbar, sonst wäre
+       der Filter unsichtbar wirksam. */
+    if(typeof fktFacetteAus==='function' && fktFacetteAus(a.key) && !((w[a.key]||[]).length)) return;
     /* Für die Zähler DIESER Art zählt die Auswahl aller ANDEREN Arten. */
     const ohneMich = {}; Object.keys(w).forEach(k=>{ if(k!==a.key) ohneMich[k]=w[k]; });
     const zaehler = new Map();

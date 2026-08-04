@@ -158,8 +158,31 @@ sich schneller als jeder Entwicklungszyklus.
 | ③ | mitgelieferte Datei (`data/bezeichnungen.json`) | Auslieferung |
 | ④ | Rückfall im Code | nur damit die App auch ohne Datei startet |
 
+**Wo das heute greift** (Stand 04.08.2026 — die Liste ist der Prüfstand für
+jede neue Funktion):
+
+| Fläche | einstellbar in der App |
+|---|---|
+| Menü ☰ | an/aus · Symbol · Name · Untertitel · Reihenfolge · eigene Punkte |
+| Symbole der Kopfleiste | Lupe · Anmeldung · Hell/Dunkel je an/aus |
+| Verwaltungs-Karten | an/aus · Symbol · Name · Beschreibung · Reihenfolge |
+| **Bearbeiten-Menü ⋯** (Eintrag · Standard · Rubrik) | je Punkt an/aus · Symbol · Name · Untertitel · Reihenfolge; ganze Gruppen abschaltbar |
+| Merkmalsleiste der Startseite | je Merkmal an/aus, Namen frei |
+| Kategorien | Name · Farbe · Symbol · eigene anlegen und löschen |
+| Bezeichnungen | Hersteller · Größenarten · Rubriknamen · Merkmale · Freigabewörter |
+| Texte | App-Titel und die Einleitungen |
+| Anzeige im Eintrag | jedes Feld einzeln ein-/ausblendbar |
+| Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine |
+
+**Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
+Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
+ausblenden könnte, sperrte sich mit einem Tipp aus; (b) die Knöpfe *innerhalb*
+eines Formulars (Abbrechen, Speichern, Zurück). „Speichern" ausblenden zu
+können wäre keine Freiheit, sondern eine Falle.
+
 **Verstoß erkennt man an.** Einer festen Liste im Code, die eigentlich das Haus
-pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter).
+pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter) —
+oder einem neuen Knopf, der in dieser Tabelle keine Zeile findet.
 
 ### A8 · Deutsch, lesbar, mit Begründung
 

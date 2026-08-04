@@ -47,13 +47,13 @@ const { launchBrowser, startServer, bootPage, reporter } = require('/home/user/H
   })()`);
   r.check('feste Punkte lassen sich NICHT aussperren', fest);
 
-  const ord = await A.page.evaluate(`(function(){
+  const reihe = await A.page.evaluate(`(function(){
     const vor = fktMenueListe(true).map(x=>x.key);
     fktVerschieben(vor[1],-1,true);
     const nach = fktMenueListe(true).map(x=>x.key);
     return { getauscht: nach[0]===vor[1] && nach[1]===vor[0] };
   })()`);
-  r.check('Reihenfolge lässt sich tauschen', ord.getauscht);
+  r.check('Reihenfolge lässt sich tauschen', reihe.getauscht);
 
   const eig = await A.page.evaluate(`(function(){
     FKT.eigene.push({key:'eigen9',ico:'🚑',label:'Notfallnummern',sub:'im Haus',art:'bildschirm',wert:'glossar',nur:'alle',ord:0});
@@ -87,6 +87,129 @@ const { launchBrowser, startServer, bootPage, reporter } = require('/home/user/H
   })()`);
   r.check('Bildschirm „Menü & Funktionen" öffnet', bild.aktiv);
   r.check('… und listet die Funktionen (' + bild.zeilen + ')', bild.zeilen > 10);
+
+  /* ══════ Die Bearbeiten-Menüs (⋯) — das meistbenutzte Menü der App ══════ */
+  const cid = await A.page.evaluate(`(function(){
+    const s = DB.standards[0];
+    let c=null;
+    (s.rubriken||[]).forEach((rr,ri)=>(rr.sub_bereiche||[]).forEach((sb,si)=>(sb.eintraege||[]).forEach((e,ei)=>{
+      if(!c && e && !e.ist_fliesstext && e.natur!=='ueberschrift') c=cidOf(s.id,ri,si,ei); })));
+    return c;
+  })()`);
+
+  const sh = await A.page.evaluate(`(function(){
+    openSheet(${JSON.stringify(cid)});
+    const t0 = document.getElementById('sheet').textContent;
+    /* Einen Punkt ausblenden */
+    fktSetzen('sheet','eintrag.umbenennen','aus',true);
+    renderSheetMain();
+    const ohne = document.getElementById('sheet').textContent;
+    /* Einen Punkt umbenennen */
+    fktSetzen('sheet','eintrag.details','label','Alles ändern');
+    fktSetzen('sheet','eintrag.details','ico','🧰');
+    renderSheetMain();
+    const um = document.getElementById('sheet').innerHTML;
+    /* Eine ganze Gruppe abschalten */
+    fktSetzen('sheetgruppe','eintrag.gefahr','aus',true);
+    renderSheetMain();
+    const ohneGruppe = document.getElementById('sheet').textContent;
+    /* Alles zurück */
+    fktZuruecksetzen('sheet','eintrag.umbenennen');
+    fktZuruecksetzen('sheet','eintrag.details');
+    fktZuruecksetzen('sheetgruppe','eintrag.gefahr');
+    renderSheetMain();
+    const zurueck = document.getElementById('sheet').textContent;
+    return {
+      vorher: /Schnell umbenennen/.test(t0),
+      ausgeblendet: !/Schnell umbenennen/.test(ohne),
+      umbenannt: /Alles ändern/.test(um) && /🧰/.test(um) && !/Details bearbeiten/.test(um),
+      gruppeWeg: !/Gefahrenzone/.test(ohneGruppe) && !/Änderungen zurücksetzen/.test(ohneGruppe),
+      zurueck: /Schnell umbenennen/.test(zurueck) && /Details bearbeiten/.test(zurueck) && /Gefahrenzone/.test(zurueck),
+    };
+  })()`);
+  r.check('das ⋯-Menü zeigt ausgelieferte Punkte', sh.vorher);
+  r.check('ein einzelner Punkt lässt sich ausblenden', sh.ausgeblendet);
+  r.check('… umbenennen und mit eigenem Symbol versehen', sh.umbenannt);
+  r.check('eine ganze Gruppe lässt sich abschalten', sh.gruppeWeg);
+  r.check('„Vorgabe" stellt alles wieder her', sh.zurueck);
+
+  const sortierung = await A.page.evaluate(`(function(){
+    fktSheetVerschieben('eintrag.menge',-1);
+    openSheet(${JSON.stringify(cid)});
+    const h = document.getElementById('sheet').innerHTML;
+    /* „Menge" steht in der Gruppe „Inhalt" hinter „Schnell umbenennen" —
+       ein Schritt nach oben tauscht genau mit diesem Nachbarn. */
+    const getauscht = h.indexOf('Menge ändern') < h.indexOf('Schnell umbenennen');
+    /* Über die Gruppengrenze darf nichts wandern. */
+    fktSetzen('sheet','eintrag.zuruecksetzen','ord',-99);
+    renderSheetMain();
+    const h2 = document.getElementById('sheet').innerHTML;
+    const gefahrHinten = h2.indexOf('Details bearbeiten') < h2.indexOf('Änderungen zurücksetzen');
+    fktZuruecksetzen('sheet','eintrag.zuruecksetzen');
+    return { getauscht, gefahrHinten };
+  })()`);
+  r.check('Punkte lassen sich innerhalb ihrer Gruppe tauschen', sortierung.getauscht);
+  r.check('… aber nicht über die Gruppengrenze (Gefahrenzone bleibt hinten)', sortierung.gefahrHinten);
+
+  const leer = await A.page.evaluate(`(function(){
+    ['warum','details','umbenennen','menge','groessen','spez','wichtig','mengehi','farbe','bilder',
+     'kategorie','uk','verknuepfen','eigenefelder','verschieben','hoch','runter','katalog',
+     'loeschen','zuruecksetzen','baustein'].forEach(k=>fktSetzen('sheet','eintrag.'+k,'aus',true));
+    renderSheetMain();
+    const t = document.getElementById('sheet').textContent;
+    ['warum','details','umbenennen','menge','groessen','spez','wichtig','mengehi','farbe','bilder',
+     'kategorie','uk','verknuepfen','eigenefelder','verschieben','hoch','runter','katalog',
+     'loeschen','zuruecksetzen','baustein'].forEach(k=>fktZuruecksetzen('sheet','eintrag.'+k));
+    return /ausgeblendet/.test(t) && /Menü/.test(t);
+  })()`);
+  r.check('ein vollständig leeres Menü erklärt sich selbst', leer);
+
+  /* ══════ Kopfleiste ══════ */
+  const kopf = await A.page.evaluate(`(function(){
+    const sicht = ()=>({ suche: !document.getElementById('searchBtn').hidden,
+                         thema: !document.getElementById('themeBtn').hidden,
+                         menue: !document.getElementById('menuBtn').hidden });
+    const vorher = sicht();
+    fktSetzen('kopf','suche','aus',true); fktKopfAnwenden();
+    const ohne = sicht();
+    fktZuruecksetzen('kopf','suche'); fktKopfAnwenden();
+    return { vorher, ohne, zurueck: sicht() };
+  })()`);
+  r.check('die Lupe der Kopfleiste lässt sich abschalten', kopf.vorher.suche && !kopf.ohne.suche);
+  r.check('… ☰ bleibt dabei immer da', kopf.ohne.menue);
+  r.check('… und die Lupe kommt zurück', kopf.zurueck.suche);
+
+  /* ══════ Merkmalsleiste ══════ */
+  const fac = await A.page.evaluate(`(function(){
+    setMode('use'); nav=[]; renderStandards(''); show('scr-standards');
+    const vorher = document.querySelectorAll('#scr-standards .fac-reihe').length;
+    fktSetzen('facette','hersteller','aus',true);
+    renderStandards('');
+    const nachher = document.querySelectorAll('#scr-standards .fac-reihe').length;
+    fktZuruecksetzen('facette','hersteller');
+    renderStandards('');
+    return { vorher, nachher, zurueck: document.querySelectorAll('#scr-standards .fac-reihe').length };
+  })()`);
+  r.check('ein Merkmal lässt sich aus der Startseite nehmen (' + fac.vorher + ' → ' + fac.nachher + ')',
+    fac.nachher === fac.vorher - 1);
+  r.check('… und kommt zurück', fac.zurueck === fac.vorher);
+
+  /* ══════ Der Verwaltungs-Bildschirm zeigt alles ══════ */
+  const bild2 = await A.page.evaluate(`(function(){
+    setMode('admin'); renderAdmin();
+    openFunktionen();
+    const t = document.getElementById('scr-funktionen').textContent;
+    return { roh: t, menues: /Bearbeiten-Menüs/.test(t), merkmale: /Merkmalsleiste/.test(t),
+             karten: /Karten der Verwaltung/.test(t),
+                      zeilen: document.querySelectorAll('#scr-funktionen .fkt-zeile').length,
+             gruppen: document.querySelectorAll('#scr-funktionen .fkt-gruppe').length };
+  })()`);
+  r.check('die Verwaltung führt die Kopfleiste', /Symbole oben rechts/.test(bild2.roh||''));
+  r.check('die Verwaltung führt die Bearbeiten-Menüs', bild2.menues);
+  r.check('… die Merkmalsleiste', bild2.merkmale);
+  r.check('… und die Karten', bild2.karten);
+  r.check('alle Bedienpunkte stehen dort (' + bild2.zeilen + ' Zeilen, ' + bild2.gruppen + ' Gruppen)',
+    bild2.zeilen > 45 && bild2.gruppen >= 11);
 
   r.check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.error(A.errs.slice(0, 5).join('\n'));

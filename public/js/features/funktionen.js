@@ -219,7 +219,176 @@ function fktVerschieben(key, richtung, istAdmin){
   return true;
 }
 
-/* ═══════════ 3. Die Verwaltungs-Karten ═══════════ */
+/* ═══════════ 3. Die Bearbeiten-Menüs (⋯) ═══════════
+
+   Das ⋯-Menü ist DAS Menü der App (Grundsatz ⑥: ein Menü, zwei Kontexte) und
+   damit die Fläche, die im Saal am häufigsten angefasst wird. Genau deshalb
+   muss sie dem Haus gehören: Wer „Spezifikation bearbeiten" nie braucht, soll
+   es nicht jedes Mal überlesen müssen; wer „Größen" lieber „Maße" nennt, soll
+   es umbenennen können.
+
+   Der Katalog unten ist die VOLLSTÄNDIGE Liste aller Aktionen der drei Menüs
+   mit ihren Auslieferungswerten. Er wird maschinell gegen den Quelltext von
+   features/quickmenu.js abgeglichen (test/funktionen.test.js) — ein neuer
+   Menüpunkt, der hier fehlt, lässt die Tests durchfallen. Sonst wäre der
+   Katalog nach dem dritten Umbau stillschweigend unvollständig, und die
+   Verwaltung zeigte weniger, als es gibt.
+
+   Ganze GRUPPEN lassen sich mit einem Schalter abräumen ('sheetgruppe') —
+   „Gefahrenzone aus" nimmt Löschen und Zurücksetzen in einem Zug aus dem
+   Menü. */
+
+const FKT_SHEET_KATALOG = {
+  eintrag: {
+    titel: 'Eintrag (⋯ an der Zeile)',
+    gruppen: [
+      { key:'kopf', titel:'', sub:'', akt:[
+        { key:'warum',        ico:'🔍',  label:'Warum so?',              sub:'zeigt, woher Name, Kategorie, Farbe & Co. kommen' },
+        { key:'baustein',     ico:'⛓️',  label:'Gehört zum Baustein',    sub:'Hinweis, wenn die Zeile mehrfach gepflegt wird' },
+      ]},
+      { key:'inhalt', titel:'Inhalt', sub:'Was der Eintrag ist', akt:[
+        { key:'details',      ico:'✏️',  label:'Details bearbeiten',     sub:'Name, Menge, Größe, Kategorie, Warum …' },
+        { key:'umbenennen',   ico:'🔤',  label:'Schnell umbenennen',     sub:'nur den Anzeigenamen' },
+        { key:'menge',        ico:'#️⃣',  label:'Menge ändern',           sub:'zeigt die aktuelle Menge' },
+        { key:'groessen',     ico:'📏',  label:'Größen bearbeiten',      sub:'nur bei beschaffbarem Material' },
+        { key:'spez',         ico:'🧷',  label:'Spezifikation bearbeiten', sub:'nur bei beschaffbarem Material' },
+      ]},
+      { key:'darstellung', titel:'Darstellung', sub:'Wie er auffällt', akt:[
+        { key:'wichtig',      ico:'⭐',  label:'Als wichtig markieren',  sub:'hervorheben' },
+        { key:'mengehi',      ico:'🔢',  label:'Zahl/Menge hervorheben', sub:'automatisch bei ungleich 1x' },
+        { key:'farbe',        ico:'🎨',  label:'Farblich absetzen',      sub:'eigene Akzentfarbe' },
+        { key:'bilder',       ico:'🖼️',  label:'Bilder',                 sub:'Foto, Bildfolge oder Skizze hinzufügen' },
+      ]},
+      { key:'organisation', titel:'Organisation', sub:'Wohin er gehört', akt:[
+        { key:'kategorie',    ico:'🏷️',  label:'Kategorie ändern',       sub:'zeigt die aktuelle Kategorie' },
+        { key:'uk',           ico:'🗂️',  label:'Unterkategorie ändern',  sub:'Gruppe zuweisen' },
+        { key:'verknuepfen',  ico:'🔗',  label:'Mit Produkt verknüpfen', sub:'Etikett-Produkt zuordnen' },
+        { key:'eigenefelder', ico:'🔗',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },
+        { key:'verschieben',  ico:'📦',  label:'Verschieben',            sub:'in andere Rubrik oder anderen Standard' },
+        { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge in der Gruppe' },
+        { key:'runter',       ico:'⬇',   label:'Nach unten',             sub:'Reihenfolge in der Gruppe' },
+        { key:'katalog',      ico:'📥',  label:'In Katalog aufnehmen',   sub:'für andere Standards verfügbar' },
+      ]},
+      { key:'gefahr', titel:'Gefahrenzone', sub:'Entfernen & zurücksetzen', akt:[
+        { key:'loeschen',     ico:'🗑️',  label:'Ausblenden / Löschen',   sub:'aus der Anzeige entfernen' },
+        { key:'zuruecksetzen',ico:'↺',   label:'Änderungen zurücksetzen', sub:'für diesen Eintrag' },
+      ]},
+    ],
+  },
+  standard: {
+    titel: 'Standard (Titelzeile)',
+    gruppen: [
+      { key:'inhalt', titel:'Inhalt', sub:'Titel, Gruppe & Freigabe', akt:[
+        { key:'titel',        ico:'✏️',  label:'Titel & Gruppe',         sub:'Name und Zuordnung' },
+        { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
+      ]},
+      { key:'kopieren', titel:'Neuen Standard daraus machen', sub:'Kopieren statt abtippen', akt:[
+        { key:'duplizieren',  ico:'⧉',   label:'Duplizieren',            sub:'vollständige, unabhängige Kopie als Entwurf' },
+        { key:'segment',      ico:'＋',  label:'Segment hinzufügen',     sub:'neue Rubrik in diesem eigenen Standard' },
+      ]},
+      { key:'gefahr', titel:'Gefahrenzone', sub:'Ausblenden & löschen', akt:[
+        { key:'ausblenden',   ico:'🗑️',  label:'Ausblenden',             sub:'aus der Nutzung nehmen (wiederherstellbar)' },
+        { key:'endgueltig',   ico:'🗑️',  label:'Endgültig löschen',      sub:'App-eigenen Standard samt Einträgen entfernen' },
+      ]},
+    ],
+  },
+  rubrik: {
+    titel: 'Rubrik (Abschnitts-Kopf)',
+    gruppen: [
+      { key:'inhalt', titel:'Inhalt', sub:'Name & Symbol', akt:[
+        { key:'umbenennen',   ico:'✏️',  label:'Umbenennen',             sub:'nur diese Rubrik in diesem Standard' },
+        { key:'symbol',       ico:'🔣',  label:'Symbol ändern',          sub:'gilt für ALLE Rubriken dieses Namens' },
+      ]},
+      { key:'organisation', titel:'Organisation', sub:'Reihenfolge & Geltung', akt:[
+        { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge im Standard' },
+        { key:'runter',       ico:'⬇',   label:'Nach unten',             sub:'Reihenfolge im Standard' },
+        { key:'geltung',      ico:'🌐',  label:'Geltungsbereich',        sub:'in welchen Standards die Rubrik erscheint' },
+      ]},
+      { key:'gefahr', titel:'Gefahrenzone', sub:'Häkchen & Ausblenden', akt:[
+        { key:'haken',        ico:'♻️',  label:'Häkchen zurücksetzen',   sub:'die Tages-Häkchen dieser Rubrik' },
+        { key:'ausblenden',   ico:'🗑️',  label:'Ausblenden',             sub:'aus der Anzeige nehmen (wiederherstellbar)' },
+      ]},
+    ],
+  },
+};
+
+/* Der Sammler, den quickmenu.js benutzt. Er nimmt Gruppen und Aktionen
+   entgegen, wendet die Einstellungen an und gibt am Ende das Markup zurück.
+
+   Warum sammeln statt direkt anhängen: Nur so lässt sich INNERHALB einer
+   Gruppe umsortieren. Über Gruppengrenzen hinweg wird bewusst nicht sortiert —
+   sonst stünde „Endgültig löschen" plötzlich unter „Inhalt", und die
+   Gefahrenzone wäre keine mehr. */
+function fktSheetBauer(bereich){
+  const gruppen = [];
+  let lauf = 0;
+  const letzte = ()=>{
+    if(!gruppen.length) gruppen.push({ key:'', titel:'', sub:'', akt:[] });
+    return gruppen[gruppen.length-1];
+  };
+  return {
+    gruppe(key, titel, sub){
+      const voll = bereich+'.'+key;
+      gruppen.push({ key,
+        titel: fktWert('sheetgruppe', voll, 'label', titel),
+        sub:   fktWert('sheetgruppe', voll, 'sub', sub),
+        aus:   fktAus('sheetgruppe', voll),
+        akt: [] });
+    },
+    akt(key, ico, label, sub, fn, cls){
+      const voll = bereich+'.'+key;
+      if(fktAus('sheet', voll)) return;
+      letzte().akt.push({ key,
+        ord: Number(fktWert('sheet', voll, 'ord', lauf++)),
+        html: sAct(fktWert('sheet', voll, 'ico', ico),
+                   fktWert('sheet', voll, 'label', label),
+                   fktWert('sheet', voll, 'sub', sub), fn, cls) });
+    },
+    html(){
+      let h = '', n = 0;
+      gruppen.forEach(g=>{
+        if(g.aus || !g.akt.length) return;
+        const akt = g.akt.slice().sort((a,b)=>a.ord-b.ord);
+        if(g.titel) h += sGroup(g.titel, g.sub);
+        h += akt.map(a=>a.html).join('');
+        n += akt.length;
+      });
+      /* Ein leeres Menü darf nicht wie ein Fehler aussehen — es ist eine
+         Einstellung, und der Weg zurück muss dastehen. */
+      if(!n) h = '<p class="hint" style="padding:12px">Für dieses Menü sind alle Punkte ausgeblendet. Wieder einschalten unter &#9776; &rarr; „Menü &amp; Funktionen".</p>';
+      return h;
+    },
+  };
+}
+
+/* ═══════════ 3a. Die Kopfleiste ═══════════
+   Die vier kleinen Symbole oben rechts sind ebenfalls Funktionen — und drei
+   davon gibt es zusätzlich im Menü. Wer sie nicht braucht, gewinnt Platz in
+   der schmalsten Zeile der App. ☰ und „Zurück" bleiben: ohne sie käme man
+   nirgendwo mehr hin. */
+const FKT_KOPF = [
+  { key:'suche',   ico:'🔎', label:'Lupe (alles durchsuchen)', sub:'steht auch im Menü' },
+  { key:'auth',    ico:'🔓', label:'GitHub-Anmeldung',         sub:'nur für die Wartung nötig' },
+  { key:'ansicht', ico:'◐',  label:'Hell/Dunkel',              sub:'steht auch im Menü' },
+];
+/* Wird nach jedem Moduswechsel und beim Start angewandt (ui/chrome.js). */
+function fktKopfAnwenden(){
+  FKT_KOPF.forEach(k=>{
+    const el = (typeof $==='function') ? $(k.key==='suche'?'searchBtn':(k.key==='auth'?'authBtn':'themeBtn')) : null;
+    if(!el) return;
+    if(fktAus('kopf', k.key)) el.hidden = true;
+    else if(el.hidden) el.hidden = false;
+  });
+}
+
+/* ═══════════ 3b. Die Merkmalsleiste der Startseite ═══════════
+   Die Leiste wurde im UX-Audit als „zu groß" bemängelt — auf dem Tablet füllt
+   sie fast den ersten Bildschirm. Statt sie kleiner zu raten: Jedes Merkmal
+   einzeln abschaltbar, damit jedes Haus die zwei bis drei behält, nach denen
+   es wirklich sucht. */
+function fktFacetteAus(key){ return fktAus('facette', key); }
+
+/* ═══════════ 4. Die Verwaltungs-Karten ═══════════ */
 
 /* Der Schlüssel einer Karte wird aus ihrer Überschrift gewonnen. Das ist
    Absicht: So wird JEDE Karte erfasst — auch die, die es beim Bau dieses
@@ -302,9 +471,13 @@ function fktPanelVerschieben(key, richtung){
   return true;
 }
 
-/* ═══════════ 4. Bildschirm „Menü & Funktionen" ═══════════ */
+/* ═══════════ 5. Bildschirm „Menü & Funktionen" ═══════════ */
 
 let fktForm = null;   /* offene Eingabefläche: {art:'neu'|'bearbeiten', key} */
+/* Welches Bearbeiten-Menü ist auf dem Bildschirm gerade aufgeklappt — damit es
+   nach einer Änderung nicht zuklappt und man von vorn suchen muss. Reine
+   Anzeige, wird nicht geteilt. */
+let fktMenuOffen = null;
 
 function openFunktionen(){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(openFunktionen); return; }
@@ -391,11 +564,78 @@ function renderFunktionen(){
     });
   }
 
+  /* ── Die Bearbeiten-Menüs (⋯) ── */
+  h += `<div class="bez-sec">Die Bearbeiten-Menüs (⋯)</div>`;
+  h += `<p class="hint">Das meistbenutzte Menü der App. Jeder Punkt einzeln: ausblenden, umbenennen, eigenes Symbol, in seiner Gruppe verschieben. Eine ganze Gruppe abzuschalten nimmt alle ihre Punkte auf einmal aus dem Menü.</p>`;
+  Object.keys(FKT_SHEET_KATALOG).forEach(bereich=>{
+    const kat = FKT_SHEET_KATALOG[bereich];
+    const offen = (fktMenuOffen===bereich);
+    h += `<details class="vpanel"${offen?' open':''}>
+      ${vsum('⋯', kat.titel, 'Punkte dieses Menüs ein- und ausblenden, umbenennen, ordnen',
+             fktSheetGeaendert(bereich) ? (fktSheetGeaendert(bereich)+' angepasst') : '')}
+      <div class="vpanel-body">`;
+    kat.gruppen.forEach(g=>{
+      const gkey = bereich+'.'+g.key;
+      const gAus = fktAus('sheetgruppe', gkey);
+      h += `<div class="fkt-gruppe${gAus?' fkt-aus':''}">
+        <span class="fkt-gruppe-t">${esc(fktWert('sheetgruppe', gkey, 'label', g.titel) || 'ohne Überschrift')}</span>
+        <button class="${gAus?'':'on'}" data-k="${esc(gkey)}" onclick="fktUiSchalten('sheetgruppe',this.dataset.k)">${gAus?'Gruppe aus':'Gruppe an'}</button>
+      </div>`;
+      g.akt.forEach(a2=>{
+        const voll = bereich+'.'+a2.key;
+        h += fktZeileHTML('sheet', voll,
+          fktWert('sheet', voll, 'ico',   a2.ico),
+          fktWert('sheet', voll, 'label', a2.label),
+          fktWert('sheet', voll, 'sub',   a2.sub),
+          fktAus('sheet', voll), false, '');
+      });
+    });
+    h += `</div></details>`;
+  });
+
+  /* ── Kopfleiste ── */
+  h += `<div class="bez-sec">Die Symbole oben rechts</div>`;
+  h += `<p class="hint">Lupe, Anmeldung und Hell/Dunkel. „☰" und „Zurück" bleiben — ohne sie käme man nirgendwo mehr hin.</p>`;
+  FKT_KOPF.forEach(k=>{
+    const aus = fktAus('kopf', k.key);
+    h += `<div class="fkt-zeile${aus?' fkt-aus':''}">
+      <div class="fkt-kopf"><span class="fkt-ico">${k.ico}</span>
+        <span class="fkt-name">${esc(k.label)}</span></div>
+      <input class="loc-input fkt-sub" value="${esc(k.sub)}" readonly aria-label="Erklärung">
+      <div class="fkt-akt">
+        <button class="${aus?'':'on'}" data-k="${esc(k.key)}" onclick="fktUiSchalten('kopf',this.dataset.k)">${aus?'aus':'an'}</button>
+      </div></div>`;
+  });
+
+  /* ── Merkmalsleiste ── */
+  h += `<div class="bez-sec">Merkmalsleiste der Startseite</div>`;
+  h += `<p class="hint">Welche Merkmale zum Filtern angeboten werden. Weniger heißt hier mehr — auf dem Tablet kostet jede Reihe eine Bildschirmzeile. Ein Merkmal mit aktiver Auswahl bleibt sichtbar, damit kein Filter unsichtbar wirkt. Die <b>Namen</b> werden unter „Bezeichnungen & Hersteller" gepflegt.</p>`;
+  (typeof FAC_ARTEN!=='undefined'?FAC_ARTEN:[]).forEach(a2=>{
+    const aus = fktAus('facette', a2.key);
+    h += `<div class="fkt-zeile${aus?' fkt-aus':''}">
+      <div class="fkt-kopf"><span class="fkt-ico">🔎</span>
+        <span class="fkt-name">${esc(typeof facLabel==='function'?facLabel(a2.key):a2.vorgabe)}</span></div>
+      <div class="fkt-akt">
+        <button class="${aus?'':'on'}" data-k="${esc(a2.key)}" onclick="fktUiSchalten('facette',this.dataset.k)">${aus?'aus':'an'}</button>
+      </div></div>`;
+  });
+
   h += `<div class="p-actions" style="margin-top:16px">
       <button class="btn btn-sec" onclick="fktUiAllesZuruecksetzen()">Alles auf Auslieferung zurücksetzen</button>
     </div>
     <p class="hint">Diese Einstellungen gelten auf <b>allen Geräten</b> — sie liegen im geteilten Zustand, nicht nur auf diesem Tablet.</p>`;
   box.innerHTML = h;
+}
+
+/* Wie viele Punkte eines Bearbeiten-Menüs sind angepasst? Nur für das Abzeichen. */
+function fktSheetGeaendert(bereich){
+  const kat = FKT_SHEET_KATALOG[bereich]; if(!kat) return 0;
+  let n = 0;
+  kat.gruppen.forEach(g=>{
+    if(fktGeaendert('sheetgruppe', bereich+'.'+g.key)) n++;
+    g.akt.forEach(a=>{ if(fktGeaendert('sheet', bereich+'.'+a.key)) n++; });
+  });
+  return n;
 }
 
 function fktNeuFormHTML(){
@@ -456,6 +696,7 @@ function renderFktNeuZiel(){
 
 /* ── Bedien-Hüllen ── */
 function fktUiSetzen(bereich, key, feld, wert){
+  fktMerkeOffen(bereich, key);
   fktSetzen(bereich, key, feld, (wert||'').trim());
   const eigen = (bereich==='menue') ? FKT.eigene.find(e=>e.key===key) : null;
   if(eigen){ /* eigene Punkte tragen ihre Wörter direkt */
@@ -469,20 +710,24 @@ function fktUiSetzen(bereich, key, feld, wert){
 }
 function fktUiSchalten(bereich, key){
   const jetzt = fktAus(bereich, key);
+  fktMerkeOffen(bereich, key);
   fktSetzen(bereich, key, 'aus', jetzt?'':true);
+  if(bereich==='kopf') fktKopfAnwenden();
   if(bereich==='panel' && typeof renderAdmin==='function') renderAdmin();
   renderFunktionen();
   if(typeof toast==='function') toast(jetzt?'Wieder sichtbar':'Ausgeblendet — jederzeit rücknehmbar');
 }
 function fktUiVerschieben(bereich, key, richtung){
-  const ok = (bereich==='menue')
-    ? fktVerschieben(key, richtung, (typeof ADMIN!=='undefined')?ADMIN:true)
-    : fktPanelVerschieben(key, richtung);
+  fktMerkeOffen(bereich, key);
+  const ok = (bereich==='menue') ? fktVerschieben(key, richtung, (typeof ADMIN!=='undefined')?ADMIN:true)
+    : (bereich==='panel') ? fktPanelVerschieben(key, richtung)
+    : fktSheetVerschieben(key, richtung);
   if(!ok) return;
   if(bereich==='panel' && typeof renderAdmin==='function') renderAdmin();
   renderFunktionen();
 }
 function fktUiZuruecksetzen(bereich, key){
+  fktMerkeOffen(bereich, key);
   fktZuruecksetzen(bereich, key);
   if(bereich==='panel' && typeof renderAdmin==='function') renderAdmin();
   renderFunktionen(); if(typeof toast==='function') toast('Vorgabe wiederhergestellt');
@@ -510,9 +755,34 @@ function fktUiEigenLoeschen(key){
   fktZuruecksetzen('menue', key); saveFKT(); renderFunktionen();
   if(typeof toast==='function') toast('Eigener Menüpunkt entfernt');
 }
+/* Merkt sich, welches Bearbeiten-Menü offen war (nur Anzeige, nicht geteilt). */
+function fktMerkeOffen(bereich, key){
+  if(bereich==='sheet' || bereich==='sheetgruppe'){ fktMenuOffen = String(key).split('.')[0]; }
+}
+
+/* Eine Aktion INNERHALB ihrer Gruppe verschieben. Über Gruppengrenzen hinweg
+   bewusst nicht — sonst stünde „Endgültig löschen" unter „Inhalt". */
+function fktSheetVerschieben(voll, richtung){
+  const teile = String(voll).split('.');
+  const kat = FKT_SHEET_KATALOG[teile[0]]; if(!kat) return false;
+  const g = kat.gruppen.find(x=>x.akt.some(a=>a.key===teile[1])); if(!g) return false;
+  const bereich = teile[0];
+  /* Aktuelle Reihenfolge dieser Gruppe = gespeicherte Zahl, sonst Katalogplatz. */
+  const reihe = g.akt.map((a,i)=>({ key:a.key, ord:Number(fktWert('sheet', bereich+'.'+a.key, 'ord', i)) }))
+    .sort((a,b)=>a.ord-b.ord);
+  const i = reihe.findIndex(x=>x.key===teile[1]);
+  const j = i + (richtung<0?-1:1);
+  if(i<0 || j<0 || j>=reihe.length) return false;
+  const t = reihe[i]; reihe[i]=reihe[j]; reihe[j]=t;
+  reihe.forEach((x,k)=> fktSetzen('sheet', bereich+'.'+x.key, 'ord', k));
+  return true;
+}
+
 function fktUiAllesZuruecksetzen(){
-  FKT = { menue:{}, panel:{}, eigene:FKT.eigene||[] };
+  /* auch die Kopfleiste muss danach wieder vollständig sein */
+  FKT = { menue:{}, panel:{}, sheet:{}, sheetgruppe:{}, facette:{}, kopf:{}, eigene:FKT.eigene||[] };
   saveFKT();
+  fktKopfAnwenden();
   if(typeof renderAdmin==='function') renderAdmin();
   renderFunktionen();
   if(typeof toast==='function') toast('Auslieferungszustand wiederhergestellt (eigene Punkte bleiben)');

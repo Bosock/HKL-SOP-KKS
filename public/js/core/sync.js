@@ -56,6 +56,9 @@ function hydrateVars(){
     if(typeof fktNormalisieren==='function') fktNormalisieren(); }
   /* Bildunterschriften: eine Kennung, eine Unterschrift — überall gleich. */
   if(typeof MEDTXT!=='undefined'){ MEDTXT=loadJSON('hkl_medientexte',{}); }
+  /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
+     sie jemand am anderen Gerät ab, muss das hier ankommen. */
+  if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}
   if(typeof frgCacheLeeren==='function') frgCacheLeeren();
   if(typeof BEZ!=='undefined'){ BEZ=loadJSON('hkl_bezeichnungen',{}); if(!BEZ||typeof BEZ!=='object') BEZ={}; }
   if(typeof GUIDES!=='undefined'){ GUIDES=loadJSON('hkl_guides',[]); if(!Array.isArray(GUIDES)) GUIDES=[]; }

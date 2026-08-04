@@ -248,6 +248,29 @@ dass die App im Browser sauber startet.
 
 ---
 
+## Einen Menüpunkt hinzufügen (⋯ oder ☰)
+
+Beides läuft über das Funktionsregister — sonst wäre der neue Punkt für das
+Haus unveränderlich (Regel A7).
+
+**Im Bearbeiten-Menü ⋯** (`public/js/features/quickmenu.js`): Der Punkt bekommt
+einen Schlüssel und geht durch den Sammler.
+
+```js
+S.gruppe('organisation','Organisation','Wohin er gehört');
+S.akt('lagerort','📍','Lagerort ändern', ort, 'sheetGo("ort")');
+//     ^Schlüssel                         ^dynamischer Untertitel ist erlaubt
+```
+
+Danach **denselben Punkt in den Katalog** eintragen
+(`FKT_SHEET_KATALOG` in `public/js/features/funktionen.js`, gleiche Gruppe,
+gleiche Reihenfolge). Vergisst du das, schlägt `npm test` fehl — der Katalog
+wird maschinell gegen quickmenu.js abgeglichen, in beide Richtungen.
+
+**Im Hauptmenü ☰**: eine Zeile in `FKT_MENUE` (`funktionen.js`). `nur` steuert,
+wer ihn sieht (`alle`/`admin`/`gast`); `fest:true` nur, wenn ein Ausblenden
+jemanden aussperren würde.
+
 ## Zwei Regeln, die die Maschine durchsetzt
 
 `npm run check` bricht ab, wenn eine davon verletzt wird. Beide stehen mit

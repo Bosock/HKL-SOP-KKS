@@ -1021,3 +1021,14 @@
 .med-akt button { min-height:32px; min-width:36px; padding:0 9px; border:1px solid var(--line);
   border-radius:8px; background:var(--bg); color:var(--text); font-size:12.5px; cursor:pointer; }
 .med-akt button.dgr { border-color:#a4453d; color:#e2837b; }
+
+/* Gruppen-Schalter im Bildschirm „Menü & Funktionen": nimmt alle Punkte einer
+   Gruppe (z. B. die Gefahrenzone) in einem Zug aus dem Bearbeiten-Menü. */
+.fkt-gruppe { display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin:14px 0 6px; padding:6px 0 5px; border-bottom:1px solid var(--line); }
+.fkt-gruppe.fkt-aus { opacity:.55; }
+.fkt-gruppe-t { font-size:11px; font-weight:800; letter-spacing:.6px; text-transform:uppercase;
+  color:var(--text-dim); }
+.fkt-gruppe button { min-height:30px; padding:0 10px; border:1px solid var(--line);
+  border-radius:8px; background:var(--bg); color:var(--text); font-size:12px; cursor:pointer; }
+.fkt-gruppe button.on { border-color:var(--accent); background:var(--accent); color:#fff; font-weight:700; }
