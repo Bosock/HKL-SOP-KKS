@@ -110,14 +110,28 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   // ═══════════ 7. Erneut freigeben ═══════════
   const erneut = await A.page.evaluate((sid) => {
     openFreigabe(sid);
+    /* Seit Grundsatz ⑧ öffnet der Knopf eine Karte IM Bildschirm statt zweier
+       prompt()-Fenster nacheinander — Name und Version stehen gleichzeitig da. */
     const knopf = [...document.querySelectorAll('#scr-freigabe button')]
       .find(b => /freigeben/i.test(b.textContent) && !/zurück/i.test(b.textContent));
-    if (knopf) knopf.click();          /* prompt → „E2E-Prüferin" (dialogText) */
+    if (knopf) knopf.click();
+    const von = document.getElementById('frgVon');
+    const ver = document.getElementById('frgVer');
+    if (!von || !ver) return { knopf: !!knopf, keinFormular: true };
+    von.value = 'E2E-Prüferin'; ver.value = '2.0';
+    const speichern = [...document.querySelectorAll('#scr-freigabe button')]
+      .find(b => /versiegeln/i.test(b.textContent));
+    if (speichern) speichern.click();
     const s = DB.standards.find(x => x.id === sid);
-    return { knopf: !!knopf, zustand: frgStatus(s), von: (STDE[sid] || {}).approvedBy };
+    return { knopf: !!knopf, formular: true, zustand: frgStatus(s),
+      von: (STDE[sid] || {}).approvedBy, version: (STDE[sid] || {}).version,
+      zustandSchluessel: (STDE[sid] || {}).zustand };
   }, SID);
+  check('freigeben öffnet eine Eingabefläche, kein natives Fenster', erneut.formular === true);
   check('erneut freigeben stellt die Gültigkeit her', erneut.knopf && erneut.zustand === 'gueltig');
   check('… und hält fest, wer freigegeben hat', erneut.von === 'E2E-Prüferin');
+  check('… mit der eingegebenen Version', erneut.version === '2.0');
+  check('… und einem Schlüssel statt eines Wortes im Datensatz', erneut.zustandSchluessel === 'freigegeben');
 
   // ═══════════ 8. Übersicht und Verwaltung ═══════════
   const uebersicht = await A.page.evaluate(() => {

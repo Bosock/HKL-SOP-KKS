@@ -238,6 +238,8 @@ function cleanupApply(tkey){
         /* Kategorie aus dem Alt-Vorschlagskatalog übernehmen, wenn es einen gibt —
            er ist fachlich gepflegt und soll nicht verloren gehen. */
         const alt=cleanupSuggest(key)||cleanupSuggest((felder.produkt.name||'').toLowerCase());
+        /* fachwort:ok — 'Kein Material' ist ein fester Wert aus
+           data/cleanup_suggestions.json, keine Anzeige-Bezeichnung. */
         rec.kategorie=(alt&&alt.kategorie&&alt.kategorie.indexOf('Kein Material')<0)?alt.kategorie:'Material';
       }
       rec.updatedAt=new Date().toISOString();

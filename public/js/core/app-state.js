@@ -35,28 +35,22 @@ function promptLogin(){ const pw=prompt('Passwort für den Verwaltungsmodus:'); 
 function promptLoginThen(cb){ const pw=prompt('Du bist nicht berechtigt, Änderungen durchzuführen.\nBitte Passwort eingeben:'); if(pw==null) return; if(doLogin(pw)){ toast('Angemeldet'); if(cb) cb(); } else { toast('Falsches Passwort',true); } }
 function changePw(){ const o=prompt('Aktuelles Passwort:'); if(o==null) return; if(!checkPw(o)){ toast('Aktuelles Passwort falsch',true); return; } const n1=prompt('Neues Passwort:'); if(n1==null||!n1.trim()){ toast('Abgebrochen'); return; } const n2=prompt('Neues Passwort bestätigen:'); if(n2==null) return; if(n1!==n2){ toast('Bestätigung stimmt nicht überein',true); return; } setAuthPw(n1.trim()); toast('Passwort geändert'); }
 function adminLogout(){ ADMIN=false; store.set('hkl_authuntil','0'); applyAdminUI(); showSheet(false); setMode('use'); toast('Abgemeldet'); }
+/* Das Menü kommt aus dem Funktionsregister (features/funktionen.js): welche
+   Punkte erscheinen, wie sie heißen, welches Symbol sie tragen und in welcher
+   Reihenfolge sie stehen, ist dort einstellbar — ohne Programmierung. Die
+   Liste hier stand früher fest im Quelltext; wer im Labor eine Funktion nicht
+   brauchte, musste sie trotzdem ansehen. Der Rückfall greift nur, wenn das
+   Register nicht geladen ist (dann sieht das Menü aus wie früher). */
 function openMenu(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Menü${ADMIN?' · angemeldet':''}</div>`;
-  h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
-  h+=sAct('🔎','Globale Suche','Material, Gerät, Synonym …',"showSheet(false);openGlobalSearch()");
-  h+=sAct('📖','Abkürzungsglossar','Begriffe nachschlagen',"showSheet(false);openGlossary()");
-  { const pend=(typeof pendingSuggestions==='function')?pendingSuggestions().length:0;
-    h+=sAct('✍️','Änderungsvorschläge',pend?(pend+' offen'):'ansehen & bewerten',"showSheet(false);openSuggestions()"); }
-  if(ADMIN){ h+=sAct('🧬','Material & Einträge','Der eine Ort: erfassen · pflegen · zuordnen · ordnen · prüfen',"menuGo('care')"); }
-  else { h+=sAct('📷','Etikett scannen','Produkt per Barcode erfassen & finden',"showSheet(false);openScanHub()"); }
-  if(ADMIN){ h+=sAct('💬','Pop-up-Dialoge','Abfragen beim Abhaken frei einstellen',"showSheet(false);openPopupAdmin()");
-    h+=sAct('👤','Ärzte & Varianten','arztspezifische Abweichungen pflegen',"showSheet(false);openVariantAdmin()");
+  if(typeof fktMenueListe==='function'){
+    fktMenueListe(ADMIN).forEach(m=>{ h+=sAct(m.ico, m.label, m.sub, m.tun); });
+    if(ADMIN) h+=sAct('🎛','Menü & Funktionen','Punkte ein-/ausblenden, umbenennen, eigene anlegen',"showSheet(false);openFunktionen()");
+  } else {
+    h+=sAct('📋','Alle Standards','Übersicht',"menuGo('use')");
+    h+=sAct('🔎','Globale Suche','Material, Gerät, Synonym …',"showSheet(false);openGlobalSearch()");
     h+=sAct('🛠️','Verwaltung','Einstellungen & Bearbeitung',"menuGo('admin')");
-    h+=sAct('🔑','Passwort ändern','',"changePw()");
-    h+=sAct('🚪','Abmelden','Verwaltungsmodus beenden',"adminLogout()"); }
-  else { h+=sAct('🔒','Anmelden','Verwaltung freischalten',"promptLogin()"); }
-  /* Fehler- und Problemanalyse: „Problem melden" steht ALLEN offen — wer im
-     Labor merkt, dass etwas nicht geht, muss das ohne Anmeldung loswerden
-     können. Das Protokoll selbst sieht die Verwaltung. */
-  h+=sAct('🐞','Problem melden','Etwas geht nicht? Zwei Sätze genügen',"showSheet(false);diagMeldenForm()");
-  if(ADMIN){ const off=(typeof DIAG!=='undefined'&&Array.isArray(DIAG))?DIAG.filter(e=>e.art==='fehler'||e.art==='meldung').length:0;
-    h+=sAct('🩺','Diagnose & Fehler',off?(off+' Einträge im Protokoll'):'Protokoll & Selbsttest',"showSheet(false);openDiag()"); }
-  h+=sAct('↺','Alle Häkchen zurücksetzen','Abhaken dieses Geräts leeren',"resetAllChecks()");
-  h+=sAct('◐','Ansicht hell/dunkel','',"toggleTheme();showSheet(false)");
+    h+=sAct('🐞','Problem melden','Etwas geht nicht? Zwei Sätze genügen',"showSheet(false);diagMeldenForm()");
+  }
   h+=`<button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
   $('sheet').innerHTML=h; showSheet(true); }
 function menuGo(m){ showSheet(false); setMode(m); }

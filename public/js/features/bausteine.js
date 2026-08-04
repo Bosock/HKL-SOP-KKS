@@ -488,6 +488,7 @@ const BAU_ZEIGE = 12;
 
 function openBausteinAdmin(){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(openBausteinAdmin); return; }
+  bauForm = null;   /* nichts Halboffenes aus einem früheren Besuch */
   renderBausteine(); show('scr-bausteine');
   if(typeof setBar==='function') setBar('Bausteine', BAUSTEINE.length+' angelegt', true);
 }
@@ -501,21 +502,49 @@ function bauUiAnwenden(id){ const r=bauAnwenden(id); renderBausteine();
   toast(r.stellen?('Eingetragen an '+r.stellen+' Stellen'):'Nichts einzutragen — der Bestand entspricht schon dem Baustein'); }
 function bauUiLoesen(id){ const n=bauLoesen(id); renderBausteine();
   toast(n?(n+' eigene Eintragungen zurückgenommen'):'Nichts zurückzunehmen'); }
+/* Offene Eingabefläche: {art:'umbenennen'|'loeschen'|'anlegen', id, i}.
+   Bewusst KEIN prompt()/confirm(): In installierten PWAs erscheint dort auf
+   mehreren Android-Chrome-Versionen kein Fenster, der Aufruf liefert sofort
+   null — Anlegen und Umbenennen wären auf genau den Geräten lautlos
+   ausgefallen, auf denen im Saal gearbeitet wird (Grundsatz ⑧). */
+let bauForm = null;
+
+function bauFormSchliessen(){ bauForm=null; renderBausteine(); }
+function bauFormFokus(){ const i=$('bauFormName'); if(i){ setTimeout(()=>{ i.focus(); if(i.select) i.select(); },50); } }
+
 function bauUiUmbenennen(id){ const b=bauNach(id); if(!b) return;
-  const n=prompt('Name des Bausteins:', b.name); if(n==null) return;
-  if(!bauUmbenennen(id,n)){ toast('Name darf nicht leer sein',true); return; }
-  renderBausteine(); }
+  bauForm={art:'umbenennen', id, wert:b.name}; renderBausteine(); bauFormFokus(); }
+function bauUiUmbenennenSpeichern(id){
+  const v=($('bauFormName')&&$('bauFormName').value||'');
+  if(!bauUmbenennen(id,v)){ toast('Name darf nicht leer sein',true); const i=$('bauFormName'); if(i) i.focus(); return; }
+  bauForm=null; renderBausteine(); toast('Umbenannt'); }
+
 function bauUiLoeschen(id){ const b=bauNach(id); if(!b) return;
-  if(!confirm('Baustein „'+b.name+'" löschen?\n\nEigene Eintragungen an den Fundstellen werden dabei zurückgenommen. Die Standards selbst bleiben unverändert.')) return;
-  bauLoeschen(id); renderBausteine(); toast('Baustein gelöscht'); }
+  bauForm={art:'loeschen', id}; renderBausteine(); }
+function bauUiLoeschenBestaetigen(id){
+  bauLoeschen(id); bauForm=null; renderBausteine(); toast('Baustein gelöscht'); }
+
 function bauUiAnlegen(i){
   const k = bauVorschlaege()[i]; if(!k) return;
-  const name = prompt('Name für den Baustein:', bauTitelVorschlag(k.zeilen));
-  if(name==null) return;
+  bauForm={art:'anlegen', i, wert:bauTitelVorschlag(k.zeilen)}; renderBausteine(); bauFormFokus(); }
+function bauUiAnlegenSpeichern(i){
+  const k = bauVorschlaege()[i]; if(!k) return;
+  const name=($('bauFormName')&&$('bauFormName').value||'').trim();
+  if(!name){ toast('Bitte einen Namen eingeben',true); const el=$('bauFormName'); if(el) el.focus(); return; }
   const b = bauAnlegen(name, k.zeilen, k.schluessel);
   if(!b){ toast('Konnte nicht angelegt werden',true); return; }
-  renderBausteine();
+  bauForm=null; renderBausteine();
   toast('Angelegt — steht an '+bauVorkommen(b.id).length+' Stellen');
+}
+
+/* Eingabefläche für einen Namen — an Ort und Stelle, nicht in einem Fenster. */
+function bauNameFormHTML(titel, hinweis, wert, jaText, jaFn){
+  return `<div class="pcard" style="margin-top:10px">
+    <div class="bez-sec" style="margin-top:0">${esc(titel)}</div>
+    ${hinweis?`<p class="hint">${esc(hinweis)}</p>`:''}
+    <input class="loc-input" id="bauFormName" style="width:100%" value="${esc(wert||'')}" placeholder="Name des Bausteins">
+    <div class="p-actions"><button class="btn btn-sec" onclick="bauFormSchliessen()">Abbrechen</button>
+      <button class="btn btn-pri" onclick="${jaFn}">${esc(jaText)}</button></div></div>`;
 }
 function bauUiEinfuegen(id){
   const sel=$('bauZielStd_'+id), rsel=$('bauZielRub_'+id);
@@ -570,7 +599,10 @@ function bauKarteHTML(b){
   const titelVon = (sid)=>{ const s=bauStandards().find(x=>x.id===sid); return s?bauStdName(s):sid; };
   const stdListe = stds.map(titelVon).sort((a,b2)=>String(a).localeCompare(String(b2),'de'));
 
-  let h = `<details class="vpanel bau-karte">
+  /* Eine offene Eingabefläche darf nicht hinter einer zugeklappten Karte
+     verschwinden — der Neuaufbau der Seite würde sie sonst schließen. */
+  const offen = !!(bauForm && bauForm.id===b.id);
+  let h = `<details class="vpanel bau-karte"${offen?' open':''}>
     <summary><span class="vp-ico">⛓️</span><span class="vp-txt">
       <span class="vp-title">${esc(b.name)}</span>
       <span class="vp-desc">${b.zeilen.length} Zeilen · steht in ${stds.length} Standard${stds.length===1?'':'s'} (${vor.length} Fundstelle${vor.length===1?'':'n'})</span>
@@ -615,18 +647,31 @@ function bauKarteHTML(b){
 
   if(stdListe.length) h += `<p class="hint">Steht in: ${stdListe.map(esc).join(' · ')}</p>`;
 
-  h += `<div class="p-actions">
+  if(bauForm && bauForm.id===b.id && bauForm.art==='umbenennen'){
+    h += bauNameFormHTML('Baustein umbenennen','Der Name ist nur eine Beschriftung — die Fundstellen bleiben dieselben.',
+      bauForm.wert, 'Speichern', "bauUiUmbenennenSpeichern('"+esc(b.id)+"')");
+  } else if(bauForm && bauForm.id===b.id && bauForm.art==='loeschen'){
+    h += `<div class="pcard" style="margin-top:10px">
+      <div class="bez-sec" style="margin-top:0">Baustein „${esc(b.name)}" löschen?</div>
+      <p class="hint">Eigene Eintragungen an den ${vor.length} Fundstellen werden dabei zurückgenommen. Die Standards selbst bleiben unverändert.</p>
+      <div class="p-actions"><button class="btn btn-sec" onclick="bauFormSchliessen()">Abbrechen</button>
+        <button class="btn btn-dgr" data-b="${esc(b.id)}" onclick="bauUiLoeschenBestaetigen(this.dataset.b)">Ja, löschen</button></div></div>`;
+  } else {
+    h += `<div class="p-actions">
       <button class="btn btn-sec" data-b="${esc(b.id)}" onclick="bauUiAnwenden(this.dataset.b)">Durchsetzen</button>
       <button class="btn btn-sec" data-b="${esc(b.id)}" onclick="bauUiLoesen(this.dataset.b)">Lösen</button>
       <button class="btn btn-sec" data-b="${esc(b.id)}" onclick="bauUiUmbenennen(this.dataset.b)">Umbenennen</button>
       <button class="btn btn-dgr" data-b="${esc(b.id)}" onclick="bauUiLoeschen(this.dataset.b)">Löschen</button>
-    </div></div></details>`;
+    </div>`;
+  }
+  h += `</div></details>`;
   return h;
 }
 
 function bauVorschlagHTML(k, i){
   const titelVon = (sid)=>{ const s=bauStandards().find(x=>x.id===sid); return s?bauStdName(s):sid; };
-  return `<details class="vpanel bau-vor">
+  const offen = !!(bauForm && bauForm.art==='anlegen' && bauForm.i===i);
+  return `<details class="vpanel bau-vor"${offen?' open':''}>
     <summary><span class="vp-ico">🔁</span><span class="vp-txt">
       <span class="vp-title">${esc(bauTitelVorschlag(k.zeilen))}</span>
       <span class="vp-desc">${k.laenge} Zeilen · gleich in ${k.standards.length} Standards</span>
@@ -634,7 +679,9 @@ function bauVorschlagHTML(k, i){
     <div class="vpanel-body">
       <div class="bau-vorz">${k.zeilen.map(z=>`<div class="bau-vz"><span class="bau-vm">${esc(z.menge||'')}</span><span>${esc(z.text)}</span></div>`).join('')}</div>
       <p class="hint">Steht in: ${k.standards.map(s=>esc(titelVon(s))).join(' · ')}</p>
-      <div class="p-actions"><button class="btn btn-pri" data-i="${i}" onclick="bauUiAnlegen(+this.dataset.i)">Als Baustein anlegen</button></div>
+      ${(bauForm && bauForm.art==='anlegen' && bauForm.i===i)
+        ? bauNameFormHTML('Als Baustein anlegen','Der Name steht später in jedem Standard, in dem der Baustein gefunden wird.', bauForm.wert, 'Anlegen', 'bauUiAnlegenSpeichern('+i+')')
+        : `<div class="p-actions"><button class="btn btn-pri" data-i="${i}" onclick="bauUiAnlegen(+this.dataset.i)">Als Baustein anlegen</button></div>`}
     </div></details>`;
 }
 

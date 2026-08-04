@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -50,6 +50,15 @@ function hydrateVars(){
   if(typeof GERAETE!=='undefined'){ GERAETE=loadJSON('hkl_geraete',{}); if(!GERAETE||typeof GERAETE!=='object') GERAETE={}; }
   if(typeof BAUSTEINE!=='undefined'){ BAUSTEINE=loadJSON('hkl_bausteine',[]); if(!Array.isArray(BAUSTEINE)) BAUSTEINE=[];
     if(typeof bauCacheLeeren==='function') bauCacheLeeren(); }
+  /* Menü- und Karten-Einstellungen (features/funktionen.js) — sie gelten für
+     alle Geräte, deshalb kommen sie beim Sync mit. */
+  if(typeof FKT!=='undefined'){ FKT=loadJSON('hkl_funktionen',{});
+    if(typeof fktNormalisieren==='function') fktNormalisieren(); }
+  /* Bildunterschriften: eine Kennung, eine Unterschrift — überall gleich. */
+  if(typeof MEDTXT!=='undefined'){ MEDTXT=loadJSON('hkl_medientexte',{}); }
+  /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
+     sie jemand am anderen Gerät ab, muss das hier ankommen. */
+  if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}
   if(typeof frgCacheLeeren==='function') frgCacheLeeren();
   if(typeof BEZ!=='undefined'){ BEZ=loadJSON('hkl_bezeichnungen',{}); if(!BEZ||typeof BEZ!=='object') BEZ={}; }
   if(typeof GUIDES!=='undefined'){ GUIDES=loadJSON('hkl_guides',[]); if(!Array.isArray(GUIDES)) GUIDES=[]; }

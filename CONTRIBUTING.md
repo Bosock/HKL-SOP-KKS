@@ -248,6 +248,63 @@ dass die App im Browser sauber startet.
 
 ---
 
+## Einen Menüpunkt hinzufügen (⋯ oder ☰)
+
+Beides läuft über das Funktionsregister — sonst wäre der neue Punkt für das
+Haus unveränderlich (Regel A7).
+
+**Im Bearbeiten-Menü ⋯** (`public/js/features/quickmenu.js`): Der Punkt bekommt
+einen Schlüssel und geht durch den Sammler.
+
+```js
+S.gruppe('organisation','Organisation','Wohin er gehört');
+S.akt('lagerort','📍','Lagerort ändern', ort, 'sheetGo("ort")');
+//     ^Schlüssel                         ^dynamischer Untertitel ist erlaubt
+```
+
+Danach **denselben Punkt in den Katalog** eintragen
+(`FKT_SHEET_KATALOG` in `public/js/features/funktionen.js`, gleiche Gruppe,
+gleiche Reihenfolge). Vergisst du das, schlägt `npm test` fehl — der Katalog
+wird maschinell gegen quickmenu.js abgeglichen, in beide Richtungen.
+
+**Im Hauptmenü ☰**: eine Zeile in `FKT_MENUE` (`funktionen.js`). `nur` steuert,
+wer ihn sieht (`alle`/`admin`/`gast`); `fest:true` nur, wenn ein Ausblenden
+jemanden aussperren würde.
+
+## Zwei Regeln, die die Maschine durchsetzt
+
+`npm run check` bricht ab, wenn eine davon verletzt wird. Beide stehen mit
+Begründung in [docs/GRUNDSAETZE.md](docs/GRUNDSAETZE.md).
+
+**1 · Kein `prompt()` und kein `confirm()`.** In installierten PWAs erscheint
+auf mehreren Android-Chrome-Versionen gar kein Fenster; der Aufruf liefert
+sofort `null`/`false` und die Funktion schlägt **lautlos** fehl. Statt dessen
+eine Eingabefläche der App: ein Sheet (Muster: `sheetNewUk` in
+`features/quickmenu.js`) oder eine Karte im Bildschirm (Muster: `frgFormHTML`
+in `features/freigabe.js`).
+
+**2 · Kein Fachwort in einem Vergleich.** Eine Zeichenkette, die jemand
+umbenennen kann, darf nicht das Verhalten steuern:
+
+```js
+if (m.status === 'Freigegeben')      // ✗ Umbenennen kippt jede Freigabe
+if (frgZustand(m) === 'freigegeben') // ✓ Schlüssel steuert, Wort zeigt an
+```
+
+Ist der Wert wirklich ein Schlüssel, der nur zufällig deutsch aussieht (etwa
+ein fester Wert aus einer mitgelieferten Datei), schreibst du die Begründung
+daneben:
+
+```js
+/* fachwort:ok — fester Wert aus data/material_catalog.json */
+const unbestaetigt = (r.katstatus !== 'bestätigt');
+```
+
+**Altlasten.** Was am Einführungstag schon da war, steht gezählt in
+`scripts/pruefungen/altlasten.json` und ist geduldet. Räumst du eine davon weg,
+meldet die Prüfung die neue, kleinere Zahl — trag sie ein. Die Liste darf nur
+schrumpfen.
+
 ## Die drei Fallstricke, die du kennen musst
 
 1. **Apostroph in `onclick`.** `esc()` maskiert **kein** `'`. Interpoliere nie

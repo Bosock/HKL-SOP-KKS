@@ -97,16 +97,16 @@ function gtinKey(g){
   return s;
 }
 
-/* Verfallsstatus relativ zu heute: ''(kein Datum) | 'expired' | 'soon'(≤90 T) |
-   'ok'. todayStr optional (YYYY-MM-DD) — reine Funktion für Tests. */
-function expiryStatus(dateStr, todayStr){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr||'')) return '';
-  const t=/^\d{4}-\d{2}-\d{2}$/.test(todayStr||'')?todayStr:new Date().toISOString().slice(0,10);
-  if(dateStr<t) return 'expired';
-  const days=(Date.parse(dateStr+'T00:00:00Z')-Date.parse(t+'T00:00:00Z'))/86400000;
-  if(days<=90) return 'soon';
-  return 'ok';
-}
+/* Hier stand bis zum 04.08.2026 eine Funktion expiryStatus(), die zu einem
+   Verfallsdatum „abgelaufen / bald / ok" berechnete. Sie wurde nirgends
+   aufgerufen — sie war der Anfang einer Bestandsführung, und die ist in
+   dieser App ausdrücklich ausgeschlossen (docs/GRUNDSAETZE.md, Regel A2:
+   „Verfallsdatum und Charge sind irrelevant"). Entfernt, damit der Code die
+   Vorgabe nicht stillschweigend unterläuft.
+
+   Der GS1-Zerleger liest die Felder für Charge (AI 10) und Verfall (AI 17)
+   weiterhin — er muss sie erkennen, um sie von der Produktnummer zu trennen.
+   Behalten wird davon nichts (siehe handleScan). */
 
 /* Ordnet ein rohes Scan-Ergebnis einer Bedeutung zu: GS1 (mit AIs), reine
    GTIN/EAN, URL (QR) oder Freitext. format ist der BarcodeDetector-Formatname. */
@@ -686,6 +686,8 @@ function saveScanItem(gArg){
   const kh=(typeof catReadHold==='function')?catReadHold():null;
   if(kh && kh.specs && Object.keys(kh.specs).length){
     patch.katspecs=kh.specs; patch.katref=kh.ref||null; patch.katquelle=kh.quelle||null;
+    /* fachwort:ok — 'bestätigt' ist der feste Wert aus data/material_catalog.json,
+       keine Anzeige-Bezeichnung (vgl. matcatalog.js). */
     patch.katstatus=(GTINDB[g]&&GTINDB[g].katstatus==='bestätigt')?'bestätigt':(kh.status||'unbestätigt');
   }
   GTINDB[g]=mergeGtinRecord(GTINDB[g], patch, new Date().toISOString());

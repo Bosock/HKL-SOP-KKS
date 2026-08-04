@@ -143,12 +143,21 @@ server.js             dünner Einstiegspunkt (node server.js)
 
 ## Tests & Selbstprüfung
 
-- `npm run check` (`scripts/check.js`, keine Abhängigkeiten): `node --check`
-  über alle projekteigenen `.js`-Dateien **und** Abgleich, dass die `SHELL`-
-  Liste in `public/sw.js` und die `<script>`-Tags in `public/index.html`
-  dieselben Module führen. Fängt die zwei Fehlerquellen ab, die kein Unit-Test
-  sieht (Syntaxfehler, auseinandergelaufene Offline-Liste). Läuft in CI vor den
-  Tests. Praktische Anleitung für Mitpflegende: [CONTRIBUTING.md](CONTRIBUTING.md).
+- `npm run check` (`scripts/check.js`, keine Abhängigkeiten) prüft **vier**
+  Dinge: (1) `node --check` über alle projekteigenen `.js`-Dateien;
+  (2) `SHELL` in `public/sw.js` ⇄ `<script>`-Tags in `public/index.html`;
+  (3) **keine neuen `prompt()`/`confirm()`** (Grundsatz ⑧ — in installierten
+  PWAs lautlos wirkungslos); (4) **kein Fachwort in einem Vergleich**
+  (Grundsatz ④ — inkl. Umweg über eine Konstante).
+  (3) und (4) liegen in `scripts/pruefungen/` und arbeiten gegen die
+  **schrumpfende Altlastenliste** `scripts/pruefungen/altlasten.json`: Der
+  Bestand vom Einführungstag ist je Datei gezählt und geduldet, neue Fälle
+  brechen ab — und eine **zu hohe** Zahl bricht ebenfalls ab, damit die Liste
+  nur kleiner werden kann. Begründete Einzelfälle stehen als
+  `/* fachwort:ok — Grund */` bzw. `/* eingabe:ok — Grund */` am Quelltext.
+  Die Regeln dahinter: [docs/GRUNDSAETZE.md](docs/GRUNDSAETZE.md).
+  Läuft in CI vor den Tests. Praktische Anleitung für Mitpflegende:
+  [CONTRIBUTING.md](CONTRIBUTING.md).
 - `npm test` (Node ≥ 18, `node --test`, keine Abhängigkeiten).
 - `test/server.test.js`: Integrationstests gegen den echten Server auf einem
   ephemeren Port (Fixture-Verzeichnisse unter `$TMPDIR`).
@@ -422,6 +431,110 @@ deshalb **nicht beim Start**, sondern erst beim Öffnen der Ansicht; das Ergebni
 liegt bis zur nächsten Datenänderung im Zwischenspeicher (`bauCacheLeeren`,
 u. a. aus `rebuildDB`). Tests: `test/bausteine.test.js` (33), End-to-End:
 `e2e/bausteine.js`.
+
+## Funktionsregister — Menü und Verwaltungs-Karten (`hkl_funktionen`)
+
+`public/js/features/funktionen.js`. Antwort auf die Vorgabe „alles muss ohne
+Programmierung anpassbar sein — auch Funktionen hinzufügen und wegnehmen"
+(docs/GRUNDSAETZE.md, Regel A7).
+
+**Menü.** `FKT_MENUE` ist die Vorgabe: je Punkt ein `key` (trägt die
+Bedeutung), dazu `ico`/`label`/`sub` (Bezeichnungen, frei änderbar), `tun` (der
+Aufruf), `nur` (`alle`/`admin`/`gast`) und optional `fest:true`.
+`fktMenueListe(istAdmin)` löst das mit den eigenen Änderungen auf und sortiert.
+`openMenu()` (core/app-state.js) rendert nur noch diese Liste; der eingebaute
+Rückfall greift, wenn das Modul fehlt.
+
+**Verwaltungs-Karten.** Der Schlüssel wird aus der Karten-Überschrift gewonnen
+(`fktSlug` über `.vp-title`). Das ist Absicht: So erfasst das Register **jede**
+Karte, auch neu hinzukommende, ohne dass an einem Dutzend Baustellen ein
+Schlüssel nachgetragen werden muss. `renderAdmin()` ruft am Ende
+`fktPanelAnwenden($('scr-admin'))` — ausblenden, umbenennen, umsortieren
+(letzteres nur innerhalb des jeweiligen Themenblocks).
+
+**Die Bearbeiten-Menüs (⋯).** Das meistbenutzte Menü der App — Grundsatz ⑥ —
+läuft über denselben Weg. `quickmenu.js` baut die drei Menüs (`eintrag`,
+`standard`, `rubrik`) nicht mehr durch String-Anhängen, sondern über einen
+**Sammler**: `sheetBauer('<bereich>')` → `S.gruppe(key, titel, sub)` /
+`S.akt(key, ico, label, sub, fn, cls)` → `S.html()`. Der Sammler wendet
+ausblenden · umbenennen · Symbol · Reihenfolge an, kennt einen Schalter für
+ganze Gruppen (`sheetgruppe`) und rendert bei komplett leerem Menü einen
+Hinweis samt Weg zurück statt einer leeren Fläche.
+
+Sortiert wird **nur innerhalb einer Gruppe** — sonst rutschte „Endgültig
+löschen" unter „Inhalt" und die Gefahrenzone wäre keine mehr.
+
+`FKT_SHEET_KATALOG` in `funktionen.js` führt alle Aktionen mit ihren
+Auslieferungswerten, damit die Verwaltung sie auch anzeigen kann, ohne dass ein
+Menü offen ist. Damit der Katalog nicht still veraltet, gleicht
+`test/funktionen.test.js` ihn **maschinell gegen den Quelltext von
+quickmenu.js** ab — in beide Richtungen, Gruppen inklusive Reihenfolge. Ein
+neuer Menüpunkt ohne Katalogeintrag lässt die Tests durchfallen.
+
+Fällt `funktionen.js` aus, liefert `sheetBauer` in `quickmenu.js` einen
+Rückfall-Sammler ohne Einstellungen — die Kern-Bedienung hängt nie an einer
+Komfortfunktion.
+
+**Kopfleiste.** `FKT_KOPF` deckt die drei Symbole oben rechts ab (Lupe,
+GitHub-Anmeldung, Hell/Dunkel); `fktKopfAnwenden()` läuft beim Start
+(`main.js`, nach dem Laden des geteilten Zustands) und nach jedem Sync. `☰`
+und „Zurück" sind nicht erfasst — ohne sie käme man nirgendwo mehr hin.
+
+**Merkmalsleiste.** Jede Art aus `FAC_ARTEN` ist einzeln abschaltbar
+(`fktFacetteAus`, Bereich `facette`). Eine ausgeblendete Art mit **aktiver
+Auswahl** bleibt sichtbar — sonst wirkte ein Filter unsichtbar weiter.
+
+**Eigene Punkte.** `FKT.eigene[]` mit `art` ∈ `standard` · `bildschirm` ·
+`seite` · `adresse`. Bewusst nur diese vier: Ein frei eingebbarer Funktionsname
+wäre eine offene Tür in den Quelltext; `adresse` lässt nur `http(s)://` zu.
+
+**Grenze.** `verwaltung`, `anmelden`, `abmelden` und `melden` sind `fest` — wer
+sie ausblenden könnte, sperrte sich mit einem Tipp selbst aus.
+
+**Bewusst NICHT erfasst:** die Knöpfe *innerhalb* eines Formulars
+(Abbrechen · Speichern · Zurück · Schließen). „Speichern" ausblenden zu können
+wäre keine Freiheit, sondern eine Falle — das Formular ließe sich öffnen, aber
+nicht abschließen.
+
+**Bereiche im Speicher `hkl_funktionen`:** `menue` · `panel` · `sheet` ·
+`sheetgruppe` · `facette` · `kopf` · `eigene[]`. Geteilt über SHARED_KEYS +
+`hydrateVars`, gesichert über `BACKUP_KEYS`.
+Tests: `test/funktionen.test.js` (18), End-to-End: `e2e/funktionen.js` (29).
+
+## Bilder an Einträgen (`/api/media`, `hkl_medientexte`)
+
+`server/media.js` + `server/routes/media.js` + `public/js/features/medien.js`.
+
+**Warum getrennt vom Zustand.** `/api/state` überträgt bei jeder Änderung den
+ganzen geteilten Zustand. Für Text richtig, für Bilder eine Sackgasse: ~250 KB
+je Foto, ~4.500 Zeilen, `MAX_BODY` 32 MiB. Deshalb liegen Bilder als einzelne
+Dateien unter `STATE_DIR/media`; im Zustand steht nur die Kennung.
+
+**Kennung = Inhalts-Fingerabdruck** (SHA-256, 32 Hexstellen). Daraus folgt
+ohne Zutun: Dubletten kosten keinen Platz, die Auslieferung darf
+`immutable` cachen, und zwei Geräte können nicht dieselbe Nummer vergeben.
+
+**Endpunkte.** `POST /api/media` (Rumpf = Bilddaten, `Content-Type` = Art;
+201 neu / 200 schon da) · `GET /api/media/<kennung>` · `GET /api/media`
+(Bestand) · `DELETE /api/media/<kennung>`. Erlaubt sind JPEG/PNG/WebP/GIF —
+**kein SVG** (ausführbares Markup von eigener Herkunft). Grenze je Bild
+`MAX_MEDIA` (8 MiB).
+
+**Client.** Bilder sind eine Eigenschaft `bilder` der Zeile und laufen deshalb
+über dieselbe Reichweiten-Treppe wie Name und Menge (`sheetPending` →
+`applyPending`) — 📍 Stelle · 📄 Standard · 🗂 Gruppe · 🌐 alle, journaliert und
+rücknehmbar. Anzeige als Streifen unter der Zeile (`medStreifenHTML`, aus
+`ui/detail.js`), Pflege im Bearbeiten-Menü (`sheetGo('bilder')`).
+Bildunterschriften liegen je Kennung in `hkl_medientexte` — eine Kennung, eine
+Unterschrift, überall gleich.
+
+**Ohne Netz.** Aufnahmen warten in IndexedDB (`hkl-medien`) und gehen bei
+`online` bzw. beim Start hoch. Der Service Worker cacht `/api/media/…`
+cache-first (die einzige Ausnahme von „`/api` nie cachen" — die Adresse ist
+unveränderlich). GIFs gehen ungerendert durch, sonst bliebe vom Bewegtbild nur
+das erste Einzelbild.
+
+Tests: `test/server.test.js` (10 Fälle), End-to-End: `e2e/medien.js` (17).
 
 ## Bekannte Altlasten / bewusste Kompromisse
 

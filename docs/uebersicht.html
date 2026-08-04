@@ -1,0 +1,521 @@
+<title>HKL Standards — Wo wir stehen und was zu entscheiden ist</title>
+<style>
+:root{
+  --ink:#152230; --ink-soft:#4A5C6D; --ground:#F3F6F9; --surface:#FFFFFF;
+  --line:#D5DEE5; --line-soft:#E7EDF2; --accent:#1B6FA6; --accent-soft:#E6F0F7;
+  --warn:#9B5E06; --warn-soft:#FAF0DE; --stop:#9C2F27; --stop-soft:#FBEAE8;
+  --go:#186B47; --go-soft:#E4F1EA;
+  --schatten:0 1px 2px rgba(21,34,48,.06), 0 8px 24px -12px rgba(21,34,48,.22);
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#E3ECF3; --ink-soft:#93A6B6; --ground:#0D161E; --surface:#15212C;
+    --line:#263441; --line-soft:#1D2A35; --accent:#68B5E7; --accent-soft:#14293A;
+    --warn:#E2A852; --warn-soft:#2A2113; --stop:#EC8079; --stop-soft:#2E1614;
+    --go:#57C193; --go-soft:#12291F;
+    --schatten:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -14px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#E3ECF3; --ink-soft:#93A6B6; --ground:#0D161E; --surface:#15212C;
+  --line:#263441; --line-soft:#1D2A35; --accent:#68B5E7; --accent-soft:#14293A;
+  --warn:#E2A852; --warn-soft:#2A2113; --stop:#EC8079; --stop-soft:#2E1614;
+  --go:#57C193; --go-soft:#12291F;
+  --schatten:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -14px rgba(0,0,0,.8);
+}
+:root[data-theme="light"]{
+  --ink:#152230; --ink-soft:#4A5C6D; --ground:#F3F6F9; --surface:#FFFFFF;
+  --line:#D5DEE5; --line-soft:#E7EDF2; --accent:#1B6FA6; --accent-soft:#E6F0F7;
+  --warn:#9B5E06; --warn-soft:#FAF0DE; --stop:#9C2F27; --stop-soft:#FBEAE8;
+  --go:#186B47; --go-soft:#E4F1EA;
+  --schatten:0 1px 2px rgba(21,34,48,.06), 0 8px 24px -12px rgba(21,34,48,.22);
+}
+
+*{box-sizing:border-box;}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:17.5px; line-height:1.66; -webkit-font-smoothing:antialiased;}
+.huelle{max-width:820px; margin:0 auto; padding:0 20px 96px;}
+
+.kopf{padding:60px 0 30px; border-bottom:2px solid var(--ink);}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 14px;}
+h1{font-size:clamp(2rem,5.2vw,3.1rem); line-height:1.06; letter-spacing:-.026em;
+  font-weight:820; margin:0 0 16px; text-wrap:balance;}
+.lede{font-size:1.12rem; color:var(--ink-soft); margin:0;}
+
+h2{font-size:clamp(1.45rem,3.2vw,1.95rem); letter-spacing:-.02em; font-weight:800;
+  margin:64px 0 6px; text-wrap:balance; padding-top:24px; border-top:1px solid var(--line);}
+h2:first-of-type{border-top:0;}
+h2 .h2n{font-family:var(--mono); font-size:.62em; color:var(--accent); font-weight:600;
+  display:block; letter-spacing:.14em; text-transform:uppercase; margin-bottom:6px;}
+h3{font-size:1.16rem; font-weight:750; letter-spacing:-.012em; margin:34px 0 8px; text-wrap:balance;}
+p{margin:0 0 14px;}
+ul,ol{margin:0 0 14px; padding-left:1.25em;}
+li{margin:0 0 7px;}
+b,strong{font-weight:700;}
+
+/* Ampel-Kästen */
+.box{border-radius:13px; padding:15px 17px; margin:0 0 16px; border:1px solid;}
+.box > b:first-child{display:block; font-size:12px; font-family:var(--mono);
+  letter-spacing:.13em; text-transform:uppercase; margin-bottom:5px;}
+.gut{background:var(--go-soft); border-color:color-mix(in srgb,var(--go) 30%,transparent);}
+.gut > b:first-child{color:var(--go);}
+.merke{background:var(--accent-soft); border-color:color-mix(in srgb,var(--accent) 26%,transparent);}
+.merke > b:first-child{color:var(--accent);}
+.achtung{background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 36%,transparent);}
+.achtung > b:first-child{color:var(--warn);}
+.stop{background:var(--stop-soft); border-color:color-mix(in srgb,var(--stop) 36%,transparent);}
+.stop > b:first-child{color:var(--stop);}
+
+/* Entscheidungskarte */
+.ent{background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:24px 24px 20px; margin:26px 0; box-shadow:var(--schatten); scroll-margin-top:20px;}
+.ent-kopf{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:4px;}
+.ent-nr{font-family:var(--mono); font-size:13px; font-weight:700; color:#fff;
+  background:var(--accent); border-radius:7px; padding:3px 9px; flex:0 0 auto;}
+.ent-kopf h3{margin:0; font-size:1.3rem;}
+.ent-frage{font-size:1.02rem; color:var(--ink-soft); margin:0 0 18px;}
+.wahl{display:grid; gap:14px; grid-template-columns:1fr 1fr; margin:0 0 16px;}
+.opt{border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--ground);}
+.opt.empf{border-color:var(--go); border-width:2px; background:var(--go-soft);}
+.opt-t{font-weight:750; margin:0 0 8px; display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+.opt-t .haken{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--go); border:1px solid color-mix(in srgb,var(--go) 45%,transparent);
+  border-radius:5px; padding:1px 6px;}
+.opt ul{margin:0; padding-left:1.1em; font-size:15.5px;}
+.opt li{margin-bottom:5px;}
+/* Vorteil/Nachteil: das Zeichen kommt aus ::before (siehe unten),
+   ein zusätzliches ::marker würde es verdoppeln. */
+.opt li.pro{list-style:none; margin-left:-1.1em; padding-left:1.4em; position:relative;}
+.opt li.pro::before{content:"+"; position:absolute; left:0; color:var(--go); font-weight:800;}
+.opt li.con{list-style:none; margin-left:-1.1em; padding-left:1.4em; position:relative;}
+.opt li.con::before{content:"−"; position:absolute; left:0; color:var(--stop); font-weight:800;}
+.brauch{border-top:1px solid var(--line); padding-top:14px; margin-top:4px;
+  display:grid; gap:6px 22px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  font-size:15px;}
+.brauch div span{display:block; font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-soft); margin-bottom:1px;}
+
+/* Tabelle */
+.tab-h{overflow-x:auto; margin:0 0 18px;}
+table{border-collapse:collapse; width:100%; font-size:15.5px;}
+th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+th{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-soft); font-weight:600; border-bottom:1px solid var(--line);}
+
+/* Wörterbuch */
+.woerter{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:8px 22px;}
+.woerter dl{margin:0;}
+.woerter dt{font-weight:750; margin:18px 0 2px;}
+.woerter dd{margin:0 0 6px; color:var(--ink-soft); font-size:16px;}
+
+.schluss{margin-top:56px; padding:26px 24px; border-radius:16px;
+  background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);}
+.schluss h2{margin:0 0 12px; border:0; padding:0; font-size:1.4rem;}
+.jaliste{list-style:none; padding:0; margin:0;}
+.jaliste li{padding-left:1.9em; position:relative; margin-bottom:9px;}
+.jaliste li::before{content:"☐"; position:absolute; left:0; font-size:1.15em; color:var(--accent);}
+
+a{color:var(--accent);}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px;}
+@media (max-width:640px){ .wahl{grid-template-columns:1fr;} body{font-size:17px;} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important;} }
+@media print{ body{background:#fff;color:#000;font-size:11pt;} .ent{page-break-inside:avoid;box-shadow:none;} }
+</style>
+
+<div class="huelle">
+
+<header class="kopf">
+  <p class="eyebrow">Stand 31. Juli 2026</p>
+  <h1>Wo wir stehen — und was Du entscheiden musst</h1>
+  <p class="lede">Alles in normaler Sprache. Hinten steht ein Wörterbuch für die Begriffe, die ich Dir zuletzt zugemutet habe. Du musst nichts sofort entscheiden — die App läuft.</p>
+</header>
+
+<h2><span class="h2n">Teil 1</span>Die gute Nachricht zuerst</h2>
+
+<div class="box gut"><b>Alles läuft</b>
+Die App ist online unter <b>sops.kardio.wiki</b>. Alles, was wir in den letzten Tagen gebaut haben, ist ausgeliefert und funktioniert. <b>Nichts ist kaputt, nichts brennt.</b> Du kannst diese Seite in Ruhe lesen und morgen entscheiden.</div>
+
+<p>Was seit dieser Woche neu drin ist — in einem Satz je Sache:</p>
+
+<ul>
+  <li><b>Bausteine</b> — die App hat gemerkt, dass sich in Deinen 47 Standards immer wieder dieselben Zeilenfolgen wiederholen. Sie hat <b>43 solcher Folgen</b> gefunden. Zusammen sind das <b>823 Zeilen, die Du bisher mehrfach pflegen musstest</b>. Jetzt einmal.</li>
+  <li><b>Freigabe mit Siegel</b> — wenn Du einen Standard freigibst, merkt sich die App genau, wie er in dem Moment aussah. Ändert danach jemand etwas, steht im Standard nicht mehr „Freigegeben", sondern <b>„Freigabe überholt"</b>. Für alle sichtbar, nicht nur für Dich.</li>
+  <li><b>Suche über Merkmale</b> — statt 47 Titel durchzuscrollen tippst Du: TAVI → transfemoral → Edwards. Drei Tipper, ein Standard.</li>
+  <li><b>Anleitung</b> — die bebilderte Erst-Anleitung, die ich Dir gestern geschickt habe.</li>
+</ul>
+
+<h2><span class="h2n">Teil 2</span>Was ich beim Prüfen gefunden habe</h2>
+
+<p>Du hattest mich gebeten, alles durchzugehen. Ich habe 935 Funktionen geprüft. Es gibt <b>drei Sachen, die heute schon falsche Ergebnisse liefern können</b> — und einen Haufen kleinerer Ärgernisse.</p>
+
+<h3>Die drei ernsten</h3>
+
+<div class="box stop"><b>Fehler 1 — Ein Wort kann alle Freigaben löschen</b>
+Die App erkennt eine Freigabe daran, dass im Statusfeld exakt das Wort <b>„Freigegeben"</b> steht. Schreibt jemand künftig „Gültig" oder „In Kraft" hinein, gelten <b>schlagartig alle Standards als Entwurf</b> — ohne Fehlermeldung, ohne dass es jemand merkt.<br><br>
+<i>Das habe ich diese Woche eingebaut. Mein Fehler.</i></div>
+
+<div class="box stop"><b>Fehler 2 — Zwei Wege, zwei verschiedene Ergebnisse</b>
+Du kannst die Kategorie eines Eintrags an <b>zwei Stellen</b> ändern: über das ⋯-Menü am Eintrag, oder in der Verwaltung unter „Einstufung prüfen".<br><br>
+Über ⋯ fragt die App: <i>„Soll das nur hier gelten oder überall?"</i><br>
+In der Verwaltung fragt sie <b>gar nicht</b> und gilt immer nur an dieser einen Stelle.<br><br>
+Dieselbe Handlung, zwei Orte, <b>stillschweigend zwei verschiedene Wirkungen</b>.</div>
+
+<div class="box stop"><b>Fehler 3 — Auf dem Tablet tut „Freigeben" womöglich nichts</b>
+Wenn die App als Symbol auf dem Startbildschirm installiert ist, funktionieren die kleinen Eingabefenster von Android manchmal nicht — sie erscheinen einfach nicht, ohne Fehlermeldung.<br><br>
+Das war schon einmal ein Problem und wurde an mehreren Stellen behoben. <b>In den zwei Funktionen, die ich diese Woche gebaut habe (Bausteine, Freigabe), habe ich es wieder falsch gemacht.</b> Auf dem Tablet im Saal könnten diese beiden Funktionen also ins Leere laufen.</div>
+
+<h3>Die kleineren Ärgernisse</h3>
+
+<div class="tab-h"><table>
+<tr><th>Was</th><th>Warum es stört</th></tr>
+<tr><td>Reihenfolge ändern ist mühsam</td><td>Eine Zeile 17 Plätze nach oben = 17-mal Menü öffnen und tippen</td></tr>
+<tr><td>Kein ⋯ am Standard</td><td>Am Eintrag und an der Rubrik gibt es ⋯, beim Standard nur langes Drücken — das findet niemand von allein</td></tr>
+<tr><td>Rüstliste ist eine Sackgasse</td><td>Fällt beim Aufbauen ein Fehler auf, kann man ihn dort nicht melden</td></tr>
+<tr><td>Anzeige-Einstellungen gelten für alle</td><td>Schaltet jemand in Saal 1 etwas aus, ist es in Saal 2 auch weg — und das steht nirgends</td></tr>
+<tr><td>Merkmalsleiste ist zu groß</td><td>Auf dem Tablet füllt sie fast den ganzen ersten Bildschirm</td></tr>
+<tr><td>Glossar ist leer</td><td>Der nützlichste Einstieg für neue Kollegen — und niemand hat ihn befüllt</td></tr>
+</table></div>
+
+<h3>Und eine Sache, die mir Sorgen macht</h3>
+
+<div class="box achtung"><b>Deine Vorgaben stehen nirgends</b>
+Du hast mir über Wochen wichtige Regeln gegeben: <i>keine Patientendaten · keine Bestandsführung mit Charge und Verfallsdatum · kein Kennwort des Defibrillators speichern · keine personenbezogenen Protokolle · die Excel-Liste ist nicht Teil der App</i>.<br><br>
+Ich habe mich daran gehalten. Aber <b>keine einzige dieser Regeln steht im Projekt geschrieben.</b> Sie leben nur in unserem Gespräch. Wenn dieses Fenster zugeht, sind sie weg — für mich und für jeden anderen.<br><br>
+Schlimmer: Bei einer Regel <b>widerspricht der Code Dir bereits</b>. Du hast gesagt, Charge und Verfallsdatum sind irrelevant — der Etikett-Scanner liest beides trotzdem aus dem Barcode.</div>
+
+<h2><span class="h2n">Teil 3</span>Die Entscheidungen</h2>
+
+<p>Sieben Stück. Bei jeder steht: worum es geht, was dafür und dagegen spricht, was ich empfehle, und was ich dafür von Dir brauche.</p>
+
+<!-- ═══ E1 ═══ -->
+<div class="ent" id="e1">
+  <div class="ent-kopf"><span class="ent-nr">E 1</span><h3>Deine Regeln aufschreiben</h3></div>
+  <p class="ent-frage">Sollen Deine Vorgaben in eine Datei im Projekt — und zwei davon automatisch überwacht werden?</p>
+
+  <p>Es entsteht eine Seite <b>„Grundsätze"</b> im Projekt, in Deinen Worten. Zusätzlich zwei automatische Prüfungen, die bei jeder Änderung mitlaufen: <i>keine dieser wackeligen Eingabefenster</i> und <i>keine Fachbegriffe fest im Programm</i>.</p>
+
+  <div class="wahl">
+    <div class="opt empf">
+      <p class="opt-t">Ja, machen <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Deine Regeln überleben jedes Gespräch und jeden Mitarbeiterwechsel</li>
+        <li class="pro">Widersprüche fallen auf (wie der mit der Charge)</li>
+        <li class="pro">Die beiden Prüfungen hätten <b>alle drei ernsten Fehler verhindert</b></li>
+        <li class="pro">Sehr kleine Arbeit</li>
+        <li class="con">Du musst die Seite einmal gegenlesen</li>
+      </ul>
+    </div>
+    <div class="opt">
+      <p class="opt-t">Lassen</p>
+      <ul>
+        <li class="pro">Kostet gar nichts</li>
+        <li class="con">Beim nächsten Mal fange ich bei null an und Du musst alles wiederholen</li>
+        <li class="con">Dieselben Fehler passieren wieder — sie sind schon zweimal passiert</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Nur Dein Ja. Den Entwurf schreibe ich, Du liest gegen.</div>
+    <div><span>Aufwand</span>Sehr klein</div>
+    <div><span>Risiko</span>Keines — es wird nichts an der App geändert</div>
+  </div>
+</div>
+
+<!-- ═══ E2 ═══ -->
+<div class="ent" id="e2">
+  <div class="ent-kopf"><span class="ent-nr">E 2</span><h3>Die drei ernsten Fehler beheben</h3></div>
+  <p class="ent-frage">Sollen Fehler 1, 2 und 3 aus Teil 2 als Nächstes repariert werden?</p>
+
+  <p>Konkret: Die Freigabe hängt nicht mehr an einem Wort · „Einstufung prüfen" benutzt dasselbe Menü wie ⋯ und fragt dieselbe Frage · Die wackeligen Eingabefenster verschwinden aus Bausteinen und Freigabe.</p>
+
+  <div class="wahl">
+    <div class="opt empf">
+      <p class="opt-t">Ja, zuerst <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Beseitigt die einzigen Stellen, die <b>heute still falsch</b> sein können</li>
+        <li class="pro">Danach ist die Freigabe wirklich verlässlich — und darauf soll sich das Labor verlassen</li>
+        <li class="pro">Überschaubare Arbeit, keine neuen Funktionen</li>
+        <li class="con">Du siehst hinterher fast nichts Neues — es funktioniert nur richtig</li>
+      </ul>
+    </div>
+    <div class="opt">
+      <p class="opt-t">Später, erst neue Funktionen</p>
+      <ul>
+        <li class="pro">Du siehst schneller etwas Neues</li>
+        <li class="con">Bis dahin kann eine Freigabe etwas Falsches behaupten</li>
+        <li class="con">Auf dem Tablet bleiben zwei Funktionen möglicherweise unbenutzbar</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Nur Dein Ja</div>
+    <div><span>Aufwand</span>Klein bis mittel</div>
+    <div><span>Risiko</span>Gering — alles ist durch Tests abgesichert</div>
+  </div>
+</div>
+
+<!-- ═══ E3 ═══ -->
+<div class="ent" id="e3">
+  <div class="ent-kopf"><span class="ent-nr">E 3</span><h3>Wo Bilder gespeichert werden</h3></div>
+  <p class="ent-frage">Du willst Bilder an jedem Eintrag. Vorher muss geklärt sein, <b>wohin</b> sie gespeichert werden. Diese Entscheidung lässt sich später nur teuer korrigieren.</p>
+
+  <div class="box merke"><b>Das Problem in Zahlen</b>
+  Ein Foto ist nach dem Verkleinern ungefähr <b>ein Viertel Megabyte</b> groß. Deine Standards haben rund <b>4.500 Zeilen</b>. Wenn nur jede zehnte ein Bild bekommt, sind das <b>über 100 Megabyte</b>.<br><br>
+  Heute schickt die App bei <b>jeder</b> Änderung <b>alles</b> gemeinsam zum Server — und dort ist bei 32 Megabyte Schluss. Mit Bildern läuft das voll.</div>
+
+  <div class="wahl">
+    <div class="opt">
+      <p class="opt-t">Weg A — Bilder wie bisher mitschicken</p>
+      <ul>
+        <li class="pro">Am schnellsten gebaut</li>
+        <li class="pro">Bilder sind automatisch in Deiner Datensicherung</li>
+        <li class="con"><b>Bei etwa 300 Bildern ist Schluss</b> — dann geht gar nichts mehr</li>
+        <li class="con">Die App wird mit jedem Bild langsamer, weil jedes Mal alles mitwandert</li>
+        <li class="con">Der Umbau danach kostet mehr als es jetzt richtig zu machen</li>
+      </ul>
+    </div>
+    <div class="opt empf">
+      <p class="opt-t">Weg B — Bilder einzeln ablegen <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro"><b>Praktisch unbegrenzt</b> viele Bilder</li>
+        <li class="pro">Die App bleibt schnell, weil nur ein Kürzel mitwandert</li>
+        <li class="pro">Funktioniert offline genauso</li>
+        <li class="con">Etwas mehr Arbeit am Anfang</li>
+        <li class="con">Die Datensicherung muss die Bilder zusätzlich mitnehmen</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Deine Wahl: A oder B</div>
+    <div><span>Aufwand</span>A klein · B mittel</div>
+    <div><span>Risiko bei A</span>Hoch — absehbare Sackgasse</div>
+  </div>
+</div>
+
+<!-- ═══ E4 ═══ -->
+<div class="ent" id="e4">
+  <div class="ent-kopf"><span class="ent-nr">E 4</span><h3>Womit weitermachen</h3></div>
+  <p class="ent-frage">Du hattest fünf Wünsche: Bilder überall · Bildfolgen · Reihenfolge ändern · Ankreuzen statt Abtippen · Bausteine für Saal, Tisch, Gerät, Patient. In welcher Reihenfolge?</p>
+
+  <div class="box merke"><b>Der rote Faden</b>
+  Deine fünf Wünsche sind eigentlich <b>einer</b>. Du hast es selbst gesagt: <i>„Saal und Gerät und Patient und Tisch — das sind alles Bausteine."</i> Genau so denkt man im Labor: Saal-Grundaufbau, kleiner Tisch, Gerät dran, Patient lagern — und dann kommt erst das Eingriffsspezifische.<br><br>
+  Bilder braucht so ein Baustein, weil „Saal 1 Grundaufbau" ohne Bild wenig sagt. Reihenfolge braucht man, wenn man sie zusammengesetzt hat. Und Ankreuzen ist das Zusammensetzen.</div>
+
+  <div class="wahl">
+    <div class="opt empf">
+      <p class="opt-t">Bilder zuerst <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Der größte sichtbare Sprung für die Leute im Saal</li>
+        <li class="pro">Bildfolgen (Aufbau Schritt 1–4) bauen direkt darauf auf</li>
+        <li class="pro">Bausteine mit Bild sind erst dann wirklich nützlich</li>
+        <li class="con">Braucht zuerst die Entscheidung E3</li>
+      </ul>
+    </div>
+    <div class="opt">
+      <p class="opt-t">Bausteine und Ankreuzen zuerst</p>
+      <ul>
+        <li class="pro">Spart Dir sofort Zeit beim Anlegen neuer Standards</li>
+        <li class="pro">Braucht E3 nicht — kann sofort losgehen</li>
+        <li class="con">Bausteine ohne Bilder bleiben Textlisten</li>
+        <li class="con">Für die Leute im Saal ändert sich zunächst wenig</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Deine Reihenfolge</div>
+    <div><span>Aufwand</span>Beides in kleinen Etappen, jede für sich nutzbar</div>
+    <div><span>Hinweis</span>„Reihenfolge ziehen" geht jederzeit dazwischen — es hängt an nichts</div>
+  </div>
+</div>
+
+<!-- ═══ E5 ═══ -->
+<div class="ent" id="e5">
+  <div class="ent-kopf"><span class="ent-nr">E 5</span><h3>Die ständige GitHub-Warnung abstellen</h3></div>
+  <p class="ent-frage">Bei jedem Zusammenführen erscheint eine Meldung „Unverified". Soll ich die Ursache beseitigen?</p>
+
+  <p>Wenn Du Änderungen über die GitHub-Webseite zusammenführst, erzeugt GitHub selbst einen Eintrag, der nicht signiert ist. Das ist <b>kein Fehler und kein Sicherheitsproblem</b> — nur eine Meldung, die immer wiederkommt.</p>
+
+  <div class="wahl">
+    <div class="opt empf">
+      <p class="opt-t">Umstellen <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Die Meldung verschwindet dauerhaft</li>
+        <li class="pro">Die Projektgeschichte wird übersichtlicher — ein Eintrag je Paket</li>
+        <li class="con">Einmalige Einstellung nötig</li>
+      </ul>
+    </div>
+    <div class="opt">
+      <p class="opt-t">So lassen</p>
+      <ul>
+        <li class="pro">Nichts zu tun</li>
+        <li class="con">Die Meldung kommt nach jedem Zusammenführen wieder</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Dein Ja — die Einstellung machst Du auf GitHub, ich sage Dir wo</div>
+    <div><span>Aufwand</span>Zwei Minuten</div>
+    <div><span>Risiko</span>Keines</div>
+  </div>
+</div>
+
+<!-- ═══ E6 ═══ -->
+<div class="ent" id="e6">
+  <div class="ent-kopf"><span class="ent-nr">E 6</span><h3>Anleitung in die App holen</h3></div>
+  <p class="ent-frage">Die bebilderte Anleitung liegt bisher nur als Link vor. Soll sie ins Menü der App?</p>
+
+  <div class="wahl">
+    <div class="opt empf">
+      <p class="opt-t">Ja <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Im Saal einen Tipp entfernt statt „wo war nochmal der Link?"</li>
+        <li class="pro">Funktioniert dann auch ohne Netz</li>
+        <li class="pro">Neue Kollegen finden sie von allein</li>
+        <li class="con">Macht die App etwas größer beim ersten Laden</li>
+      </ul>
+    </div>
+    <div class="opt">
+      <p class="opt-t">Als Link lassen</p>
+      <ul>
+        <li class="pro">App bleibt schlank</li>
+        <li class="con">Wer den Link nicht hat, findet die Anleitung nicht</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Nur Dein Ja</div>
+    <div><span>Aufwand</span>Klein</div>
+    <div><span>Risiko</span>Keines</div>
+  </div>
+</div>
+
+<!-- ═══ E7 ═══ -->
+<div class="ent" id="e7">
+  <div class="ent-kopf"><span class="ent-nr">E 7</span><h3>Wann kommt die Sicherheit dran?</h3></div>
+  <p class="ent-frage">Du hattest das Thema zurückgestellt, bis das Produkt fertig ist. Ich nenne es weiter — hier ist, worum es geht.</p>
+
+  <div class="box achtung"><b>Was heute offen ist</b>
+  <ul style="margin-bottom:0">
+    <li>Wer die Internetadresse kennt, kann die Daten <b>ohne Anmeldung abrufen</b></li>
+    <li>Das Verwaltungspasswort liegt bei den geteilten Daten mit</li>
+    <li>Arbeiten <b>zwei Säle gleichzeitig</b> an Änderungen, kann einer den anderen still überschreiben</li>
+  </ul></div>
+
+  <p>Der letzte Punkt ist der einzige, der Euch <b>im Alltag</b> treffen kann — die anderen beiden sind Fragen des Zugangs von außen.</p>
+
+  <div class="wahl">
+    <div class="opt">
+      <p class="opt-t">Weiter zurückstellen</p>
+      <ul>
+        <li class="pro">Volle Kraft auf die Funktionen, die Ihr täglich braucht</li>
+        <li class="con">Das Risiko wächst mit jedem Gerät, das dazukommt</li>
+      </ul>
+    </div>
+    <div class="opt empf">
+      <p class="opt-t">Nur den Alltagsteil vorziehen <span class="haken">Empfehlung</span></p>
+      <ul>
+        <li class="pro">Das gleichzeitige Arbeiten wird sicher — Datenverlust ausgeschlossen</li>
+        <li class="pro">Kleiner Teil, nicht das ganze Sicherheitspaket</li>
+        <li class="con">Etwas Arbeit, die niemand sieht</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="brauch">
+    <div><span>Was ich brauche</span>Deine Entscheidung: alles zurück, oder nur der Alltagsteil vor</div>
+    <div><span>Aufwand</span>Alltagsteil mittel · Gesamtpaket groß</div>
+    <div><span>Dringlichkeit</span>Steigt, sobald mehrere Säle gleichzeitig pflegen</div>
+  </div>
+</div>
+
+<h2><span class="h2n">Teil 4</span>Was nur Du tun kannst</h2>
+
+<p>Drei Dinge kann ich Dir nicht abnehmen:</p>
+
+<div class="tab-h"><table>
+<tr><th>Was</th><th>Warum Du</th><th>Aufwand</th></tr>
+<tr><td><b>Passwort ändern</b><br>☰ → Passwort ändern</td><td>Es steht noch das Start-Passwort. Solange das so ist, kommt jeder in die Verwaltung, der es errät.</td><td>1 Minute</td></tr>
+<tr><td><b>Fachliche Durchsicht</b><br>der Erkennungsregeln</td><td>Ob „Abdeckung" bei Euch ein Material oder eine Tätigkeit ist, weiß nur das Labor — nicht ich.</td><td>Eine ruhige Stunde</td></tr>
+<tr><td><b>Glossar füllen</b><br>☰ → Abkürzungsglossar</td><td>20–30 Kürzel aus Euren Standards. Ich kann Dir eine Vorschlagsliste bauen, aber die Bedeutungen muss jemand aus dem Haus bestätigen.</td><td>Eine halbe Stunde</td></tr>
+</table></div>
+
+<h2><span class="h2n">Teil 5</span>Mein Vorschlag — falls Du gar nicht entscheiden magst</h2>
+
+<div class="schluss">
+  <h2>Sag einfach „mach 1 und 2"</h2>
+  <p>Dann tue ich genau zwei Dinge und melde mich wieder:</p>
+  <ul class="jaliste">
+    <li><b>E1</b> — Deine Regeln aufschreiben und zwei automatische Prüfungen einbauen</li>
+    <li><b>E2</b> — die drei ernsten Fehler beheben</li>
+  </ul>
+  <p style="margin-top:16px;margin-bottom:0">Beides sind Aufräumarbeiten ohne Risiko. Alles andere — Bilder, Bausteine, Ankreuzen — können wir danach in Ruhe angehen, wenn Du wieder Überblick hast. <b>Nichts davon eilt.</b></p>
+</div>
+
+<h2><span class="h2n">Anhang</span>Wörterbuch</h2>
+
+<p>Die Begriffe, die ich Dir zuletzt zugemutet habe — in normalen Worten.</p>
+
+<div class="woerter">
+<dl>
+
+<dt>Standard</dt>
+<dd>Eine Eingriffsbeschreibung. Bei Euch 47 Stück, aus den Word-Dateien übernommen.</dd>
+
+<dt>Rubrik</dt>
+<dd>Ein Abschnitt in einem Standard — „Saal und Geräte", „Material", „Ablauf".</dd>
+
+<dt>Eintrag / Zeile</dt>
+<dd>Eine einzelne Zeile in einer Rubrik. Zum Beispiel „1x Coro-Set".</dd>
+
+<dt>Baustein</dt>
+<dd>Eine Folge von Zeilen, die in mehreren Standards gleich vorkommt. Einmal benennen, einmal pflegen — die Änderung gilt überall.</dd>
+
+<dt>Siegel</dt>
+<dd>Ein Fingerabdruck des Standards im Moment der Freigabe. Ändert sich danach etwas, passt der Fingerabdruck nicht mehr, und die App sagt „Freigabe überholt".</dd>
+
+<dt>Facette / Merkmal</dt>
+<dd>Ein Filter auf der Startseite. Die App zerlegt Deine Titel an den Bindestrichen und macht die Teile antippbar.</dd>
+
+<dt>Reichweite</dt>
+<dd>Die Frage „wo soll das gelten?" — nur hier · in diesem Standard · in der Gruppe · überall.</dd>
+
+<dt>Overlay</dt>
+<dd>Deine Änderungen werden <b>über</b> die Originaldaten gelegt, nie hineingeschrieben. Deshalb ist alles rücknehmbar und die Word-Vorlage bleibt unangetastet.</dd>
+
+<dt>PWA</dt>
+<dd>Eine Internetseite, die sich wie eine App verhält: Symbol auf dem Startbildschirm, funktioniert ohne Netz.</dd>
+
+<dt>Cache</dt>
+<dd>Der Zwischenspeicher, aus dem die App offline arbeitet. Wird eine neue Fassung ausgeliefert, muss der erneuert werden — deshalb sehe ich Änderungen manchmal erst nach einem Neuladen.</dd>
+
+<dt>Commit</dt>
+<dd>Ein gespeicherter Arbeitsstand mit Beschreibung. Wie ein Zwischenspeichern mit Notiz, warum.</dd>
+
+<dt>Pull Request (PR)</dt>
+<dd>Ein Paket fertiger Änderungen, das zur Freigabe vorgelegt wird. Erst wenn Du es zusammenführst, geht es live.</dd>
+
+<dt>Zusammenführen / Merge</dt>
+<dd>Das Paket in die Hauptfassung übernehmen. Danach wird automatisch ausgeliefert.</dd>
+
+<dt>Test / E2E-Test</dt>
+<dd>Ein Programm, das die App automatisch bedient und prüft, ob sie das Richtige tut. Wir haben 574 kleine und 30 große. Sie sind Dein Netz: Wenn ich etwas kaputtmache, schlagen sie an, bevor es Euch trifft.</dd>
+
+<dt>Server</dt>
+<dd>Der Rechner, auf dem die App liegt und die geteilten Daten gespeichert werden. Damit sehen alle Geräte dasselbe.</dd>
+
+<dt>Gerätelokal vs. geteilt</dt>
+<dd><b>Gerätelokal</b> bleibt auf dem einen Tablet (Häkchen, Favoriten, hell/dunkel). <b>Geteilt</b> sehen alle (Inhalte, Fotos, Freigaben).</dd>
+
+</dl>
+</div>
+
+</div>

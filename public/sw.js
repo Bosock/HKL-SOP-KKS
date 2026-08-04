@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v54';
+const CACHE_VERSION = 'v56';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -75,6 +75,8 @@ const SHELL = [
   'js/features/bausteine.js',
   'js/features/freigabe.js',
   'js/features/facetten.js',
+  'js/features/funktionen.js',
+  'js/features/medien.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
@@ -146,6 +148,19 @@ async function staleWhileRevalidate(req, cacheName) {
   return network;
 }
 
+/* Eigenständige Seiten NEBEN der App (kein Teil der Single-Page-App): Sie
+   werden erst beim ersten Öffnen gecacht, nicht beim Installieren — die
+   bebilderte Anleitung ist 1,4 MB groß, und wer sie nie öffnet, soll sie nicht
+   mitladen müssen. Ohne diesen Sonderweg würde die Navigation zu
+   `anleitung.html` unten als App-Navigation behandelt: Offline käme die
+   index.html zurück, und ONLINE würde die Anleitung sogar als „index.html" in
+   den Shell-Cache geschrieben — die App wäre offline durch die Anleitung
+   ersetzt. */
+const SEITEN = ['anleitung.html'];
+function istSeite(pfad) {
+  return SEITEN.some(s => pfad === '/' + s || pfad.endsWith('/' + s));
+}
+
 /* Navigationen network-first: online immer frische index.html, offline die
    gecachte Shell (Single-Page-App → jede Route rendert dieselbe Shell). */
 async function navigate(req) {
@@ -168,8 +183,14 @@ self.addEventListener('fetch', (event) => {
   // den aktuellen Anmeldestatus (darf nicht stale sein), /auth/github &
   // /auth/logout sind Redirects, die der Browser nativ auflösen soll. Die
   // Cache-API ignoriert Cache-Control: no-store, daher der explizite Bypass.
+  /* EINE Ausnahme von „/api nie cachen": Ein Bild unter /api/media/<Kennung>
+     ist unveränderlich — die Kennung IST der Fingerabdruck seines Inhalts.
+     Deshalb darf (und muss) es in den Cache: sonst wäre jedes Bild ohne Netz
+     ein grauer Kasten, und genau im Saal ist das Netz am unzuverlässigsten. */
+  if (url.pathname.startsWith('/api/media/')) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
+  if (istSeite(url.pathname)) { event.respondWith(staleWhileRevalidate(req, RUNTIME_CACHE)); return; }
   if (req.mode === 'navigate') { event.respondWith(navigate(req)); return; }
   if (isDataPath(url.pathname)) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }
   event.respondWith(staleWhileRevalidate(req, SHELL_CACHE));

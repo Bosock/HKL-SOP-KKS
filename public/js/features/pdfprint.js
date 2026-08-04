@@ -42,7 +42,13 @@ function prRubric(s,r,ri){ const isMatGer=(r.typ==='material'||r.typ==='geraete'
 
 function buildPrintHTML(s){ const rubs=(s.rubriken||[]).map((r,i)=>({r,i})).filter(x=>!rubHidden(x.r,x.i)).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   let body=''; rubs.forEach(({r,i})=>{ body+=prRubric(s,r,i); });
-  const meta=STDE[s.id]||{}; const verLine=(meta.version||meta.status)?`<div class="pr-ver">${meta.version?('Version '+esc(meta.version)):''}${meta.version&&meta.status?' · ':''}${meta.status?esc(meta.status):''}${meta.validFrom?(' · gültig ab '+esc(meta.validFrom)):''}</div>`:'';
+  /* Das Statuswort kommt aus der Konfiguration (Grundsatz ④/⑤) — im Datensatz
+     steht ein Schlüssel. Rückfall auf das mitgeschriebene Wort, falls
+     freigabe.js nicht geladen ist. */
+  const meta=STDE[s.id]||{};
+  const statusWort=(typeof frgZustandWort==='function'&&typeof frgZustand==='function')
+    ? (frgZustandWort(frgZustand(meta))||'') : (meta.status||'');
+  const verLine=(meta.version||statusWort)?`<div class="pr-ver">${meta.version?('Version '+esc(meta.version)):''}${meta.version&&statusWort?' · ':''}${statusWort?esc(statusWort):''}${meta.validFrom?(' · gültig ab '+esc(meta.validFrom)):''}</div>`:'';
   return `<article class="pr-doc"><header class="pr-head"><div class="pr-grp">${esc(stdGruppe(s))}</div><h1>${esc(stdTitel(s))}</h1>${verLine}<div class="pr-date">Stand: ${esc(new Date().toLocaleDateString('de-DE'))}</div></header>${body||'<p>Keine Inhalte.</p>'}<footer class="pr-foot">HKL-Standards · ${esc(stdTitel(s))}</footer></article>`; }
 
 function printStandard(){ const s=curStd; if(!s){ toast('Kein Standard geöffnet',true); return; }

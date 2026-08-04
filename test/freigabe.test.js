@@ -313,3 +313,103 @@ test('Randfälle laufen ins Leere statt in einen Fehler', () => {
   gleich(F.frgBilanz(), { gesamt:0, ohne:0, entwurf:0, gueltig:0, ueberholt:0, abgelaufen:0 });
   assert.equal(F.frgText('quatsch').kurz, '');
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   6. Der Zustand hängt an einem Schlüssel, nicht an einem Wort
+   ═══════════════════════════════════════════════════════════════
+   Bis zum 04.08.2026 stand im Datensatz das deutsche Wort „Freigegeben", und
+   der Code verglich dagegen. Wer das Wort in der Verwaltung umbenannt hätte,
+   hätte damit JEDE Freigabe des Hauses still ungültig gemacht — ohne Meldung,
+   an der Stelle, auf die sich das Labor am meisten verlässt.
+   Diese Tests halten fest, dass das nicht mehr passieren kann. */
+
+/* Wie oben, aber MIT konfigurierbaren Bezeichnungen — so wie in der App. */
+function umgebungMitBez(standards, bez){
+  const ctx = umgebung(standards);
+  ctx.BEZ = bez || {};
+  vm.runInContext(`function bezWert(zweig,feld,rueckfall){
+    const z = BEZ && BEZ[zweig];
+    return (z && z[feld]!==undefined && z[feld]!==null) ? z[feld] : rueckfall; }`, ctx);
+  return ctx;
+}
+
+test('freigeben schreibt einen Schlüssel — das Wort steht nur daneben', () => {
+  const F = umgebung(mini());
+  F.frgFreigeben('a', 'X', '1.0');
+  assert.equal(F.STDE.a.zustand, 'freigegeben', 'der Schlüssel trägt die Bedeutung');
+  assert.equal(F.STDE.a.status, 'Freigegeben', 'das Wort bleibt für Anzeige und PDF');
+});
+
+test('das Wort umbenennen macht keine einzige Freigabe ungültig', () => {
+  const F = umgebungMitBez(mini(), {});
+  F.frgFreigeben('a', 'X', '1.0');
+  assert.equal(F.frgStatus(F.DB.standards[0]), 'gueltig');
+  /* Jetzt heißt „Freigegeben" im ganzen Haus anders. */
+  F.BEZ = { freigabezustaende: { freigegeben:'Vom QM abgenommen' } };
+  assert.equal(F.frgStatus(F.DB.standards[0]), 'gueltig', 'die Freigabe hält');
+  assert.equal(F.frgZustandWort('freigegeben'), 'Vom QM abgenommen', 'nur das Wort ist neu');
+});
+
+test('Altbestand ohne Schlüssel wird über das Wort verstanden', () => {
+  const F = umgebung(mini());
+  /* Ein Vermerk aus der Zeit vor dem Schlüssel — mit Siegel, damit er gültig
+     sein KANN. Er muss weiterhin als Freigabe gelesen werden. */
+  F.frgFreigeben('a', 'X', '1.0');
+  const siegel = F.STDE.a.siegel;
+  F.STDE.a = { status:'Freigegeben', version:'1.0', approvedBy:'X', approvedAt:'2026-07-31', siegel };
+  assert.equal(F.frgZustand(F.STDE.a), 'freigegeben');
+  assert.equal(F.frgStatus(F.DB.standards[0]), 'gueltig');
+});
+
+test('Altbestand mit umbenanntem Wort wird ebenfalls verstanden', () => {
+  const F = umgebungMitBez(mini(), { freigabezustaende:{ freigegeben:'Vom QM abgenommen' } });
+  F.frgFreigeben('a', 'X', '1.0');
+  const siegel = F.STDE.a.siegel;
+  F.STDE.a = { status:'Vom QM abgenommen', version:'1.0', siegel };
+  assert.equal(F.frgZustand(F.STDE.a), 'freigegeben', 'gegen die aktuelle Bezeichnung');
+  F.STDE.a = { status:'Freigegeben', version:'1.0', siegel };
+  assert.equal(F.frgZustand(F.STDE.a), 'freigegeben', 'und gegen die ausgelieferte Vorgabe');
+});
+
+test('ein unbekanntes Statuswort gilt als Entwurf — nie als Freigabe', () => {
+  const F = umgebung(mini());
+  F.STDE.a = { status:'Irgendwas', version:'1.0' };
+  assert.equal(F.frgZustand(F.STDE.a), 'entwurf');
+  assert.equal(F.frgStatus(F.DB.standards[0]), 'entwurf');
+});
+
+test('Zurückziehen setzt den Schlüssel, nicht nur das Wort', () => {
+  const F = umgebung(mini());
+  F.frgFreigeben('a', 'X', '1.0');
+  F.frgZurueckziehen('a');
+  assert.equal(F.STDE.a.zustand, 'entwurf');
+  assert.equal(F.frgZustand(F.STDE.a), 'entwurf');
+});
+
+test('die vier Vermerkswörter sind vollständig und einzeln änderbar', () => {
+  const F = umgebungMitBez([], { freigabezustaende:{ entwurf:'Rohfassung' } });
+  /* `const` auf oberster Ebene wird im vm-Kontext keine Eigenschaft — deshalb
+     die Liste im Kontext selbst auswerten. */
+  const keys = vm.runInContext('FRG_ZUSTAENDE.map(z=>z.key)', F);
+  gleich(keys, ['entwurf','pruefung','freigegeben','veraltet']);
+  assert.equal(F.frgZustandWort('entwurf'), 'Rohfassung', 'geändert');
+  assert.equal(F.frgZustandWort('veraltet'), 'Veraltet', 'unberührt → Vorgabe');
+  assert.equal(F.frgZustandWort('gibtsnicht'), '');
+});
+
+test('auch die Wörter der geprüften Zustände sind änderbar', () => {
+  const F = umgebungMitBez(mini(), { freigabe:{ gueltig:'Gilt', gueltig_ico:'👍' } });
+  F.frgFreigeben('a', 'X', '1.0');
+  const t = F.frgText('gueltig');
+  assert.equal(t.kurz, 'Gilt');
+  assert.equal(t.ico, '👍');
+  assert.equal(t.lang, 'Inhalt unverändert seit der Freigabe.', 'ungeändert → Vorgabe');
+  assert.ok(F.frgKopfHTML(F.DB.standards[0]).includes('Gilt'));
+});
+
+test('kein Fachwort im Vergleich: der Quelltext vergleicht keinen Statustext', () => {
+  const roh = fs.readFileSync(path.join(ROOT, 'public/js/features/freigabe.js'), 'utf8');
+  const code = roh.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/FRG_FREI/.test(code), 'die Konstante mit dem deutschen Wort ist weg');
+  assert.ok(/frgZustand\(m\)!=='freigegeben'/.test(code), 'verglichen wird ein Schlüssel');
+});

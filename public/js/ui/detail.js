@@ -117,7 +117,11 @@ function entryCardHTML(e,cid,isMatGer){
   /* Der Originalsatz bleibt an der Zeile hängen (Titel), auch wenn oben der
      saubere Produktname steht. Nichts verschwindet. */
   const rohTitel=(zProd && zProd!==e.anzeige_text)?` title="${esc(e.anzeige_text)}"`:'';
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${tunIco}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}</div></div>${whyPanel}</div>`;
+  /* Bilder an der Zeile (features/medien.js). Sie stehen UNTER dem Text, nicht
+     daneben: Im Saal wird die Liste gelesen, nicht betrachtet — wer ein Bild
+     braucht, findet es, wer keins braucht, verliert keine Zeile Übersicht. */
+  const bilder=(typeof medStreifenHTML==='function')?medStreifenHTML(e,cid):'';
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${tunIco}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}${bilder}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -319,6 +323,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-variants')){ setMode('use'); return; }
   if(act('scr-diag')){ setMode('use'); return; }
   if(act('scr-bausteine')){ setMode('admin'); return; }
+  if(act('scr-funktionen')){ setMode('admin'); return; }
   if(act('scr-freigabe')){ if(typeof frgSid!=='undefined' && frgSid) openStandard(frgSid); else setMode('admin'); return; }
   if(act('scr-ruest')){ if(typeof ruestSid!=='undefined' && ruestSid) openStandard(ruestSid); else setMode('use'); return; }
   if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }

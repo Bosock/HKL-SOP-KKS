@@ -197,5 +197,27 @@
     "hersteller": "Hersteller",
     "auspraegung": "Ausprägung",
     "zustand": "Freigabe"
+  },
+  "freigabezustaende": {
+    "_zweck": "Die Wörter des Freigabe-Vermerks (features/freigabe.js). Im Datensatz steht ein SCHLÜSSEL (entwurf/pruefung/freigegeben/veraltet), hier steht nur das Wort dazu. Deshalb darf es jederzeit umbenannt werden, ohne dass eine Freigabe ihre Gültigkeit verliert.",
+    "entwurf": "Entwurf",
+    "pruefung": "In Prüfung",
+    "freigegeben": "Freigegeben",
+    "veraltet": "Veraltet"
+  },
+  "freigabe": {
+    "_zweck": "Wie die App den geprüften Freigabe-Zustand eines Standards benennt — der berechnete Zustand, nicht der eingetragene Vermerk. „…_ico\" ist das Symbol, „…_lang\" der erklärende Satz darunter.",
+    "entwurf": "Entwurf",
+    "entwurf_ico": "📝",
+    "entwurf_lang": "Dieser Standard ist nicht freigegeben.",
+    "gueltig": "Freigegeben",
+    "gueltig_ico": "✅",
+    "gueltig_lang": "Inhalt unverändert seit der Freigabe.",
+    "ueberholt": "Freigabe überholt",
+    "ueberholt_ico": "⚠️",
+    "ueberholt_lang": "Seit der Freigabe wurde der Inhalt geändert.",
+    "abgelaufen": "Gültigkeit abgelaufen",
+    "abgelaufen_ico": "⏳",
+    "abgelaufen_lang": "Der Gültigkeitszeitraum ist verstrichen."
   }
 }

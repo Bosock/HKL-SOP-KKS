@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -104,6 +104,19 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const tpArt={material:'material',geraete:'geraete',sonstige:'sonstige'};
   const tpZeilen=Object.keys(tpArt).map(k=>`<div class="bez-row"><span class="bez-k">${esc(k)}</span>
     <input class="loc-input" value="${esc(typLabel(k))}" data-tk="${esc(k)}" onchange="bezSetTyp(this.dataset.tk,this.value)"></div>`).join('');
+  /* Freigabe: die Wörter des Vermerks und die Wörter der geprüften Zustände.
+     Beides sind Bezeichnungen — der Code arbeitet mit Schlüsseln (Grundsatz ④). */
+  const frgZustListe=(typeof FRG_ZUSTAENDE!=='undefined')?FRG_ZUSTAENDE:[];
+  const frgZustGeae=frgZustListe.some(z=>bezGeaendert('freigabezustaende',z.key))?'<span class="bez-flag">geändert</span>':'';
+  const frgZustZeilen=frgZustListe.map(z=>`<div class="bez-row"><span class="bez-k">${esc(z.vorgabe)}</span>
+    <input class="loc-input" value="${esc(frgZustandWort(z.key))}" data-fz="${esc(z.key)}" onchange="bezSetFreigabeWort('freigabezustaende',this.dataset.fz,this.value)"></div>`).join('');
+  const frgPruef=['entwurf','gueltig','ueberholt','abgelaufen'];
+  const frgGeae=frgPruef.some(k=>bezGeaendert('freigabe',k)||bezGeaendert('freigabe',k+'_ico')||bezGeaendert('freigabe',k+'_lang'))?'<span class="bez-flag">geändert</span>':'';
+  const frgZeilenCfg=(typeof frgText==='function'?frgPruef:[]).map(k=>{ const t=frgText(k);
+    return `<div class="bez-row"><span class="bez-k">${esc(k)}</span>
+      <input class="loc-input" style="max-width:4.5em;text-align:center" value="${esc(t.ico)}" data-fk="${esc(k)}" onchange="bezSetFreigabeWort('freigabe',this.dataset.fk+'_ico',this.value)">
+      <input class="loc-input" value="${esc(t.kurz)}" data-fk="${esc(k)}" onchange="bezSetFreigabeWort('freigabe',this.dataset.fk,this.value)"></div>
+      <input class="loc-input" style="width:100%;margin:0 0 8px" value="${esc(t.lang)}" data-fk="${esc(k)}" onchange="bezSetFreigabeWort('freigabe',this.dataset.fk+'_lang',this.value)">`; }).join('');
   const pBez=`<details class="vpanel" data-keys="bezeichnungen hersteller lieferant marke größenarten groessenarten rubriktypen symbole ocr etikett">${vsum('🏭','Bezeichnungen & Hersteller','Herstellerliste für den Etikett-Scanner, Größenarten und Rubriknamen — ohne Programmierung',bezH.length+' Hersteller')}<div class="vpanel-body">
     <p class="hint">Diese Angaben standen früher im Quelltext. Ein leeres Feld stellt die mitgelieferte Vorgabe wieder her.</p>
     <div class="bez-sec">Hersteller ${bezGeae('hersteller','werte')}</div>
@@ -122,6 +135,12 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
       <input class="loc-input" value="${esc(facLabel(a.key))}" data-fk="${esc(a.key)}" onchange="bezSetFacette(this.dataset.fk,this.value)"></div>`).join('')}
     <div class="bez-sec">Rubriknamen ${bezGeae('rubriktypen','werte')}</div>
     ${tpZeilen}
+    <div class="bez-sec">Wörter des Freigabe-Vermerks ${frgZustGeae}</div>
+    <p class="hint">Was in der Auswahl „Status / Freigabe" eines Standards steht. Im Datensatz liegt ein Schlüssel — Umbenennen ändert nur das Wort, nie die Gültigkeit einer Freigabe.</p>
+    ${frgZustZeilen}
+    <div class="bez-sec">Wörter der Freigabe-Prüfung ${frgGeae}</div>
+    <p class="hint">Wie die App den geprüften Zustand benennt (Symbol · Wort · Erklärsatz). Leeres Feld = mitgelieferte Vorgabe.</p>
+    ${frgZeilenCfg}
   </div></details>`;
 
   /* ── Panel: Kostenübersicht (Plankosten je Standard) ── */
@@ -221,20 +240,23 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
   if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
   let pPruef=`<details class="vpanel" data-keys="einstufung prüfen pruefen kategorie konfidenz zuordnung unsicher korrigieren"${openCount?' open':''}>${vsum('🔎',txt('pruefTitle'),'Prüft und korrigiert die automatisch vergebene Kategorie unsicherer Einträge',openCount?openCount+' offen':(all.length?'geprüft ✓':''))}<div class="vpanel-body">`;
-  pPruef+=`<p class="panel-help">Unsichere Einträge (mittlere/niedrige Konfidenz). Kategorie korrigieren, Unterkategorie zuweisen oder als „geprüft" bestätigen – dann verschwinden sie aus „Offen". Korrekturen werden zentral gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div>
+  pPruef+=`<p class="panel-help">Unsichere Einträge (mittlere/niedrige Konfidenz). „⋯ Bearbeiten" öffnet dasselbe Menü wie im Saal — mit derselben Frage, wo die Änderung gelten soll. „✓ geprüft" nimmt die Zeile aus „Offen", ohne etwas zu ändern. Korrekturen werden zentral gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div>
   <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
   const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
   pPruef+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
   if(list.length===0) pPruef+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
+  /* EIN Bearbeiten-Menü, zwei Kontexte (Grundsatz ⑥): Diese Zeilen hatten
+     früher eigene Kategorie-Knöpfe und eine eigene Unterkategorie-Auswahl.
+     Sie schrieben sofort auf 📍 Stelle — ohne die Reichweiten-Frage, die
+     dieselbe Handlung im Saal (⋯ an der Zeile) stellt. Dieselbe Handlung
+     wirkte hier also anders als dort, und niemand sagte es. Jetzt öffnet die
+     Zeile dasselbe Menü wie im Saal; hier bleiben nur die Dinge, die es dort
+     nicht gibt: der Prüf-Vermerk „geprüft". */
   list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=naturKorrigiert(x.cid); const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
-    const setBtns=natList().map(n=>`<button class="${nat===n.key?'sel':''}" style="color:${n.color}" onclick="setNatur('${esc(x.cid)}','${esc(n.key)}')">${esc(n.label)}</button>`).join('');
-    const opts=['<option value="">— ohne —</option>'].concat(UK_LIST.map(u=>`<option value="${esc(u)}" ${uk===u?'selected':''}>${esc(u)}</option>`)).concat(['<option value="__neu__">＋ Neue Unterkategorie…</option>']).join('');
-    const newUkRow=(admNewUkFor===x.cid)?`<div class="p-actions" style="margin-top:6px"><input type="text" class="txtinp" id="admUkNewInp" placeholder="Name der neuen Unterkategorie" style="flex:1;min-width:120px"><button class="add-btn" data-c="${esc(x.cid)}" onclick="admUkNewSave(this.dataset.c)">Anlegen</button></div>`:'';
     pPruef+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
       ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
-      <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span></div><div class="vw-set">${setBtns}</div>
-      <div class="vw-lbl">Unterkategorie</div><select class="vw-sel" data-c="${esc(x.cid)}" onchange="admUkChange(this.dataset.c,this)">${opts}</select>${newUkRow}
-      <div class="vw-foot"><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button><button onclick="hideCid('${esc(x.cid)}')">🗑 Ausblenden</button></div></div>`; });
+      <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span>${uk?` · Unterkategorie: <b>${esc(uk)}</b>`:''}</div>
+      <div class="vw-foot"><button class="add-btn" data-c="${esc(x.cid)}" onclick="admPruefMenue(this.dataset.c)">⋯ Bearbeiten</button><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button></div></div>`; });
   if(list.length>300) pPruef+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
   pPruef+=`</div></details>`;
 
@@ -263,9 +285,14 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
   html+=sec('Inhalte pflegen')+pInhalt+pStd+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
-  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez;
-  html+=sec('Daten & Sicherung')+pBackup+pKosten;
+  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
+  html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
   box.innerHTML=html;
+  /* Zum Schluss die eigenen Einstellungen auf die Karten legen: ausblenden,
+     umbenennen, umsortieren (features/funktionen.js). Bewusst NACH dem Aufbau
+     und über den Karten-Titel als Schlüssel — so wird jede Karte erfasst, auch
+     eine, die es beim Bau des Registers noch nicht gab. */
+  if(typeof fktPanelAnwenden==='function'){ try{ fktPanelAnwenden(box); }catch(e){} }
   if(admNewNatOpen){ const inp=$('admNewNatInp'); if(inp){ inp.focus(); inp.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); addNat(); } }; } }
 }
 /* ── Panel: Materialzusammenführung (Destillation) ──────────────────────
@@ -360,10 +387,24 @@ function bezSetTyp(k,v){
 }
 /* Merkmalsnamen der Übersicht (features/facetten.js). Der Zweig ist
    „facetten", das Feld der Merkmalsschlüssel — leeres Feld = Vorgabe. */
+/* Wörter der Freigabe (Vermerk und geprüfter Zustand). Leeres Feld = Vorgabe.
+   Die Siegel bleiben unberührt — sie hängen an Schlüsseln, nicht an Wörtern. */
+function bezSetFreigabeWort(zweig,feld,v){
+  bezSetzen(zweig, feld, (v||'').trim() || null);
+  if(typeof frgCacheLeeren==='function') frgCacheLeeren();
+  renderAdmin();
+}
 function bezSetFacette(k,v){
   bezSetzen('facetten', k, (v||'').trim() || null);
   if(typeof renderStandards==='function') try{ renderStandards(); }catch(e){}
   renderAdmin();
+}
+/* Der eine Weg ins Bearbeiten-Menü aus der Verwaltung heraus. Nach dem
+   Anwenden frischt applyPending() über reRenderDetail() genau den Bildschirm
+   auf, auf dem man steht — also diesen hier. */
+function admPruefMenue(cid){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(()=>admPruefMenue(cid)); return; }
+  if(typeof openSheet==='function') openSheet(cid);
 }
 function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }
@@ -374,10 +415,12 @@ function admUkNewSave(cid){ const inp=$('admUkNewInp'); const v=(inp&&inp.value|
 /* Inhalte-&-Aufbau-Panel: in die Rubrik springen bzw. direkt anlegen. */
 function admContOpenRub(ri){ if(!admContSid) return; const sid=admContSid; openStandardById(sid); openRubrik(ri); }
 function admContAddEntry(ri){ if(!admContSid) return; openEntryForm({kind:'add', sid:admContSid, ri}); }
-/* „Einstufung prüfen" schreibt jetzt denselben Regel-Weg (📍 Stelle) wie das
-   Schnellmenü — statt in die Alt-Speicher overrides/reassign. So gibt es EINEN
-   Schreibweg (journaliert, rücknehmbar). Nicht-Material-Einträge (kein
-   material_key als Regel-Ziel) fallen auf den Alt-Pfad zurück. */
+/* Programmatischer Schreibweg für Kategorie und Unterkategorie an EINER Stelle
+   (📍). Seit „Einstufung prüfen" dasselbe Bearbeiten-Menü benutzt wie der Saal,
+   ruft die Oberfläche das nicht mehr direkt auf — die Funktionen bleiben als
+   geprüfter Kern (Tests, Skripte, Migrationen) und als Alt-Pfad für Einträge
+   ohne material_key erhalten. Sie schreiben denselben Regel-Weg wie das
+   Schnellmenü, also journaliert und rücknehmbar. */
 function setNatur(cid,nat){ const e=findEntry(cid); if(!e) return;
   if(e.material_key && typeof addRule==='function'){
     if(e.natur===nat){ revokeStelleRules(e.material_key,cid,'natur'); clearLegacyAt(e,cid,'stelle','natur'); }
