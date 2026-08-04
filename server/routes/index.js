@@ -8,4 +8,5 @@ module.exports = [
   require('./health'),
   require('./auth'),
   require('./state'),
+  require('./media'),
 ];

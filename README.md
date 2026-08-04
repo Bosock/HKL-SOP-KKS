@@ -14,6 +14,10 @@ The backend is a tiny **zero-dependency Node server** ([`server.js`](server.js) 
 [`server/`](server/)) that serves the static app *and* exposes a `/api/state` persistence
 endpoint, packaged as a single Docker image.
 
+> **Grundsätze:** Die Vorgaben des Hauses und die Regeln der Entwicklung stehen
+> in [docs/GRUNDSAETZE.md](docs/GRUNDSAETZE.md) — inklusive der beiden Regeln,
+> die `npm run check` maschinell durchsetzt. Vor jeder neuen Funktion lesen.
+
 > **Zweck & Abgrenzung (bewusste Leitplanke):** Die App organisiert Material,
 > Abläufe und Wissen des Teams — sie ist eine **Arbeits- und Organisationshilfe**
 > und gibt keine patientenindividuellen klinischen Empfehlungen (keine Diagnose-,

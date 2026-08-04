@@ -248,6 +248,40 @@ dass die App im Browser sauber startet.
 
 ---
 
+## Zwei Regeln, die die Maschine durchsetzt
+
+`npm run check` bricht ab, wenn eine davon verletzt wird. Beide stehen mit
+Begründung in [docs/GRUNDSAETZE.md](docs/GRUNDSAETZE.md).
+
+**1 · Kein `prompt()` und kein `confirm()`.** In installierten PWAs erscheint
+auf mehreren Android-Chrome-Versionen gar kein Fenster; der Aufruf liefert
+sofort `null`/`false` und die Funktion schlägt **lautlos** fehl. Statt dessen
+eine Eingabefläche der App: ein Sheet (Muster: `sheetNewUk` in
+`features/quickmenu.js`) oder eine Karte im Bildschirm (Muster: `frgFormHTML`
+in `features/freigabe.js`).
+
+**2 · Kein Fachwort in einem Vergleich.** Eine Zeichenkette, die jemand
+umbenennen kann, darf nicht das Verhalten steuern:
+
+```js
+if (m.status === 'Freigegeben')      // ✗ Umbenennen kippt jede Freigabe
+if (frgZustand(m) === 'freigegeben') // ✓ Schlüssel steuert, Wort zeigt an
+```
+
+Ist der Wert wirklich ein Schlüssel, der nur zufällig deutsch aussieht (etwa
+ein fester Wert aus einer mitgelieferten Datei), schreibst du die Begründung
+daneben:
+
+```js
+/* fachwort:ok — fester Wert aus data/material_catalog.json */
+const unbestaetigt = (r.katstatus !== 'bestätigt');
+```
+
+**Altlasten.** Was am Einführungstag schon da war, steht gezählt in
+`scripts/pruefungen/altlasten.json` und ist geduldet. Räumst du eine davon weg,
+meldet die Prüfung die neue, kleinere Zahl — trag sie ein. Die Liste darf nur
+schrumpfen.
+
 ## Die drei Fallstricke, die du kennen musst
 
 1. **Apostroph in `onclick`.** `esc()` maskiert **kein** `'`. Interpoliere nie

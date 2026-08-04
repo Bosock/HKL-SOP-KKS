@@ -522,3 +522,91 @@ test('persist throttles snapshots: two rapid writes create only one', async () =
   snaps = await listSnaps();
   assert.equal(snaps.length, 1, `expected exactly one throttled snapshot, got ${snaps.length}`);
 });
+
+// ===========================================================================
+// /api/media — Bilder liegen EINZELN, nicht im geteilten Zustand
+// ---------------------------------------------------------------------------
+// Der Grund steht ausführlich in server/media.js: Der geteilte Zustand wandert
+// bei jeder Änderung komplett zum Server. Für Text ist das richtig, für Bilder
+// eine Sackgasse mit Datum (250 KB je Foto gegen 32 MiB Gesamtgrenze).
+// ===========================================================================
+
+/* Ein winziges, gültiges PNG (1×1, transparent). */
+const PNG_1x1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64');
+
+test('POST /api/media legt ein Bild ab und liefert eine Kennung', async () => {
+  const r = await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } });
+  assert.equal(r.status, 201);
+  const j = json(r);
+  assert.match(j.kennung, /^[0-9a-f]{32}$/, 'Kennung ist ein 32-stelliger Fingerabdruck');
+  assert.equal(j.art, 'image/png');
+  assert.equal(j.neu, true);
+});
+
+test('dasselbe Bild zweimal belegt einmal Platz (Inhalts-Fingerabdruck)', async () => {
+  const a = json(await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } }));
+  const r = await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } });
+  assert.equal(r.status, 200, 'kein 201 — es wurde nichts Neues angelegt');
+  const b = json(r);
+  assert.equal(b.kennung, a.kennung);
+  assert.equal(b.neu, false);
+});
+
+test('GET /api/media/<kennung> liefert das Bild — unbegrenzt zwischenspeicherbar', async () => {
+  const { kennung } = json(await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } }));
+  const r = await request('GET', '/api/media/' + kennung);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers['content-type'], 'image/png');
+  assert.match(r.headers['cache-control'], /immutable/);
+  assert.equal(r.headers['etag'], '"' + kennung + '"');
+  assert.deepEqual(r.raw, PNG_1x1);
+});
+
+test('unbekannte Kennung → 404, kaputte Kennung → 400', async () => {
+  assert.equal((await request('GET', '/api/media/' + 'a'.repeat(32))).status, 404);
+  assert.equal((await request('GET', '/api/media/nicht-hex')).status, 400);
+});
+
+test('kein Ausbruch aus dem Bilderverzeichnis über den Namen', async () => {
+  for (const böse of ['..%2f..%2fetc%2fpasswd', '%2e%2e%2f%2e%2e%2fstate.json', 'a'.repeat(31), 'A'.repeat(32)]) {
+    const r = await request('GET', '/api/media/' + böse);
+    assert.ok(r.status === 400 || r.status === 404, böse + ' → ' + r.status);
+    assert.ok(!/root:/.test(r.text), 'nie fremde Dateiinhalte');
+  }
+});
+
+test('SVG wird abgelehnt — es ist ausführbares Markup, kein Foto', async () => {
+  const r = await request('POST', '/api/media', {
+    body: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'),
+    headers: { 'Content-Type': 'image/svg+xml' } });
+  assert.equal(r.status, 415);
+  assert.ok(json(r).erlaubt.includes('image/jpeg'));
+});
+
+test('leerer Rumpf wird abgelehnt', async () => {
+  const r = await request('POST', '/api/media', { body: Buffer.alloc(0), headers: { 'Content-Type': 'image/png' } });
+  assert.equal(r.status, 400);
+});
+
+test('GET /api/media zeigt den Bestand (Anzahl und Platzbedarf)', async () => {
+  await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } });
+  const j = json(await request('GET', '/api/media'));
+  assert.ok(j.anzahl >= 1);
+  assert.ok(j.bytes >= PNG_1x1.length);
+  assert.ok(Array.isArray(j.bilder));
+});
+
+test('DELETE entfernt ein Bild — und meldet ehrlich, wenn es nichts gab', async () => {
+  const { kennung } = json(await request('POST', '/api/media', { body: PNG_1x1, headers: { 'Content-Type': 'image/png' } }));
+  assert.equal(json(await request('DELETE', '/api/media/' + kennung)).geloescht, true);
+  assert.equal(json(await request('DELETE', '/api/media/' + kennung)).geloescht, false);
+  assert.equal((await request('GET', '/api/media/' + kennung)).status, 404);
+});
+
+test('unerlaubte Methode → 405 mit Allow-Kopf', async () => {
+  const r = await request('PATCH', '/api/media');
+  assert.equal(r.status, 405);
+  assert.match(r.headers['allow'], /POST/);
+});

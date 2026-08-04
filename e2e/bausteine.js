@@ -59,7 +59,17 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const knopf = [...document.querySelectorAll('#scr-bausteine button')]
       .find(b => /Als Baustein anlegen/.test(b.textContent));
     if (!knopf) return { kein: true };
+    /* Seit Grundsatz ⑧ öffnet der Knopf eine Eingabefläche an Ort und Stelle
+       statt eines prompt()-Fensters — in installierten PWAs erschien dort auf
+       manchen Android-Chrome-Versionen gar nichts. */
     knopf.click();
+    const feld = document.getElementById('bauFormName');
+    if (!feld) return { kein: true, keinFeld: true };
+    feld.value = 'E2E-Baustein';
+    const anlegen = [...document.querySelectorAll('#scr-bausteine button')]
+      .find(x => x.textContent.trim() === 'Anlegen');
+    if (!anlegen) return { kein: true, keinKnopf: true };
+    anlegen.click();
     const b = BAUSTEINE[0];
     const vor = b ? bauVorkommen(b.id) : [];
     return { kein: false, name: b && b.name, zeilen: b ? b.zeilen.length : 0,
@@ -67,7 +77,8 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       cid0: vor.length ? (vor[0].sid + '|' + vor[0].ri + '|' + vor[0].si + '|' + vor[0].eis[0]) : null,
       inListe: document.getElementById('scr-bausteine').textContent.includes('Deine Bausteine') };
   });
-  check('ein Vorschlag lässt sich per Knopf anlegen', !angelegt.kein && angelegt.name === 'E2E-Baustein');
+  check('ein Vorschlag lässt sich anlegen — über eine Eingabefläche, nicht über ein Fenster',
+    !angelegt.kein && angelegt.name === 'E2E-Baustein');
   check(`… er findet seine Fundstellen (${angelegt.stellen} in ${angelegt.standards} Standards)`,
     angelegt.stellen >= 3 && angelegt.standards >= 3);
   check('… und steht danach oben in der Liste', angelegt.inListe === true);

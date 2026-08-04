@@ -50,6 +50,10 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   h+=sAct('⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
   h+=sAct('🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',(qeGet(e,cid,'mengeHi')!==undefined?'manuell übersteuert · ':'automatisch bei ≠1x · ')+(mengeEffRaw?'Menge '+mengeEffRaw:'keine Menge'),"sheetToggle('mengeHi')");
   h+=sAct('🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
+  /* Bilder gibt es an JEDER Zeile, nicht nur an Material — ein Handgriff ist
+     genauso erklärungsbedürftig wie ein Produkt (features/medien.js). */
+  if(typeof medVonEintrag==='function'){ const nb=medVonEintrag(e,cid).length;
+    h+=sAct('🖼️','Bilder', nb?(nb+' Bild'+(nb===1?'':'er')+' — ansehen, ergänzen, ordnen'):'Foto, Bildfolge oder Skizze hinzufügen', "sheetGo('bilder')"); }
 
   /* ── Organisation ── */
   h+=sGroup('Organisation','Wohin er gehört');
@@ -134,7 +138,7 @@ function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; c
   const dup=CATALOG.items.some(it=>(it.name||'').trim().toLowerCase()===f.name.trim().toLowerCase()&&(it.nat||'material')===(f.nat||'material'));
   if(dup){ showSheet(false); toast('Schon im Katalog',true); return; }
   CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); showSheet(false); toast('In Katalog aufgenommen'); }
-function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); else if(state==='zusatz') renderSheetZusatz(); }
+function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); else if(state==='zusatz') renderSheetZusatz(); else if(state==='bilder') renderSheetBilder(); }
 
 /* ── Verschieben (Souveränität): Eintrag in andere Rubrik/anderen Standard ──
    Eigene Einträge (additions/NEW) werden ECHT umgehängt; Basis-Einträge aus

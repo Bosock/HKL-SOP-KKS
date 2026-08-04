@@ -76,6 +76,7 @@ const SHELL = [
   'js/features/freigabe.js',
   'js/features/facetten.js',
   'js/features/funktionen.js',
+  'js/features/medien.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
@@ -182,6 +183,11 @@ self.addEventListener('fetch', (event) => {
   // den aktuellen Anmeldestatus (darf nicht stale sein), /auth/github &
   // /auth/logout sind Redirects, die der Browser nativ auflösen soll. Die
   // Cache-API ignoriert Cache-Control: no-store, daher der explizite Bypass.
+  /* EINE Ausnahme von „/api nie cachen": Ein Bild unter /api/media/<Kennung>
+     ist unveränderlich — die Kennung IST der Fingerabdruck seines Inhalts.
+     Deshalb darf (und muss) es in den Cache: sonst wäre jedes Bild ohne Netz
+     ein grauer Kasten, und genau im Saal ist das Netz am unzuverlässigsten. */
+  if (url.pathname.startsWith('/api/media/')) { event.respondWith(cacheFirst(req, RUNTIME_CACHE)); return; }
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
 
   if (istSeite(url.pathname)) { event.respondWith(staleWhileRevalidate(req, RUNTIME_CACHE)); return; }
