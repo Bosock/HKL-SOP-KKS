@@ -107,7 +107,6 @@ function loadHelpers() {
     extractFn('parseGS1'),
     extractFn('formatGs1Date'),
     extractFn('gtinKey'),
-    extractFn('expiryStatus'),
     extractFn('parseScan'),
     extractFn('mergeGtinRecord'),
     extractFn('filterGtin'),
@@ -212,7 +211,7 @@ function loadHelpers() {
     extractFn('diagBerichtText'),
     extractFn('pickTextColor'),
   ].join('\n');
-  const exportExpr = '({esc, today, cidOf, bezWert, bezSymbol, bezHersteller, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, expiryStatus, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText, dupTitel, dupDeep, dupCidShift, dupZaehlung})';
+  const exportExpr = '({esc, today, cidOf, bezWert, bezSymbol, bezHersteller, sizeLabel, typLabel, rubrikIcon, ukKeywordIcon, natSlug, natOf, natList, addSlug, parseSyn, filterGlossary, voteTally, makeAddEntry, mergeAdditions, makeCatalogItem, catalogToForm, upsertCatalogItem, removeCatalogItem, buildCatalogFromStandards, canonCatalogName, findCatalogDuplicateGroups, mergeCatalogGroup, mergeCatalogDuplicates, parsePreis, fmtEUR, mengeNum, parseGS1, formatGs1Date, gtinKey, parseScan, mergeGtinRecord, filterGtin, gtinGroups, gtinBadges, matSizeList, extractLabelFields, ocrGrayscale, ocrBradleyThreshold, ocrSharpness, levenshtein, ocrFixDigits, photoCropDims, matPropSlug, matNormName, matSuggestGroups, catNormRef, catLookup, catSpecPairs, catMassPairs, cleanupSuggest, cleanupIsDone, lbClampScale, lbTouchDist, sortValid, isFav, usageOf, sortItems, guideCid, intervalRank, guideById, guideSearch, popupMatches, popupMissing, popupOptions, debounce, canonId, mcMissingOf, mcGapCounts, mcLegacyPending, mcFillEmpty, varKurz, varGet, varHidden, varChanged, varDiffCount, mengeHiAuto, camErrorMessage, rulesActive, rulesUnion, ruleRank, ruleBeats, rubTplMatches, hexToRgb, relLuminance, contrastRatio, pickTextColor, ocrStretch, ocrDichte, ocrWordsOf, ocrRefBand, ocrVoteFields, ocrRefTokens, refCanon, refClassKey, refDistance, refTolerance, refPlausible, refIndex, refResolve, refWieLabel, refLearnInto, refFromLearn, gudidUrl, gudidLookupfaehig, gudidExtract, wizSchritt, wizFortschritt, wizZusammenfassung, wizHatErgebnis, matPhotos, matPhotoAdd, matPhotoDel, matPhotoMain, diagShort, diagSig, diagPush, diagAlter, diagRowProblems, diagInnerBlocked, diagBerichtText, dupTitel, dupDeep, dupCidShift, dupZaehlung})';
   const fns = vm.runInContext(src + '\n' + exportExpr, ctx);
   return { fns, NATCFG, ctx };
 }
@@ -1007,11 +1006,14 @@ test('gtinKey: nicht-numerische Codes bleiben (getrimmt) erhalten', () => {
   assert.equal(fns.gtinKey(null), '');
 });
 
-test('expiryStatus: abgelaufen / bald / ok relativ zu heute', () => {
-  assert.equal(fns.expiryStatus('2026-01-01', '2026-07-17'), 'expired');
-  assert.equal(fns.expiryStatus('2026-08-01', '2026-07-17'), 'soon');   // < 90 Tage
-  assert.equal(fns.expiryStatus('2027-07-17', '2026-07-17'), 'ok');
-  assert.equal(fns.expiryStatus('', '2026-07-17'), '');
+/* Grundsatz A2 (docs/GRUNDSAETZE.md): keine Bestandsführung. Es darf keine
+   Funktion geben, die einen Verfallsstatus berechnet — der Test hält die
+   Vorgabe fest, damit sie nicht irgendwann unbemerkt zurückkehrt. */
+test('keine Verfallsberechnung im Code (Regel A2: kein Bestandswesen)', () => {
+  const src = fs.readFileSync(path.join(PUBLIC, 'js/features/scanner.js'), 'utf8');
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/function\s+expiryStatus/.test(code), 'expiryStatus() ist entfernt');
+  assert.ok(!/\bexpiryStatus\s*\(/.test(code), 'expiryStatus() wird nirgends aufgerufen');
 });
 
 test('parseScan: GS1-DataMatrix erkannt', () => {

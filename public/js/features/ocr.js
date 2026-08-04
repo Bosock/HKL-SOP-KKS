@@ -553,9 +553,15 @@ async function runLabelOCR(image, onProgress){
      5) REF gegen den bekannten Bestand auflösen (matref.js)
    Liefert ein Ergebnisobjekt; verändert NICHTS am Formular.
    ═══════════════════════════════════════════════════════════════ */
+/* Die Lesedurchgänge werden im Code über SCHLÜSSEL unterschieden, das Wort
+   dient nur der Anzeige (Grundsatz ④ — wer die Bezeichnung ändert, darf nicht
+   die Reihenfolge der Abstimmung ändern). */
+const OCR_LESUNG_WORT = { voll:'Volltext', ref:'REF-Streifen', kontrast:'Kontrast' };
+function ocrLesungWort(k){ return OCR_LESUNG_WORT[k] || String(k||''); }
+
 async function ocrReadLabel(dataUrl, onStatus){
   const sag=(t)=>{ if(typeof onStatus==='function') onStatus(t); };
-  const lesungen=[];       /* [{text, confidence, quelle}] */
+  const lesungen=[];       /* [{text, confidence, quelle}] — quelle ist ein Schlüssel */
 
   /* 0) Barcode zuerst — kostet Millisekunden und liefert die exakte Wahrheit. */
   sag('Barcode suchen …');
@@ -569,7 +575,7 @@ async function ocrReadLabel(dataUrl, onStatus){
     sag(ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
   let haupt={ text:'', confidence:0, words:[] };
   try{ haupt=await ocrRun(grau.img, { psm:3, woerterbuch:false }); }catch(e){}
-  if(haupt.text) lesungen.push({ text:haupt.text, confidence:haupt.confidence, quelle:'Volltext' });
+  if(haupt.text) lesungen.push({ text:haupt.text, confidence:haupt.confidence, quelle:'voll' });
 
   /* 2) Gezielter REF-Streifen. */
   let bandText='';
@@ -580,7 +586,7 @@ async function ocrReadLabel(dataUrl, onStatus){
       const r=await ocrRun(grau.img, { psm:7, woerterbuch:false, whitelist:OCR_REF_WHITELIST,
         rechteck:{ left:band.x, top:band.y, width:band.w, height:band.h } });
       bandText=r.text||'';
-      if(bandText.trim()) lesungen.push({ text:bandText, confidence:r.confidence, quelle:'REF-Streifen' });
+      if(bandText.trim()) lesungen.push({ text:bandText, confidence:r.confidence, quelle:'ref' });
     }catch(e){}
   }
 
@@ -591,14 +597,14 @@ async function ocrReadLabel(dataUrl, onStatus){
     try{
       const bin=await new Promise(res=>ocrRender(dataUrl,{modus:'binaer'},(d)=>res(d)));
       const r=await ocrRun(bin, { psm:6, woerterbuch:false });
-      if(r.text) lesungen.push({ text:r.text, confidence:r.confidence, quelle:'Kontrast' });
+      if(r.text) lesungen.push({ text:r.text, confidence:r.confidence, quelle:'kontrast' });
     }catch(e){}
   }
   ocrSetLogger(null); ocrReleaseWorker();
 
   /* 4) Felder je Lesung ziehen und abstimmen. Der REF-Streifen steht bewusst
      VORNE — bei Gleichstand gewinnt die gezielte Lesung. */
-  const sortiert=lesungen.slice().sort((a,b)=>(b.quelle==='REF-Streifen'?1:0)-(a.quelle==='REF-Streifen'?1:0));
+  const sortiert=lesungen.slice().sort((a,b)=>(b.quelle==='ref'?1:0)-(a.quelle==='ref'?1:0));
   const saetze=sortiert.map(l=>extractLabelFields(l.text));
   const fields=ocrVoteFields(saetze);
   const gesamttext=lesungen.map(l=>l.text).join('\n');
@@ -629,7 +635,7 @@ async function ocrReadLabel(dataUrl, onStatus){
     if(barcode.itemRef){ fields.ref=barcode.itemRef; refInfo={ ref:barcode.itemRef, wie:'barcode', sicher:true, kandidaten:[] }; }
   }
   return { fields, refInfo, refRoh, kandidaten, gtin, barcode, text:gesamttext,
-    confidence:conf, schaerfe:_ocrSharp, lesungen:lesungen.map(l=>l.quelle) };
+    confidence:conf, schaerfe:_ocrSharp, lesungen:lesungen.map(l=>ocrLesungWort(l.quelle)) };
 }
 /* Liest zusätzlich einen Barcode aus DEMSELBEN Foto (falls die native
    BarcodeDetector-API vorhanden ist). Der Barcode trägt GTIN und teils die REF

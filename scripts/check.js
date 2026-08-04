@@ -14,6 +14,17 @@
         fehlt aber offline (oder umgekehrt). README/ARCHITECTURE warnen
         davor; hier wird es maschinell erzwungen.
 
+     3. NATIVE EINGABEFENSTER (prompt/confirm) — in installierten PWAs
+        lautlos wirkungslos (Grundsatz ⑧, docs/GRUNDSAETZE.md).
+
+     4. FACHWORT IN EINEM VERGLEICH — eine Zeichenkette, die jemand umbenennen
+        kann, steuert Verhalten (Grundsatz ④, docs/GRUNDSAETZE.md).
+
+   3 und 4 arbeiten mit einer Altlastenliste (scripts/pruefungen/altlasten.json):
+   Der Bestand vom Tag der Einführung ist je Datei gezählt und geduldet, neue
+   Fälle brechen ab — und eine zu hohe Zahl bricht ebenfalls ab. So kann der
+   Bestand nur schrumpfen.
+
    Aufruf:  npm run check     (oder: node scripts/check.js)
    Exit 0 = alles gut, Exit 1 = Probleme (werden aufgelistet).
    ============================================================ */
@@ -21,8 +32,11 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const eingabefenster = require('./pruefungen/eingabefenster');
+const fachwort = require('./pruefungen/fachwort');
 
 const ROOT = path.join(__dirname, '..');
+const ALTLASTEN = path.join(__dirname, 'pruefungen', 'altlasten.json');
 
 /* Alle projekteigenen .js-Dateien einsammeln (ohne node_modules/.git). */
 function jsFiles(dir, out = []) {
@@ -80,14 +94,26 @@ function shellSyncProblems() {
   return problems;
 }
 
+/* 3+4) Grundsätze ⑧ und ④, je gegen die Altlastenliste. */
+function altlasten() {
+  try { return JSON.parse(fs.readFileSync(ALTLASTEN, 'utf8')); }
+  catch (e) { return { eingabefenster: {}, fachwort: {} }; }
+}
+function grundsatzProblems() {
+  const alt = altlasten();
+  return [].concat(
+    eingabefenster.pruefe(ROOT, 'public/js', alt.eingabefenster || {}),
+    fachwort.pruefe(ROOT, 'public/js', alt.fachwort || {}));
+}
+
 function collectProblems() {
-  return [].concat(shellSyncProblems(), syntaxProblems());
+  return [].concat(shellSyncProblems(), syntaxProblems(), grundsatzProblems());
 }
 
 function main() {
   const problems = collectProblems();
   if (problems.length === 0) {
-    console.log('✓ check: Syntax OK, sw.js SHELL und index.html sind synchron.');
+    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich.');
     return 0;
   }
   console.error(`✗ check: ${problems.length} Problem(e) gefunden:\n`);
@@ -98,4 +124,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { jsFiles, indexModules, shellModules, shellSyncProblems, syntaxProblems, collectProblems };
+module.exports = { jsFiles, indexModules, shellModules, shellSyncProblems, syntaxProblems, grundsatzProblems, altlasten, collectProblems, ALTLASTEN };

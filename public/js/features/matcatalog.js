@@ -97,6 +97,8 @@ function catReadHold(){ const h=document.getElementById('catHold'); if(!h || !h.
    Liefert HTML-String (leer, wenn nichts da). */
 function catInfoBlockHTML(r){
   const ks=r&&r.katspecs; if(!ks || !Object.keys(ks).length) return '';
+  /* fachwort:ok — 'bestätigt' ist der feste Wert aus data/material_catalog.json
+     bzw. aus der Bestätigung am Stammsatz, keine Anzeige-Bezeichnung. */
   const unb=(r.katstatus!=='bestätigt');
   const pairs=Object.keys(ks).map(k=>`<div class="info-field"><div class="if-l">${esc(k)}</div><div class="if-v">${esc(ks[k])}</div></div>`).join('');
   const badge=unb?`<span class="cat-badge-unb">unbestätigt</span>`:`<span class="cat-badge-ok">bestätigt</span>`;

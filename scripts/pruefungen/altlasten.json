@@ -1,0 +1,25 @@
+{
+  "_zweck": "Der Bestand an Altlasten am Tag der Einführung der Prüfungen (04.08.2026). Was hier steht, ist geduldet; alles Neue bricht `npm run check` ab. Diese Zahlen dürfen NUR KLEINER werden — wird eine Altlast beseitigt, meldet die Prüfung die neue Zahl und nennt sie in der Fehlermeldung.",
+  "_eingabefenster": "Grundsatz ⑧ (docs/GRUNDSAETZE.md): prompt() und confirm() sind in installierten PWAs auf mehreren Android-Chrome-Versionen wirkungslos — der Aufruf liefert sofort null/false, die Funktion schlägt lautlos fehl. Zahl = Aufrufe je Datei.",
+  "_fachwort": "Grundsatz ④: Eine Zeichenkette, die jemand umbenennen kann, darf nicht in einem Vergleich stehen. Leer, weil der letzte Fall (der Freigabe-Zustand) behoben ist — begründete Einzelfälle stehen als /* fachwort:ok */ im Quelltext, nicht hier.",
+  "eingabefenster": {
+    "public/js/core/app-state.js": 14,
+    "public/js/features/auth.js": 1,
+    "public/js/features/backup.js": 6,
+    "public/js/features/diag.js": 1,
+    "public/js/features/glossary.js": 5,
+    "public/js/features/guides.js": 3,
+    "public/js/features/hints.js": 1,
+    "public/js/features/matcenter.js": 3,
+    "public/js/features/matcleanup.js": 1,
+    "public/js/features/popups.js": 2,
+    "public/js/features/quickmenu.js": 10,
+    "public/js/features/scanner.js": 2,
+    "public/js/features/suggestions.js": 1,
+    "public/js/features/variants.js": 2,
+    "public/js/ui/catalog.js": 3,
+    "public/js/ui/detail.js": 3,
+    "public/js/ui/forms.js": 2
+  },
+  "fachwort": {}
+}

@@ -319,6 +319,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-variants')){ setMode('use'); return; }
   if(act('scr-diag')){ setMode('use'); return; }
   if(act('scr-bausteine')){ setMode('admin'); return; }
+  if(act('scr-funktionen')){ setMode('admin'); return; }
   if(act('scr-freigabe')){ if(typeof frgSid!=='undefined' && frgSid) openStandard(frgSid); else setMode('admin'); return; }
   if(act('scr-ruest')){ if(typeof ruestSid!=='undefined' && ruestSid) openStandard(ruestSid); else setMode('use'); return; }
   if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }

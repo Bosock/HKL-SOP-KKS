@@ -165,26 +165,66 @@ function frgAbgleich(siegel, zeilen){
   return { ohne:false, gleich:(gleicheMenge && !reihenfolge), neu, weg, reihenfolge };
 }
 
+/* ── Der Vermerk: SCHLÜSSEL im Datensatz, Wort nur zur Anzeige ──────────
+   Früher stand im Datensatz das deutsche Wort „Freigegeben", und der Code
+   verglich dagegen. Wer das Wort in der Verwaltung umbenannt hätte, hätte
+   damit JEDE Freigabe des Hauses still ungültig gemacht — ohne Meldung, an
+   der Stelle, auf die sich das Labor am meisten verlässt (Grundsatz ④).
+
+   Jetzt trägt der Datensatz `zustand` (ein Schlüssel), und das Wort dazu
+   kommt aus der Konfiguration. Altbestand ohne `zustand` wird über die Wörter
+   zurückübersetzt — einmalig und verlustfrei, siehe frgZustand(). */
+const FRG_ZUSTAENDE = [
+  { key:'entwurf',     vorgabe:'Entwurf' },
+  { key:'pruefung',    vorgabe:'In Prüfung' },
+  { key:'freigegeben', vorgabe:'Freigegeben' },
+  { key:'veraltet',    vorgabe:'Veraltet' },
+];
+function frgZustandWort(key){
+  const z = FRG_ZUSTAENDE.find(x=>x.key===key);
+  if(!z) return '';
+  return (typeof bezWert==='function') ? bezWert('freigabezustaende', key, z.vorgabe) : z.vorgabe;
+}
+/* Altbestand: aus dem gespeicherten WORT den Schlüssel zurückgewinnen — gegen
+   die aktuelle Bezeichnung und gegen die ausgelieferte Vorgabe, damit auch
+   nach einer Umbenennung noch alles zugeordnet wird. */
+function frgZustandAusWort(wort){
+  const w = String(wort==null?'':wort).trim().toLowerCase();
+  if(!w) return '';
+  for(const z of FRG_ZUSTAENDE){
+    if(w===String(z.vorgabe).toLowerCase()) return z.key;
+    if(w===String(frgZustandWort(z.key)).toLowerCase()) return z.key;
+  }
+  return 'entwurf';   /* ein unbekanntes Wort ist alles, nur nicht freigegeben */
+}
+/* Der Vermerks-Zustand eines Datensatzes als Schlüssel ('' = keiner). */
+function frgZustand(m){
+  if(m && m.zustand!==undefined && m.zustand!==null && m.zustand!=='') return String(m.zustand);
+  if(m && m.zustand==='') return '';
+  return frgZustandAusWort(m && m.status);
+}
+
 /* Zustand eines Standards als EIN Wort. Rein bis auf STDE/DB-Zugriff.
      'ohne'      kein Freigabe-Vermerk gepflegt
      'entwurf'   Vermerk vorhanden, aber nicht freigegeben
      'gueltig'   freigegeben und inhaltlich unverändert
      'ueberholt' freigegeben, seither geändert
      'abgelaufen' Gültigkeit ist verstrichen */
-const FRG_FREI = 'Freigegeben';
 function frgMeta(std){ return (typeof STDE!=='undefined' && STDE && std && STDE[std.id]) ? STDE[std.id] : {}; }
 
 function frgStatus(std, heute){
   const m = frgMeta(std);
-  const hat = !!(m.status || m.version || m.validFrom || m.validTo || m.siegel);
+  const hat = !!(m.status || m.zustand || m.version || m.validFrom || m.validTo || m.siegel);
   if(!hat) return 'ohne';
-  if(m.status!==FRG_FREI) return 'entwurf';
+  if(frgZustand(m)!=='freigegeben') return 'entwurf';
   const h = heute || (typeof today==='function' ? today() : '');
   if(m.validTo && h && String(m.validTo) < String(h)) return 'abgelaufen';
   if(!m.siegel) return 'ueberholt';   /* freigegeben, aber ohne Nachweis, worauf */
   return frgAbgleich(m.siegel, frgZeilenVon(std)).gleich ? 'gueltig' : 'ueberholt';
 }
 
+/* Anzeige je Zustand. Symbol und Wort sind Bezeichnungen und damit in der
+   Verwaltung änderbar (Grundsatz ⑤) — die Werte hier sind nur der Rückfall. */
 const FRG_TEXTE = {
   ohne:      { ico:'', kurz:'', lang:'' },
   entwurf:   { ico:'📝', kurz:'Entwurf', lang:'Dieser Standard ist nicht freigegeben.' },
@@ -192,7 +232,13 @@ const FRG_TEXTE = {
   ueberholt: { ico:'⚠️', kurz:'Freigabe überholt', lang:'Seit der Freigabe wurde der Inhalt geändert.' },
   abgelaufen:{ ico:'⏳', kurz:'Gültigkeit abgelaufen', lang:'Der Gültigkeitszeitraum ist verstrichen.' },
 };
-function frgText(zustand){ return FRG_TEXTE[zustand] || FRG_TEXTE.ohne; }
+function frgText(zustand){
+  const v = FRG_TEXTE[zustand] || FRG_TEXTE.ohne;
+  if(typeof bezWert!=='function' || zustand==='ohne') return v;
+  return { ico: bezWert('freigabe', zustand+'_ico', v.ico),
+           kurz: bezWert('freigabe', zustand, v.kurz),
+           lang: bezWert('freigabe', zustand+'_lang', v.lang) };
+}
 
 /* ═══════════ 2. Freigeben und zurücknehmen ═══════════ */
 
@@ -200,7 +246,8 @@ function frgFreigeben(sid, von, version){
   if(typeof DB==='undefined' || !DB || !DB.standards) return false;
   const std = DB.standards.find(x=>x.id===sid); if(!std) return false;
   const m = Object.assign({}, STDE[sid]);
-  m.status = FRG_FREI;
+  m.zustand = 'freigegeben';
+  m.status = frgZustandWort('freigegeben');   /* nur zur Anzeige (PDF-Kopf, Altpfade) */
   if(version!=null && String(version).trim()!=='') m.version = String(version).trim();
   m.approvedBy = String(von||'').trim() || (typeof voterName==='function' ? voterName() : '');
   m.approvedAt = (typeof today==='function') ? today() : '';
@@ -216,7 +263,8 @@ function frgFreigeben(sid, von, version){
 function frgZurueckziehen(sid){
   if(!STDE[sid]) return false;
   const m = Object.assign({}, STDE[sid]);
-  m.status = 'Entwurf';
+  m.zustand = 'entwurf';
+  m.status = frgZustandWort('entwurf');
   delete m.siegel; delete m.approvedBy; delete m.approvedAt;
   STDE[sid] = m;
   if(typeof saveSTDE==='function') saveSTDE();
@@ -285,33 +333,68 @@ function frgBadgeHTML(std){
 /* ═══════════ 4. Bildschirm „Freigabe" ═══════════ */
 
 let frgSid = null;
+/* '' | 'freigeben' | 'zurueck' — welcher Schritt gerade auf dem Bildschirm
+   offen ist. Bewusst KEIN prompt()/confirm(): In installierten PWAs erscheint
+   dort auf mehreren Android-Chrome-Versionen gar kein Fenster, der Aufruf
+   liefert sofort null — die Freigabe wäre lautlos ausgefallen (Grundsatz ⑧).
+   Zweiter Gewinn: Beide Eingaben stehen gleichzeitig sichtbar da, statt in zwei
+   Fenstern nacheinander, und der Rücknahme-Schritt kann seine Folgen erklären. */
+let frgModus = '';
 
 function openFreigabe(sid){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(()=>openFreigabe(sid)); return; }
   frgSid = sid || (typeof curStd!=='undefined' && curStd ? curStd.id : null);
   if(!frgSid) return;
+  frgModus = '';
   renderFreigabe(); show('scr-freigabe');
   const s = DB.standards.find(x=>x.id===frgSid);
   if(typeof setBar==='function') setBar('Freigabe', s?stdTitel(s):'', true);
 }
 
-function frgUiFreigeben(){
+function frgUiFreigeben(){ frgModus='freigeben'; renderFreigabe();
+  const i=$('frgVon'); if(i){ setTimeout(()=>{ i.focus(); i.select&&i.select(); },50); } }
+function frgUiZurueck(){ frgModus='zurueck'; renderFreigabe(); }
+function frgUiAbbrechen(){ frgModus=''; renderFreigabe(); }
+
+function frgUiFreigabeSpeichern(){
   const s = DB.standards.find(x=>x.id===frgSid); if(!s) return;
-  const m = frgMeta(s);
-  const von = prompt('Wer gibt frei? (Name oder Kürzel)', m.approvedBy || (typeof voterName==='function'?voterName():''));
-  if(von==null) return;
-  if(!String(von).trim()){ toast('Ohne Namen keine Freigabe',true); return; }
-  const ver = prompt('Version (z. B. 1.3):', m.version || '1.0');
-  if(ver==null) return;
+  const von=($('frgVon')&&$('frgVon').value||'').trim();
+  const ver=($('frgVer')&&$('frgVer').value||'').trim();
+  if(!von){ toast('Ohne Namen keine Freigabe',true); const i=$('frgVon'); if(i) i.focus(); return; }
   frgFreigeben(frgSid, von, ver);
-  renderFreigabe();
+  frgModus=''; renderFreigabe();
   toast('Freigegeben — der Stand ist versiegelt');
 }
 
-function frgUiZurueck(){
-  const s = DB.standards.find(x=>x.id===frgSid); if(!s) return;
-  if(!confirm('Freigabe von „'+stdTitel(s)+'" zurücknehmen?\n\nDer Standard erscheint danach überall als Entwurf. Der Inhalt bleibt unverändert.')) return;
-  frgZurueckziehen(frgSid); renderFreigabe(); toast('Freigabe zurückgenommen');
+function frgUiZurueckSpeichern(){
+  if(!frgSid) return;
+  frgZurueckziehen(frgSid); frgModus=''; renderFreigabe(); toast('Freigabe zurückgenommen');
+}
+
+/* Die zwei Eingabeflächen. Sie ersetzen die nativen Fenster und stehen an
+   derselben Stelle wie die Knöpfe, die sie geöffnet haben. */
+function frgFormHTML(s, m, z){
+  if(frgModus==='freigeben'){
+    const von = m.approvedBy || (typeof voterName==='function'?voterName():'');
+    const ver = m.version || '1.0';
+    return `<div class="pcard" style="margin-top:14px">
+      <div class="bez-sec" style="margin-top:0">${z==='gueltig'?'Erneut freigeben':'Freigeben'}</div>
+      <p class="hint">Mit dem Freigeben wird der HEUTIGE Stand versiegelt. Ändert danach jemand etwas, sagt die App das von selbst.</p>
+      <div class="form-grp"><div class="flabel">Wer gibt frei? (Name oder Kürzel)</div>
+        <input class="loc-input" id="frgVon" style="width:100%" value="${esc(von)}" placeholder="z. B. Frau Muster"></div>
+      <div class="form-grp"><div class="flabel">Version</div>
+        <input class="loc-input" id="frgVer" style="width:100%" value="${esc(ver)}" placeholder="z. B. 1.3"></div>
+      <div class="p-actions"><button class="btn btn-sec" onclick="frgUiAbbrechen()">Abbrechen</button>
+        <button class="btn btn-pri" onclick="frgUiFreigabeSpeichern()">Freigeben &amp; versiegeln</button></div></div>`;
+  }
+  if(frgModus==='zurueck'){
+    return `<div class="pcard" style="margin-top:14px">
+      <div class="bez-sec" style="margin-top:0">Freigabe zurücknehmen?</div>
+      <p class="hint">„${esc(stdTitel(s))}" erscheint danach überall als Entwurf. Der Inhalt bleibt unverändert; das Siegel wird verworfen.</p>
+      <div class="p-actions"><button class="btn btn-sec" onclick="frgUiAbbrechen()">Abbrechen</button>
+        <button class="btn btn-pri" onclick="frgUiZurueckSpeichern()">Ja, zurücknehmen</button></div></div>`;
+  }
+  return '';
 }
 
 function frgZurStelle(cid){
@@ -343,7 +426,7 @@ function renderFreigabe(){
 
   h += `<div class="bez-sec">Vermerk</div>
     <div class="frg-feld"><span>Version</span><b>${esc(m.version||'—')}</b></div>
-    <div class="frg-feld"><span>Status</span><b>${esc(m.status||'—')}</b></div>
+    <div class="frg-feld"><span>Status</span><b>${esc(frgZustandWort(frgZustand(m))||'—')}</b></div>
     <div class="frg-feld"><span>Freigegeben am</span><b>${esc(m.approvedAt||'—')}</b></div>
     <div class="frg-feld"><span>Durch</span><b>${esc(m.approvedBy||'—')}</b></div>
     <div class="frg-feld"><span>Gültig ab</span><b>${esc(m.validFrom||'—')}</b></div>
@@ -363,11 +446,14 @@ function renderFreigabe(){
     if(d.neu.length>60 || d.weg.length>60) h += `<p class="hint">Es werden die ersten 60 je Art gezeigt.</p>`;
   }
 
-  h += `<div class="p-actions" style="margin-top:14px">
+  const form = frgFormHTML(s, m, z);
+  if(form) h += form;
+  else h += `<div class="p-actions" style="margin-top:14px">
       <button class="btn btn-pri" onclick="frgUiFreigeben()">${z==='gueltig'?'Erneut freigeben':'Freigeben'}</button>
-      ${m.status?`<button class="btn btn-sec" onclick="frgUiZurueck()">Freigabe zurücknehmen</button>`:''}
+      ${frgZustand(m)?`<button class="btn btn-sec" onclick="frgUiZurueck()">Freigabe zurücknehmen</button>`:''}
       <button class="btn btn-sec" data-s="${esc(frgSid)}" onclick="openStandardForm2Meta(this.dataset.s)">Version & Gültigkeit</button>
-    </div>
+    </div>`;
+  h += `
     <p class="hint">Das Siegel ist im Browser gerechnet und liegt im geteilten Zustand — es ist keine Unterschrift im Rechtssinn und kein Zugriffsschutz. Es beantwortet eine einzige Frage: <b>Ist das noch der Stand, der freigegeben wurde?</b></p>`;
   box.innerHTML = h;
 }

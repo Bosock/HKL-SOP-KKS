@@ -358,7 +358,17 @@ function sheetResetEntry(){ const cid=sheetCid, e=sheetEntry;
   if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]!==undefined){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); }
   if(e&&e.material_key&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===e.material_key&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
   saveQE(); buildMaterialIndex(); computeUkList(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
-function reRenderDetail(){ const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
+/* Nach einer Änderung genau den Bildschirm auffrischen, auf dem man steht.
+   Das Bearbeiten-Menü ist EIN Menü in zwei Kontexten (Grundsatz ⑥) — es wird
+   aus der Rubrikansicht UND aus der Verwaltung geöffnet. Früher zeichnete es
+   nur die Rubrikansicht neu; in der Verwaltung blieb der alte Stand stehen und
+   sah aus, als sei nichts passiert. */
+function reRenderDetail(){
+  try{
+    if($('scr-admin') && $('scr-admin').classList.contains('active') && typeof renderAdmin==='function'){ renderAdmin(); return; }
+    if($('scr-care') && $('scr-care').classList.contains('active') && typeof renderMatCenter==='function'){ renderMatCenter(); return; }
+  }catch(e){}
+  const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));
 
 /* ── Geister-Klick-Schutz (Ursache der Bugs „springt beim Standard-Wählen

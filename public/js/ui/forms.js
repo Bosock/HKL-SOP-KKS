@@ -340,8 +340,13 @@ function saveRubrikForm(id){ const f=readRubrikForm(); if(!f.name.trim()){ toast
   toast(id?'Rubrik gespeichert':'Rubrik angelegt'); const b=formCtx&&formCtx.back; formCtx=null; if(b) b(); }
 /* ---- Version & Freigabe eines Standards (nur Verwaltung sichtbar) ---- */
 function openStdMetaForm(){ if(!ADMIN||!curStd) return; const s=curStd; const m=STDE[s.id]||{};
-  const statuses=['Entwurf','In Prüfung','Freigegeben','Veraltet'];
-  const opts=statuses.map(x=>`<option value="${esc(x)}" ${m.status===x?'selected':''}>${esc(x)}</option>`).join('');
+  /* Der Auswahlwert ist ein SCHLÜSSEL, das Angezeigte eine Bezeichnung
+     (Grundsatz ④). Wer das Wort in der Verwaltung ändert, ändert damit nicht
+     mehr das Verhalten der Freigabe. */
+  const zust=(typeof FRG_ZUSTAENDE!=='undefined')?FRG_ZUSTAENDE:[{key:'entwurf',vorgabe:'Entwurf'},{key:'freigegeben',vorgabe:'Freigegeben'}];
+  const jetzt=(typeof frgZustand==='function')?frgZustand(m):(m.zustand||'');
+  const wort=(k,v)=>(typeof frgZustandWort==='function')?frgZustandWort(k):v;
+  const opts=zust.map(z=>`<option value="${esc(z.key)}" ${jetzt===z.key?'selected':''}>${esc(wort(z.key,z.vorgabe))}</option>`).join('');
   const html=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Version</div><input class="loc-input" id="mVer" placeholder="z. B. 1.2" value="${esc(m.version||'')}"></div>
     <div class="form-grp"><div class="flabel">Status / Freigabe</div><select class="form-sel" id="mStatus" style="width:100%"><option value="">— kein —</option>${opts}</select></div>
@@ -353,10 +358,23 @@ function openStdMetaForm(){ if(!ADMIN||!curStd) return; const s=curStd; const m=
   formCtx={desc:{kind:'stdmeta'}, back:()=>openStandard(s.id,true)};
   $('scr-form').innerHTML=html; show('scr-form'); setBar('Version & Freigabe',stdTitel(s),true); }
 function saveStdMeta(){ if(!ADMIN||!curStd) return; const s=curStd;
-  const upd={ version:($('mVer').value||'').trim(), status:($('mStatus').value||'').trim(), validFrom:($('mFrom').value||'').trim(), validTo:($('mTo').value||'').trim() };
-  ['version','status','validFrom','validTo'].forEach(k=>{ if(!upd[k]) delete upd[k]; });
+  const zKey=($('mStatus').value||'').trim();
+  const upd={ version:($('mVer').value||'').trim(), zustand:zKey,
+    status:(zKey && typeof frgZustandWort==='function')?frgZustandWort(zKey):zKey,
+    validFrom:($('mFrom').value||'').trim(), validTo:($('mTo').value||'').trim() };
+  ['version','validFrom','validTo'].forEach(k=>{ if(!upd[k]) delete upd[k]; });
+  /* Leerer Zustand heißt „kein Vermerk" — und muss den alten Wert LÖSCHEN,
+     nicht bloß nicht setzen (sonst bliebe der Altbestand stehen). */
+  if(!zKey){ upd.zustand=''; upd.status=''; }
   upd.approvedBy=(typeof voterName==='function'?voterName():'Verwaltung'); upd.approvedAt=today();
-  STDE[s.id]=Object.assign({},STDE[s.id],upd); saveSTDE(); const b=formCtx&&formCtx.back; formCtx=null; toast('Version & Freigabe gespeichert'); if(b) b(); }
+  const neuM=Object.assign({},STDE[s.id],upd);
+  if(!zKey){ delete neuM.zustand; delete neuM.status; }
+  /* Ein von Hand gesetzter Zustand ist KEINE Freigabe mit Siegel — sonst
+     stünde „freigegeben" da, ohne dass jemals ein Stand versiegelt wurde. */
+  if(zKey!=='freigegeben') delete neuM.siegel;
+  STDE[s.id]=neuM; saveSTDE();
+  if(typeof frgCacheLeeren==='function') frgCacheLeeren();
+  const b=formCtx&&formCtx.back; formCtx=null; toast('Version & Freigabe gespeichert'); if(b) b(); }
 function addStandard(titel,gruppe){ const taken={}; (DB?DB.standards:[]).forEach(s=>taken[s.id]=1); ADDITIONS.standards.forEach(s=>taken[s.id]=1); const id=addSlug(titel,taken);
   ADDITIONS.standards.push({ id, titel:titel.trim(), gruppe:(gruppe||'').trim()||'Eigene', dateiname:'(manuell angelegt)', _added:true, rubriken:[
     {name:'Saal und Geräte', typ:'geraete', sub_bereiche:[]}, {name:'Material', typ:'material', sub_bereiche:[]}, {name:'Ablauf', typ:'ablauf', sub_bereiche:[]} ] });
