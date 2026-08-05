@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -56,6 +56,14 @@ function hydrateVars(){
     if(typeof fktNormalisieren==='function') fktNormalisieren(); }
   /* Bildunterschriften: eine Kennung, eine Unterschrift — überall gleich. */
   if(typeof MEDTXT!=='undefined'){ MEDTXT=loadJSON('hkl_medientexte',{}); }
+  /* Bilder an Standardkopf, Rubrik und Abschnitt (features/medien.js). */
+  if(typeof MEDANK!=='undefined'){ MEDANK=loadJSON('hkl_medienanker',{}); if(!MEDANK||typeof MEDANK!=='object') MEDANK={}; }
+  /* Bauplan des Standardkopfes (features/stdkopf.js). */
+  if(typeof KOPF!=='undefined'){ KOPF=loadJSON('hkl_stdkopf',{}); if(!KOPF||typeof KOPF!=='object') KOPF={}; }
+  /* Merkmale an Standards: Definition und Vergabe (features/eigenschaften.js). */
+  if(typeof EIG!=='undefined'){ EIG=loadJSON('hkl_eigenschaften',[]); if(!Array.isArray(EIG)) EIG=[]; }
+  if(typeof EIGSTD!=='undefined'){ EIGSTD=loadJSON('hkl_stdeigen',{}); if(!EIGSTD||typeof EIGSTD!=='object') EIGSTD={};
+    if(typeof facCacheLeeren==='function') facCacheLeeren(); }
   /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
      sie jemand am anderen Gerät ab, muss das hier ankommen. */
   if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}

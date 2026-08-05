@@ -80,13 +80,24 @@ function facVonStandard(std, kontext){
   const k = kontext||{};
   const titel = k.titel || (std&&std.titel) || '';
   const { hersteller, rest } = facHersteller(facTeile(titel), k.hersteller||[]);
-  return {
+  const m = {
     gruppe: k.gruppe ? [k.gruppe] : [],
     hersteller,
     art: rest.length ? [rest[0]] : [],
     auspraegung: rest.slice(1),
     zustand: k.zustand ? [k.zustand] : [],
   };
+  /* Gepflegte Merkmale des Hauses. `eigen` ist {key: wert}; ein Ja wird zum
+     Wort des Merkmals, alles andere zum Wert selbst. Ein ausdrueckliches Nein
+     und ein „ohne Angabe" erzeugen KEIN Merkmal — man filtert nach dem, was
+     da ist, nicht nach dem, was fehlt. */
+  const eigen = k.eigen || null;
+  if(eigen) Object.keys(eigen).forEach(key=>{
+    const v = eigen[key];
+    if(v===undefined || v===null || v===false || v==='') return;
+    m['eig:'+key] = [ (v===true) ? (k.eigWort ? k.eigWort(key) : key) : String(v) ];
+  });
+  return m;
 }
 
 /* Die Merkmalsarten. Reihenfolge = Reihenfolge auf dem Bildschirm.
@@ -98,9 +109,20 @@ const FAC_ARTEN = [
   { key:'auspraegung', vorgabe:'Ausprägung' },
   { key:'zustand',     vorgabe:'Freigabe' },
 ];
+/* Die geltenden Merkmalsarten: die aus dem Titel abgeleiteten (oben) UND die
+   vom Haus gepflegten Eigenschaften (features/eigenschaften.js). Letztere sind
+   die verlaesslicheren, weil sie aus Daten kommen und nicht aus einer
+   Titelzerlegung — sie stehen deshalb vorn. */
+function facArten(){
+  const eigen = (typeof eigKopfListe==='function')
+    ? eigKopfListe().map(e=>({ key:'eig:'+e.key, vorgabe:e.wort, eig:e }))
+    : [];
+  return eigen.concat(FAC_ARTEN);
+}
 function facLabel(key){
-  const d = FAC_ARTEN.find(x=>x.key===key);
+  const d = facArten().find(x=>x.key===key);
   const vorgabe = d ? d.vorgabe : key;
+  if(d && d.eig) return d.vorgabe;          /* das Wort pflegt schon die Merkmalsliste */
   return (typeof bezWert==='function') ? bezWert('facetten', key, vorgabe) : vorgabe;
 }
 
@@ -108,7 +130,7 @@ function facLabel(key){
    zwischen den Arten UND. Rein. */
 function facPasst(merkmale, wahl){
   const w = wahl||{};
-  return FAC_ARTEN.every(a=>{
+  return facArten().every(a=>{
     const gewaehlt = w[a.key]||[];
     if(!gewaehlt.length) return true;
     const hat = (merkmale&&merkmale[a.key])||[];
@@ -124,7 +146,7 @@ function facPasst(merkmale, wahl){
 function facBauen(posten, wahl){
   const w = wahl||{};
   const aus = [];
-  FAC_ARTEN.forEach(a=>{
+  facArten().forEach(a=>{
     /* Im UX-Audit war die Leiste „zu groß" — auf dem Tablet füllte sie fast den
        ersten Bildschirm. Welche Merkmale ein Haus wirklich braucht, weiß nur
        das Haus: Jede Art ist einzeln abschaltbar (features/funktionen.js).
@@ -150,7 +172,7 @@ function facBauen(posten, wahl){
 }
 
 function facAnzahlGewaehlt(wahl){
-  return FAC_ARTEN.reduce((n,a)=>n+(((wahl||{})[a.key]||[]).length),0);
+  return facArten().reduce((n,a)=>n+(((wahl||{})[a.key]||[]).length),0);
 }
 
 /* ═══════════ 2. Zustand (gerätelokal) ═══════════
@@ -178,12 +200,20 @@ function facPosten(){
       const zustand = (typeof frgStatus==='function') ? frgStatus(s) : '';
       const zLabel = (zustand && zustand!=='ohne' && typeof frgText==='function')
         ? (frgText(zustand).kurz||'') : '';
+      /* Gepflegte Merkmale des Hauses (features/eigenschaften.js) als eigene
+         Facetten — sie kommen aus Daten und nicht aus einer Titelzerlegung. */
+      const eigen = (typeof EIGSTD!=='undefined' && EIGSTD) ? (EIGSTD[s.id]||null) : null;
+      const eigWort = (key)=>{ const e=(typeof eigOf==='function')?eigOf(key):null; return e?e.wort:key; };
       return { id:s.id, std:s, merkmale: facVonStandard(s, {
         titel: (typeof stdTitel==='function') ? stdTitel(s) : s.titel,
         gruppe: (typeof stdGruppe==='function') ? stdGruppe(s) : s.gruppe,
-        hersteller, zustand: zLabel }) };
+        hersteller, zustand: zLabel, eigen, eigWort }) };
     });
 }
+/* Der Merkmalsvorrat hat sich geändert (neues Merkmal, neue Vergabe) —
+   die Leiste muss beim nächsten Zeichnen neu entstehen. Der Aufbau ist
+   billig; es gibt bewusst keinen Zwischenspeicher, der veralten könnte. */
+function facCacheLeeren(){ facMehr = {}; facLetzteFacetten = null; }
 
 /* Die Standard-IDs, die zur Auswahl passen (null = keine Auswahl aktiv). */
 function facTrefferIds(){
@@ -201,7 +231,7 @@ function facWaehle(key, wert){
   if(typeof renderStandards==='function') renderStandards($('searchInput')?$('searchInput').value:'');
 }
 function facZuruecksetzen(){
-  FAC_ARTEN.forEach(a=>{ FACWAHL[a.key]=[]; });
+  Object.keys(FACWAHL).forEach(k=>{ FACWAHL[k]=[]; });
   facMehr = {};
   saveFacWahl();
   if(typeof renderStandards==='function') renderStandards($('searchInput')?$('searchInput').value:'');

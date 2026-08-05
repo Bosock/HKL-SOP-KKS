@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v56';
+const CACHE_VERSION = 'v57';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -76,7 +76,7 @@ const SHELL = [
   'js/features/freigabe.js',
   'js/features/facetten.js',
   'js/features/funktionen.js',
-  'js/features/medien.js',
+  'js/features/medien.js','js/features/eigenschaften.js','js/features/reichweite.js','js/features/stdkopf.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',

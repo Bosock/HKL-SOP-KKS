@@ -43,31 +43,114 @@ function medUrl(kennung){ return '/api/media/' + encodeURIComponent(String(kennu
 /* Ist das eine gültige Kennung (32 Hexstellen)? */
 function medIstKennung(k){ return /^[0-9a-f]{32}$/.test(String(k||'')); }
 
-/* Die Bildliste einer Zeile — immer ein Array, immer nur gültige Kennungen.
+/* ── Darstellungsgröße ─────────────────────────────────────────
+   Ein Bild trägt seine Größe nicht in sich: Dasselbe Foto ist an einer
+   Materialzeile ein Symbol und in einer Anleitung eine ganze Seite. Die Größe
+   gehört deshalb an die STELLE, an der das Bild hängt — und sie muss sich
+   jederzeit ändern lassen, ohne das Bild neu aufzunehmen.
+
+   Die Wörter dazu stehen nicht im Quelltext (Grundsatz ④): sie kommen aus
+   data/bezeichnungen.json → Zweig `mediengroessen` und sind in der Verwaltung
+   änderbar. Der Code kennt nur die Schlüssel. */
+const MED_GROESSEN = ['klein','mittel','gross'];
+const MED_GROESSE_VORGABE = 'klein';
+const MED_GROESSE_RUECKFALL = { klein:'Klein — wie ein Symbol', mittel:'Mittel — halbe Breite', gross:'Groß — volle Breite' };
+function medGroesseWort(g){
+  const tab = (typeof bezWert==='function') ? (bezWert('mediengroessen','werte',null)||MED_GROESSE_RUECKFALL) : MED_GROESSE_RUECKFALL;
+  return tab[g] || MED_GROESSE_RUECKFALL[g] || g;
+}
+function medGroesseGueltig(g){ return MED_GROESSEN.indexOf(g)>=0 ? g : MED_GROESSE_VORGABE; }
+
+/* Die Bildliste einer Stelle als PAARE {k,g} — Kennung und Darstellungsgröße.
+   Beide Schreibweisen werden gelesen: die alte flache Liste ['<kennung>', …]
+   und die neue ['{k,g}', …]. Deshalb braucht es keinen Migrationslauf; eine
+   alte Liste bekommt einfach die Vorgabegröße.
    „Leer schlägt falsch": Was nicht sicher eine Kennung ist, fliegt raus,
    statt als kaputtes Bild zu erscheinen. */
-function medListe(wert){
+function medPaare(wert){
   if(!Array.isArray(wert)) return [];
-  return wert.map(x=>String(x&&x.k!==undefined?x.k:x||'')).filter(medIstKennung).slice(0, MED_MAX_PRO_ZEILE);
+  const out = [];
+  wert.forEach(x=>{
+    const k = String((x && x.k!==undefined) ? x.k : (x||''));
+    if(!medIstKennung(k)) return;
+    out.push({ k, g: medGroesseGueltig(x && x.g) });
+  });
+  return out.slice(0, MED_MAX_PRO_ZEILE);
 }
+/* Nur die Kennungen (für Vergleiche und Zählungen). */
+function medListe(wert){ return medPaare(wert).map(p=>p.k); }
 
 /* Die wirksamen Bilder einer Zeile (mit der ganzen Kaskade dahinter). */
 function medVonEintrag(e, cid){
   if(typeof qeGet!=='function') return [];
   return medListe(qeGet(e, cid, 'bilder'));
 }
+function medPaareVonEintrag(e, cid){
+  if(typeof qeGet!=='function') return [];
+  return medPaare(qeGet(e, cid, 'bilder'));
+}
 
-/* Beschriftungen liegen getrennt von den Zeilen — eine Kennung, eine
-   Bildunterschrift, überall gleich. Sonst müsste man dieselbe Unterschrift an
-   23 Stellen pflegen. */
+/* ── Angaben zum Bild ──────────────────────────────────────────
+   Sie liegen getrennt von den Stellen: eine Kennung, eine Beschreibung,
+   überall gleich. Sonst müsste man dieselbe Unterschrift an 23 Stellen
+   pflegen.
+
+   Der Wert darf ein Text sein (Altbestand: nur die Unterschrift) oder ein
+   Satz {t,d} — Unterschrift und ausführliche Angaben. Gelesen wird beides. */
 let MEDTXT = (typeof loadJSON==='function') ? loadJSON('hkl_medientexte', {}) : {};
 function saveMedTxt(){ if(typeof saveJSON==='function') saveJSON('hkl_medientexte', MEDTXT); }
-function medText(kennung){ return (MEDTXT && MEDTXT[kennung]) || ''; }
+function medSatz(kennung){
+  const v = MEDTXT && MEDTXT[kennung];
+  if(!v) return { t:'', d:'' };
+  if(typeof v==='string') return { t:v, d:'' };
+  return { t:String(v.t||''), d:String(v.d||'') };
+}
+function medText(kennung){ return medSatz(kennung).t; }
+function medDetail(kennung){ return medSatz(kennung).d; }
+function medHatDetail(kennung){ const s=medSatz(kennung); return !!(s.t||s.d); }
 function medTextSetzen(kennung, text){
   if(!medIstKennung(kennung)) return;
-  const t = String(text||'').trim();
-  if(t) MEDTXT[kennung] = t; else delete MEDTXT[kennung];
+  const s = medSatz(kennung); s.t = String(text||'').trim();
+  medSatzSchreiben(kennung, s);
+}
+function medDetailSetzen(kennung, text){
+  if(!medIstKennung(kennung)) return;
+  const s = medSatz(kennung); s.d = String(text||'').trim();
+  medSatzSchreiben(kennung, s);
+}
+function medSatzSchreiben(kennung, s){
+  if(!s.t && !s.d) delete MEDTXT[kennung];
+  else if(!s.d) MEDTXT[kennung] = s.t;          /* schlanke Form, solange sie reicht */
+  else MEDTXT[kennung] = { t:s.t, d:s.d };
   saveMedTxt();
+}
+
+/* ── Anker: Bilder an Stellen, die kein Eintrag sind ───────────
+   Ein Bild soll überall hinkönnen — an den Kopf eines Standards, an eine
+   Rubrik, an einen Abschnitt. Diese Stellen haben keinen Eintrag und damit
+   keine Regel-Kaskade; sie SIND jeweils genau eine Stelle. Deshalb liegen
+   ihre Bilder in einem eigenen, flachen Speicher, nach Ankerschlüssel:
+
+     std:<sid>                Kopf eines Standards
+     rub:<sid>|<ri>           eine Rubrik
+     uk:<sid>|<ri>|<name>     ein Abschnitt (Material/Geräte)
+     seg:<sid>|<ri>|<name>    ein Abschnitt (Ablauf)
+
+   Der Anker ist absichtlich eine Zeichenkette: Kommt morgen eine weitere
+   Stelle dazu, braucht es keinen neuen Speicher und keine neue Funktion. */
+let MEDANK = (typeof loadJSON==='function') ? loadJSON('hkl_medienanker', {}) : {};
+if(!MEDANK || typeof MEDANK!=='object') MEDANK = {};
+function saveMedAnk(){ if(typeof saveJSON==='function') saveJSON('hkl_medienanker', MEDANK); }
+function medAnkStd(sid){ return 'std:'+sid; }
+function medAnkRub(sid, ri){ return 'rub:'+sid+'|'+ri; }
+function medAnkUk(sid, ri, uk){ return 'uk:'+sid+'|'+ri+'|'+uk; }
+function medAnkSeg(sid, ri, seg){ return 'seg:'+sid+'|'+ri+'|'+seg; }
+function medAnkerPaare(anker){ return medPaare(MEDANK[anker]); }
+function medAnkerSchreiben(anker, paare){
+  if(!anker) return false;
+  if(paare && paare.length) MEDANK[anker] = paare.map(p=>({k:p.k, g:p.g}));
+  else delete MEDANK[anker];
+  saveMedAnk(); return true;
 }
 
 /* ═══════════ 2. Warteschlange (ohne Netz) ═══════════ */
@@ -178,32 +261,48 @@ async function medWarteschlangeAbarbeiten(){
 
 /* ═══════════ 4. Eintragen (über die Reichweiten-Treppe) ═══════════ */
 
-/* Hängt eine Kennung an eine Zeile. reichweite: 'cid'|'std'|'grp'|'mat'.
-   Der Weg ist bewusst derselbe wie bei Name und Menge — über sheetPending und
-   applyPending, damit die Änderung im Journal steht und rücknehmbar ist. */
-function medEintragen(cid, kennung, reichweite){
+/* Ein „Ort" ist entweder eine Zeile (cid) oder ein Anker. Beide werden gleich
+   bedient — ein Menü, zwei Kontexte (Grundsatz ⑥). Ist `ort` ein Anker,
+   entfällt die Reichweitenfrage: der Anker IST die Stelle. */
+function medIstAnker(ort){ return typeof ort==='string' && /^(std|rub|uk|seg):/.test(ort); }
+function medOrtPaare(ort){
+  if(medIstAnker(ort)) return medAnkerPaare(ort);
+  const e = (typeof findEntry==='function') ? findEntry(ort) : null;
+  return e ? medPaareVonEintrag(e, ort) : [];
+}
+function medOrtSchreiben(ort, paare, reichweite){
+  if(medIstAnker(ort)) return medAnkerSchreiben(ort, paare);
+  const e = (typeof findEntry==='function') ? findEntry(ort) : null;
+  if(!e) return false;
+  return medSchreiben(ort, e, paare, reichweite);
+}
+
+/* Hängt eine Kennung an einen Ort. reichweite: 'cid'|'std'|'grp'|'mat'.
+   Bei Zeilen ist der Weg bewusst derselbe wie bei Name und Menge — über
+   sheetPending und applyPending, damit die Änderung im Journal steht und
+   rücknehmbar ist. */
+function medEintragen(ort, kennung, reichweite, groesse){
   if(!medIstKennung(kennung)) return false;
-  const e = (typeof findEntry==='function') ? findEntry(cid) : null;
-  if(!e) return false;
-  const bisher = medVonEintrag(e, cid);
-  if(bisher.indexOf(kennung)>=0) return true;
-  const neu = bisher.concat([kennung]).slice(0, MED_MAX_PRO_ZEILE);
-  return medSchreiben(cid, e, neu, reichweite);
+  const bisher = medOrtPaare(ort);
+  if(bisher.some(p=>p.k===kennung)) return true;
+  const neu = bisher.concat([{ k:kennung, g:medGroesseGueltig(groesse) }]).slice(0, MED_MAX_PRO_ZEILE);
+  return medOrtSchreiben(ort, neu, reichweite);
 }
-function medEntfernen(cid, kennung, reichweite){
-  const e = (typeof findEntry==='function') ? findEntry(cid) : null;
-  if(!e) return false;
-  const neu = medVonEintrag(e, cid).filter(k=>k!==kennung);
-  return medSchreiben(cid, e, neu, reichweite);
+function medEntfernen(ort, kennung, reichweite){
+  return medOrtSchreiben(ort, medOrtPaare(ort).filter(p=>p.k!==kennung), reichweite);
 }
-function medVerschieben(cid, kennung, richtung, reichweite){
-  const e = (typeof findEntry==='function') ? findEntry(cid) : null;
-  if(!e) return false;
-  const l = medVonEintrag(e, cid).slice();
-  const i = l.indexOf(kennung); const j = i + (richtung<0?-1:1);
+function medVerschieben(ort, kennung, richtung, reichweite){
+  const l = medOrtPaare(ort).slice();
+  const i = l.findIndex(p=>p.k===kennung); const j = i + (richtung<0?-1:1);
   if(i<0 || j<0 || j>=l.length) return false;
   const t=l[i]; l[i]=l[j]; l[j]=t;
-  return medSchreiben(cid, e, l, reichweite);
+  return medOrtSchreiben(ort, l, reichweite);
+}
+/* Die Darstellungsgröße EINES Bildes an EINEM Ort ändern — jederzeit,
+   nachträglich, ohne das Bild anzufassen. */
+function medGroesseSetzen(ort, kennung, groesse, reichweite){
+  const l = medOrtPaare(ort).map(p=> p.k===kennung ? { k:p.k, g:medGroesseGueltig(groesse) } : p);
+  return medOrtSchreiben(ort, l, reichweite);
 }
 /* Der eine Schreibweg. Ohne Reichweite (oder ohne Regel-Ziel) gilt „nur hier".
 
@@ -212,8 +311,8 @@ function medVerschieben(cid, kennung, richtung, reichweite){
    drei Bilder sortiert, will nach jedem Schritt wieder die Bilderliste sehen.
    Deshalb merkt sich der Aufrufer die Kennung und öffnet das Menü danach an
    derselben Stelle wieder (medSheetZurueck). */
-function medSchreiben(cid, e, liste, reichweite){
-  const wert = liste.length ? liste : null;   /* leer = Eigenschaft entfällt */
+function medSchreiben(cid, e, paare, reichweite){
+  const wert = (paare && paare.length) ? paare.map(p=>({k:p.k, g:p.g})) : null;   /* leer = Eigenschaft entfällt */
   if(typeof applyPending==='function' && typeof sheetPending!=='undefined' && reichweite){
     sheetEntry = e; sheetCid = cid;
     sheetPending = { kind:'bilder', value:wert };
@@ -224,65 +323,136 @@ function medSchreiben(cid, e, liste, reichweite){
   return false;
 }
 
-/* Zurück in die Bilderliste derselben Zeile. */
-function medSheetZurueck(cid){
-  if(!cid || typeof openSheet!=='function') return;
-  openSheet(cid);
+/* Zurück in die Bilderliste desselben Ortes. */
+function medSheetZurueck(ort){
+  if(!ort) return;
+  if(medIstAnker(ort)){ medAnkerSheet(ort); return; }
+  if(typeof openSheet!=='function') return;
+  openSheet(ort);
   renderSheetBilder();
 }
 
 /* ═══════════ 5. Anzeige ═══════════ */
 
-/* Der Bilderstreifen unter einer Zeile. Klein, damit er die Liste nicht
-   sprengt; antippen öffnet groß. */
-function medStreifenHTML(e, cid){
-  const l = medVonEintrag(e, cid);
-  if(!l.length) return '';
-  return `<div class="med-streifen">` + l.map(k=>
-    `<button type="button" class="med-mini" data-k="${esc(k)}" data-c="${esc(cid)}" onclick="medGross(this.dataset.k,this.dataset.c)" aria-label="Bild ansehen">
-      <img src="${esc(medUrl(k))}" alt="${esc(medText(k)||'Bild zum Eintrag')}" loading="lazy">
-    </button>`).join('') + `</div>`;
+/* EIN Bild an EINER Stelle. Die Größe entscheidet über die Darstellung:
+   „klein" reiht sich als Symbol in eine Zeile ein, „mittel" und „groß" stehen
+   als eigener Block darunter — wie in einer Anleitung.
+
+   Jedes Bild trägt data-zoom: der zentrale Klick-Melder (features/lightbox.js)
+   öffnet es groß samt Angaben. Damit gilt an JEDER Stelle in der App dieselbe
+   Regel — antippen macht groß. Kein eigener onclick, kein zweites Verhalten. */
+function medBildHTML(p){
+  const s = medSatz(p.k);
+  const alt = s.t || 'Bild';
+  const cap = s.t ? `<div class="med-cap">${esc(s.t)}</div>` : '';
+  const lupe = s.d ? `<span class="med-info" aria-hidden="true">ℹ</span>` : '';
+  return `<figure class="med-bild med-${esc(p.g)}">
+    <img src="${esc(medUrl(p.k))}" alt="${esc(alt)}" loading="lazy" decoding="async"
+      data-zoom data-cap="${esc(s.t)}" data-det="${esc(s.d)}">${lupe}${cap}</figure>`;
+}
+
+/* Alle Bilder einer Stelle: erst die kleinen als Streifen, dann die großen als
+   Blöcke. Die Trennung ist wichtig — sonst zerreißt ein großes Bild die Reihe
+   der kleinen. */
+function medPaareHTML(paare){
+  if(!paare || !paare.length) return '';
+  const klein = paare.filter(p=>p.g==='klein');
+  const gross = paare.filter(p=>p.g!=='klein');
+  let h = '';
+  if(klein.length) h += `<div class="med-streifen">` + klein.map(medBildHTML).join('') + `</div>`;
+  if(gross.length) h += `<div class="med-bloecke">` + gross.map(medBildHTML).join('') + `</div>`;
+  return h;
+}
+
+/* Der Bilderstreifen unter einer Zeile. */
+function medStreifenHTML(e, cid){ return medPaareHTML(medPaareVonEintrag(e, cid)); }
+
+/* Die Bilder eines Ankers (Standardkopf, Rubrik, Abschnitt) — plus, im
+   Verwaltungsmodus, der Weg zum Hinzufügen. Ohne Bild und ohne Verwaltung
+   entsteht KEIN Markup: eine leere Fläche wäre eine stumme Aufforderung. */
+function medAnkerHTML(anker, titel){
+  const paare = medAnkerPaare(anker);
+  const admin = (typeof ADMIN!=='undefined') && ADMIN;
+  if(!paare.length && !admin) return '';
+  const knopf = admin
+    ? `<button type="button" class="med-plus" data-a="${esc(anker)}" data-t="${esc(titel||'')}"
+         onclick="medAnkerSheet(this.dataset.a,this.dataset.t)">🖼 ${paare.length?('Bilder ('+paare.length+')'):'Bild hinzufügen'}</button>`
+    : '';
+  return `<div class="med-anker">${medPaareHTML(paare)}${knopf}</div>`;
 }
 
 /* Groß ansehen — über die vorhandene Lightbox, damit es sich anfühlt wie
    überall sonst in der App. */
-function medGross(kennung, cid){
-  const txt = medText(kennung);
-  if(typeof openLightbox==='function') openLightbox(medUrl(kennung), txt);
+function medGross(kennung){
+  const s = medSatz(kennung);
+  if(typeof openLightbox==='function') openLightbox(medUrl(kennung), s.t, s.d);
   else { try{ window.open(medUrl(kennung),'_blank','noopener'); }catch(e){} }
 }
 
 /* ═══════════ 6. Bedienung im Schnellmenü ═══════════ */
 
-/* Die Bildverwaltung EINER Zeile — als Seite des Bearbeiten-Menüs, wie
+/* Der Ort, dessen Bilder gerade bearbeitet werden: eine cid oder ein Anker.
+   Ein Zustand für beide Wege — sonst gäbe es zwei Bildverwaltungen, die
+   auseinanderlaufen. */
+let medOrt = null;
+let medOrtTitel = '';
+
+/* Die Bildverwaltung EINES Ortes — als Seite des Bearbeiten-Menüs, wie
    „Farbe wählen" oder „Unterkategorie". */
-function renderSheetBilder(){
-  const e = sheetEntry, cid = sheetCid; if(!e) return;
-  const l = medVonEintrag(e, cid);
+function medListeHTML(ort){
+  const paare = medOrtPaare(ort);
   const warte = medWarteAnzahl;
-  let h = `<div class="sheet-grip"></div><div class="sheet-title">Bilder</div>
-    <div class="sheet-name">${esc((qeGet(e,cid,'name')!==undefined?qeGet(e,cid,'name'):e.anzeige_text)||'')}</div>`;
-  h += `<div class="sheet-chips"><span class="schip">🖼 ${l.length} Bild${l.length===1?'':'er'}</span>${warte?`<span class="schip">⏳ ${warte} wartet auf Netz</span>`:''}</div>`;
-  if(!l.length) h += `<p class="hint" style="padding:0 4px">Noch kein Bild. „Bild aufnehmen" öffnet die Kamera, „Bild wählen" die Galerie. Eine Bildfolge (GIF) bleibt bewegt.</p>`;
+  let h = `<div class="sheet-chips"><span class="schip">🖼 ${paare.length} Bild${paare.length===1?'':'er'}</span>${warte?`<span class="schip">⏳ ${warte} wartet auf Netz</span>`:''}</div>`;
+  if(!paare.length) h += `<p class="hint" style="padding:0 4px">Noch kein Bild. „Bild aufnehmen" öffnet die Kamera, „Bild wählen" die Galerie. Eine Bildfolge (GIF) bleibt bewegt.</p>`;
   h += `<div class="med-liste">`;
-  l.forEach((k,i)=>{
+  paare.forEach(p=>{
+    const s = medSatz(p.k);
+    const groessen = MED_GROESSEN.map(g=>
+      `<button type="button" class="med-gr${g===p.g?' on':''}" data-k="${esc(p.k)}" data-g="${esc(g)}"
+        onclick="medUiGroesse(this.dataset.k,this.dataset.g)">${esc(medGroesseWort(g))}</button>`).join('');
     h += `<div class="med-zeile">
-      <img src="${esc(medUrl(k))}" alt="" loading="lazy" onclick="medGross('${esc(k)}')">
-      <input class="loc-input" value="${esc(medText(k))}" placeholder="Bildunterschrift (gilt überall)"
-        data-k="${esc(k)}" onchange="medUiText(this.dataset.k,this.value)">
+      <img src="${esc(medUrl(p.k))}" alt="" loading="lazy" data-zoom data-cap="${esc(s.t)}" data-det="${esc(s.d)}">
+      <div class="med-felder">
+        <input class="loc-input" value="${esc(s.t)}" placeholder="Bildunterschrift (gilt überall)"
+          data-k="${esc(p.k)}" onchange="medUiText(this.dataset.k,this.value)">
+        <textarea class="loc-input med-det" rows="2" placeholder="Angaben zum Bild — erscheinen in der Großansicht"
+          data-k="${esc(p.k)}" onchange="medUiDetail(this.dataset.k,this.value)">${esc(s.d)}</textarea>
+        <div class="med-groessen" role="group" aria-label="Darstellungsgröße">${groessen}</div>
+      </div>
       <div class="med-akt">
-        <button data-k="${esc(k)}" onclick="medUiVerschieben(this.dataset.k,-1)" aria-label="nach oben">⬆</button>
-        <button data-k="${esc(k)}" onclick="medUiVerschieben(this.dataset.k,1)" aria-label="nach unten">⬇</button>
-        <button class="dgr" data-k="${esc(k)}" onclick="medUiEntfernen(this.dataset.k)">Entfernen</button>
+        <button data-k="${esc(p.k)}" onclick="medUiVerschieben(this.dataset.k,-1)" aria-label="nach oben">⬆</button>
+        <button data-k="${esc(p.k)}" onclick="medUiVerschieben(this.dataset.k,1)" aria-label="nach unten">⬇</button>
+        <button class="dgr" data-k="${esc(p.k)}" onclick="medUiEntfernen(this.dataset.k)">Entfernen</button>
       </div></div>`;
   });
   h += `</div>`;
   h += `<div class="sheet-pick">
       <button class="sheet-pick-btn" onclick="medUiAufnehmen(true)">📷 Bild aufnehmen</button>
       <button class="sheet-pick-btn" onclick="medUiAufnehmen(false)">🖼 Bild wählen (auch GIF)</button>
-    </div>
-    <button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+    </div>`;
+  return h;
+}
+
+function renderSheetBilder(){
+  const e = sheetEntry, cid = sheetCid; if(!e) return;
+  medOrt = cid; medOrtTitel = '';
+  const h = `<div class="sheet-grip"></div><div class="sheet-title">Bilder</div>
+    <div class="sheet-name">${esc((qeGet(e,cid,'name')!==undefined?qeGet(e,cid,'name'):e.anzeige_text)||'')}</div>`
+    + medListeHTML(cid)
+    + `<button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML = h;
+}
+
+/* Dieselbe Verwaltung für einen Anker — Standardkopf, Rubrik, Abschnitt. */
+function medAnkerSheet(anker, titel){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>medAnkerSheet(anker,titel)); return; } }
+  medOrt = anker; medOrtTitel = titel || medOrtTitel || '';
+  const h = `<div class="sheet-grip"></div><div class="sheet-title">Bilder</div>
+    <div class="sheet-name">${esc(medOrtTitel)}</div>`
+    + medListeHTML(anker)
+    + `<button class="sheet-close" onclick="showSheet(false);reRenderDetail()">Fertig</button>`;
+  $('sheet').innerHTML = h;
+  if(typeof showSheet==='function') showSheet(true);
 }
 
 /* Wie viele Bilder gerade auf Netz warten (für die Anzeige). */
@@ -294,7 +464,7 @@ function medWarteZaehlen(){
 /* Ein Bild aufnehmen oder wählen. `kamera` schaltet die Rückkamera direkt an —
    im Saal der Normalfall. */
 function medUiAufnehmen(kamera){
-  const cid = sheetCid;
+  const ort = medOrt;
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   if(kamera) inp.setAttribute('capture','environment');
@@ -304,22 +474,24 @@ function medUiAufnehmen(kamera){
     let blob;
     try{ blob = await medVerkleinern(datei); }
     catch(err){ if(typeof toast==='function') toast('Das ist kein lesbares Bild',true); return; }
-    medUiUebernehmen(cid, blob);
+    medUiUebernehmen(ort, blob);
   };
   inp.click();
 }
 
 /* Nach dem Verkleinern: Reichweite fragen — genau wie bei jeder anderen
-   Eigenschaft. Bei Zeilen ohne Regel-Ziel entfällt die Frage (nur hier). */
-function medUiUebernehmen(cid, blob){
-  const e = (typeof findEntry==='function') ? findEntry(cid) : null; if(!e) return;
-  medNeu = { cid, blob };
+   Eigenschaft. Ein Anker IST die Stelle, und eine Zeile ohne Regel-Ziel hat
+   kein geteiltes Ziel: beide Male entfällt die Frage. */
+function medUiUebernehmen(ort, blob){
+  medNeu = { ort, blob };
+  if(medIstAnker(ort)){ medUiSpeichern('cid'); return; }
+  const e = (typeof findEntry==='function') ? findEntry(ort) : null; if(!e){ medNeu=null; return; }
   if(!e.material_key){ medUiSpeichern('cid'); return; }
-  sheetEntry = e; sheetCid = cid;
+  sheetEntry = e; sheetCid = ort;
   let h = `<div class="sheet-grip"></div><div class="sheet-title">Wo soll das Bild erscheinen?</div>`;
   h += `<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
   h += `<button class="sheet-pick-btn" onclick="medUiSpeichern('cid')">📍 Nur hier <span class="ps-sub">· nur an dieser Stelle</span></button>`;
-  const sid = (typeof cidStd==='function') ? cidStd(cid) : null;
+  const sid = (typeof cidStd==='function') ? cidStd(ort) : null;
   const grp = (sid && typeof stdGruppeById==='function') ? stdGruppeById(sid) : null;
   if(sid) h += `<button class="sheet-pick-btn" onclick="medUiSpeichern('std')">📄 In diesem Standard</button>`;
   if(grp) h += `<button class="sheet-pick-btn" onclick="medUiSpeichern('grp')">🗂 In der Gruppe „${esc(grp)}"</button>`;
@@ -328,44 +500,55 @@ function medUiUebernehmen(cid, blob){
   $('sheet').innerHTML = h;
 }
 
-let medNeu = null;   /* {cid, blob} — das gerade aufgenommene Bild */
+let medNeu = null;   /* {ort, blob} — das gerade aufgenommene Bild */
 
 async function medUiSpeichern(reichweite){
   const n = medNeu; medNeu = null;
   if(!n) return;
   try{
     const kennung = await medHochladen(n.blob);
-    medEintragen(n.cid, kennung, reichweite);
+    medEintragen(n.ort, kennung, reichweite, MED_GROESSE_VORGABE);
     if(typeof toast==='function') toast('Bild hinzugefügt');
   }catch(err){
     /* Kein Netz → in die Warteschlange. Das Bild ist NICHT verloren, und das
        muss auch dastehen — sonst tippt jemand dreimal. */
     try{
       await medWarteAnlegen({ id:'m'+Date.now()+Math.random().toString(16).slice(2,8),
-        cid:n.cid, blob:n.blob, reichweite: reichweite||'cid', seit:new Date().toISOString() });
+        cid:n.ort, blob:n.blob, reichweite: reichweite||'cid', seit:new Date().toISOString() });
       medWarteZaehlen();
       if(typeof toast==='function') toast('Kein Netz — das Bild geht hoch, sobald die Verbindung da ist');
     }catch(e2){
       if(typeof toast==='function') toast('Bild konnte nicht gespeichert werden',true);
     }
   }
-  medSheetZurueck(n.cid);
+  medSheetZurueck(n.ort);
   if(typeof reRenderDetail==='function') reRenderDetail();
 }
 
 function medUiEntfernen(kennung){
-  const cid = sheetCid; if(!cid) return;
-  medEntfernen(cid, kennung, 'cid');
-  medSheetZurueck(cid);
-  if(typeof toast==='function') toast('Bild von dieser Zeile entfernt');
+  const ort = medOrt; if(!ort) return;
+  medEntfernen(ort, kennung, 'cid');
+  medSheetZurueck(ort);
+  if(typeof toast==='function') toast('Bild von dieser Stelle entfernt');
 }
 function medUiVerschieben(kennung, richtung){
-  const cid = sheetCid; if(!cid) return;
-  if(!medVerschieben(cid, kennung, richtung, 'cid')) return;
-  medSheetZurueck(cid);
+  const ort = medOrt; if(!ort) return;
+  if(!medVerschieben(ort, kennung, richtung, 'cid')) return;
+  medSheetZurueck(ort);
+}
+/* Größe ändern — nachträglich, jederzeit, ohne das Bild anzufassen. */
+function medUiGroesse(kennung, groesse){
+  const ort = medOrt; if(!ort) return;
+  medGroesseSetzen(ort, kennung, groesse, 'cid');
+  medSheetZurueck(ort);
+  if(typeof reRenderDetail==='function') reRenderDetail();
 }
 function medUiText(kennung, text){
   medTextSetzen(kennung, text);
+  if(typeof reRenderDetail==='function') reRenderDetail();
+}
+function medUiDetail(kennung, text){
+  medDetailSetzen(kennung, text);
   if(typeof reRenderDetail==='function') reRenderDetail();
 }
 

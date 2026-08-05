@@ -280,6 +280,8 @@ const FKT_SHEET_KATALOG = {
     gruppen: [
       { key:'inhalt', titel:'Inhalt', sub:'Titel, Gruppe & Freigabe', akt:[
         { key:'titel',        ico:'✏️',  label:'Titel & Gruppe',         sub:'Name und Zuordnung' },
+        { key:'merkmale',     ico:'🏷',  label:'Merkmale',               sub:'z. B. sedierungspflichtig' },
+        { key:'bilder',       ico:'🖼️',  label:'Bilder am Standard',     sub:'Fotos im Kopf des Standards' },
         { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
       ]},
       { key:'kopieren', titel:'Neuen Standard daraus machen', sub:'Kopieren statt abtippen', akt:[

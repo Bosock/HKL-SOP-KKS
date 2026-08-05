@@ -11,7 +11,11 @@ function entryCardHTML(e,cid,isMatGer){
      dessen Foto/Identität (canonOf). Der Eintragstext bleibt unverändert. */
   const canon=(showThumb&&e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
   const thumbSrc=(canon&&canon.photo)||(care&&care.photo)||'';
-  const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
+  /* Auch das Produktfoto ist ein Bild: Antippen macht es groß (data-zoom,
+     features/lightbox.js). Eine Regel für alle Bilder der App — sonst müsste
+     man sich merken, welches Bild sich vergrößern lässt und welches nicht. */
+  const thumbCap=canon?((canon.name||canon.ref||canon.gtin)||''):(e.anzeige_text||'');
+  const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt="${esc(thumbCap)}" data-zoom data-cap="${esc(thumbCap)}"></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   /* ZERLEGUNG (features/zerlegung.js): Ist der Text im Aufräum-Assistenten
      BESTÄTIGT worden, zeigt die Karte den sauberen Produktnamen und hängt
      Verwendung und Position als eigene Angaben daneben — statt alles in einem
@@ -126,6 +130,9 @@ function entryCardHTML(e,cid,isMatGer){
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
+  /* Bilder an der Rubrik selbst (features/medien.js): ein Übersichtsfoto des
+     Tisches gehört an die Rubrik, nicht an eine einzelne Zeile. */
+  if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkRub(curStd.id,idx), rubName(r,idx));
   if(isMatGer){
     let lg=''; natList().forEach(n=>{ lg+=`<div class="lg-row"><span class="lg-swatch" style="background:${n.color}"></span>${esc(n.label)}</div>`; });
     html+=`<details class="legend"><summary>◐ Farb-Legende</summary><div class="legend-body">
@@ -171,6 +178,7 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
         /* ckey/UK-Name sind Freitext → per data-Attribut übergeben,
            nicht als Inline-String-Literal (esc() escaped kein Apostroph). */
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" data-k="${esc(ckey)}" onclick="toggleUk(this.dataset.k)"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
+        if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkUk(curStd.id,idx,g.uk), g.uk);
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
         if(ADMIN){ html+=`<button class="add-entry-btn uksec-add" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();startAddEntryUk(+this.dataset.ri,this.dataset.uk)">＋ Eintrag in „${esc(g.uk)}"</button>`;
           if(isDecl&&isEmpty) html+=`<button class="add-entry-btn uksec-del" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();removeUkSectionUI(+this.dataset.ri,this.dataset.uk)">Abschnitt entfernen</button>`; }
@@ -182,7 +190,8 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     blocks.forEach(b=>{ if(b.head){
         /* Eigene Überschriften bekommen ein ⋯ (umbenennen/löschen). */
         const tools=(ADMIN&&b.headAid)?`<button type="button" class="icon-btn" style="width:30px;height:30px;font-size:15px;margin-left:8px;vertical-align:middle" data-ri="${idx}" data-aid="${esc(b.headAid)}" onclick="openSegHeadSheet(+this.dataset.ri,this.dataset.aid)" aria-label="Abschnitt bearbeiten">⋯</button>`:'';
-        html+=`<div class="sub-head">${esc(b.head)}${tools}</div>`; }
+        html+=`<div class="sub-head">${esc(b.head)}${tools}</div>`;
+        if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkSeg(curStd.id,idx,b.head), b.head); }
       b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); });
       /* „＋ Eintrag in <Abschnitt>" für JEDEN benannten Abschnitt — auch die
          aus der Quelldatei (Souveränität: überall hinzufügen können). */

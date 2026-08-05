@@ -4,27 +4,19 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
   if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} }
     if(typeof noteUsage==='function') noteUsage(id);
     if(typeof popupFire==='function') popupFire({ ereignis:'standard-oeffnen', titel:stdTitel(s), sid:id }); }
+  /* Der Kopf ist ein BAUPLAN, keine feste Abfolge mehr (features/stdkopf.js):
+     Reihenfolge, Wortlaut und an/aus jedes Bausteins liegen in der Verwaltung
+     unter „🧱 Standardkopf". Fällt das Modul aus, bleibt die Kern-Bedienung
+     erhalten — deshalb der Rückfall. */
   let html='';
-  /* Arztspezifische Varianten: Reiter „Standard | Dr. X" direkt im Kopf. */
-  if(typeof varBarHTML==='function') html+=varBarHTML(s.id);
-  /* Freigabe-Zustand: bewusst VOR dem Verwaltungsblock und ohne ADMIN-Prüfung.
-     Wer im Labor „Freigegeben" liest, verlässt sich darauf — und wer eine
-     überholte Freigabe vor sich hat, muss das genauso sehen wie die Leitung. */
-  if(typeof frgKopfHTML==='function') html+=frgKopfHTML(s);
-  if(ADMIN){
-    const hiddenNow=stdHidden(s);
-    html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center">
-      <span style="font-size:12px;font-weight:700;color:var(--text-dim)">STANDARD${s.__new?' · <span style="color:var(--accent)">App-eigen</span>':''}${hiddenNow?' · <span style="color:var(--warn)">ausgeblendet</span>':''}</span>
+  if(typeof stdKopfHTML==='function') html+=stdKopfHTML(s);
+  else {
+    if(typeof varBarHTML==='function') html+=varBarHTML(s.id);
+    if(typeof frgKopfHTML==='function') html+=frgKopfHTML(s);
+    if(ADMIN) html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;gap:7px;align-items:center">
       <span style="flex:1"></span>
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="openStdSheet()">✎ Bearbeiten</button>
-      <button class="btn btn-sec" style="flex:0 0 auto;min-height:40px;padding:8px 13px;font-size:12.5px" onclick="addRubrik()">＋ Rubrik</button>
-    </div></div>`;
-    /* Version/Status/Freigabe stehen jetzt im Freigabe-Kopf (für alle
-       sichtbar); hier bleibt nur noch der Weg dorthin. */
-    const pk=stdPlankosten(s);
-    if(pk.items>0){ const miss=pk.items-pk.priced;
-      html+=`<div class="banner cost-banner"><div class="cost-total"><span class="cost-lbl">Plankosten</span><span class="cost-val">${fmtEUR(pk.total)}</span></div>
-        <div class="cost-sub">${pk.priced}/${pk.items} Materialien mit Preis${miss>0?` · ${miss} ohne Preis (in „Material pflegen" ergänzen)`:''}</div></div>`; }
+      <button class="btn btn-sec" onclick="openStdSheet()">✎ Bearbeiten</button>
+      <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div>`;
   }
   const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   let listHtml='';
@@ -37,7 +29,10 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
     listHtml+=`<div class="rub ${r.typ}" style="${hid?'opacity:.55;':''}" data-ri="${i}"><div class="rub-ico">${rubIconEff(r,i)}</div><div class="rub-main"><div class="rub-name">${esc(rubName(r,i))}${hid?' <span style="font-size:11px;color:var(--warn)">ausgeblendet</span>':''}${r.__nrid&&ADMIN?' <span style="font-size:11px;color:var(--accent)">neu</span>':''}</div><div class="rub-meta">${count} Einträge</div></div>${adminBtns}<span class="rub-pill pill-${r.typ}">${typLabel(r.typ)}</span></div>`; });
   const searchBox=`<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="stdSearchInput" placeholder="In diesem Standard suchen (Material, Gerät …)" oninput="stdSearch(this.value)" autocomplete="off"></div>`;
   const listBody=listHtml||`<div class="empty"><div class="ei">📄</div><h3>Keine Rubriken</h3><p>Über „＋ Rubrik" anlegen.</p></div>`;
-  $('scr-rubriken').innerHTML=html+hintsBlockHTML('std',s.id)+searchBox+`<div id="stdSearchResults" style="display:none"></div><div id="stdRubList">${listBody}</div><button class="add-entry-btn ruest-btn" data-s="${esc(s.id)}" onclick="openRuestliste(this.dataset.s)">🧺 Rüstliste — was hole ich woher?</button><button class="add-entry-btn print-btn" onclick="printStandard()">🖨 Als PDF drucken / exportieren</button>`;
+  /* Die Hinweise sind ein Baustein des Kopfes geworden (features/stdkopf.js).
+     Hier steht nur noch der Rückfall — sonst stünden sie doppelt. */
+  const hinweise=(typeof stdKopfHTML==='function')?'':hintsBlockHTML('std',s.id);
+  $('scr-rubriken').innerHTML=html+hinweise+searchBox+`<div id="stdSearchResults" style="display:none"></div><div id="stdRubList">${listBody}</div><button class="add-entry-btn ruest-btn" data-s="${esc(s.id)}" onclick="openRuestliste(this.dataset.s)">🧺 Rüstliste — was hole ich woher?</button><button class="add-entry-btn print-btn" onclick="printStandard()">🖨 Als PDF drucken / exportieren</button>`;
   show('scr-rubriken'); setBar(stdTitel(s),stdGruppe(s)+' · '+(s.rubriken||[]).length+' Rubriken',true); $('searchWrap').style.display='none';
 }
 

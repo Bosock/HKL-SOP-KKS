@@ -284,8 +284,10 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
-  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
+  const pEigen=(typeof eigPanelHTML==='function')?eigPanelHTML():'';
+  const pKopf=(typeof kopfPanelHTML==='function')?kopfPanelHTML():'';
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
+  html+=sec('Aussehen & Anzeige')+pAnzeige+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
   box.innerHTML=html;
   /* Zum Schluss die eigenen Einstellungen auf die Karten legen: ausblenden,

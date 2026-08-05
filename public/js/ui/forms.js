@@ -90,21 +90,16 @@ function openMaterialFromForm(mk){ if(mk&&typeof openMaterial==='function') open
    WIE VIELE Stellen eine Stufe betrifft — so ist „überall" keine Überraschung.
    Die Auswahl liegt im data-Attribut und wird beim Speichern gelesen. */
 function entryScopeBarHTML(cid, mk){
-  const sid=(typeof cidStd==='function')?cidStd(cid):null;
-  const grp=(sid&&typeof stdGruppeById==='function')?stdGruppeById(sid):null;
-  const hits=(w)=>{ try{ return (typeof ruleHits==='function')?ruleHits(mk,w):null; }catch(e){ return null; } };
-  const hs=sid?hits({art:'standard',wert:sid}):null;
-  const hg=grp?hits({art:'gruppe',wert:grp}):null;
-  const ha=hits({art:'alle'});
-  const btn=(k,ico,label,sub,on)=>`<button type="button" class="scope-chip${on?' on':''}" role="radio" aria-checked="${on?'true':'false'}" data-s="${k}" onclick="pickEntryScope(this)">
+  /* Die Stufen kommen aus der gemeinsamen Treppe (features/reichweite.js) —
+     inklusive der Merkmals-Reichweiten („alle mit sedierungspflichtig"), die
+     das Haus dafür freigegeben hat. Zwei Listen wären zwei Wahrheiten. */
+  const stufen=(typeof rwStufen==='function')?rwStufen(cid,mk):[];
+  const btn=(k,ico,label,sub,on)=>`<button type="button" class="scope-chip${on?' on':''}" role="radio" aria-checked="${on?'true':'false'}" data-s="${esc(k)}" onclick="pickEntryScope(this)">
     <span class="sc-l">${ico} ${esc(label)}</span><span class="sc-s">${esc(sub||'')}</span></button>`;
   let h=`<div class="scopebar" id="fScope" data-scope="cid">
-    <div class="scope-head" id="fScopeLbl">🎯 Gilt für</div><div class="scope-row" role="radiogroup" aria-labelledby="fScopeLbl">`;
-  h+=btn('cid','📍','Nur hier','diese eine Stelle',true);
-  if(sid&&hs) h+=btn('std','📄','Standard',hs.vorkommen+'× hier');
-  if(grp&&hg) h+=btn('grp','🗂','Gruppe „'+grp+'"',hg.vorkommen+'× / '+hg.standards.length+' Std.');
-  if(ha) h+=btn('mat','🌐','Überall',ha.vorkommen+'× / '+ha.standards.length+' Std.');
-  h+=`</div><p class="hint">Weitere Stufen als „nur hier" werden als Regel gespeichert und sind unter 🧾 Regeln &amp; Journal jederzeit rücknehmbar.</p></div>`;
+    <div class="scope-head" id="fScopeLbl">🎯 Voreinstellung: gilt für</div><div class="scope-row" role="radiogroup" aria-labelledby="fScopeLbl">`;
+  stufen.forEach(s=>{ h+=btn(s.key,s.ico,s.wort,s.sub,s.key==='cid'); });
+  h+=`</div><p class="hint">Das ist die <b>Voreinstellung</b>. Vor dem Speichern erscheint ein Prüfblatt — dort lässt sich die Reichweite für <b>jedes geänderte Feld einzeln</b> festlegen. Alles bleibt unter 🧾 Regeln &amp; Journal rücknehmbar.</p></div>`;
   return h;
 }
 function pickEntryScope(btn){ const w=$('fScope'); if(!w) return;
@@ -203,15 +198,17 @@ function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bi
        gelten soll. Ohne material_key (eigene Einträge, Hinweise) gibt es kein
        geteiltes Ziel → wie bisher nur an dieser Stelle. */
     const e=findEntry(d.cid); const changes=entryFormChanges(d.cid,f);
-    if(e&&e.material_key&&changes.length){
-      /* Der Geltungsbereich steht jetzt SICHTBAR in der Maske – keine Nachfrage
-         mehr. WICHTIG: auch „nur hier" läuft weiter über applyEditScope, damit
-         die Änderung im Regel-Journal landet und unter 🧾 Regeln & Journal
-         rücknehmbar bleibt (ein Schreibweg für alle Reichweiten). Ohne Leiste
-         (Altfall) wird wie früher gefragt. */
-      editScopePending={cid:d.cid,changes};
-      if($('fScope')){ applyEditScope(readEntryScope()); }
-      else { renderEditScopeSheet(d.cid); showSheet(true); }
+    if(changes.length && typeof pbOeffnen==='function'){
+      /* PRÜFBLATT statt sofortigem Schreiben (features/reichweite.js):
+         Es zeigt jede Änderung mit vorher/nachher und ihrer EIGENEN Reichweite
+         — auch „nur hier" läuft darüber, damit alles im Journal steht und
+         rücknehmbar bleibt (ein Schreibweg für alle Reichweiten).
+         Erst der Speichern-Knopf im Prüfblatt schreibt. */
+      const zurueck=formCtx&&formCtx.back;
+      pbOeffnen(d.cid, changes, ($('fScope')?readEntryScope():'cid'), (ok)=>{
+        if(!ok) return;                    /* „Zurück" lässt das Formular offen */
+        formCtx=null; if(zurueck) zurueck(); else reRenderDetail();
+      });
       return; }
     applyBaseEntryEdit(d.cid,f); toast(changes.length?'Gespeichert':'Keine Änderung'); }
   else if(d.kind==='catalog'){ CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); toast('Zum Katalog hinzugefügt'); }
@@ -237,19 +234,21 @@ function applyBaseEntryEdit(cid,f){ const e=findEntry(cid); if(!e) return;
    geänderte Felder werden zu Regeln, damit das Journal nicht mit
    Nicht-Änderungen zuläuft. */
 function entryFormChanges(cid,f){ const e=findEntry(cid); if(!e) return []; const cur=entryToForm(e,cid); const ch=[];
-  const nName=(f.name||'').trim(); if(nName!==(cur.name||'')) ch.push({prop:'name',value:nName});
-  const nMenge=(f.menge||'').trim()||null; if((nMenge||'')!==(cur.menge||'')) ch.push({prop:'mengeVal',value:nMenge});
+  /* `vorher` wird fürs Prüfblatt gebraucht: Ohne den alten Wert kann niemand
+     beurteilen, ob die Änderung stimmt. */
+  const nName=(f.name||'').trim(); if(nName!==(cur.name||'')) ch.push({prop:'name',value:nName,vorher:(cur.name||'')});
+  const nMenge=(f.menge||'').trim()||null; if((nMenge||'')!==(cur.menge||'')) ch.push({prop:'mengeVal',value:nMenge,vorher:(cur.menge||null)});
   /* Größen & eigene Merkmale als GANZE Listen vergleichen (Merkmale-Editor). */
   const groKey=a=>(a||[]).map(g=>(g.typ||'dimension')+'|'+g.wert).join(',');
-  if(groKey(f.groessen)!==groKey(cur.groessen)) ch.push({prop:'groessen',value:(f.groessen||[]).slice()});
+  if(groKey(f.groessen)!==groKey(cur.groessen)) ch.push({prop:'groessen',value:(f.groessen||[]).slice(),vorher:(cur.groessen||[])});
   const zusKey=a=>(a||[]).map(x=>x.n+'|'+(x.w||'')).join(',');
-  if(zusKey(f.zusatz)!==zusKey(cur.zusatz)) ch.push({prop:'zusatz',value:(f.zusatz&&f.zusatz.length)?f.zusatz.slice():null});
-  const nSpez=(f.spez||'').trim()||null; if((nSpez||'')!==(cur.spez||'')) ch.push({prop:'spez',value:nSpez});
-  const nColor=(f.color||'').trim()||null; if((nColor||'')!==(cur.color||'')) ch.push({prop:'color',value:nColor});
-  const nNat=f.nat||'material'; if(nNat!==cur.nat) ch.push({prop:'natur',value:nNat});
-  const nUk=(f.uk||'').trim(); if(nUk!==(cur.uk||'')) ch.push({prop:'uk',value:nUk});
-  const nWhy=(f.why||'').trim()||null; if((nWhy||'')!==(cur.why||'')) ch.push({prop:'why',value:nWhy});
-  const nSyn=parseSyn(f.synonyms); const curSyn=cur.synonyms?parseSyn(cur.synonyms):[]; if(JSON.stringify(nSyn)!==JSON.stringify(curSyn)) ch.push({prop:'synonyms',value:(nSyn.length?nSyn:null)});
+  if(zusKey(f.zusatz)!==zusKey(cur.zusatz)) ch.push({prop:'zusatz',value:(f.zusatz&&f.zusatz.length)?f.zusatz.slice():null,vorher:(cur.zusatz||null)});
+  const nSpez=(f.spez||'').trim()||null; if((nSpez||'')!==(cur.spez||'')) ch.push({prop:'spez',value:nSpez,vorher:(cur.spez||null)});
+  const nColor=(f.color||'').trim()||null; if((nColor||'')!==(cur.color||'')) ch.push({prop:'color',value:nColor,vorher:(cur.color||null)});
+  const nNat=f.nat||'material'; if(nNat!==cur.nat) ch.push({prop:'natur',value:nNat,vorher:cur.nat});
+  const nUk=(f.uk||'').trim(); if(nUk!==(cur.uk||'')) ch.push({prop:'uk',value:nUk,vorher:(cur.uk||'')});
+  const nWhy=(f.why||'').trim()||null; if((nWhy||'')!==(cur.why||'')) ch.push({prop:'why',value:nWhy,vorher:(cur.why||null)});
+  const nSyn=parseSyn(f.synonyms); const curSyn=cur.synonyms?parseSyn(cur.synonyms):[]; if(JSON.stringify(nSyn)!==JSON.stringify(curSyn)) ch.push({prop:'synonyms',value:(nSyn.length?nSyn:null),vorher:(curSyn.length?curSyn:null)});
   return ch; }
 /* Reichweiten-Sheet fürs Bearbeiten-Formular: vier Stufen mit Treffervorschau
    (📍 nur hier · 📄 Standard · 🗂 Eingriffsgruppe · 🌐 überall). Dieselbe

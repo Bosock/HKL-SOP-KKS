@@ -104,6 +104,8 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   const S = sheetBauer('standard');
   S.gruppe('inhalt','Inhalt','Titel, Gruppe & Freigabe');
   S.akt('titel','✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
+  S.akt('merkmale','🏷','Merkmale', (typeof eigChips==='function'&&eigChips(s.id).length)?(eigChips(s.id).length+' vergeben'):'z. B. sedierungspflichtig', 'eigSheet(curStd.id)');
+  S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
   S.gruppe('kopieren','Neuen Standard daraus machen','Kopieren statt abtippen');
   S.akt('duplizieren','⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
@@ -312,17 +314,27 @@ function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
    TREFFERVORSCHAU direkt an jeder Option — Sammel-Änderung ist kein eigenes
    Werkzeug, sondern zwei weitere Knöpfe im vertrauten Dialog. */
 function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ applyPending('cid'); return; }
-  const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
-  const hs=sid?ruleHits(e.material_key,{art:'standard',wert:sid}):null;
-  const hg=grp?ruleHits(e.material_key,{art:'gruppe',wert:grp}):null;
-  const ha=ruleHits(e.material_key,{art:'alle'});
+  /* Die Stufen kommen aus der gemeinsamen Treppe (features/reichweite.js) —
+     dieselbe Liste wie im Bearbeiten-Formular, inklusive der Merkmals-
+     Reichweiten („alle mit sedierungspflichtig"). */
+  const stufen=(typeof rwStufen==='function')?rwStufen(cid,e.material_key):[];
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div>`;
   h+=`<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
-  h+=`<button class="sheet-pick-btn" onclick="applyPending('cid')">📍 Nur hier <span class="ps-sub">· nur an dieser Stelle</span></button>`;
-  if(sid&&hs) h+=`<button class="sheet-pick-btn" onclick="applyPending('std')">📄 In diesem Standard <span class="ps-sub">· betrifft ${hs.vorkommen}× hier</span></button>`;
-  if(grp&&hg) h+=`<button class="sheet-pick-btn" onclick="applyPending('grp')">🗂 In der Gruppe „${esc(grp)}" <span class="ps-sub">· betrifft ${hg.vorkommen}× in ${hg.standards.length} Standards</span></button>`;
-  h+=`<button class="sheet-pick-btn" onclick="applyPending('mat')">🌐 Überall <span class="ps-sub">· betrifft ${ha.vorkommen}× in ${ha.standards.length} Standards</span></button>`;
+  stufen.forEach(x=>{ h+=`<button class="sheet-pick-btn" data-s="${esc(x.key)}" onclick="applyPending(this.dataset.s)">${x.ico} ${esc(x.wort)} <span class="ps-sub">· ${esc(x.sub||'')}</span></button>`; });
   h+=`</div><button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
+  $('sheet').innerHTML=h; }
+/* Weite Reichweiten werden bestätigt — als KARTE, nicht als natives Fenster:
+   confirm() erscheint in installierten PWAs auf mehreren Android-Chrome-
+   Versionen gar nicht, und die Sammel-Änderung fiele lautlos aus (Grundsatz ⑧). */
+function askScopeBestaetigen(scope){
+  const e=sheetEntry, cid=sheetCid; const s=(typeof rwStufe==='function')?rwStufe(cid,e.material_key,scope):null;
+  if(!s){ applyPending(scope); return; }
+  const n=s.hits?s.hits.vorkommen:0, m=s.hits?s.hits.standards.length:0;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">Sammel-Änderung bestätigen</div>`;
+  h+=`<p class="why-help">Die Änderung wirkt auf <b>${s.ico} ${esc(s.wort)}</b> — das sind <b>${n} Vorkommen</b> in ${m} Standard${m===1?'':'s'}. Rückgängig jederzeit unter 🧾 Regeln &amp; Journal.</p>`;
+  h+=`<div class="p-actions" style="padding:6px 4px">
+    <button class="btn btn-sec" onclick="askScope()">Zurück</button>
+    <button class="btn btn-pri" data-s="${esc(scope)}" onclick="applyPending(this.dataset.s,true)">Ja, anwenden</button></div>`;
   $('sheet').innerHTML=h; }
 /* EIN Schreibweg (Verwaltungspolitik Stufe 2/3): jede Reichweite eines
    MATERIAL-Eintrags wird zur Regel im Journal (📍 Stelle · 📄 Standard ·
@@ -330,18 +342,12 @@ function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ appl
    Der abgelöste Alt-Wert wird migriert (clearLegacyAt). Weite Reichweiten
    (Gruppe/alle) werden mit Trefferzahl bestätigt (Governance-Treppe).
    Einträge OHNE material_key haben kein Regel-Ziel → Alt-Pfad („nur hier"). */
-function applyPending(scope){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
+function applyPending(scope,bestaetigt){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
   const mk=e.material_key;
   if(mk){
-    const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
-    let wo=null;
-    if(scope==='cid') wo={art:'stelle',wert:cid};
-    else if(scope==='std'){ if(!sid){ toast('Standard nicht bestimmbar',true); return; } wo={art:'standard',wert:sid}; }
-    else if(scope==='grp'){ if(!grp){ toast('Gruppe nicht bestimmbar',true); return; } wo={art:'gruppe',wert:grp}; }
-    else wo={art:'alle'};
-    if(scope==='grp'||scope==='mat'){ const hits=ruleHits(mk,wo);
-      const ziel=(scope==='grp')?('die Gruppe „'+grp+'"'):'ALLE Standards';
-      if(!confirm('Sammel-Änderung für '+ziel+' anwenden?\n\nBetrifft '+hits.vorkommen+' Vorkommen in '+hits.standards.length+' Standard(s).\nRückgängig jederzeit: Verwaltung → 🧾 Regeln & Journal.')) return; }
+    const stufe=(typeof rwStufe==='function')?rwStufe(cid,mk,scope):null;
+    const wo=stufe?stufe.wo:{art:'stelle',wert:cid};
+    if(stufe && stufe.weit && !bestaetigt){ askScopeBestaetigen(scope); return; }
     addRule({art:'material',key:mk}, wo, p.kind, p.value);
     if(wo.art==='stelle') clearLegacyAt(e,cid,'stelle',p.kind);
     else if(wo.art==='alle') clearLegacyAt(e,cid,'alle',p.kind);

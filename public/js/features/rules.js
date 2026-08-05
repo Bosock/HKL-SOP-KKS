@@ -34,8 +34,11 @@ function rulesUnion(a,b){ const m=new Map();
   (a||[]).concat(b||[]).forEach(r=>{ if(r&&r.id&&!m.has(r.id)) m.set(r.id,r); });
   return [...m.values()].sort((x,y)=>(x.ts===y.ts)?((x.id<y.id)?-1:1):((x.ts<y.ts)?-1:1)); }
 
-/* Kaskaden-Rang der Reichweite (höher = spezifischer = gewinnt). */
-function ruleRank(wo){ return ({stelle:4,standard:3,gruppe:2,alle:1})[(wo&&wo.art)||'']||0; }
+/* Kaskaden-Rang der Reichweite (höher = spezifischer = gewinnt).
+   „eigenschaft" steht gleichauf mit „gruppe": beides ist eine MENGE VON
+   STANDARDS, keine engere Stelle. Bei Gleichstand entscheidet wie überall die
+   neuere Regel — es braucht dafür keinen neuen Mechanismus. */
+function ruleRank(wo){ return ({stelle:4,standard:3,gruppe:2,eigenschaft:2,alle:1})[(wo&&wo.art)||'']||0; }
 
 /* Gewinnt Regel a gegen Regel b? Spezifischere Reichweite zuerst,
    bei Gleichstand die neuere (ts), zuletzt id (Determinismus). */
@@ -79,6 +82,7 @@ function ruleCandidates(e,cid,prop,legacy){
         if(r.wo.art==='stelle'){ ok=(r.wo.wert===cid); rank=4; }
         else if(r.wo.art==='standard'){ ok=(r.wo.wert===sid); rank=3; }
         else if(r.wo.art==='gruppe'){ if(!gk){ grp=sid?stdGruppeById(sid):null; gk=true; } ok=(!!grp&&r.wo.wert===grp); rank=2; }
+        else if(r.wo.art==='eigenschaft'){ ok=(!!sid && typeof eigHat==='function' && eigHat(sid, r.wo.wert)); rank=2; }
         else if(r.wo.art==='alle'){ ok=true; rank=1; }
         if(ok) out.push({rank, ts:r.ts, id:r.id, val:r.wert, rule:r, src:ruleWoLabel(r.wo)});
       }); }
@@ -130,6 +134,7 @@ function ruleHits(materialKey,wo){ const stds=new Set(); let n=0;
   if(DB&&DB.standards) DB.standards.forEach(s=>{
     if(wo.art==='standard'&&s.id!==wo.wert) return;
     if(wo.art==='gruppe'&&stdGruppe(s)!==wo.wert) return;
+    if(wo.art==='eigenschaft'&&!(typeof eigHat==='function'&&eigHat(s.id,wo.wert))) return;
     (s.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{
       if(e.material_key===materialKey&&!e.ist_fliesstext&&e.natur!=='ueberschrift'){ n++; stds.add(s.id); } })));
   });
@@ -150,6 +155,7 @@ function ruleWertLabel(prop,wert){
 function ruleWoLabel(wo){ if(!wo) return '';
   if(wo.art==='standard'){ const s=DB&&DB.standards.find(x=>x.id===wo.wert); return '📄 '+(s?stdTitel(s):wo.wert); }
   if(wo.art==='gruppe') return '🗂 Gruppe „'+(wo.wert||'')+'"';
+  if(wo.art==='eigenschaft'){ const e=(typeof eigOf==='function')?eigOf(wo.wert):null; return '🏷 alle mit „'+((e&&e.wort)||wo.wert||'')+'"'; }
   if(wo.art==='alle') return '🌐 überall';
   return '📍 nur hier'; }
 function ruleVonLabel(v){ return (v||'').replace('github:','').replace('gerät:','Gerät '); }
