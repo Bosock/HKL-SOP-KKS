@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -78,6 +78,13 @@ function hydrateVars(){
   if(typeof ALTG!=='undefined'){ ALTG=loadJSON('hkl_altgruppen',[]); if(!Array.isArray(ALTG)) ALTG=[];
     if(typeof altMaterialCacheLeeren==='function') altMaterialCacheLeeren(); }
   if(typeof ZWG!=='undefined'){ ZWG=loadJSON('hkl_zweige',{}); if(!ZWG||typeof ZWG!=='object') ZWG={}; }
+  /* Pflege-Weg (features/pflege.js): Schrittliste, eigene Schritte und der
+     Stand je Material. Wer am Tablet im Saal ein Foto ergänzt, soll am
+     Rechner nicht dieselbe Zeile noch einmal vorgelegt bekommen. */
+  if(typeof PFL!=='undefined'){ PFL=loadJSON('hkl_pflegeschritte',{}); if(!PFL||typeof PFL!=='object') PFL={}; }
+  if(typeof PFLEIGEN!=='undefined'){ PFLEIGEN=loadJSON('hkl_pflegeeigen',[]); if(!Array.isArray(PFLEIGEN)) PFLEIGEN=[]; }
+  if(typeof PFSTAND!=='undefined'){ PFSTAND=loadJSON('hkl_pflegestand',{}); if(!PFSTAND||typeof PFSTAND!=='object') PFSTAND={};
+    if(typeof pfCacheLeeren==='function') pfCacheLeeren(); }
   /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
      sie jemand am anderen Gerät ab, muss das hier ankommen. */
   if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}

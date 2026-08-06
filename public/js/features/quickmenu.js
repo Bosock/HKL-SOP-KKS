@@ -92,6 +92,10 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
     S.akt('material','🧬','Material öffnen',
       cn ? (fehlt.length?('es fehlt: '+fehlt.join(' und ')):'vollständig gepflegt') : 'Angaben, Etikett scannen, Foto',
       'matManage()'); }
+  /* Der geschlossene Weg: nicht ein Werkzeug öffnen, sondern von hier an
+     Material für Material durchgehen (features/pflege.js). */
+  if(isMat&&typeof pflegeAbZeile==='function'){
+    S.akt('pflege','🧹','Pflege-Weg ab hier','dieses Material fertig pflegen, dann das nächste','sheetPflegeWeg()'); }
   S.akt('eigenefelder','＋','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
   S.akt('verschieben','📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   S.akt('hoch','⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
@@ -126,6 +130,10 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
   if(typeof fasSheet==='function'){ const f=fasFuerStandard(s.id);
     S.akt('festschreiben','📚','Stand festschreiben', f?('Fassung „'+f.wort+'" gilt'):'die App wird zur Grundlage', 'fasSheet(curStd.id)'); }
+  if(typeof pflegeFuerStandard==='function'){ const p=(typeof pfStats==='function')?pfStats({art:'standard',wert:s.id}):null;
+    S.akt('pflege','🧹','Pflege-Weg für diesen Standard',
+      p?(p.offen?(p.offen+' von '+p.gesamt+' Materialien offen'):(p.gesamt+' Materialien — alle gepflegt')):'Material für Material durchgehen',
+      'showSheet(false);pflegeFuerStandard(curStd.id)'); }
   S.gruppe('kopieren','Neuen Standard daraus machen','Kopieren statt abtippen');
   S.akt('duplizieren','⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
   if(typeof ownHatStruktur==='function' && ownHatStruktur(s.id)){
@@ -173,6 +181,9 @@ function editEntry(cid){ const e=findEntry(cid); if(!e) return;
   if(e._added){ const p=cid.split('|'); openEntryForm({kind:'editAdd',sid:p[0],ri:+p[1],aid:e._aid,back:()=>reRenderDetail()}); }
   else { openEntryForm({kind:'editBase',cid,back:()=>reRenderDetail()}); } }
 function sheetEditDetails(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false); editEntry(cid); }
+/* Erst merken, dann schließen: showSheet(false) räumt sheetCid/sheetEntry ab. */
+function sheetPflegeWeg(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
+  if(typeof pflegeAbZeile==='function') pflegeAbZeile(cid,e); }
 function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
   const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
 /* Übernimmt den aktuellen Eintrag (mit effektiven Werten) in den Katalog. */
@@ -418,6 +429,12 @@ function reRenderDetail(){
   try{
     if($('scr-admin') && $('scr-admin').classList.contains('active') && typeof renderAdmin==='function'){ renderAdmin(); return; }
     if($('scr-care') && $('scr-care').classList.contains('active') && typeof renderMatCenter==='function'){ renderMatCenter(); return; }
+    /* Dritter Kontext: der Pflege-Weg. Das Bereich-Menü wird von dort aus
+       geöffnet — ohne diesen Zweig spränge die Ansicht danach in die Rubrik
+       und der Weg wäre abgerissen. */
+    if($('scr-pflege') && $('scr-pflege').classList.contains('active') && typeof renderPflege==='function'){
+      if(typeof pfCacheLeeren==='function') pfCacheLeeren();
+      renderPflege(); return; }
   }catch(e){}
   const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 $('sheetOv').addEventListener('click',()=>showSheet(false));

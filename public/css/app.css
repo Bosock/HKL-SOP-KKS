@@ -1247,3 +1247,67 @@
 .fas-bilanz { display:flex; flex-direction:column; gap:6px; margin:8px 4px;
   padding:11px 13px; border-radius:11px; font-size:13px; line-height:1.5;
   background:rgba(224,178,61,.1); border:1px solid rgba(224,178,61,.38); }
+
+/* ═══════════ Pflege-Weg (ein Material nach dem anderen) ═══════════ */
+.pf-filter { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+.pf-filter .btn { flex:0 1 auto; min-height:38px; padding:7px 12px; font-size:12.5px; }
+.pf-filter .btn.on { border-color:var(--accent); color:var(--accent); font-weight:700; }
+.pf-karte { background:var(--surface-2); border:1px solid var(--line); border-radius:16px; padding:16px; margin:12px 0; }
+.pf-pos { font-size:13px; color:var(--muted,#8a93a5); margin-bottom:11px; }
+.pf-flag { color:var(--warn); font-weight:700; }
+.pf-ok { color:var(--ok); font-weight:700; }
+/* Vorher/Nachher nebeneinander — auf schmalen Geräten untereinander. */
+.pf-vgl { display:grid; grid-template-columns:1fr 22px 1fr; gap:8px; align-items:center; margin-bottom:12px; }
+.pf-vgl-p { text-align:center; font-size:17px; color:var(--text-dim); }
+.pf-roh { font-size:13.5px; line-height:1.5; background:var(--surface); border:1px solid var(--line);
+  border-radius:11px; padding:9px 11px; margin-top:4px; }
+.pf-name { font-size:16px; font-weight:800; background:var(--surface); border:1px solid var(--accent);
+  border-radius:11px; padding:10px 12px; margin-top:4px; }
+.pf-warn { font-size:12px; color:var(--warn); font-weight:700; margin-top:5px; }
+@media (max-width:560px){ .pf-vgl { grid-template-columns:1fr; } .pf-vgl-p { transform:rotate(90deg); } }
+.pf-foto { margin:10px 0; }
+.pf-foto img { max-width:100%; max-height:190px; border-radius:12px; border:1px solid var(--line); }
+.pf-wo { font-size:12px; color:var(--text-dim); margin-bottom:12px; }
+.pf-liste { display:flex; flex-direction:column; gap:7px; }
+.pf-schritt { display:grid; grid-template-columns:20px 24px 1fr; gap:4px 8px; align-items:center;
+  padding:10px 11px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.pf-schritt.fertig { opacity:.72; }
+.pf-schritt.entfaellt { opacity:.5; }
+.pf-schritt.offen { border-color:var(--accent); }
+.pf-marke { font-size:15px; font-weight:800; text-align:center; }
+.pf-schritt.fertig .pf-marke { color:var(--ok); }
+.pf-schritt.offen .pf-marke { color:var(--accent); }
+.pf-s-ico { font-size:16px; text-align:center; }
+.pf-s-main { min-width:0; }
+.pf-s-w { display:block; font-size:14px; font-weight:700; }
+.pf-s-sub { display:block; font-size:12px; color:var(--text-dim); margin-top:2px; word-break:break-word; }
+.pf-s-akt { grid-column:3; display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+.pf-s-akt .btn { flex:0 1 auto; min-height:36px; padding:6px 12px; font-size:12.5px; }
+.pf-weg { opacity:.8; }
+.pf-hand { margin-top:11px; padding:9px 11px; border-radius:11px; font-size:12.5px;
+  background:rgba(224,178,61,.1); border:1px solid rgba(224,178,61,.38); }
+.pf-nav { display:flex; gap:8px; flex-wrap:wrap; margin-top:15px; }
+.pf-nav .btn { flex:1 1 auto; }
+.pf-nav2 { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.pf-nav2 .btn { flex:1 1 auto; min-height:38px; padding:7px 12px; font-size:12.5px; }
+.pf-sprungliste { display:flex; flex-direction:column; gap:5px; margin-top:12px;
+  max-height:340px; overflow-y:auto; padding-right:2px; }
+.pf-sprung { display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left;
+  padding:9px 11px; border:1px solid var(--line); border-radius:11px; background:var(--surface); color:var(--text); }
+.pf-sprung.on { border-color:var(--accent); font-weight:700; }
+.pf-sp-n { font-size:13.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pf-sp-s { flex:0 0 auto; font-size:11.5px; color:var(--text-dim); }
+/* Einstieg in der Materialzentrale — steht über der Lückenliste. */
+.mc-weg { display:flex; align-items:center; gap:11px; padding:14px; margin-bottom:12px; border-radius:14px;
+  border:1px solid var(--accent); background:rgba(61,155,224,.09); cursor:pointer; }
+.mc-weg-ico { font-size:22px; flex:0 0 auto; }
+.mc-weg-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.mc-weg-l { font-size:15px; font-weight:800; }
+.mc-weg-s { font-size:12.5px; color:var(--text-dim); line-height:1.5; }
+.mc-weg-p { font-size:12px; font-weight:700; color:var(--accent); }
+/* Verwaltung: Symbol- und Untertitelfeld je Schritt. */
+.pf-vz { display:flex; gap:7px; align-items:center; }
+.pf-vico { flex:0 0 56px; text-align:center; }
+.pf-vsub { margin-top:6px; font-size:12.5px; }
+.pf-frage { margin-top:9px; padding:10px 12px; border-radius:11px; font-size:12.5px; line-height:1.5;
+  background:rgba(224,90,90,.1); border:1px solid rgba(224,90,90,.4); }

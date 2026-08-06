@@ -288,7 +288,8 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const pKopf=(typeof kopfPanelHTML==='function')?kopfPanelHTML():'';
   const pBer=(typeof bereichePanelHTML==='function')?bereichePanelHTML():'';
   const pAlt=(typeof altPanelHTML==='function')?altPanelHTML():'';
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+matMergePanelHTML()+pPruef+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
+  const pPflege=(typeof pflegePanelHTML==='function')?pflegePanelHTML():'';
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+pPruef+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
   html+=sec('Aussehen & Anzeige')+pAnzeige+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
   box.innerHTML=html;

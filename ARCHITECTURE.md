@@ -623,6 +623,36 @@ zurückgenommen (eingearbeitet); die ganze Fassung bleibt verwerfbar.
 
 Die Quelldatei wird nie verändert (Grundsatz ⑦).
 
+## Pflege-Weg (`hkl_pflegeschritte`, `hkl_pflegeeigen`, `hkl_pflegestand`)
+
+Klammer um vier vorhandene Werkzeuge (Aufräum-Assistent, Material-Editor,
+Etikett-Erfassung, Foto-Galerie). Baut nichts davon neu — führt sie in einer
+Abfolge vor und bringt jedes an die Stelle zurück, an der man war.
+
+**Einheit ist das Material**, nicht die Zeile und nicht der Text: `pfMaterialien()`
+gruppiert den Bestand nach dem kanonischen Schlüssel (`effMatKey`) und hängt an
+jedes Material seine Vorkommen (`stellen`), die rohen Wortlaute (`roh`) und die
+noch nicht entschiedenen Textschlüssel (`texteOffen`).
+
+**Schritte** stehen in `PF_SCHRITTE` mit `offen(m)` / `stand(m)` / `tun(m)`.
+Der Code kennt nur die Prüfung; Wort, Untertitel, Symbol, Reihenfolge und
+an/aus liegen in `hkl_pflegeschritte` (`pflWert`/`pflAus`/`pflSetzen` — dieselbe
+Bauart wie `features/stdkopf.js`). Eigene Schritte (`hkl_pflegeeigen`) sind
+reine Handhaken (`art:'hand'`).
+
+**Gespeichert wird nur, was sich nicht ablesen lässt** (`hkl_pflegestand`,
+je kanonischem Schlüssel): `entfaellt{schritt}` (Entscheidung des Menschen),
+`hand{schritt}` (Haken eigener Schritte), `fertig` (von Hand abgeschlossen).
+„Erledigt" kommt sonst immer aus den Daten — `pfSchrittZustand()` liefert
+`offen` · `fertig` · `entfaellt`.
+
+**Der Rückweg** ist der kritische Teil: `pflegeLaeuft()` / `pflegeRueckkehr()`
+werden von `scanZurueck()` (Herkunft `'pflege'`), von `saveScanItem()` und vom
+Aufräum-Assistenten (`cleanupRueckweg()`) aufgerufen. Der Assistent läuft dabei
+auf **einen** Text eingeengt (`cleanupFokus`). `reRenderDetail()` kennt
+`scr-pflege` als dritten Kontext, damit das ⋯-Menü (Bereich) von dort aus
+funktioniert.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

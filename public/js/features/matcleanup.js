@@ -31,6 +31,11 @@ let CLEANUP = {};   /* Alt-Vorschläge aus data/cleanup_suggestions.json (Rückf
 let CLEANUP_DONE = (typeof loadJSON==='function') ? loadJSON('hkl_cleanup_done', {}) : {};
 let cleanupIdx = 0;
 let cleanupFilter = 'offen';   /* 'offen' | 'alle' */
+/* Einengung auf EINEN Text. Der Pflege-Weg (features/pflege.js) schickt hier
+   genau den Satz herein, an dem gerade gearbeitet wird — ohne das landete man
+   in der allgemeinen Warteschlange und verlöre das Material, das man vor sich
+   hatte. Null = der Assistent arbeitet wie immer den ganzen Bestand ab. */
+let cleanupFokus = null;
 
 function cleanupSetData(obj){ CLEANUP = (obj && obj.vorschlaege) ? obj.vorschlaege : (obj || {}); }
 function cleanupSaveDone(){ if(typeof saveJSON==='function') saveJSON('hkl_cleanup_done', CLEANUP_DONE); }
@@ -64,6 +69,15 @@ function cleanupGruppen(){
    Sortiert nach Wirkung — unklare Fälle zuerst, dann nach Häufigkeit. */
 function cleanupQueue(){
   const alles = cleanupGruppen();
+  /* Eingeengt auf einen Text (Pflege-Weg): dann ist die Warteschlange genau
+     einen Eintrag lang — auch wenn er bereits entschieden wurde, denn wer
+     gezielt hierher springt, will ihn sehen. */
+  if(cleanupFokus){
+    const g = alles.find(x=>x.tkey===cleanupFokus);
+    if(!g) return [];
+    const z = (typeof zerlFuer==='function') ? zerlFuer(g.beispiel, null) : null;
+    return [Object.assign({}, g, { z:z, unklar: !z || z.art==='unklar' || !!z.rest })];
+  }
   /* Maßgeblich ist ALLEIN die Zerlegung. `CLEANUP_DONE` ist nur noch ein
      Protokoll aus der Vorgängerfassung — würde es die Warteschlange steuern,
      bliebe eine zurückgenommene Entscheidung fälschlich als „erledigt"
@@ -93,8 +107,23 @@ function cleanupStats(){
 /* ===== Screen ===== */
 function openCleanup(){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(openCleanup); return; } }
-  cleanupIdx=0; renderCleanup(); show('scr-cleanup');
+  cleanupFokus=null; cleanupIdx=0; renderCleanup(); show('scr-cleanup');
   if(typeof setBar==='function') setBar('Aufräum-Assistent','Produkt · Verwendung · Position trennen',true);
+}
+/* Derselbe Assistent, eingeengt auf EINEN Text — der Übergang aus dem
+   Pflege-Weg. Nach dem Übernehmen geht es dort weiter, wo man war. */
+function openCleanupFokus(tkey){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>openCleanupFokus(tkey)); return; } }
+  cleanupFokus=tkey||null; cleanupIdx=0; renderCleanup(); show('scr-cleanup');
+  if(typeof setBar==='function') setBar('Text aufräumen','ein Text — gilt für alle Stellen mit diesem Wortlaut',true);
+}
+/* Rückweg nach einer Entscheidung: läuft ein Pflege-Weg, führt er zurück
+   dorthin. Sonst bleibt der Assistent stehen wie bisher. */
+function cleanupRueckweg(){
+  if(!cleanupFokus) return false;
+  cleanupFokus=null;
+  if(typeof pflegeLaeuft==='function' && pflegeLaeuft() && typeof pflegeRueckkehr==='function') return pflegeRueckkehr();
+  return false;
 }
 
 function clFeld(id,label,val,ph,hinweis){
@@ -112,7 +141,14 @@ function renderCleanup(){
   }
   const st=cleanupStats(); const q=cleanupQueue();
   const proz = st.total ? Math.round(100*st.done/st.total) : 0;
-  const bar=`<div class="banner"><h2>🧹 Aufräum-Assistent</h2>
+  /* Eingeengt (aus dem Pflege-Weg): kein Fortschrittsbalken über den ganzen
+     Bestand — hier geht es um genau einen Text, und die Filter wären eine
+     Falltür aus dem Weg heraus. */
+  const bar = cleanupFokus
+    ? `<div class="banner"><h2>🧹 Text aufräumen</h2>
+        <p>Aus dem verdichteten Satz wird <b>Produkt</b> (was es ist) · <b>Verwendung</b> (wie viel, wozu, unter welcher Bedingung) · <b>Position</b> (woher). Die Entscheidung gilt für alle Stellen mit diesem Wortlaut. Die Standards bleiben unangetastet.</p>
+        <div class="cl-filter"><button type="button" class="btn btn-sec" onclick="cleanupFokusZurueck()">← Zurück zum Pflege-Weg</button></div></div>`
+    : `<div class="banner"><h2>🧹 Aufräum-Assistent</h2>
     <p>Aus jeder verdichteten Zeile wird <b>Produkt</b> (was es ist) · <b>Verwendung</b> (wie viel, wozu, unter welcher Bedingung) · <b>Position</b> (woher). Eine Entscheidung gilt für alle Stellen mit demselben Text. Die Standards bleiben unangetastet.</p>
     <div class="prog"><div class="prog-txt">${st.done} von ${st.total} Texten entschieden (${proz} %) · ${st.stellen} Stellen im Bestand</div>
       <div class="prog-bar"><span style="width:${proz}%"></span></div></div>
@@ -121,6 +157,13 @@ function renderCleanup(){
       <button type="button" class="btn btn-sec${cleanupFilter==='alle'?' on':''}" onclick="cleanupSetFilter('alle')">Alle zeigen</button>
     </div></div>`;
 
+  if(!q.length && cleanupFokus){
+    box.innerHTML=bar+`<div class="empty"><div class="ei">✅</div><h3>Dieser Text ist erledigt</h3>
+      <p>Der Wortlaut ist entmischt — im Pflege-Weg geht es mit dem nächsten Schritt weiter.</p>
+      <div class="p-actions" style="justify-content:center">
+        <button class="btn btn-pri" onclick="cleanupFokusZurueck()">Zurück zum Pflege-Weg</button></div></div>`;
+    return;
+  }
   if(!q.length){
     box.innerHTML=bar+`<div class="empty"><div class="ei">✅</div><h3>Nichts mehr offen</h3>
       <p>Alle Texte sind entschieden. Neue Zeilen erscheinen hier automatisch.</p>
@@ -176,7 +219,17 @@ function renderCleanup(){
 }
 
 function cleanupSetFilter(f){ cleanupFilter=f; cleanupIdx=0; renderCleanup(); }
-function cleanupNext(){ cleanupIdx++; renderCleanup(); }
+/* Verlässt die Einengung. Läuft ein Pflege-Weg, führt der Knopf dorthin
+   zurück; sonst in den vollständigen Assistenten — nie in eine Sackgasse. */
+function cleanupFokusZurueck(){
+  if(cleanupRueckweg()) return;
+  cleanupFokus=null; openCleanup();
+}
+function cleanupNext(){
+  /* Eingeengt ist „Überspringen" das Verlassen dieses einen Textes. */
+  if(cleanupFokus){ cleanupFokusZurueck(); return; }
+  cleanupIdx++; renderCleanup();
+}
 /* Art umschalten, ohne die bereits getippten Felder zu verlieren. */
 function cleanupSetArt(a){
   const box=$('scr-cleanup'); if(!box) return;
@@ -250,6 +303,7 @@ function cleanupApply(tkey){
   CLEANUP_DONE[tkey]=true; cleanupSaveDone();
   const st=cleanupStats();
   if(typeof toast==='function') toast('Übernommen · noch '+st.offen+' offen');
+  if(cleanupRueckweg()) return;
   renderCleanup();
 }
 
@@ -259,6 +313,7 @@ function cleanupMarkKein(tkey){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>cleanupMarkKein(tkey)); return; } }
   if(typeof zerlBestaetigen==='function') zerlBestaetigen(tkey, { art:'hinweis', produkt:null });
   if(typeof toast==='function') toast('Als Hinweis festgehalten – kein Material mehr');
+  if(cleanupRueckweg()) return;
   renderCleanup();
 }
 

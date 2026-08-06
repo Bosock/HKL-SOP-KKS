@@ -445,6 +445,8 @@ wegkonstruieren*: Die **Beziehung** verschwindet aus der Bedienung, die
 2. Stillschweigender Stammsatz beim ersten Öffnen. *(`openMaterial()` legt ihn
    bereits an; der Sonderfall „noch nicht verknüpft" ist damit aus der
    Bedienung verschwunden.)*
+2b. **Der geschlossene Pflege-Weg** — die Klammer um Aufräum-Assistent,
+   Material-Editor, Etikett-Erfassung und Foto. **Gebaut** (siehe unten).
 3. Automatische Zusammenführung bei exakter Kennung + Prüfliste + Trennung.
    **Offen.**
 
@@ -460,19 +462,67 @@ wegkonstruieren*: Die **Beziehung** verschwindet aus der Bedienung, die
 `MATLINK` bleibt unverändert bestehen — als Index, nicht als Bedienkonzept.
 Grundsatz ⑦, und die vorhandenen Verknüpfungen sind echte Arbeit.
 
-### Was noch fehlt (der geschlossene Pflege-Weg)
+### Schritt 2: der geschlossene Pflege-Weg — **gebaut**
 
 > „Ich möchte systematisch durch alle Materialien gehen, während ich die App
 > benutze … die Materialien aufbereiten und bereinigen … gleichzeitig die
 > Felder richtig befüllen und Etiketten scannen, ein Bild vom Produkt machen.
 > Das muss alles kohärent, reibungslos ineinandergreifen."
 
-Die **Bausteine dafür stehen alle**: der Aufräum-Assistent (Zerlegung),
-der Etikett-Scanner, der Material-Editor, die Dublettenliste. Was fehlt, ist
-die **Klammer**: ein Weg, der beim Durcharbeiten eines Standards von Zeile zu
-Zeile führt, an jeder Stelle sagt, was noch fehlt, und die vier Werkzeuge in
-einer Abfolge anbietet statt an vier Orten. Das ist der nächste Schritt und
-verdient einen eigenen Durchgang.
+Die Bausteine standen alle — der Aufräum-Assistent (Zerlegung), der
+Etikett-Scanner, der Material-Editor, die Dublettenliste. Sie lagen nur an
+vier Orten, und keiner wusste vom anderen. `features/pflege.js` ist die
+**Klammer**. Sie baut kein Werkzeug neu; sie führt sie in einer Abfolge vor
+und bringt jedes an die Stelle zurück, an der man war.
+
+**① Die Einheit ist das Material, nicht die Zeile und nicht der Text.**
+„Radialschleuse 6F" steht mehrfach im Bestand, hinter verschiedenen Sätzen aus
+der Vorlage — das ist EIN Material, das EINMAL gepflegt wird. Gruppiert wird
+nach dem kanonischen Schlüssel (`effMatKey`, K4/Schritt 1); im echten Bestand
+werden aus 4.475 Zeilen **334 Materialien**, von denen 184 mehr als einmal
+vorkommen und 63 hinter mehreren Wortlauten stehen. Der Aufräum-Assistent
+arbeitet weiterhin an TEXTEN — deshalb ist er der *erste Schritt eines
+Materials* und kein Weg daneben.
+
+**② Was erledigt ist, wird abgelesen, nicht abgehakt.** Ob ein Foto da ist,
+weiß der Stammsatz. Ein zweiter, von Hand gepflegter Haken daneben würde
+irgendwann etwas anderes behaupten als die Daten (Grundsatz ⑨). Gespeichert
+wird nur, was sich nicht ablesen lässt: die Entscheidung eines Menschen, dass
+ein Schritt für dieses Material **entfällt** („diese Kompresse hat keine REF"),
+die Haken *eigener* Schritte, und „von Hand abgeschlossen".
+
+**③ Die Schritte sind eine Liste, kein Ablauf im Quelltext.** Ausgeliefert
+werden acht — Text aufräumen · Produktname · Etikett (Hersteller & REF) ·
+Produktfoto · Kategorie · Lagerort · Bereich · Stückpreis. Jeder lässt sich
+umbenennen, verschieben, ausblenden; eigene kommen als Handhaken dazu
+(„im Lagersystem angelegt"). Der Code kennt nur die PRÜFUNG hinter einem
+Schritt — Wort, Reihenfolge und Ob stehen in der Einstellung (Grundsatz ⑤/A7).
+Dieselbe Bauart wie der Standardkopf (K6) und das Funktionsregister.
+
+**Die Kette, die halten muss.** Ein Schritt öffnet das Werkzeug *aufgeschlagen
+an der richtigen Stelle* (der Foto-Schritt scrollt zur Galerie, der
+Lagerort-Schritt zum Feld). Der Aufräum-Assistent wird dabei auf **genau
+diesen einen Text** eingeengt — ohne das landete man in der allgemeinen
+Warteschlange und verlöre das Material, das man vor sich hatte. Nach dem
+Speichern steht der Weg wieder da: dasselbe Material, eine Lücke weniger.
+
+Einstiege: ⋯ an der Zeile („Pflege-Weg ab hier" — beginnt bei genau diesem
+Material, Umfang = dieser Standard), ⋯ am Standard („für diesen Standard"),
+und die Materialzentrale (ganzer Bestand). Damit gilt buchstäblich „während
+ich die App benutze".
+
+**Ein Fund nebenbei:** `openMaterial()` hielt in seinem Neuanlage-Zweig die
+Herkunft nicht fest. Aus der Materialzentrale fiel das nie auf, weil deren
+Vorgabe zufällig richtig war — aus dem Pflege-Weg heraus hätte man nach dem
+Speichern in der Produktliste gestanden. Der E2E-Prüfpunkt „der Editor weiß,
+dass er aus dem Pflege-Weg kommt" hat es gefunden.
+
+### Was noch fehlt (K4, Schritt 3)
+
+Automatische Zusammenführung bei exakter Kennung (GTIN/REF) plus Prüfliste und
+Trennmöglichkeit. Die Dublettenliste entscheidet heute Paar für Paar von Hand;
+das ist richtig, wo nur der Name spricht — bei gleicher GTIN ist es Arbeit,
+die niemand leisten müsste.
 
 ---
 
@@ -825,10 +875,12 @@ K8  Bereiche                  zweite Sicht + zweite Sicht in der Rüstliste
 K9  Alternativen              Austauschgruppen + Verfahrenszweige
 K5  Bausteine kuratiert       Sammelmappe, Rubrikbindung, Kategorien
 K10 Fassung festschreiben
+K4  Material ohne 🔗          Schritt 1: Naht aus der Bedienung
+    · Pflege-Weg              Schritt 2: die Klammer um die vier Werkzeuge
 
 OFFEN
-K4  Material ohne 🔗          größter Eingriff in Gewohnheiten; braucht
-                              Trennfunktion + Journal, deshalb zuletzt
+K4  Schritt 3                 automatische Zusammenführung bei gleicher
+                              Kennung (GTIN/REF) + Prüfliste + Trennung
 ```
 
 K3 muss nicht auf K2 warten: Die Kaskade nimmt eine neue `wo.art` an, ohne
@@ -841,13 +893,16 @@ dass die Maske davon wissen muss.
 | K1 | Jeder Platz-Schlüssel hat eine Bezeichnung · Kaskadenrang eindeutig · `medListe()` liest alte **und** neue Form |
 | K2 | Eigenschafts-Schlüssel nie in einem Vergleich (deckt `pruefungen/fachwort.js` bereits ab) · `ruleHits()` kennt jede `wo.art` · der Zähler zählt „ohne Angabe" mit |
 | K3 | Für jedes geänderte Feld genau **eine** Regel mit dessen eigener Reichweite · ein Feld mit eigener Reichweite benutzt nie die Voreinstellung |
-| K4 | Kein 🔗 mehr in den Bedienflächen (Ratchet wie `pruefungen/eingabefenster.js`) · jede Zeile mit `material_key` liefert einen Stammsatz |
+| K4 | Kein 🔗 mehr in den Bedienflächen (Ratchet `pruefungen/kettensymbol.js`) · jede Zeile mit `material_key` liefert einen Stammsatz |
+| K4/Pflege-Weg | Gruppierung nach dem kanonischen Schlüssel · „fertig" wird abgelesen, nie gespeichert · jede Kette endet wieder im Weg (E2E: Editor **und** Aufräum-Assistent) · ausgeblendeter Schritt fällt aus Anzeige **und** Rechnung |
 | K5 | Keine Vorschlagsliste im Bildschirm · jeder Baustein hat Kategorien oder ausdrücklich keine |
 
 ### Was in jedem Fall konfigurierbar bleibt (A7)
 
 Medienarten-Wörter · Platz-Titel · Pflichtstufen · Eigenschaften samt Wort,
 Symbol, Farbe und Art · Bausteinkategorien · alle Reichweiten-Bezeichnungen ·
+die Schritte des Pflege-Wegs samt Wort, Untertitel, Symbol, Reihenfolge und
+eigenen Schritten ·
 jede neue Karte und jeder neue Menüpunkt (über das Funktionsregister
 ausblendbar, umbenennbar, sortierbar). **Nichts davon darf je eine
 Code-Änderung brauchen.**

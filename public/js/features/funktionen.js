@@ -266,6 +266,7 @@ const FKT_SHEET_KATALOG = {
         { key:'bereich',      ico:'📍',  label:'Bereich',                sub:'zweite Sicht: steriler Tisch, Umfeld …' },
         { key:'alternativen', ico:'⇄',   label:'Alternativen',           sub:'Material, das stattdessen geht' },
         { key:'material',     ico:'🧬',  label:'Material öffnen',        sub:'Angaben, Etikett scannen, Foto' },
+        { key:'pflege',       ico:'🧹',  label:'Pflege-Weg ab hier',     sub:'dieses Material fertig pflegen, dann das nächste' },
         { key:'eigenefelder', ico:'＋',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },
         { key:'verschieben',  ico:'📦',  label:'Verschieben',            sub:'in andere Rubrik oder anderen Standard' },
         { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge in der Gruppe' },
@@ -288,6 +289,7 @@ const FKT_SHEET_KATALOG = {
         { key:'bilder',       ico:'🖼️',  label:'Bilder am Standard',     sub:'Fotos im Kopf des Standards' },
         { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
         { key:'festschreiben',ico:'📚',  label:'Stand festschreiben',    sub:'die App wird zur Grundlage' },
+        { key:'pflege',       ico:'🧹',  label:'Pflege-Weg für diesen Standard', sub:'Material für Material durchgehen' },
       ]},
       { key:'kopieren', titel:'Neuen Standard daraus machen', sub:'Kopieren statt abtippen', akt:[
         { key:'duplizieren',  ico:'⧉',   label:'Duplizieren',            sub:'vollständige, unabhängige Kopie als Entwurf' },

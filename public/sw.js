@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v57';
+const CACHE_VERSION = 'v58';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -61,6 +61,7 @@ const SHELL = [
   'js/features/matcenter.js',
   'js/features/matcatalog.js',
   'js/features/matcleanup.js',
+  'js/features/pflege.js',
   'js/features/lightbox.js',
   'js/features/listview.js',
   'js/features/guides.js',

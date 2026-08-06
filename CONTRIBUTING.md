@@ -292,6 +292,10 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | Einen Baustein sammeln | ⋯ → ＋ In Baustein übernehmen, dann Verwaltung → ⛓️ Bausteine |
 | Bausteine in eine Rubrik einfügen | In der Rubrik: 🧱 Bausteine einfügen (Ankreuzen) |
 | Den Stand endgültig machen | ⋯ Standard → 📚 Stand festschreiben |
+| Alle Materialien systematisch durchgehen | Materialzentrale → 🧹 Pflege-Weg · oder ⋯ an der Zeile → Pflege-Weg ab hier · oder ⋯ Standard → für diesen Standard |
+| Welche Schritte der Pflege-Weg abfragt | Verwaltung → 🧹 Pflege-Weg (an/aus, Wortlaut, Untertitel, Symbol, Reihenfolge) |
+| Einen eigenen Pflege-Schritt („im Lagersystem angelegt") | Dasselbe Panel → ＋ Eigenen Schritt anlegen (wird je Material von Hand abgehakt) |
+| Einen Schritt, der für EIN Material keinen Sinn hat | Im Pflege-Weg an diesem Material auf „entfällt" |
 
 **Wenn du eine dieser Stellen im Code suchst und nicht findest:** Das ist
 Absicht. Die Wörter stehen in `public/data/bezeichnungen.json`, die Werte im

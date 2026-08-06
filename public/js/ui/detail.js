@@ -365,7 +365,11 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-funktionen')){ setMode('admin'); return; }
   if(act('scr-freigabe')){ if(typeof frgSid!=='undefined' && frgSid) openStandard(frgSid); else setMode('admin'); return; }
   if(act('scr-ruest')){ if(typeof ruestSid!=='undefined' && ruestSid) openStandard(ruestSid); else setMode('use'); return; }
-  if(act('scr-cleanup')){ mode='care'; renderCare(); show('scr-care'); updateBar(); return; }
+  /* Aufräum-Assistent: eingeengt (aus dem Pflege-Weg) führt ‹ dorthin zurück,
+     sonst wie bisher in die Materialzentrale. */
+  if(act('scr-cleanup')){ if(typeof cleanupFokus!=='undefined' && cleanupFokus && typeof cleanupFokusZurueck==='function'){ cleanupFokusZurueck(); return; }
+    mode='care'; renderCare(); show('scr-care'); updateBar(); return; }
+  if(act('scr-pflege')){ if(typeof pflegeVerlassen==='function'){ pflegeVerlassen(); return; } setMode('use'); return; }
   if(act('scr-guide')){ nav=[]; if(typeof curSeg!=='undefined') curSeg='anleitung';
     renderStandards(); show('scr-standards'); updateBar();
     const sw=$('searchWrap'); if(sw) sw.style.display='block'; return; }

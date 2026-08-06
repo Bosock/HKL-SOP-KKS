@@ -158,7 +158,7 @@ sich schneller als jeder Entwicklungszyklus.
 | ③ | mitgelieferte Datei (`data/bezeichnungen.json`) | Auslieferung |
 | ④ | Rückfall im Code | nur damit die App auch ohne Datei startet |
 
-**Wo das heute greift** (Stand 05.08.2026 — die Liste ist der Prüfstand für
+**Wo das heute greift** (Stand 06.08.2026 — die Liste ist der Prüfstand für
 jede neue Funktion):
 
 | Fläche | einstellbar in der App |
@@ -172,6 +172,7 @@ jede neue Funktion):
 | **Merkmale an Standards** | anlegen · Wort · Symbol · Farbe · Art · Werte · im Kopf zeigen · als Reichweite freigeben |
 | **Bereiche** (zweite Sicht aufs Material) | anlegen · Wort · Symbol · Farbe · Reihenfolge |
 | **Baustein-Kategorien** | anlegen · Wort · Symbol · Reihenfolge |
+| **Pflege-Weg** (Schritte je Material) | je Schritt an/aus · Symbol · Wort · Untertitel · Reihenfolge · eigene Schritte als Handhaken; je Material einzeln „entfällt" |
 | **Bild-Darstellung** | Größe je Bild und Stelle (klein · mittel · groß), jederzeit änderbar |
 | **Schrift** | Größe und Gewicht je Zeile; Zeichen für Wort-Auszeichnungen frei wählbar |
 | Kategorien | Name · Farbe · Symbol · eigene anlegen und löschen |
