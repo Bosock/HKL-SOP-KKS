@@ -152,14 +152,17 @@ const { launchBrowser, startServer, bootPage, reporter } = require('/home/user/H
   r.check('… aber nicht über die Gruppengrenze (Gefahrenzone bleibt hinten)', sortierung.gefahrHinten);
 
   const leer = await A.page.evaluate(`(function(){
-    ['warum','details','umbenennen','menge','groessen','spez','wichtig','mengehi','farbe','bilder',
-     'kategorie','uk','verknuepfen','eigenefelder','verschieben','hoch','runter','katalog',
-     'loeschen','zuruecksetzen','baustein'].forEach(k=>fktSetzen('sheet','eintrag.'+k,'aus',true));
+    // Die Schlüssel kommen aus dem KATALOG, nicht aus einer getippten Liste:
+    // Eine getippte Liste veraltet still, sobald ein Menüpunkt dazukommt — und
+    // der Prüfpunkt „leeres Menü" wäre dann nie mehr leer.
+    var keys = [];
+    FKT_SHEET_KATALOG.eintrag.gruppen.forEach(function(g){
+      g.akt.forEach(function(a){ keys.push(a.key); });
+    });
+    keys.forEach(function(k){ fktSetzen('sheet','eintrag.'+k,'aus',true); });
     renderSheetMain();
-    const t = document.getElementById('sheet').textContent;
-    ['warum','details','umbenennen','menge','groessen','spez','wichtig','mengehi','farbe','bilder',
-     'kategorie','uk','verknuepfen','eigenefelder','verschieben','hoch','runter','katalog',
-     'loeschen','zuruecksetzen','baustein'].forEach(k=>fktZuruecksetzen('sheet','eintrag.'+k));
+    var t = document.getElementById('sheet').textContent;
+    keys.forEach(function(k){ fktZuruecksetzen('sheet','eintrag.'+k); });
     return /ausgeblendet/.test(t) && /Menü/.test(t);
   })()`);
   r.check('ein vollständig leeres Menü erklärt sich selbst', leer);

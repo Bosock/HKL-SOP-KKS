@@ -48,6 +48,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   // B) 🌐 Überall (confirm auto-akzeptiert) → alle-Regel, wirkt woanders
   const b = await A.page.evaluate((p) => {
     openSheet(p.a.cid); sheetPending = { kind: 'color', value: '#alle1' }; applyPending('mat');
+    document.querySelector('#sheet .btn-pri').click();   // Bestätigungs-Karte (Grundsatz ⑧)
     return {
       rule: rulesActive(RULES).some(x => x.wo.art === 'alle' && x.prop === 'color'),
       here: qeGet(findEntry(p.a.cid), p.a.cid, 'color'),

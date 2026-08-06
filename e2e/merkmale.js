@@ -61,16 +61,22 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const asks=!!bar && readEntryScope()==='cid';
     const props=!!bar && bar.innerHTML.indexOf('Nur hier')>=0 && bar.innerHTML.indexOf('Überall')>=0;
     saveEntryForm();
+    // PRÜFBLATT: zeigt je geändertem Feld vorher → nachher samt Reichweite.
+    // Erst der Knopf dort schreibt.
+    const pruef=/Prüfen und speichern/.test(document.getElementById('sheet').textContent);
+    const zeilen=document.querySelectorAll('#sheet .pb-zeile').length;
+    document.querySelector('#sheet .btn-pri').click();
     const e=findEntry(cid);
     const gro=qeGet(e,cid,'groessen')||[]; const zus=qeGet(e,cid,'zusatz')||[];
     const card=entryCardHTML(e,cid,true);
-    return { asks, props,
+    return { asks, props, pruef, zeilen,
       hasLen: gro.some(g=>g.wert==='45cm'&&g.typ==='laenge'),
       hasZus: zus.some(f=>f.n==='Struktur'&&f.w==='geflochten')&&zus.some(f=>f.n==='Nadel'&&f.w==='5/8'),
       badges: card.indexOf('45cm')>=0 && card.indexOf('Struktur: geflochten')>=0 && card.indexOf('Nadel: 5/8')>=0,
       journaled: rulesActive(RULES).some(x=>x.prop==='zusatz'&&x.wo&&x.wo.art==='stelle'&&x.wo.wert===cid), cid, mk };
   });
   check('Geltungsbereich sichtbar in der Maske, vorbelegt „nur hier“', r2.asks && r2.props);
+  check('Prüfblatt vor dem Speichern, eine Zeile je geändertem Feld', r2.pruef && r2.zeilen>=2);
   check('Größe „Länge 45cm" zusätzlich gespeichert', r2.hasLen);
   check('Eigene Merkmale (Struktur, Nadel) gespeichert', r2.hasZus);
   check('Badges am Eintrag: 45cm · Struktur: geflochten · Nadel: 5/8', r2.badges);
@@ -90,6 +96,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     last.querySelector('.merk-name').value='MHD-Kontrolle'; last.querySelector('.merk-zwert').value='monatlich';
     document.getElementById('fScope').querySelector('.scope-chip[data-s="mat"]').click();
     saveEntryForm();
+    document.querySelector('#sheet .btn-pri').click();   // Prüfblatt bestätigen
     const e2=findEntry(cid2); const zus2=qeGet(e2,cid2,'zusatz')||[];
     return { rolled: zus2.some(f=>f.n==='MHD-Kontrolle') };
   }, r2);

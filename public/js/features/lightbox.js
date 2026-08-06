@@ -38,6 +38,7 @@ function lbEnsure(){
       <button type="button" class="lb-btn lb-close" aria-label="Schließen">✕</button>
     </div>
     <div class="lb-stage" id="lbStage"><img class="lb-img" id="lbImg" alt=""></div>
+    <div class="lb-det" id="lbDet" hidden></div>
     <div class="lb-hint">Doppeltippen oder zwei Finger zum Zoomen · Ziehen zum Verschieben</div>`;
   document.body.appendChild(el);
 
@@ -90,14 +91,21 @@ function lbApply(){ const img=document.getElementById('lbImg'); if(!img) return;
   img.style.cursor=(lbScale>1)?'grab':'zoom-in'; }
 function lbZoom(delta){ lbScale=lbClampScale(lbScale+delta); if(lbScale===1){ lbX=0; lbY=0; } lbApply(); }
 
-/* Öffnet ein Bild groß. src = dataURL/Pfad, caption = optionale Bildunterschrift. */
-function openLightbox(src, caption){
+/* Öffnet ein Bild groß. src = dataURL/Pfad, caption = Bildunterschrift,
+   details = ausführliche Angaben zum Bild (optional).
+
+   Die Angaben stehen UNTER dem Bild und nicht darüber: Wer ein Bild groß
+   macht, will zuerst das Bild sehen. Fehlen Angaben, verschwindet die Fläche
+   ganz — ein leerer Kasten sähe aus wie ein Ladefehler. */
+function openLightbox(src, caption, details){
   if(!src) return;
   const el=lbEnsure();
-  const img=el.querySelector('#lbImg'); const cap=el.querySelector('#lbCap');
+  const img=el.querySelector('#lbImg'); const cap=el.querySelector('#lbCap'); const det=el.querySelector('#lbDet');
   lbScale=1; lbX=0; lbY=0;
   img.src=src; img.alt=caption||'Foto';
   if(cap) cap.textContent=caption||'';
+  if(det){ const d=String(details||'').trim();
+    det.textContent=d; det.hidden=!d; }
   lbApply();
   el.classList.add('show'); el.setAttribute('aria-hidden','false');
   /* Fokus in den Dialog holen und beim Schließen zurückgeben (Tastatur/
@@ -119,6 +127,6 @@ function initLightbox(){
     if(!t || t.tagName!=='IMG') return;
     if(!t.hasAttribute('data-zoom')) return;
     ev.preventDefault(); ev.stopPropagation();
-    openLightbox(t.getAttribute('src'), t.getAttribute('data-cap')||'');
+    openLightbox(t.getAttribute('src'), t.getAttribute('data-cap')||'', t.getAttribute('data-det')||'');
   }, true);
 }

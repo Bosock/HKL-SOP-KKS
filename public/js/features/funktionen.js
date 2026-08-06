@@ -258,16 +258,20 @@ const FKT_SHEET_KATALOG = {
         { key:'mengehi',      ico:'🔢',  label:'Zahl/Menge hervorheben', sub:'automatisch bei ungleich 1x' },
         { key:'farbe',        ico:'🎨',  label:'Farblich absetzen',      sub:'eigene Akzentfarbe' },
         { key:'bilder',       ico:'🖼️',  label:'Bilder',                 sub:'Foto, Bildfolge oder Skizze hinzufügen' },
+        { key:'schrift',      ico:'🔠',  label:'Schrift & Auszeichnung', sub:'Größe und Gewicht der Zeile, Wörter hervorheben' },
       ]},
       { key:'organisation', titel:'Organisation', sub:'Wohin er gehört', akt:[
         { key:'kategorie',    ico:'🏷️',  label:'Kategorie ändern',       sub:'zeigt die aktuelle Kategorie' },
         { key:'uk',           ico:'🗂️',  label:'Unterkategorie ändern',  sub:'Gruppe zuweisen' },
-        { key:'verknuepfen',  ico:'🔗',  label:'Mit Produkt verknüpfen', sub:'Etikett-Produkt zuordnen' },
-        { key:'eigenefelder', ico:'🔗',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },
+        { key:'bereich',      ico:'📍',  label:'Bereich',                sub:'zweite Sicht: steriler Tisch, Umfeld …' },
+        { key:'alternativen', ico:'⇄',   label:'Alternativen',           sub:'Material, das stattdessen geht' },
+        { key:'material',     ico:'🧬',  label:'Material öffnen',        sub:'Angaben, Etikett scannen, Foto' },
+        { key:'eigenefelder', ico:'＋',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },
         { key:'verschieben',  ico:'📦',  label:'Verschieben',            sub:'in andere Rubrik oder anderen Standard' },
         { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge in der Gruppe' },
         { key:'runter',       ico:'⬇',   label:'Nach unten',             sub:'Reihenfolge in der Gruppe' },
         { key:'katalog',      ico:'📥',  label:'In Katalog aufnehmen',   sub:'für andere Standards verfügbar' },
+        { key:'sammeln',      ico:'＋',  label:'In Baustein übernehmen', sub:'sammeln und später zu einem Baustein machen' },
       ]},
       { key:'gefahr', titel:'Gefahrenzone', sub:'Entfernen & zurücksetzen', akt:[
         { key:'loeschen',     ico:'🗑️',  label:'Ausblenden / Löschen',   sub:'aus der Anzeige entfernen' },
@@ -280,7 +284,10 @@ const FKT_SHEET_KATALOG = {
     gruppen: [
       { key:'inhalt', titel:'Inhalt', sub:'Titel, Gruppe & Freigabe', akt:[
         { key:'titel',        ico:'✏️',  label:'Titel & Gruppe',         sub:'Name und Zuordnung' },
+        { key:'merkmale',     ico:'🏷',  label:'Merkmale',               sub:'z. B. sedierungspflichtig' },
+        { key:'bilder',       ico:'🖼️',  label:'Bilder am Standard',     sub:'Fotos im Kopf des Standards' },
         { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
+        { key:'festschreiben',ico:'📚',  label:'Stand festschreiben',    sub:'die App wird zur Grundlage' },
       ]},
       { key:'kopieren', titel:'Neuen Standard daraus machen', sub:'Kopieren statt abtippen', akt:[
         { key:'duplizieren',  ico:'⧉',   label:'Duplizieren',            sub:'vollständige, unabhängige Kopie als Entwurf' },

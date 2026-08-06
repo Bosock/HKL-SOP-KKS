@@ -422,7 +422,7 @@ function scanRowHTML(r){
 /* Wohin führt das ‹ aus dem Produktblatt/Editor zurück?
 
    Das Produktblatt ist von SECHS Stellen aus erreichbar: Materialzentrale,
-   Scan-Hub, Katalog, Verwaltung, dem 🔗-Badge an einem Eintrag und dem
+   Scan-Hub, Katalog, Verwaltung, dem Material-Badge an einem Eintrag und dem
    Schnellmenü im Standard. „Zurück" heißt je nachdem etwas anderes — deshalb
    wird die Herkunft beim ÖFFNEN festgehalten, statt sie hinterher zu raten.
 

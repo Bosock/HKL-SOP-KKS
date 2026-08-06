@@ -11,7 +11,11 @@ function entryCardHTML(e,cid,isMatGer){
      dessen Foto/Identität (canonOf). Der Eintragstext bleibt unverändert. */
   const canon=(showThumb&&e.material_key&&typeof canonOf==='function')?canonOf(e.material_key):null;
   const thumbSrc=(canon&&canon.photo)||(care&&care.photo)||'';
-  const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt=""></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
+  /* Auch das Produktfoto ist ein Bild: Antippen macht es groß (data-zoom,
+     features/lightbox.js). Eine Regel für alle Bilder der App — sonst müsste
+     man sich merken, welches Bild sich vergrößern lässt und welches nicht. */
+  const thumbCap=canon?((canon.name||canon.ref||canon.gtin)||''):(e.anzeige_text||'');
+  const thumb=thumbSrc?`<div class="e-thumb"><img src="${esc(thumbSrc)}" alt="${esc(thumbCap)}" data-zoom data-cap="${esc(thumbCap)}"></div>`:(showThumb?`<div class="e-thumb">📷</div>`:'');
   /* ZERLEGUNG (features/zerlegung.js): Ist der Text im Aufräum-Assistenten
      BESTÄTIGT worden, zeigt die Karte den sauberen Produktnamen und hängt
      Verwendung und Position als eigene Angaben daneben — statt alles in einem
@@ -61,8 +65,14 @@ function entryCardHTML(e,cid,isMatGer){
      am Stammsatz, und ist damit die genauere Angabe für DIESE Stelle. */
   const ortEff=(zerlAn && zerl.ort)?zerl.ort:locEff;
   if(settings.lagerort&&showThumb&&!istTaetigkeit) meta+= ortEff?`<span class="tag tag-loc">📍 ${esc(ortEff)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
-  /* Verknüpfter Stammsatz als antippbarer Badge (öffnet die Produktkarte). */
-  if(canon){ const cn=canon.name||canon.ref||canon.gtin; meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🔗 ${esc(cn)}</button>`; }
+  /* Das Material als antippbarer Badge — OHNE Kettensymbol. Dass „Vorkommen im
+     Standard" und „Material" intern zwei Dinge sind, ist eine
+     Implementierungsfrage; sie gehört nicht in den Saal. Angezeigt wird der
+     Produktname nur, wenn er vom Text der Zeile abweicht — sonst stünde er
+     zweimal nebeneinander. */
+  if(canon){ const cn=canon.name||canon.ref||canon.gtin;
+    const anders=String(cn||'').trim().toLowerCase()!==String(name||'').trim().toLowerCase();
+    if(anders) meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🧬 ${esc(cn)}</button>`; }
   /* Verwendung und Position aus der bestätigten Zerlegung — jede Angabe an
      ihrem eigenen Platz, statt zusammengeschoben im Namen. */
   if(zerlAn){
@@ -75,6 +85,12 @@ function entryCardHTML(e,cid,isMatGer){
     (zerl.alternativen||[]).forEach(a=>{ meta+=`<span class="tag tag-alt">oder ${esc(a)}</span>`; });
     if(zerl.hinweis)   meta+=`<span class="tag tag-warn">⚠ ${esc(zerl.hinweis)}</span>`;
   }
+  /* Zweite Sicht (features/bereiche.js) und Austauschgruppen
+     (features/alternativen.js). Beides gehört an die Zeile, nicht in ein
+     Untermenü: Im Saal muss man sofort lesen können, wohin etwas gehört und
+     was stattdessen geht. */
+  if(typeof berBadgeHTML==='function') meta+=berBadgeHTML(e,cid);
+  if(typeof altBadgeHTML==='function') meta+=altBadgeHTML(e,cid);
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   /* Eigenschaften: ist das Material zugeordnet (canon), kommen sie vom Produkt
      (EINE Quelle). Sonst die Eintrags-Merkmale (e.zusatz / Overlay). */
@@ -86,6 +102,12 @@ function entryCardHTML(e,cid,isMatGer){
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
   const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
+  /* Schriftgröße/Gewicht dieser Zeile und Auszeichnungen im Text
+     (features/textstil.js). Beides ist abschaltbar-frei: Ohne das Modul
+     bleibt die Zeile wie sie war. */
+  const stil=(typeof txsVon==='function')?txsVon(e,cid):null;
+  const stilCls=(stil&&typeof txsKlassen==='function')?txsKlassen(stil):'';
+  const nameHTML=(typeof txsText==='function')?txsText(name):esc(name);
   /* Farbe: Kategoriefarbe als Vollrahmen; frei gewählte Farbe (accent bzw. für
      eigene Einträge e.color) füllt den ganzen Eintrag – Textfarbe automatisch
      nach Kontrast (pickTextColor). */
@@ -121,11 +143,18 @@ function entryCardHTML(e,cid,isMatGer){
      daneben: Im Saal wird die Liste gelesen, nicht betrachtet — wer ein Bild
      braucht, findet es, wer keins braucht, verliert keine Zeile Übersicht. */
   const bilder=(typeof medStreifenHTML==='function')?medStreifenHTML(e,cid):'';
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text">${star}${tunIco}${esc(name)}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}${bilder}</div></div>${whyPanel}</div>`;
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}${bilder}</div></div>${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
+  /* Bilder an der Rubrik selbst (features/medien.js): ein Übersichtsfoto des
+     Tisches gehört an die Rubrik, nicht an eine einzelne Zeile. */
+  if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkRub(curStd.id,idx), rubName(r,idx));
+  /* Verfahrenszweige (features/alternativen.js): „Ablation ◉ RF ○ Kryo".
+     Ohne Wahl bleibt alles sichtbar — wer nichts entschieden hat, darf nicht
+     die Hälfte des Standards verlieren. */
+  if(typeof zwgLeisteHTML==='function') html+=zwgLeisteHTML(curStd.id,idx);
   if(isMatGer){
     let lg=''; natList().forEach(n=>{ lg+=`<div class="lg-row"><span class="lg-swatch" style="background:${n.color}"></span>${esc(n.label)}</div>`; });
     html+=`<details class="legend"><summary>◐ Farb-Legende</summary><div class="legend-body">
@@ -165,12 +194,14 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
         /* Leere Abschnitte nur im Verwaltungsmodus zeigen (Gerüst zum Befüllen);
            Endnutzer sehen leere Reiter nicht. */
         if(!g.entries.length && !ADMIN) return;
+        if(typeof zwgAbschnittSichtbar==='function' && !zwgAbschnittSichtbar(curStd.id,idx,g.uk)) return;
         const gidx=UK_LIST.indexOf(g.uk); const col=ukColorOf(g.uk,gidx>=0?gidx:g.first); const ico=ukIconOf(g.uk);
         const ckey=idx+':'+g.uk; const isEmpty=!g.entries.length; const isCol=isEmpty?false:(collapsed[ckey]!==false); /* Untergruppen sind standardmäßig zugeklappt; leere offen */
         const isDecl=declared.indexOf(g.uk)>=0;
         /* ckey/UK-Name sind Freitext → per data-Attribut übergeben,
            nicht als Inline-String-Literal (esc() escaped kein Apostroph). */
         html+=`<div class="uksec ${isCol?'collapsed':''}" style="--uk:${col}"><div class="uksec-head" data-k="${esc(ckey)}" onclick="toggleUk(this.dataset.k)"><span class="uksec-ico">${ico}</span><span class="uksec-name">${esc(g.uk)}</span><span class="uksec-count">${g.entries.length}</span><span class="uksec-arrow">▾</span></div><div class="uksec-body">`;
+        if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkUk(curStd.id,idx,g.uk), g.uk);
         g.entries.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,true); });
         if(ADMIN){ html+=`<button class="add-entry-btn uksec-add" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();startAddEntryUk(+this.dataset.ri,this.dataset.uk)">＋ Eintrag in „${esc(g.uk)}"</button>`;
           if(isDecl&&isEmpty) html+=`<button class="add-entry-btn uksec-del" data-ri="${idx}" data-uk="${esc(g.uk)}" onclick="event.stopPropagation();removeUkSectionUI(+this.dataset.ri,this.dataset.uk)">Abschnitt entfernen</button>`; }
@@ -179,10 +210,13 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     }
   } else {
     const {blocks}=ablaufSegments(idx);
-    blocks.forEach(b=>{ if(b.head){
+    blocks.forEach(b=>{
+      if(b.head && typeof zwgAbschnittSichtbar==='function' && !zwgAbschnittSichtbar(curStd.id,idx,b.head)) return;
+      if(b.head){
         /* Eigene Überschriften bekommen ein ⋯ (umbenennen/löschen). */
         const tools=(ADMIN&&b.headAid)?`<button type="button" class="icon-btn" style="width:30px;height:30px;font-size:15px;margin-left:8px;vertical-align:middle" data-ri="${idx}" data-aid="${esc(b.headAid)}" onclick="openSegHeadSheet(+this.dataset.ri,this.dataset.aid)" aria-label="Abschnitt bearbeiten">⋯</button>`:'';
-        html+=`<div class="sub-head">${esc(b.head)}${tools}</div>`; }
+        html+=`<div class="sub-head">${esc(b.head)}${tools}</div>`;
+        if(typeof medAnkerHTML==='function') html+=medAnkerHTML(medAnkSeg(curStd.id,idx,b.head), b.head); }
       b.items.forEach(x=>{ html+=entryCardHTML(x.e,x.cid,false); });
       /* „＋ Eintrag in <Abschnitt>" für JEDEN benannten Abschnitt — auch die
          aus der Quelldatei (Souveränität: überall hinzufügen können). */
@@ -205,12 +239,17 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
   /* Eigene Abschnitte in JEDER Rubrik anlegbar (Souveränität): bei Material/
      Geräte als Unterkategorie-Sektion (UKSEC), in Ablauf-Rubriken als eigene
      Überschrift — nur im Verwaltungsmodus. */
+  /* Der Zeitgewinn beim Anlegen eines Standards: In DIESER Rubrik stehen die
+     Bausteine dieser Rubrik — ankreuzen, einfügen, fertig
+     (features/bausteine.js). */
+  const bauBtn=(ADMIN&&typeof bauEinfuegenSheet==='function')
+    ?`<button class="add-entry-btn" data-s="${esc(curStd.id)}" data-r="${idx}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')">🧱 Bausteine einfügen</button>`:'';
   const sectionBtn=ADMIN?(isMatGer
     ?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`
     :`<button class="add-entry-btn" onclick="addSegSectionUI(${idx})">＋ Abschnitt (Überschrift)</button>`):'';
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+sectionBtn+adoptBtn;
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+bauBtn+sectionBtn+adoptBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */

@@ -20,7 +20,12 @@
      4. FACHWORT IN EINEM VERGLEICH — eine Zeichenkette, die jemand umbenennen
         kann, steuert Verhalten (Grundsatz ④, docs/GRUNDSAETZE.md).
 
-   3 und 4 arbeiten mit einer Altlastenliste (scripts/pruefungen/altlasten.json):
+     5. KETTENSYMBOL IN DER BEDIENUNG — die Verknüpfung Zeile↔Material war
+        eine Datenmodell-Entscheidung, die in die Oberfläche durchgeschlagen
+        ist. Sie ist abgeräumt; diese Prüfung verhindert, dass sie
+        zurückkehrt (docs/KONZEPT-FUENF-AUSBAUTEN.md, K4).
+
+   3 bis 5 arbeiten mit einer Altlastenliste (scripts/pruefungen/altlasten.json):
    Der Bestand vom Tag der Einführung ist je Datei gezählt und geduldet, neue
    Fälle brechen ab — und eine zu hohe Zahl bricht ebenfalls ab. So kann der
    Bestand nur schrumpfen.
@@ -34,6 +39,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const eingabefenster = require('./pruefungen/eingabefenster');
 const fachwort = require('./pruefungen/fachwort');
+const kettensymbol = require('./pruefungen/kettensymbol');
 
 const ROOT = path.join(__dirname, '..');
 const ALTLASTEN = path.join(__dirname, 'pruefungen', 'altlasten.json');
@@ -94,16 +100,18 @@ function shellSyncProblems() {
   return problems;
 }
 
-/* 3+4) Grundsätze ⑧ und ④, je gegen die Altlastenliste. */
+/* 3–5) Grundsätze ⑧ und ④ sowie das abgeräumte Kettensymbol, je gegen die
+   Altlastenliste. */
 function altlasten() {
   try { return JSON.parse(fs.readFileSync(ALTLASTEN, 'utf8')); }
-  catch (e) { return { eingabefenster: {}, fachwort: {} }; }
+  catch (e) { return { eingabefenster: {}, fachwort: {}, kettensymbol: {} }; }
 }
 function grundsatzProblems() {
   const alt = altlasten();
   return [].concat(
     eingabefenster.pruefe(ROOT, 'public/js', alt.eingabefenster || {}),
-    fachwort.pruefe(ROOT, 'public/js', alt.fachwort || {}));
+    fachwort.pruefe(ROOT, 'public/js', alt.fachwort || {}),
+    kettensymbol.pruefe(ROOT, 'public/js', alt.kettensymbol || {}));
 }
 
 function collectProblems() {
@@ -113,7 +121,7 @@ function collectProblems() {
 function main() {
   const problems = collectProblems();
   if (problems.length === 0) {
-    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich.');
+    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich · kein Kettensymbol in der Bedienung.');
     return 0;
   }
   console.error(`✗ check: ${problems.length} Problem(e) gefunden:\n`);

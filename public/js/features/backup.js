@@ -284,8 +284,12 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* Drei Themenblöcke (QM-Konzept §4B): Inhalte · Aussehen · Daten */
   const sec=(t)=>`<div class="vsec">${esc(t)}</div>`;
-  html+=sec('Inhalte pflegen')+pInhalt+pStd+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+matMergePanelHTML()+pPruef+rulesPanelHTML()+pHidden;
-  html+=sec('Aussehen & Anzeige')+pAnzeige+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
+  const pEigen=(typeof eigPanelHTML==='function')?eigPanelHTML():'';
+  const pKopf=(typeof kopfPanelHTML==='function')?kopfPanelHTML():'';
+  const pBer=(typeof bereichePanelHTML==='function')?bereichePanelHTML():'';
+  const pAlt=(typeof altPanelHTML==='function')?altPanelHTML():'';
+  html+=sec('Inhalte pflegen')+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+matMergePanelHTML()+pPruef+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
+  html+=sec('Aussehen & Anzeige')+pAnzeige+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
   box.innerHTML=html;
   /* Zum Schluss die eigenen Einstellungen auf die Karten legen: ausblenden,
@@ -322,7 +326,7 @@ function matMergePanelHTML(){
      .concat([`<option value="__neu__">＋ Neuer Stammsatz aus diesem Material</option>`]).join('');
   list.slice(0,300).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
     p+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${c&&c.photo?'🖼 ':''}${esc(x.name)}</span><span class="uk-count">${x.count}×</span></div>
-      ${id?`<div class="vw-ctx">🔗 ${esc(c?(c.name||c.ref||c.gtin):id)}</div>`:''}
+      ${id?`<div class="vw-ctx">🧬 ${esc(c?(c.name||c.ref||c.gtin):id)}</div>`:''}
       <select class="vw-sel" data-k="${esc(x.key)}" onchange="matAdminLink(this.dataset.k,this.value)">${optsFor(id)}</select></div>`; });
   if(list.length>300) p+=`<div class="foot">Zeige erste 300 von ${list.length}. Für weitere zuerst zusammenführen.</div>`;
   p+=`<p class="hint">„Zusammenführen" legt bei Bedarf einen Stammsatz an und verknüpft alle gleichen Vorkommen damit. Über den Etiketten-Scanner reicherst du den Stammsatz danach mit Foto, REF, Maßen und eigenen Eigenschaften an.</p></div></details>`;

@@ -69,6 +69,10 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   // 2) Gruppen-Regel anwenden (confirm wird von bootPage auto-bestätigt)
   const applied = await A.page.evaluate((p) => {
     applyPending('grp');
+    // Weite Reichweiten werden jetzt mit einer KARTE bestätigt (kein confirm mehr,
+    // Grundsatz ⑧). Der Weg durch die Karte gehört damit zum Prüfpfad.
+    const karte = /Sammel-Änderung bestätigen/.test(document.getElementById('sheet').textContent);
+    document.querySelector('#sheet .btn-pri').click();
     const act = rulesActive(RULES);
     const eA = findEntry(p.a.cid), eB = findEntry(p.b.cid);
     return {
@@ -78,8 +82,10 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       hereVal: qeGet(eA, p.a.cid, 'color'),
       otherStdVal: qeGet(eB, p.b.cid, 'color'),
       outVal: p.out ? qeGet(findEntry(p.out.cid), p.out.cid, 'color') : null,
+      karte,
     };
   }, pick);
+  r.check('weite Reichweite wird mit einer Karte bestätigt (kein natives Fenster)', applied.karte);
   r.check('Regel im Journal (1 aktiv, Reichweite Gruppe, mit Urheber)',
     applied.ruleCount === 1 && applied.wo && applied.wo.art === 'gruppe' && !!applied.von);
   r.check('Regel wirkt an der Ursprungsstelle', applied.hereVal === '#a1b2c3');

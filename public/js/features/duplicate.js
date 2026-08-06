@@ -375,7 +375,9 @@ function openStdRenameForm(){
     <div class="flabel">GRUPPE</div>
     <input class="loc-input" id="stdGruppeInp" value="${esc(stdGruppe(s)||'')}" list="stdGrpList">
     <datalist id="stdGrpList">${gruppen.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
-    <p class="hint">Gilt für alle Geräte. Die Quelldatei bleibt unverändert.</p>
+    <div class="flabel">BESCHREIBUNG (optional)</div>
+    <textarea class="loc-input" id="stdBeschrInp" rows="4" placeholder="Kurz: worum geht es in diesem Standard? Erscheint oben im Kopf.">${esc((typeof stdBeschreibung==='function')?stdBeschreibung(s):'')}</textarea>
+    <p class="hint">Gilt für alle Geräte. Die Quelldatei bleibt unverändert. Ob und wo die Beschreibung erscheint, steuert „🧱 Standardkopf" in der Verwaltung.</p>
     <div class="p-actions">
       <button class="btn btn-sec" onclick="closeForm()">Abbrechen</button>
       <button class="btn btn-pri" onclick="stdRenameSave()">Speichern</button>
@@ -388,11 +390,17 @@ function stdRenameSave(){
   const t=(($('stdTitelInp')||{}).value||'').trim();
   if(!t){ toast('Der Titel darf nicht leer sein.',true); return; }
   const g=(($('stdGruppeInp')||{}).value||'').trim();
+  const b=(($('stdBeschrInp')||{}).value||'').trim();
   const s=curStd;
-  /* Bei einem eigenen Standard direkt am Datensatz — sonst als Overlay. */
+  /* Bei einem eigenen Standard direkt am Datensatz — sonst als Overlay.
+     Die Beschreibung liegt IMMER in STDE: sie ist eine Angabe ZUM Standard,
+     keine Struktur, und muss auch an Standards aus der Quelldatei hängen. */
   const own=ownStd(s.id);
   if(own){ own.titel=t; if(g) own.gruppe=g; saveNEWSTD(); rebuildDB(); }
-  else { STDE[s.id]=Object.assign({},STDE[s.id],{titel:t, gruppe:g||stdGruppe(s)}); saveSTDE(); }
+  else { STDE[s.id]=Object.assign({},STDE[s.id],{titel:t, gruppe:g||stdGruppe(s)}); }
+  const meta=Object.assign({}, STDE[s.id]);
+  if(b) meta.beschreibung=b; else delete meta.beschreibung;
+  STDE[s.id]=meta; saveSTDE();
   formCtx=null; toast('Standard aktualisiert'); openStandard(s.id,true);
 }
 

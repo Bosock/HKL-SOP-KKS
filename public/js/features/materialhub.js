@@ -77,10 +77,10 @@ function matHubRows(){
 }
 
 function matHubStatusTag(s){
-  if(s==='linked') return `<span class="mat-sub ok"><span class="dot dot-ok"></span>Stammsatz</span>`;
+  if(s==='linked') return `<span class="mat-sub ok"><span class="dot dot-ok"></span>gepflegt</span>`;
   if(s==='stammonly') return `<span class="mat-sub ok"><span class="dot dot-ok"></span>erfasst</span>`;
-  if(s==='part') return `<span class="mat-sub open"><span class="dot dot-open"></span>teilgepflegt</span>`;
-  return `<span class="mat-sub open"><span class="dot dot-open"></span>offen</span>`;
+  if(s==='part') return `<span class="mat-sub open"><span class="dot dot-open"></span>unvollständig</span>`;
+  return `<span class="mat-sub open"><span class="dot dot-open"></span>noch nichts hinterlegt</span>`;
 }
 /* Öffnet den EINEN Editor für ein Vorkommen (material_key). Ist das Material
    schon verknüpft → dessen Stammsatz bearbeiten. Sonst einen NEUEN Stammsatz

@@ -52,7 +52,15 @@ function umgebung(standards){
       const mk=e&&e.material_key; if(mk){ const m=QE.mat[mk]; if(m&&m[prop]!==undefined) return m[prop]; }
       return undefined; }
   `, ctx);
-  vm.runInContext(SRC + '\n;globalThis.__alle = () => BAUSTEINE;', ctx);
+  vm.runInContext(SRC + `
+    ;globalThis.__alle = () => BAUSTEINE;
+    ;globalThis.__kur = {
+      sammeln:bauSammeln, sammelt:bauSammelt, zahl:bauSammelZahl,
+      zeilen:bauSammlungZeilen, ausSammlung:bauAusSammlung, leeren:bauSammlungLeeren,
+      katAnlegen:bauKatAnlegen, katListe:bauKatListe, katSchalten:bauKatSchalten,
+      katLoeschen:bauKatLoeschen, hatKat:bauHatKat,
+      rubriken:bauRubriken, fuerRubrik:bauFuerRubrik, rubrikVon:bauRubrikVon
+    };`, ctx);
   return ctx;
 }
 
@@ -446,4 +454,133 @@ test('„vorher" ist der Zustand VOR dem ersten Zugriff des Bausteins', () => {
   assert.equal(B.QE.cid['b|0|0|1'].name, 'Coro-Set XL');
   B.bauLoesen(b.id);
   assert.equal(B.QE.cid['b|0|0|1'], undefined, 'es blieb eine Zwischenfassung stehen');
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   6. Kuratieren statt vorschlagen
+   ═══════════════════════════════════════════════════════════════
+
+   Der Wunsch war eindeutig: „Ich will keine Vorschläge, ich kenne meine
+   Bausteine schon." Gesammelt wird jetzt im Vorbeigehen — und der Baustein
+   merkt sich, aus WELCHER RUBRIK er stammt. Genau daran hängt der
+   Zeitgewinn beim nächsten Standard: In „Materialien" stehen die Bausteine
+   für Materialien, nicht eine flache Liste über alles.
+   ═══════════════════════════════════════════════════════════════ */
+
+test('Sammeln ist ein Umschalter, kein Hinzufügen', () => {
+  const B = umgebung(mini());
+  const cid = 'a|0|0|0';
+  assert.equal(B.__kur.sammelt(cid), false);
+  B.__kur.sammeln(cid);
+  assert.equal(B.__kur.sammelt(cid), true);
+  assert.equal(B.__kur.zahl(), 1);
+  B.__kur.sammeln(cid);
+  assert.equal(B.__kur.sammelt(cid), false, 'nochmal tippen nimmt wieder heraus');
+  assert.equal(B.__kur.zahl(), 0);
+});
+
+test('die Mappe behält die Reihenfolge des Sammelns', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|2');
+  B.__kur.sammeln('a|0|0|0');
+  const z = B.__kur.zeilen();
+  assert.equal(z.map(x => x.text).join('|'), 'NaCl-Flasche|Kleiner Tisch');
+});
+
+test('gelöschte Stellen fallen still aus der Mappe', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|0');
+  B.__kur.sammeln('a|9|9|9');
+  assert.equal(B.__kur.zeilen().length, 1, 'eine Stelle, die es nicht gibt, ist kein Fehler');
+});
+
+test('DAS ENTSCHEIDENDE: der Baustein merkt sich seine Rubrik', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|0');
+  B.__kur.sammeln('a|0|0|1');
+  const b = B.__kur.ausSammlung('Kleiner Tisch', []);
+  assert.equal(b.rubrik, 'Materialien');
+  assert.equal(b.quelle, 'kuratiert');
+  assert.equal(B.__kur.fuerRubrik('Materialien').length, 1);
+  assert.equal(B.__kur.fuerRubrik('Ablauf').length, 0);
+});
+
+test('die Rubrik ist die häufigste, nicht die erste', () => {
+  /* Wer versehentlich eine Zeile aus einer anderen Rubrik mitnimmt, soll den
+     Baustein trotzdem dort finden, wo er hingehört. */
+  const stds = [{ id:'x', titel:'X', gruppe:'T', rubriken:[
+    { name:'Ablauf', typ:'sonstige', sub_bereiche:[{ name:null, eintraege:[zeile('Fremdzeile')] }] },
+    { name:'Materialien', typ:'material', sub_bereiche:[{ name:null, eintraege:[zeile('A'), zeile('B')] }] }
+  ]}];
+  const B = umgebung(stds);
+  B.__kur.sammeln('x|0|0|0');   /* Ablauf */
+  B.__kur.sammeln('x|1|0|0');   /* Materialien */
+  B.__kur.sammeln('x|1|0|1');   /* Materialien */
+  const b = B.__kur.ausSammlung('Gemischt', []);
+  assert.equal(b.rubrik, 'Materialien');
+});
+
+test('nach dem Anlegen ist die Mappe leer', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|0');
+  B.__kur.ausSammlung('Test', []);
+  assert.equal(B.__kur.zahl(), 0, 'sonst landete dieselbe Zeile im nächsten Baustein noch einmal');
+});
+
+test('aus einer leeren Mappe entsteht kein Baustein', () => {
+  const B = umgebung(mini());
+  assert.equal(B.__kur.ausSammlung('Leer', []), null);
+  assert.equal(B.__alle().length, 0);
+});
+
+test('ein Baustein trägt beliebig viele Kategorien — Facetten statt Baum', () => {
+  const B = umgebung(mini());
+  const k1 = B.__kur.katAnlegen('CRM');
+  const k2 = B.__kur.katAnlegen('EPU');
+  B.__kur.sammeln('a|0|0|0');
+  const b = B.__kur.ausSammlung('Test', [k1.key, k2.key]);
+  assert.equal(B.__kur.hatKat(b, k1.key), true);
+  assert.equal(B.__kur.hatKat(b, k2.key), true);
+  assert.equal(B.__kur.hatKat(b, 'gibtsnicht'), false);
+  assert.equal(B.__kur.hatKat(b, ''), true, 'ohne Filter passt jeder Baustein');
+});
+
+test('Kategorien lassen sich nachträglich an- und abschalten', () => {
+  const B = umgebung(mini());
+  const k = B.__kur.katAnlegen('EPU');
+  B.__kur.sammeln('a|0|0|0');
+  const b = B.__kur.ausSammlung('Test', []);
+  assert.equal(B.__kur.hatKat(b, k.key), false);
+  B.__kur.katSchalten(b.id, k.key);
+  assert.equal(B.__kur.hatKat(B.__alle()[0], k.key), true);
+  B.__kur.katSchalten(b.id, k.key);
+  assert.equal(B.__kur.hatKat(B.__alle()[0], k.key), false);
+});
+
+test('eine gelöschte Kategorie verschwindet auch aus den Bausteinen', () => {
+  const B = umgebung(mini());
+  const k = B.__kur.katAnlegen('Weg damit');
+  B.__kur.sammeln('a|0|0|0');
+  const b = B.__kur.ausSammlung('Test', [k.key]);
+  B.__kur.katLoeschen(k.key);
+  assert.equal(B.__kur.katListe().length, 0);
+  assert.equal((B.__alle()[0].kats || []).length, 0,
+    'sonst hinge ein unsichtbarer Schlüssel am Baustein');
+});
+
+test('zwei gleichnamige Kategorien bekommen verschiedene Schlüssel', () => {
+  const B = umgebung(mini());
+  const a = B.__kur.katAnlegen('EPU');
+  const b = B.__kur.katAnlegen('EPU');
+  assert.notEqual(a.key, b.key);
+});
+
+test('bauRubriken listet die Heimatrubriken der Bibliothek', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|0');
+  B.__kur.ausSammlung('Eins', []);
+  B.__kur.sammeln('b|0|0|0');
+  B.__kur.ausSammlung('Zwei', []);
+  assert.equal(B.__kur.rubriken().join(','), 'Materialien');
 });

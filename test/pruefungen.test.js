@@ -20,6 +20,7 @@ const quelltext = require(path.join(ROOT, 'scripts/pruefungen/quelltext'));
 const eingabe = require(path.join(ROOT, 'scripts/pruefungen/eingabefenster'));
 const fachwort = require(path.join(ROOT, 'scripts/pruefungen/fachwort'));
 const check = require(path.join(ROOT, 'scripts/check'));
+const kettensymbol = require(path.join(ROOT, 'scripts/pruefungen/kettensymbol'));
 
 /* Legt eine Wegwerf-Datei an und gibt Wurzel + relativen Pfad zurück. */
 let lfd = 0;
@@ -168,4 +169,47 @@ test('die neuen Bausteine kommen ohne native Eingabefenster aus', () => {
 
 test('das ganze Projekt ist gegen die Altlastenliste sauber', () => {
   assert.deepEqual(check.grundsatzProblems(), []);
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Kettensymbol: der Rückfall, der niemandem auffiele
+   ═══════════════════════════════════════════════════════════════
+
+   Die Verknüpfung Zeile↔Material ist aus der Bedienung entfernt. Käme sie
+   zurück, würde nichts kaputtgehen — genau deshalb braucht es eine Prüfung.
+   ═══════════════════════════════════════════════════════════════ */
+
+const KETTE = '\u{1F517}';
+
+test('das Kettensymbol in einer Bedienzeile wird gefunden', () => {
+  const { wurzel } = mitDatei("S.akt('x','" + KETTE + "','Mit Produkt verknüpfen','','f()');");
+  const p = kettensymbol.pruefe(wurzel, 'js', {});
+  assert.equal(p.length, 1);
+  assert.equal(/Kettensymbol/.test(p[0]), true);
+});
+
+test('mit der Marke „kette:ok" ist es eine bewusste Entscheidung', () => {
+  const { wurzel } = mitDatei("/* kette:ok — hier ist wirklich ein Weblink gemeint. */\nconst ico='" + KETTE + "';");
+  assert.equal(kettensymbol.pruefe(wurzel, 'js', {}).length, 0);
+});
+
+test('eine geduldete Altlast bricht nicht ab, eine zusätzliche schon', () => {
+  const a = mitDatei("const a='" + KETTE + "';");
+  assert.equal(kettensymbol.pruefe(a.wurzel, 'js', { [a.rel]: 1 }).length, 0);
+  const b = mitDatei("const a='" + KETTE + "';\nconst b='" + KETTE + "';");
+  assert.equal(kettensymbol.pruefe(b.wurzel, 'js', { [b.rel]: 1 }).length, 1);
+});
+
+test('eine veraltete Altlastenliste bricht ebenfalls ab', () => {
+  const { wurzel, rel } = mitDatei("const a=1;");
+  const p = kettensymbol.pruefe(wurzel, 'js', { [rel]: 2 });
+  assert.equal(p.length, 1);
+  assert.equal(/veraltet/.test(p[0]), true);
+});
+
+test('DER SCHARFE PUNKT: im echten Quelltext steht kein Kettensymbol mehr', () => {
+  const wurzel = path.join(__dirname, '..');
+  const probleme = kettensymbol.pruefe(wurzel, 'js', {});
+  assert.deepEqual(probleme, [], 'ein Material ist ein Material — die Verknüpfung gehört nicht in die Oberfläche');
 });

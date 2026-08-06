@@ -34,8 +34,11 @@ function rulesUnion(a,b){ const m=new Map();
   (a||[]).concat(b||[]).forEach(r=>{ if(r&&r.id&&!m.has(r.id)) m.set(r.id,r); });
   return [...m.values()].sort((x,y)=>(x.ts===y.ts)?((x.id<y.id)?-1:1):((x.ts<y.ts)?-1:1)); }
 
-/* Kaskaden-Rang der Reichweite (höher = spezifischer = gewinnt). */
-function ruleRank(wo){ return ({stelle:4,standard:3,gruppe:2,alle:1})[(wo&&wo.art)||'']||0; }
+/* Kaskaden-Rang der Reichweite (höher = spezifischer = gewinnt).
+   „eigenschaft" steht gleichauf mit „gruppe": beides ist eine MENGE VON
+   STANDARDS, keine engere Stelle. Bei Gleichstand entscheidet wie überall die
+   neuere Regel — es braucht dafür keinen neuen Mechanismus. */
+function ruleRank(wo){ return ({stelle:4,standard:3,gruppe:2,eigenschaft:2,alle:1})[(wo&&wo.art)||'']||0; }
 
 /* Gewinnt Regel a gegen Regel b? Spezifischere Reichweite zuerst,
    bei Gleichstand die neuere (ts), zuletzt id (Determinismus). */
@@ -79,12 +82,18 @@ function ruleCandidates(e,cid,prop,legacy){
         if(r.wo.art==='stelle'){ ok=(r.wo.wert===cid); rank=4; }
         else if(r.wo.art==='standard'){ ok=(r.wo.wert===sid); rank=3; }
         else if(r.wo.art==='gruppe'){ if(!gk){ grp=sid?stdGruppeById(sid):null; gk=true; } ok=(!!grp&&r.wo.wert===grp); rank=2; }
+        else if(r.wo.art==='eigenschaft'){ ok=(!!sid && typeof eigHat==='function' && eigHat(sid, r.wo.wert)); rank=2; }
         else if(r.wo.art==='alle'){ ok=true; rank=1; }
         if(ok) out.push({rank, ts:r.ts, id:r.id, val:r.wert, rule:r, src:ruleWoLabel(r.wo)});
       }); }
   }
   if(legacy){ if('stelle' in legacy) out.push({rank:4, ts:'', id:'', val:legacy.stelle, src:'📍 nur hier'});
               if('alle'   in legacy) out.push({rank:1, ts:'', id:'', val:legacy.alle,   src:'🌐 überall'}); }
+  /* FESTGESCHRIEBENE FASSUNG (features/fassung.js): Sie steht ganz unten, an
+     der Stelle der Quelldatei — neue Regeln wirken weiterhin darüber. Rang 0,
+     damit sie von JEDER echten Reichweite geschlagen wird. */
+  if(typeof fasWert==='function'){ const fw=fasWert(cid,prop);
+    if(fw!==undefined) out.push({rank:0, ts:'', id:'', val:fw, src:'📚 festgeschrieben'}); }
   out.sort((a,b)=> (a.rank!==b.rank)?b.rank-a.rank : (a.ts!==b.ts)?((a.ts<b.ts)?1:-1) : ((a.id<b.id)?1:-1) );
   return out;
 }
@@ -130,13 +139,14 @@ function ruleHits(materialKey,wo){ const stds=new Set(); let n=0;
   if(DB&&DB.standards) DB.standards.forEach(s=>{
     if(wo.art==='standard'&&s.id!==wo.wert) return;
     if(wo.art==='gruppe'&&stdGruppe(s)!==wo.wert) return;
+    if(wo.art==='eigenschaft'&&!(typeof eigHat==='function'&&eigHat(s.id,wo.wert))) return;
     (s.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{
       if(e.material_key===materialKey&&!e.ist_fliesstext&&e.natur!=='ueberschrift'){ n++; stds.add(s.id); } })));
   });
   return { vorkommen:n, standards:[...stds] }; }
 
 /* ===== Anzeige-Helfer ===== */
-function rulePropLabel(p){ return ({name:'Name',natur:'Kategorie',uk:'Unterkategorie',color:'Farbe',important:'Wichtig-Markierung',mengeHi:'Zahl-Hervorhebung',mengeVal:'Menge',groessen:'Größen',spez:'Spezifikation',hidden:'Sichtbarkeit',zusatz:'Eigene Felder'})[p]||p; }
+function rulePropLabel(p){ return ({name:'Name',natur:'Kategorie',uk:'Unterkategorie',color:'Farbe',important:'Wichtig-Markierung',mengeHi:'Zahl-Hervorhebung',mengeVal:'Menge',groessen:'Größen',spez:'Spezifikation',hidden:'Sichtbarkeit',zusatz:'Eigene Felder',stil:'Schrift',bilder:'Bilder',bereich:'Bereich'})[p]||p; }
 function ruleWertLabel(prop,wert){
   if(prop==='natur') return natOf(wert).label;
   if(prop==='hidden') return wert?'ausgeblendet':'sichtbar';
@@ -144,12 +154,16 @@ function ruleWertLabel(prop,wert){
   if(prop==='groessen') return (Array.isArray(wert)&&wert.length)?wert.map(g=>g.wert).join(', '):'keine';
   if(prop==='zusatz') return (Array.isArray(wert)&&wert.length)?wert.map(f=>f.n+(f.w?': '+f.w:'')).join(' · '):'keine';
   if(prop==='color') return wert?String(wert):'keine Farbe';
+  if(prop==='bereich'){ const b=(typeof berOf==='function')?berOf(wert):null; return b?((b.symbol||'')+' '+b.wort):(wert?String(wert):'ohne Angabe'); }
+  if(prop==='stil') return (wert&&typeof txsBeschreibung==='function')?txsBeschreibung(wert):'Normal';
+  if(prop==='bilder') return (Array.isArray(wert)&&wert.length)?(wert.length+' Bild'+(wert.length===1?'':'er')):'keine Bilder';
   if(wert==null||wert==='') return 'entfernt';
   if(wert===true) return 'an'; if(wert===false) return 'aus';
   return String(wert); }
 function ruleWoLabel(wo){ if(!wo) return '';
   if(wo.art==='standard'){ const s=DB&&DB.standards.find(x=>x.id===wo.wert); return '📄 '+(s?stdTitel(s):wo.wert); }
   if(wo.art==='gruppe') return '🗂 Gruppe „'+(wo.wert||'')+'"';
+  if(wo.art==='eigenschaft'){ const e=(typeof eigOf==='function')?eigOf(wo.wert):null; return '🏷 alle mit „'+((e&&e.wort)||wo.wert||'')+'"'; }
   if(wo.art==='alle') return '🌐 überall';
   return '📍 nur hier'; }
 function ruleVonLabel(v){ return (v||'').replace('github:','').replace('gerät:','Gerät '); }
