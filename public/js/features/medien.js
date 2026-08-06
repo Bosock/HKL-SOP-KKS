@@ -106,7 +106,6 @@ function medSatz(kennung){
   return { t:String(v.t||''), d:String(v.d||'') };
 }
 function medText(kennung){ return medSatz(kennung).t; }
-function medDetail(kennung){ return medSatz(kennung).d; }
 function medHatDetail(kennung){ const s=medSatz(kennung); return !!(s.t||s.d); }
 function medTextSetzen(kennung, text){
   if(!medIstKennung(kennung)) return;
@@ -381,13 +380,9 @@ function medAnkerHTML(anker, titel){
   return `<div class="med-anker">${medPaareHTML(paare)}${knopf}</div>`;
 }
 
-/* Groß ansehen — über die vorhandene Lightbox, damit es sich anfühlt wie
-   überall sonst in der App. */
-function medGross(kennung){
-  const s = medSatz(kennung);
-  if(typeof openLightbox==='function') openLightbox(medUrl(kennung), s.t, s.d);
-  else { try{ window.open(medUrl(kennung),'_blank','noopener'); }catch(e){} }
-}
+/* medGross() entfernt: Großansicht läuft überall über [data-zoom] und die
+   Delegation in features/lightbox.js — ein zweiter Weg dorthin war nie
+   verdrahtet und hätte sich mit der Zeit anders verhalten. */
 
 /* ═══════════ 6. Bedienung im Schnellmenü ═══════════ */
 

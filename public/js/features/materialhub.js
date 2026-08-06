@@ -26,8 +26,21 @@
    berechnet (Übersicht, Suche, Zentrale) — bei 4.475 Einträgen unnötig teuer.
    buildMaterialIndex() verwirft den Cache, wenn sich die Daten ändern. */
 let matStdMapCache=null;
+/* WAS HIER BEWUSST NICHT MEHR STEHT: matKeyCacheLeeren().
+   Der Zerlegungs-Speicher (features/matkey.js) hing früher hier mit drin. Das
+   war teuer und an der falschen Stelle: buildMaterialIndex() ruft diese
+   Funktion und läuft nach FAST JEDEM Speichern — die Zerlegung aller 4.475
+   Zeilen wurde dabei jedes Mal neu gerechnet. Gemessen: 300 ms je Speichern
+   auf einem schnellen Rechner, also gut eine Sekunde auf dem Tablet im Saal.
+
+   Die Zerlegung hängt an genau zwei Dingen: an der POSITION einer Zeile (der
+   Speicher ist nach cid indiziert) und an den bestätigten Entscheidungen
+   (ZERLDB). Beide haben ihre eigene Stelle:
+     · Positionen ändern sich in rebuildDB()      → räumt dort auf
+     · ZERLDB ändert sich in zerlBestaetigen()/zerlVerwerfen() → räumen selbst auf
+     · und beim Sync in hydrateVars(), wenn ZERLDB vom anderen Gerät kommt
+   Eine Regel, ein Preis oder ein Häkchen ändern die Zerlegung nicht. */
 function invalidateMatCaches(){ matStdMapCache=null;
-  if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
   if(typeof mcRowCache!=='undefined') mcRowCache=null;
   if(typeof mcEntryCache!=='undefined') mcEntryCache=null;
   /* Beide leiten sich aus demselben Bestand ab (Pflege-Weg, Ankreuz-Wähler) —

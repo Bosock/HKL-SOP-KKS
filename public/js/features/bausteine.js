@@ -880,13 +880,57 @@ function bauKatLeisteHTML(){
     h += `<button type="button" class="bau-kb${bauKatWahl===k.key?' on':''}" data-k="${esc(k.key)}" onclick="bauUiKatWahl(this.dataset.k)">${esc(k.symbol||'')} ${esc(k.wort)} <span class="bau-kn">${n}</span></button>`;
   });
   h += `<button type="button" class="bau-kb bau-kneu" onclick="bauUiKatNeu()">＋ Kategorie</button>`;
+  if(kats.length) h += `<button type="button" class="bau-kb bau-kneu" onclick="bauUiKatVerwalten()">${bauKatVerw?'✕ fertig':'✎ ändern'}</button>`;
   h += `</div>`;
   if(bauKatForm){
     h += `<div class="bau-mform"><input class="loc-input" id="bauKatName" placeholder="Name, z. B. EPU">
       <div class="p-actions"><button class="btn btn-sec" onclick="bauUiKatAbbrechen()">Abbrechen</button>
       <button class="btn btn-pri" onclick="bauUiKatSpeichern()">Anlegen</button></div></div>`;
   }
+  if(bauKatVerw) h += bauKatVerwaltenHTML(kats);
   return h;
+}
+/* WAS HIER GEFEHLT HAT: Eine Kategorie ließ sich anlegen — und dann nie wieder
+   ändern. `bauKatAendern()` und `bauKatLoeschen()` gab es samt Tests von
+   Anfang an, nur keinen Weg dorthin. Ein Tippfehler im Namen war damit
+   dauerhaft, und genau das ist der Fehler, gegen den der unveränderliche
+   Schlüssel (bauKatSlug) gebaut wurde: Das WORT darf sich ändern, ohne dass
+   die Zuordnungen verlorengehen. Ohne Oberfläche half das niemandem
+   (Grundsatz ⑤ / Hausregel A7). */
+let bauKatVerw = false;
+function bauKatVerwaltenHTML(kats){
+  let h = `<div class="bau-katverw"><p class="hint">Wort und Symbol lassen sich jederzeit ändern — die Zuordnung der Bausteine bleibt, weil sie am unveränderlichen Schlüssel hängt.</p>`;
+  kats.forEach(k=>{
+    const n = BAUSTEINE.filter(b=>bauHatKat(b,k.key)).length;
+    h += `<div class="ber-zeile">
+      <input class="loc-input ber-sym" value="${esc(k.symbol||'')}" maxlength="4" data-k="${esc(k.key)}"
+        onchange="bauUiKatFeld(this.dataset.k,'symbol',this.value)" aria-label="Symbol">
+      <input class="loc-input" value="${esc(k.wort)}" data-k="${esc(k.key)}"
+        onchange="bauUiKatFeld(this.dataset.k,'wort',this.value)" aria-label="Bezeichnung">
+      <div class="ber-akt">
+        <span class="bau-kn" title="Bausteine in dieser Kategorie">${n}</span>
+        <button class="dgr" data-k="${esc(k.key)}" onclick="bauUiKatWeg(this.dataset.k)">${bauKatWeg===k.key?'Wirklich?':'Löschen'}</button>
+      </div></div>`;
+  });
+  return h + `</div>`;
+}
+let bauKatWeg = null;        /* Rückfrage ohne natives Fenster (Grundsatz ⑧) */
+function bauUiKatVerwalten(){ bauKatVerw=!bauKatVerw; bauKatWeg=null; renderBausteine(); }
+function bauUiKatFeld(key, feld, wert){
+  const w = String(wert||'').trim();
+  if(feld==='wort' && !w){ if(typeof toast==='function') toast('Eine Kategorie braucht einen Namen',true); renderBausteine(); return; }
+  bauKatAendern(key, feld, w);
+  renderBausteine();
+  if(typeof toast==='function') toast('Übernommen');
+}
+function bauUiKatWeg(key){
+  if(bauKatWeg!==key){ bauKatWeg=key; renderBausteine(); return; }   /* erst fragen */
+  const k = bauKatOf(key); const wort = k?k.wort:'';
+  bauKatWeg=null;
+  bauKatLoeschen(key);
+  if(bauKatWahl===key) bauKatWahl='';
+  renderBausteine();
+  if(typeof toast==='function') toast('Kategorie „'+wort+'" entfernt — die Bausteine bleiben');
 }
 let bauKatForm = null;
 function bauUiKatWahl(key){ bauKatWahl = key||''; renderBausteine(); }

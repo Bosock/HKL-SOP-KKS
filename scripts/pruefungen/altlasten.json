@@ -3,7 +3,7 @@
   "_eingabefenster": "Grundsatz ⑧ (docs/GRUNDSAETZE.md): prompt() und confirm() sind in installierten PWAs auf mehreren Android-Chrome-Versionen wirkungslos — der Aufruf liefert sofort null/false, die Funktion schlägt lautlos fehl. Zahl = Aufrufe je Datei.",
   "_fachwort": "Grundsatz ④: Eine Zeichenkette, die jemand umbenennen kann, darf nicht in einem Vergleich stehen. Leer, weil der letzte Fall (der Freigabe-Zustand) behoben ist — begründete Einzelfälle stehen als /* fachwort:ok */ im Quelltext, nicht hier.",
   "eingabefenster": {
-    "public/js/core/app-state.js": 14,
+    "public/js/core/app-state.js": 12,
     "public/js/features/auth.js": 1,
     "public/js/features/backup.js": 6,
     "public/js/features/diag.js": 1,
@@ -19,9 +19,29 @@
     "public/js/features/variants.js": 2,
     "public/js/ui/catalog.js": 3,
     "public/js/ui/detail.js": 3,
-    "public/js/ui/forms.js": 2
+    "public/js/ui/forms.js": 1
   },
   "fachwort": {},
   "kettensymbol": {},
-  "_kettensymbol": "Leer und soll leer bleiben: Das Kettensymbol ist am 05.08.2026 vollständig aus der Bedienung entfernt worden (K4, Schritt 1). Ein neuer Eintrag hier wäre ein Rückschritt und muss begründet werden."
+  "_kettensymbol": "Leer und soll leer bleiben: Das Kettensymbol ist am 05.08.2026 vollständig aus der Bedienung entfernt worden (K4, Schritt 1). Ein neuer Eintrag hier wäre ein Rückschritt und muss begründet werden.",
+  "_verdrahtung": "Prüfung 6 (scripts/pruefungen/verdrahtung.js): doppelte globale Namen · Schaltflächen ohne Ziel · Funktionen ohne Verwendung · Speicher-Schlüssel ohne Geräte-Teilung. Die ersten beiden dulden NICHTS. Bei den letzten beiden steht hier, was bewusst so ist — jeweils mit Begründung.",
+  "toteFunktionen": [],
+  "geraetelokal": {
+    "hkl_checks": "Tages-Häkchen — sie gelten für den Fall, der HEUTE auf DIESEM Gerät läuft, und werden nachts geleert",
+    "hkl_theme": "Hell/Dunkel ist eine Eigenschaft des Bildschirms, nicht des Standards",
+    "hkl_authuntil": "Ablauf der Anmeldesitzung dieses Geräts",
+    "hkl_voterid": "anonyme Stimmkennung dieses Geräts — geteilt wäre sie keine Stimme mehr, sondern eine Person",
+    "hkl_zweigwahl": "gewählter Verfahrenszweig (RF/Kryo) — gilt für den Fall, der gerade läuft",
+    "hkl_curvariant": "welcher Arzt heute — dasselbe Argument wie beim Verfahrenszweig",
+    "hkl_facetten": "Merkmalsfilter der Übersicht: eine ANSICHT, keine Inhaltsentscheidung",
+    "hkl_sort": "Sortierung der Übersicht — Ansicht",
+    "hkl_ruestsicht": "Sicht der Rüstliste (Ablauf/Bereich) — Ansicht",
+    "hkl_pflege_sort": "Sortierung im Pflege-Weg — Ansicht",
+    "hkl_pflege_alle": "Filter im Pflege-Weg — Ansicht",
+    "hkl_fav": "Favoriten dieses Geräts",
+    "hkl_usage": "Nutzungshäufigkeit dieses Geräts (Reihenfolge der Übersicht)",
+    "hkl_hint_daily": "einmaliger Hinweis auf den Tages-Reset — pro Gerät einmal",
+    "hkl_gudid": "Zwischenspeicher fremder Katalogdaten; was zählt, landet beim Übernehmen im Stammsatz — und DER wird geteilt",
+    "hkl_popup_log": "Auslöse-Protokoll der Pop-ups auf diesem Gerät (Diagnose)"
+  }
 }

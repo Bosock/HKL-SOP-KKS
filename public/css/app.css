@@ -1349,3 +1349,6 @@
 .srt-akt button { width:34px; height:36px; border-radius:9px; border:1px solid var(--line);
   background:var(--surface-2); color:var(--text); font-size:13px; }
 @media (max-width:420px){ .srt-akt button { width:30px; } .srt-text { font-size:13px; } }
+/* Kategorien der Baustein-Bibliothek ändern (Wort, Symbol, entfernen). */
+.bau-katverw { margin:8px 0 4px; padding:10px; border:1px dashed var(--line); border-radius:12px; }
+.bau-katverw .hint { margin:0 0 8px; }

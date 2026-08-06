@@ -56,6 +56,13 @@ function rebuildDB(){ if(!DB_BASE){ return; } DB=mergeAdditions(DB_BASE,ADDITION
   /* Der Bestand hat sich geändert — die Fundstellen der Bausteine gelten nicht mehr. */
   if(typeof bauCacheLeeren==='function') bauCacheLeeren();
   if(typeof frgCacheLeeren==='function') frgCacheLeeren();
+  /* HIER gehört der Zerlegungs-Speicher hin, und nur hier: Er ist nach cid
+     indiziert, und cids sind POSITIONEN. Ein eingefügter oder entfernter
+     Eintrag verschiebt alle folgenden — der Speicher zeigte danach auf die
+     falsche Zeile. Früher stand das in buildMaterialIndex(); dort lief es nach
+     jedem Speichern mit und kostete 300 ms, obwohl sich an der Zerlegung
+     nichts geändert hatte. */
+  if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
   if(curStd){ const c=DB.standards.find(s=>s.id===curStd.id); if(c) curStd=c; } }
 function findAddEntry(sid,ri,aid){ const arr=ADDITIONS.entries[sid+'|'+ri]||[]; return arr.find(x=>x._aid===aid)||null; }
 

@@ -38,5 +38,4 @@ function restoreCid(cid){ if(QE.cid[cid]){ delete QE.cid[cid].hidden; if(Object.
   /* Regel-Ausblendung an dieser Stelle mit-zurücknehmen (EIN Schreibweg). */
   if(typeof rulesActive==='function') rulesActive(RULES).forEach(r=>{ if(r.prop==='hidden'&&r.wert===true&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); });
   saveQE(); buildMaterialIndex(); renderAdmin(); toast('Wiederhergestellt'); }
-function hideCid(cid){ (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); buildMaterialIndex(); renderAdmin(); toast('Ausgeblendet'); }
 

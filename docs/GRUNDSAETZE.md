@@ -193,6 +193,15 @@ können wäre keine Freiheit, sondern eine Falle.
 pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter) —
 oder einem neuen Knopf, der in dieser Tabelle keine Zeile findet.
 
+**Sechste Maschinenprüfung (06.08.2026): Verdrahtung.**
+`scripts/pruefungen/verdrahtung.js` fängt vier Fehlerklassen ab, bei denen
+nichts kaputtgeht: doppelte globale Namen · Schaltflächen ohne Ziel ·
+Funktionen ohne Verwendung · Speicher-Schlüssel ohne Geräte-Teilung. Die
+ersten beiden dulden nichts, die letzten beiden arbeiten mit begründeten
+Listen. Zwei der Funde waren keine tote Last, sondern eine vergessene
+Verdrahtung — die Funktion war da, angeschrieben und getestet, nur der Weg
+dorthin fehlte.
+
 ### A8 · Deutsch, lesbar, mit Begründung
 
 **Die Regel.** Bezeichner und Kommentare sind deutsch. Kommentare erklären das

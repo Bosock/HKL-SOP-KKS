@@ -341,8 +341,6 @@ function ocrRender(dataUrl, opts, cb){
   }catch(e){ cb(dataUrl,null); } };
   img.onerror=()=>cb(dataUrl,null); img.src=dataUrl;
 }
-/* Kompatibler Kurzweg (Graustufen-Variante). */
-function ocrPreprocess(dataUrl, cb){ ocrRender(dataUrl, {modus:'grau'}, (d)=>cb(d)); }
 
 /* ═══════════════════════════════════════════════════════════════
    REF-KANDIDATEN UND MEHRHEITSENTSCHEID

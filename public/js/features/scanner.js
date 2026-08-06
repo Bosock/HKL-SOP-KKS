@@ -745,7 +745,15 @@ function scanMerkViewHTML(r){
   const luecken = klasse ? merkLuecken(klasse, liste, MERKKAT) : [];
   const luHtml = luecken.length
     ? `<p class="hint">Noch nicht erfasst: ${esc(luecken.map(l=>l.label).join(' · '))}</p>` : '';
-  return `<div class="flabel" style="margin-top:12px">MERKMALE${kl?(' · '+esc(kl.label)):''}</div>${zeilen||'<p class="hint">Noch keine Merkmale erfasst.</p>'}${luHtml}`;
+  /* Die Zahl dazu — „7 von 12 Merkmalen erfasst". merkAbdeckung() war dafür
+     gebaut und angeschrieben, aber nie angezeigt: Eine Lückenliste ohne
+     Bezugsgröße sagt nicht, ob man am Anfang oder fast fertig ist. */
+  let ab = '';
+  if(klasse && typeof merkAbdeckung==='function'){
+    const a = merkAbdeckung(klasse, liste, MERKKAT);
+    if(a.soll) ab = `<p class="hint"><b>${a.ist} von ${a.soll}</b> Merkmalen erfasst (${a.anteil} %)</p>`;
+  }
+  return `<div class="flabel" style="margin-top:12px">MERKMALE${kl?(' · '+esc(kl.label)):''}</div>${zeilen||'<p class="hint">Noch keine Merkmale erfasst.</p>'}${ab}${luHtml}`;
 }
 
 /* Ein Eingabefeld je Merkmal — passend zum Typ. Geschlossene Wertelisten und

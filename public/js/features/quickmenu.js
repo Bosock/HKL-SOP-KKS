@@ -1,9 +1,6 @@
 /* ============ Schnellmenü (Long-Press) ============ */
 let sheetCid=null, sheetEntry=null, sheetPending=null;
-/* Reichweiten-Nachfrage beim Speichern des Bearbeiten-Formulars (mehrere
-   geänderte Eigenschaften auf einmal), siehe forms.js. */
-let editScopePending=null;
-function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; editScopePending=null; } }
+function showSheet(on){ $('sheet').classList.toggle('show',on); $('sheetOv').classList.toggle('show',on); if(!on){ sheetCid=null; sheetEntry=null; sheetPending=null; } }
 function openSheet(cid){ const e=findEntry(cid); if(!e) return; sheetCid=cid; sheetEntry=e; sheetPending=null; renderSheetMain(); showSheet(true); }
 function sAct(ico,label,sub,fn,cls){ return `<button class="sheet-act ${cls||''}" onclick="${fn}"><span class="sa-ico">${ico}</span><span>${esc(label)}<span class="sa-sub">${esc(sub)}</span></span></button>`; }
 /* Abschnitts-Überschrift im Bearbeiten-Menü (Gruppierung nach Absicht statt
@@ -212,37 +209,17 @@ function renderSheetMove(sid){ const e=sheetEntry; if(!e) return;
   h+=`</div><button class="sheet-close" onclick="${sid?'renderSheetMove()':'renderSheetMain()'}">Zurück</button>`;
   $('sheet').innerHTML=h; }
 
-/* ── Material-Destillation: Vorkommen im Standard einem Produkt-Stammsatz
-   zuordnen (siehe docs/KONZEPT-MATERIALSTAMM.md). Nicht-destruktiv & lösbar. */
-function _matProdList(){ return (typeof GTINDB==='object'&&GTINDB)?Object.keys(GTINDB).map(k=>GTINDB[k]):[]; }
-function matLinkListHTML(prods,q){ const list=(typeof filterGtin==='function')?filterGtin(prods,q):prods;
-  if(!list.length) return `<div class="why-help">Noch keine Produkte in der Datenbank — unten neu anlegen.</div>`;
-  return list.slice(0,40).map(r=>`<button class="sheet-pick-btn" data-g="${esc(r.gtin)}" onclick="matLinkPick(this.dataset.g)">${r.photo?'🖼 ':'🏷️ '}${esc(r.name||r.ref||r.gtin)}<span class="ps-sub">${esc([r.hersteller,(r.ref?('REF '+r.ref):'')].filter(Boolean).join(' · ')||'—')}</span></button>`).join(''); }
-function renderSheetLink(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; }
-  const mk=e.material_key; const curIdv=(typeof canonId==='function')?canonId(mk):null; const cur=(typeof canonOf==='function')?canonOf(mk):null;
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">🧬 Material zuordnen</div>`;
-  h+=`<p class="why-help">Ordne dieses Material seinem echten Produkt-Stammsatz zu (Name, Foto, Maße, Eigenschaften). Der Eintrag im Standard bleibt — er bekommt die destillierte Identität. Jederzeit lösbar.</p>`;
-  h+=`<button class="scan-cta" style="margin:2px 0 10px" onclick="matManage()">🧬 Material verwalten — scannen, Foto, Maße, Eigenschaften</button>`;
-  if(cur){ h+=`<div class="why-row"><span class="why-src">Aktuell</span><span class="why-val">${esc(cur.name||cur.ref||cur.gtin)}</span></div>
-    <div class="sheet-pick"><button class="sheet-pick-btn" data-g="${esc(curIdv)}" onclick="matLinkShow(this.dataset.g)">Produkt anzeigen</button><button class="sheet-pick-btn" onclick="matLinkClear()">Verknüpfung lösen</button></div>`; }
-  h+=`<div class="sheet-title" style="font-size:14px;margin-top:6px">Produkt wählen</div>
-    <input type="text" id="matLinkQ" class="txtinp" style="width:100%" placeholder="Produkt suchen (Name, REF, Hersteller …)" oninput="matLinkFilter(this.value)">
-    <div class="sheet-pick" id="matLinkList" style="margin-top:8px">${matLinkListHTML(_matProdList(),'')}</div>
-    <button class="sheet-pick-btn" onclick="matLinkNew()">＋ Neuer Stammsatz aus diesem Material</button>
-    <button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
-  $('sheet').innerHTML=h; }
+/* Die frühere Verknüpfungs-Oberfläche (renderSheetLink & Zubehör) ist
+   entfernt. Sie war die letzte Stelle, an der die Naht des Datenmodells in
+   der Bedienung stand — „Produkt wählen", „Verknüpfung lösen", eine eigene
+   Suchliste — und seit „🧬 Material öffnen" führte kein Weg mehr dorthin.
+   Toter Code, der aussieht, als sei er in Benutzung, ist eine Falle für den
+   nächsten, der ihn liest. Das Lösen einer Zuordnung bleibt möglich:
+   Verwaltung → 🧬 Materialzusammenführung, Zuordnung auf „—" setzen. */
+
 /* Öffnet aus dem Standard heraus den EINEN zentralen Material-Editor
    (materialhub.js) für dieses Vorkommen — legt bei Bedarf den Stammsatz an. */
 function matManage(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; } const mk=e.material_key; showSheet(false); if(typeof openMaterial==='function') openMaterial(mk); }
-function matLinkFilter(q){ const box=$('matLinkList'); if(box) box.innerHTML=matLinkListHTML(_matProdList(),q); }
-function matLinkPick(id){ const e=sheetEntry; if(!e||!e.material_key||!id) return; matLinkTo(e.material_key,id); showSheet(false); if(typeof buildMaterialIndex==='function') buildMaterialIndex(); toast('Verknüpft — destilliert'); reRenderDetail(); }
-function matLinkClear(){ const e=sheetEntry; if(!e||!e.material_key) return; matUnlink(e.material_key); showSheet(false); toast('Verknüpfung gelöst'); reRenderDetail(); }
-function matLinkShow(id){ showSheet(false); if(typeof openScanItem==='function') openScanItem(id,false); }
-function matLinkNew(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; }
-  const nm=(qeGet(e,sheetCid,'name')!==undefined?qeGet(e,sheetCid,'name'):e.anzeige_text)||'';
-  const id=matCreateStamm(nm); if(!id){ showSheet(false); return; }
-  matLinkTo(e.material_key,id); showSheet(false);
-  if(typeof openScanItem==='function') openScanItem(id,true);   /* direkt zum Ausfüllen öffnen */ }
 function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!e||!cid) return;
   const tgt=DB.standards.find(s=>s.id===targetSid); if(!tgt||!tgt.rubriken[targetRi]){ toast('Ziel nicht gefunden',true); return; }
   if(cid.indexOf('new|')===0){

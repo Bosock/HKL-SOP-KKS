@@ -701,6 +701,44 @@ testbar. `sortBeenden()` räumt den Modus beim Verlassen der Rubrik still auf
 (aus `setMode()` und `openStandard()`) — er ist ein Arbeitszustand wie ein
 offenes Formular, kein Merkmal der Rubrik.
 
+## Wer räumt welchen Zwischenspeicher? (Systemanalyse 06.08.2026)
+
+Der teuerste Fehler dieser Art war unsichtbar: `buildMaterialIndex()` verwarf
+den **Zerlegungs-Speicher** (`matKeyCache` in `features/matkey.js`) und rechnete
+danach die Zerlegung aller 4.475 Zeilen neu. Die Funktion läuft nach fast jedem
+Speichern — **gemessen 300 ms** auf einem schnellen Rechner, also gut eine
+Sekunde auf dem Tablet im Saal. Nach der Umstellung: **2,8 ms**.
+
+Der Vertrag lautet jetzt:
+
+| Speicher | hängt an | wird geräumt in |
+|---|---|---|
+| `matKeyCache` / `matKeyZerlCache` / `matKeyAltCache` | **Positionen** (nach `cid` indiziert) und `ZERLDB` | `rebuildDB()` · `zerlBestaetigen()` / `zerlVerwerfen()` · `hydrateVars()` |
+| `matStdMapCache`, `mcRowCache`, `mcEntryCache`, `pfCache`, `ankCache` | dem abgeleiteten Bestand | `invalidateMatCaches()`, also bei jedem `buildMaterialIndex()` |
+| `bauVorkCache`, `frgCache` | dem Bestand | `rebuildDB()` |
+
+Eine Regel, ein Preis oder ein Häkchen ändern die **Zerlegung** nicht — nur die
+abgeleiteten Listen. Deshalb gehören die beiden Gruppen auseinander.
+`e2e/ausbau.js` hält den Vertrag fest: Nach einer Löschung, die alle folgenden
+Zeilen verschiebt, muss der gecachte Schlüssel dem frisch gerechneten gleichen.
+
+## Sechste Maschinenprüfung: Verdrahtung
+
+`scripts/pruefungen/verdrahtung.js` (in `npm run check`) prüft vier Dinge, bei
+denen **nichts kaputtgeht** — es passiert einfach nichts:
+
+1. **Doppelte globale Namen** — alle Module teilen einen Namensraum; die
+   spätere Definition gewinnt lautlos. Duldet nichts.
+2. **Schaltflächen ohne Ziel** — `onclick="machWas()"` ohne `machWas()`.
+   Duldet nichts.
+3. **Funktionen ohne Verwendung** — zweimal war das hier keine tote Last,
+   sondern eine *vergessene Verdrahtung* (`pbScopeAlle`, `merkAbdeckung`).
+   Ratsche über `altlasten.json → toteFunktionen`.
+4. **Speicher-Schlüssel ohne Geräte-Teilung** — was nicht in `SHARED_KEYS`
+   steht, wirkt nur auf einem Gerät. Wer das will, begründet es in
+   `altlasten.json → geraetelokal`; eine Begründung ohne Schlüssel meldet
+   sich ebenfalls.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

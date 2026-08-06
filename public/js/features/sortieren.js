@@ -84,7 +84,17 @@ function sortAus(){
    Arbeitszustand wie ein offenes Formular, kein Merkmal der Rubrik: Wer später
    zurückkommt, will die normale Ansicht sehen und nicht rätseln, warum die
    Zeilen anders aussehen. */
-function sortBeenden(){ sortRi = null; sortZug = null; }
+function sortBeenden(){ sortRi = null; sortZiehAbmelden(); sortZug = null; }
+/* Die Dokument-Ereignisse wieder abnehmen. Wichtig auch beim Verlassen MITTEN
+   im Zug: Ohne das bliebe je abgebrochenem Zug ein Paar Zuhörer am Dokument
+   hängen. Sie täten nichts (sortZug ist null), aber sie sammelten sich an —
+   und ein Zuhörer, den niemand mehr abnimmt, ist der Anfang jedes Lecks. */
+function sortZiehAbmelden(){
+  if(typeof document==='undefined' || !document.removeEventListener) return;
+  document.removeEventListener('pointermove', sortZiehen);
+  document.removeEventListener('pointerup', sortZiehEnde);
+  document.removeEventListener('pointercancel', sortZiehEnde);
+}
 
 /* ═══════════ 3. Die Gruppen ═══════════ */
 
@@ -248,9 +258,7 @@ function sortZiehEnde(ev){
   if(!sortZug) return;
   if(ev && ev.pointerId!==undefined && ev.pointerId!==sortZug.id) return;
   const { el, box, okey } = sortZug;
-  document.removeEventListener('pointermove', sortZiehen, { passive:false });
-  document.removeEventListener('pointerup', sortZiehEnde);
-  document.removeEventListener('pointercancel', sortZiehEnde);
+  sortZiehAbmelden();
   el.classList.remove('zieht');
   sortZug = null;
   const cids = [...box.querySelectorAll('.srt-zeile')].map(z=>z.dataset.cid).filter(Boolean);

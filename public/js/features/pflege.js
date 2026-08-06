@@ -653,7 +653,7 @@ function pflegePanelHTML(){
 
   const head = (typeof vsum==='function')
     ? vsum('🧹','Pflege-Weg','Die Schritte, die ein Material durchläuft — Wortlaut, Reihenfolge, an/aus',
-           st.gesamt ? (st.fertig+'/'+st.gesamt+' fertig') : '')
+           [pflGeaendert()?'angepasst':'', st.gesamt?(st.fertig+'/'+st.gesamt+' fertig'):''].filter(Boolean).join(' · '))
     : `<summary>🧹 Pflege-Weg</summary>`;
 
   return `<details class="vpanel" data-keys="pflege pflegeweg material aufräumen aufraeumen etikett scannen foto lagerort schritte durchgehen systematisch">

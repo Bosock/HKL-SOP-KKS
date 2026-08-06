@@ -293,6 +293,8 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | Bausteine in eine Rubrik einfügen | In der Rubrik: 🧱 Bausteine einfügen (Ankreuzen) |
 | Einen neuen Standard aus Bausteinen aufbauen | ＋ Neuer Standard → dort die Bausteine ankreuzen; jeder landet in seiner Heimatrubrik (fehlt sie, entsteht sie) |
 | Eine Zeile einfügen, ohne sie abzutippen | In der Rubrik: ☑ Ankreuzen statt Abtippen — der ganze Bestand zur Auswahl, mehrere auf einmal |
+| Eine Baustein-Kategorie umbenennen oder entfernen | Verwaltung → ⛓️ Bausteine → in der Kategorie-Leiste „✎ ändern" |
+| Alle Felder einer Änderung gleich weit gelten lassen | Im Prüfblatt: „Für alle Zeilen dieselbe Reichweite …" |
 | Die Reihenfolge einer Rubrik ändern | In der Rubrik: ↕ Reihenfolge ändern → am Griff ⠿ ziehen oder ⤒ ⬆ ⬇ ⤓ drücken, dann „✓ Fertig" |
 | Den Stand endgültig machen | ⋯ Standard → 📚 Stand festschreiben |
 | Alle Materialien systematisch durchgehen | Materialzentrale → 🧹 Pflege-Weg · oder ⋯ an der Zeile → Pflege-Weg ab hier · oder ⋯ Standard → für diesen Standard |
