@@ -1326,3 +1326,26 @@
 /* Bilanz der Baustein-Auswahl im Formular „Neuer Standard". */
 .bau-bilanz { margin-top:9px; padding:8px 11px; border-radius:10px; font-size:12.5px; font-weight:640;
   background:var(--surface-2); border:1px solid var(--line); color:var(--text-dim); }
+
+/* ═══════════ Reihenfolge ändern (Sortiermodus) ═══════════ */
+.srt-kopf p { margin-top:4px; }
+.srt-gruppe { margin:12px 0; }
+.srt-titel { font-size:12.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--text-dim); padding:0 4px 6px; display:flex; align-items:center; gap:8px; }
+.srt-n { font-weight:700; opacity:.7; text-transform:none; letter-spacing:0; }
+.srt-zeile { display:flex; align-items:center; gap:9px; padding:8px 10px; margin-bottom:6px;
+  border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.srt-zeile.zieht { border-color:var(--accent); background:rgba(61,155,224,.14); opacity:.92; }
+.srt-griff { flex:0 0 40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--text-dim); font-size:17px; line-height:1;
+  cursor:grab; touch-action:none; user-select:none; }
+.srt-griff:active { cursor:grabbing; }
+.srt-farbe { flex:0 0 6px; height:26px; border-radius:3px; }
+.srt-text { flex:1; min-width:0; font-size:14px; font-weight:600; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.srt-menge { display:inline-block; font-size:11.5px; font-weight:800; padding:1px 6px; margin-right:7px;
+  border-radius:7px; background:var(--surface-2); color:var(--text-dim); }
+.srt-akt { flex:0 0 auto; display:flex; gap:4px; }
+.srt-akt button { width:34px; height:36px; border-radius:9px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--text); font-size:13px; }
+@media (max-width:420px){ .srt-akt button { width:30px; } .srt-text { font-size:13px; } }

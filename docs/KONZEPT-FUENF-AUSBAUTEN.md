@@ -908,6 +908,7 @@ K8  Bereiche                  zweite Sicht + zweite Sicht in der Rüstliste
 K9  Alternativen              Austauschgruppen + Verfahrenszweige
 K5  Bausteine kuratiert       Sammelmappe, Rubrikbindung, Kategorien
     · Ankreuzen                beim Anlegen eines Standards + je Rubrik
+    · Reihenfolge ziehen       eigener Sortiermodus je Rubrik
 K10 Fassung festschreiben
 K4  Material ohne 🔗          Schritt 1: Naht aus der Bedienung
     · Pflege-Weg              Schritt 2: die Klammer um die vier Werkzeuge
@@ -931,6 +932,7 @@ dass die Maske davon wissen muss.
 | K4/Pflege-Weg | Gruppierung nach dem kanonischen Schlüssel · „fertig" wird abgelesen, nie gespeichert · jede Kette endet wieder im Weg (E2E: Editor **und** Aufräum-Assistent) · ausgeblendeter Schritt fällt aus Anzeige **und** Rechnung |
 | K5 | Keine Vorschlagsliste im Bildschirm · jeder Baustein hat Kategorien oder ausdrücklich keine |
 | K5/Ankreuzen | Jedes Material steht genau EINMAL zur Auswahl · Material und Handgriffe werden nie vermischt · ein angekreuzter Eintrag trägt denselben Materialschlüssel wie sein Vorbild · ein Baustein ohne Heimatrubrik geht nicht verloren |
+| Sortieren | Nach jeder Umordnung steht dieselbe Menge da (keine Kennung doppelt, keine verloren) · die Ausgangsliste wird nie verändert · über eine Gruppengrenze hinweg wandert nichts · ein echter Zug (Zeiger-Ereignisse) landet im geteilten Zustand |
 
 ### Was in jedem Fall konfigurierbar bleibt (A7)
 

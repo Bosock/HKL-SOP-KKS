@@ -1,6 +1,7 @@
 /* ============ Ebene 2: Rubriken ============ */
 function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id); if(!s){ toast('Standard nicht gefunden',true); return; }
   curStd=s;
+  if(typeof sortBeenden==='function') sortBeenden();   /* Sortiermodus gilt nur, solange man in der Rubrik steht */
   if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} }
     if(typeof noteUsage==='function') noteUsage(id);
     if(typeof popupFire==='function') popupFire({ ereignis:'standard-oeffnen', titel:stdTitel(s), sid:id }); }

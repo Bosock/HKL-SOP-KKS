@@ -676,6 +676,31 @@ und landet dort. Fehlt sie im frischen Standard, legt
 `bauRubrikTyp()` an den Zeilen abliest. Ohne Heimat geht der Baustein in die
 erste Rubrik statt verloren (Grundsatz ②).
 
+## Reihenfolge ziehen (`features/sortieren.js`)
+
+Zweite, ruhige Ansicht derselben Rubrik (`sortRi` = Rubrik-Index, `null` = aus).
+`openRubrik()` zweigt ganz oben dorthin ab; die Eintragszeile ist schon
+dreifach belegt (tippen = abhaken, halten = ⋯-Menü, eigene Schalter), ein
+viertes Verhalten darauf wäre ein Ratespiel.
+
+`sortGruppen(idx)` bildet genau die Einheiten, die EINE gespeicherte
+Reihenfolge haben: bei Material/Geräten die Unterkategorie
+(`collectGroupCids`), sonst der Abschnitt (`ablaufSegments`). Über eine
+Gruppengrenze hinweg lässt sich deshalb nichts ziehen — das wäre ein Wechsel
+der Unterkategorie bzw. ein Verschieben, nicht eine Sortierung.
+
+Gezogen wird über Zeiger-Ereignisse mit echtem `insertBefore`; am Ende wird die
+DOM-Folge abgelesen und über `sortSchreiben()` nach `ENTORD` geschrieben.
+**Die Ereignisse hängen am `document`, nicht am Griff:** Ein Knoten, der beim
+Ziehen umgehängt wird, verliert seine Zeigerbindung (`setPointerCapture`, bei
+Berührung die stillschweigende Bindung) — danach käme kein `pointerup` mehr an,
+der Zug endete nie und nichts würde gespeichert.
+
+Die reine Umordnung (`sortVerschieben`, `sortRang`) ist ohne Bildschirm
+testbar. `sortBeenden()` räumt den Modus beim Verlassen der Rubrik still auf
+(aus `setMode()` und `openStandard()`) — er ist ein Arbeitszustand wie ein
+offenes Formular, kein Merkmal der Rubrik.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

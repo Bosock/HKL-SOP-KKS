@@ -147,6 +147,10 @@ function entryCardHTML(e,cid,isMatGer){
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
+  /* Sortiermodus: eine zweite, ruhige Ansicht derselben Rubrik. Die
+     Eintragszeile ist schon dreifach belegt (tippen, halten, Schalter) — ein
+     viertes Verhalten darauf wäre ein Ratespiel (features/sortieren.js). */
+  if(typeof sortAktivFuer==='function' && sortAktivFuer(idx)){ sortRender(idx); return; }
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
   /* Bilder an der Rubrik selbst (features/medien.js): ein Übersichtsfoto des
      Tisches gehört an die Rubrik, nicht an eine einzelne Zeile. */
@@ -250,12 +254,14 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
      (features/bausteine.js). */
   const bauBtn=(ADMIN&&typeof bauEinfuegenSheet==='function')
     ?`<button class="add-entry-btn" data-s="${esc(curStd.id)}" data-r="${idx}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')">🧱 Bausteine einfügen</button>`:'';
+  const sortBtn=(ADMIN&&typeof sortAn==='function')
+    ?`<button class="add-entry-btn" data-r="${idx}" onclick="sortAn(+this.dataset.r)">↕ Reihenfolge ändern</button>`:'';
   const sectionBtn=ADMIN?(isMatGer
     ?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`
     :`<button class="add-entry-btn" onclick="addSegSectionUI(${idx})">＋ Abschnitt (Überschrift)</button>`):'';
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+bauBtn+sectionBtn+adoptBtn;
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn+bauBtn+sortBtn+sectionBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */
@@ -349,6 +355,9 @@ function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete che
   if(checks[cid] && !store.get('hkl_hint_daily')){ store.set('hkl_hint_daily','1'); toast('Häkchen gelten für heute – morgen starten sie automatisch leer.'); } }
 
 function goBack(){ if(formCtx){ closeForm(); return; }
+  /* Der Sortiermodus ist eine Ebene für sich: ‹ verlässt ihn, statt aus der
+     Rubrik herauszuspringen — sonst stünde man plötzlich zwei Ebenen höher. */
+  if(typeof sortAktiv==='function' && sortAktiv()){ sortAus(); return; }
   /* Neue Ansichten (Anleitungen, Pop-up-Verwaltung, Varianten): jeweils genau
      eine Ebene zurück, statt bis zur Übersicht durchzufallen. */
   const act=(id)=>{ const el=$(id); return el&&el.classList.contains('active'); };
