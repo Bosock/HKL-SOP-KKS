@@ -437,6 +437,7 @@ function scanMerkeHerkunft(){
   /* Wechsel zwischen Ansicht und Bearbeiten: die ursprüngliche Herkunft gilt weiter. */
   if(id==='scr-scan-item') return;
   if(id==='scr-scan') scanHerkunft='hub';
+  else if(id==='scr-pflege') scanHerkunft='pflege';
   else if(id==='scr-care') scanHerkunft='zentrale';
   else if(id==='scr-catalog') scanHerkunft='katalog';
   else if(id==='scr-detail'||id==='scr-rubriken') scanHerkunft='standard';
@@ -449,6 +450,10 @@ function scanZurueck(){
   switch(scanHerkunft){
     case 'hub':
       if(typeof openScanHub==='function'){ openScanHub(); return true; }
+      break;
+    case 'pflege':
+      /* Der Pflege-Weg hält den Platz: dasselbe Material, derselbe Umfang. */
+      if(typeof pflegeRueckkehr==='function' && pflegeRueckkehr()) return true;
       break;
     case 'katalog':
       if(typeof setMode==='function'){ setMode('catalog'); return true; }
@@ -697,7 +702,13 @@ function saveScanItem(gArg){
      schon beim Öffnen) das Vorkommen mit dem Stammsatz verknüpfen. */
   if(scanPendingLinkKey && typeof matLinkTo==='function'){ matLinkTo(scanPendingLinkKey, g); scanPendingLinkKey=null; if(typeof buildMaterialIndex==='function') buildMaterialIndex(); }
   toast('Produkt gespeichert');
-  setTimeout(()=>{ openScanHub(); }, 500);
+  /* Zurück dorthin, wo der Editor geöffnet wurde. Im Pflege-Weg ist das
+     zwingend: Wer dort ein Foto ergänzt, will das nächste Material sehen und
+     nicht in der Produktliste landen. */
+  setTimeout(()=>{
+    if(scanHerkunft==='pflege' && typeof pflegeRueckkehr==='function' && pflegeRueckkehr()) return;
+    openScanHub();
+  }, 500);
 }
 function deleteScanItem(gArg){
   if(!ADMIN){ promptLoginThen(()=>deleteScanItem(gArg)); return; }
@@ -734,7 +745,15 @@ function scanMerkViewHTML(r){
   const luecken = klasse ? merkLuecken(klasse, liste, MERKKAT) : [];
   const luHtml = luecken.length
     ? `<p class="hint">Noch nicht erfasst: ${esc(luecken.map(l=>l.label).join(' · '))}</p>` : '';
-  return `<div class="flabel" style="margin-top:12px">MERKMALE${kl?(' · '+esc(kl.label)):''}</div>${zeilen||'<p class="hint">Noch keine Merkmale erfasst.</p>'}${luHtml}`;
+  /* Die Zahl dazu — „7 von 12 Merkmalen erfasst". merkAbdeckung() war dafür
+     gebaut und angeschrieben, aber nie angezeigt: Eine Lückenliste ohne
+     Bezugsgröße sagt nicht, ob man am Anfang oder fast fertig ist. */
+  let ab = '';
+  if(klasse && typeof merkAbdeckung==='function'){
+    const a = merkAbdeckung(klasse, liste, MERKKAT);
+    if(a.soll) ab = `<p class="hint"><b>${a.ist} von ${a.soll}</b> Merkmalen erfasst (${a.anteil} %)</p>`;
+  }
+  return `<div class="flabel" style="margin-top:12px">MERKMALE${kl?(' · '+esc(kl.label)):''}</div>${zeilen||'<p class="hint">Noch keine Merkmale erfasst.</p>'}${ab}${luHtml}`;
 }
 
 /* Ein Eingabefeld je Merkmal — passend zum Typ. Geschlossene Wertelisten und

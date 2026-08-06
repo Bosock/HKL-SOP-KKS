@@ -153,8 +153,6 @@ function zerlVerwerfen(cid){
   if(cid in ZERLDB){ delete ZERLDB[cid]; saveZerlDB(); matKeyCacheLeeren();
     if(typeof buildMaterialIndex==='function') buildMaterialIndex(); }
 }
-/* Wie viele Stellen hat ein Mensch schon bestätigt? Für die Fortschrittsanzeige. */
-function zerlBestaetigtAnzahl(){ return Object.keys(ZERLDB).length; }
 
 /* ═══ Auswertung über den Bestand ════════════════════════════ */
 

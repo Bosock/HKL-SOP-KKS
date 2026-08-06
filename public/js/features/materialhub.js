@@ -26,10 +26,27 @@
    berechnet (Übersicht, Suche, Zentrale) — bei 4.475 Einträgen unnötig teuer.
    buildMaterialIndex() verwirft den Cache, wenn sich die Daten ändern. */
 let matStdMapCache=null;
+/* WAS HIER BEWUSST NICHT MEHR STEHT: matKeyCacheLeeren().
+   Der Zerlegungs-Speicher (features/matkey.js) hing früher hier mit drin. Das
+   war teuer und an der falschen Stelle: buildMaterialIndex() ruft diese
+   Funktion und läuft nach FAST JEDEM Speichern — die Zerlegung aller 4.475
+   Zeilen wurde dabei jedes Mal neu gerechnet. Gemessen: 300 ms je Speichern
+   auf einem schnellen Rechner, also gut eine Sekunde auf dem Tablet im Saal.
+
+   Die Zerlegung hängt an genau zwei Dingen: an der POSITION einer Zeile (der
+   Speicher ist nach cid indiziert) und an den bestätigten Entscheidungen
+   (ZERLDB). Beide haben ihre eigene Stelle:
+     · Positionen ändern sich in rebuildDB()      → räumt dort auf
+     · ZERLDB ändert sich in zerlBestaetigen()/zerlVerwerfen() → räumen selbst auf
+     · und beim Sync in hydrateVars(), wenn ZERLDB vom anderen Gerät kommt
+   Eine Regel, ein Preis oder ein Häkchen ändern die Zerlegung nicht. */
 function invalidateMatCaches(){ matStdMapCache=null;
-  if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
   if(typeof mcRowCache!=='undefined') mcRowCache=null;
-  if(typeof mcEntryCache!=='undefined') mcEntryCache=null; }
+  if(typeof mcEntryCache!=='undefined') mcEntryCache=null;
+  /* Beide leiten sich aus demselben Bestand ab (Pflege-Weg, Ankreuz-Wähler) —
+     sie müssen mit fallen, sonst zeigt die App gerechnete Zahlen von gestern. */
+  if(typeof pfCacheLeeren==='function') pfCacheLeeren();
+  if(typeof ankCacheLeeren==='function') ankCacheLeeren(); }
 function matStdMap(){ if(matStdMapCache) return matStdMapCache;
   const m={};
   if(typeof DB==='undefined'||!DB||!DB.standards) return m;
@@ -40,10 +57,18 @@ function matStdMap(){ if(matStdMapCache) return matStdMapCache;
   matStdMapCache=m; return m; }
 
 /* Seed für einen neuen Stammsatz aus den Alt-Pflegedaten (Foto, Lagerort,
-   Hersteller, REF, Verwendung, Preis) — verlustfreie Übernahme. */
+   Hersteller, REF, Verwendung, Preis) — verlustfreie Übernahme.
+   Gelesen wird über die Brücke (features/matkey.js): Die Alt-Speicher sind
+   nach dem ROHEN material_key indiziert; wer mit dem kanonischen Schlüssel
+   kommt (Pflege-Weg, Zerlegung), fand sie vorher still nicht. matKeyLesen
+   prüft zuerst den Schlüssel selbst und erst dann die Alt-Schreibweisen —
+   für Aufrufe mit dem alten Schlüssel ändert sich also nichts. */
 function matSeedFromCare(key,name){
-  const c=(typeof careMem==='object'&&careMem&&careMem[key])||{};
-  const p=(typeof PROD==='object'&&PROD&&PROD[key])||{};
+  const lies=(store)=>{ if(!store) return {};
+    if(typeof matKeyLesen==='function'){ const v=matKeyLesen(store,key); if(v) return v; return store[key]||{}; }
+    return store[key]||{}; };
+  const c=lies(typeof careMem==='object'?careMem:null)||{};
+  const p=lies(typeof PROD==='object'?PROD:null)||{};
   const seed={}; if(name) seed.name=name;
   if(p.hersteller) seed.hersteller=p.hersteller;
   if(p.ref) seed.ref=p.ref;
@@ -87,13 +112,22 @@ function matHubStatusTag(s){
    transient vorbereiten (aus Name + Alt-Pflegedaten) — er wird erst BEIM
    SPEICHERN angelegt und verknüpft (scanPendingLinkKey), damit bloßes Öffnen
    die Datenbank nicht mit leeren Stammsätzen füllt. */
-function openMaterial(key){
-  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>openMaterial(key)); return; } }
+/* `nameHinweis` ist für Aufrufe mit dem KANONISCHEN Schlüssel gedacht: MAT_INDEX
+   ist nach dem rohen material_key indiziert, ein kanonischer Schlüssel steht
+   dort nicht — ohne den Hinweis stünde der Schlüssel selbst als Produktname in
+   der Maske. */
+function openMaterial(key, nameHinweis){
+  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>openMaterial(key,nameHinweis)); return; } }
   const id=(typeof canonId==='function')?canonId(key):null;
   if(id){ if(typeof openScanItem==='function') openScanItem(id,true); return; }
   const m=(typeof MAT_INDEX!=='undefined'?MAT_INDEX:[]).find(x=>x.key===key);
-  const name=(m&&m.name)||key;
+  const name=(m&&m.name)||nameHinweis||key;
   const gid='m:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  /* Herkunft festhalten wie in openScanItem. Dieser Zweig hat sie früher
+     übersprungen — aus der Materialzentrale fiel das nicht auf, weil deren
+     Vorgabe zufällig richtig war. Aus dem Pflege-Weg heraus hätte man nach
+     dem Speichern in der Produktliste gestanden. */
+  if(typeof scanMerkeHerkunft==='function') scanMerkeHerkunft();
   if(typeof scanPendingLinkKey!=='undefined') scanPendingLinkKey=key;
   if(typeof renderScanItemForm==='function'){
     renderScanItemForm(Object.assign({ gtin:gid, manual:true, props:{} }, matSeedFromCare(key,name)));

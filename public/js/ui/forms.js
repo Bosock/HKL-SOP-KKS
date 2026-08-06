@@ -250,60 +250,62 @@ function entryFormChanges(cid,f){ const e=findEntry(cid); if(!e) return []; cons
   const nWhy=(f.why||'').trim()||null; if((nWhy||'')!==(cur.why||'')) ch.push({prop:'why',value:nWhy,vorher:(cur.why||null)});
   const nSyn=parseSyn(f.synonyms); const curSyn=cur.synonyms?parseSyn(cur.synonyms):[]; if(JSON.stringify(nSyn)!==JSON.stringify(curSyn)) ch.push({prop:'synonyms',value:(nSyn.length?nSyn:null),vorher:(curSyn.length?curSyn:null)});
   return ch; }
-/* Reichweiten-Sheet fürs Bearbeiten-Formular: vier Stufen mit Treffervorschau
-   (📍 nur hier · 📄 Standard · 🗂 Eingriffsgruppe · 🌐 überall). Dieselbe
-   Governance-Treppe wie im Schnellmenü (askScope), nur für mehrere geänderte
-   Eigenschaften auf einmal. */
-function renderEditScopeSheet(cid){ const e=findEntry(cid); if(!e){ showSheet(false); return; }
-  const sid=cidStd(cid); const grp=sid?stdGruppeById(sid):null;
-  const hs=sid?ruleHits(e.material_key,{art:'standard',wert:sid}):null;
-  const hg=grp?ruleHits(e.material_key,{art:'gruppe',wert:grp}):null;
-  const ha=ruleHits(e.material_key,{art:'alle'});
-  const props=((editScopePending&&editScopePending.changes)||[]).map(c=>rulePropLabel(c.prop)).join(', ');
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll die Änderung gelten?</div>`;
-  h+=`<div class="sheet-chips"><span class="schip">✎ ${esc(props||'Änderung')}</span><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
-  h+=`<button class="sheet-pick-btn" onclick="applyEditScope('cid')">📍 Nur hier <span class="ps-sub">· nur an dieser Stelle</span></button>`;
-  if(sid&&hs) h+=`<button class="sheet-pick-btn" onclick="applyEditScope('std')">📄 In diesem Standard <span class="ps-sub">· betrifft ${hs.vorkommen}× hier</span></button>`;
-  if(grp&&hg) h+=`<button class="sheet-pick-btn" onclick="applyEditScope('grp')">🗂 In der Gruppe „${esc(grp)}" <span class="ps-sub">· betrifft ${hg.vorkommen}× in ${hg.standards.length} Standards</span></button>`;
-  h+=`<button class="sheet-pick-btn" onclick="applyEditScope('mat')">🌐 Überall <span class="ps-sub">· betrifft ${ha.vorkommen}× in ${ha.standards.length} Standards</span></button>`;
-  h+=`</div><button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
-  $('sheet').innerHTML=h; }
-/* Wendet alle geänderten Eigenschaften als Regeln in der gewählten Reichweite
-   an (EIN Schreibweg, journaliert, rücknehmbar). Weite Reichweiten (Gruppe/
-   überall) werden mit Trefferzahl bestätigt. */
-function applyEditScope(scope){ const p=editScopePending; if(!p){ showSheet(false); return; }
-  const e=findEntry(p.cid); if(!e||!e.material_key){ showSheet(false); return; }
-  const sid=cidStd(p.cid); const grp=sid?stdGruppeById(sid):null; let wo;
-  if(scope==='cid') wo={art:'stelle',wert:p.cid};
-  else if(scope==='std'){ if(!sid){ toast('Standard nicht bestimmbar',true); return; } wo={art:'standard',wert:sid}; }
-  else if(scope==='grp'){ if(!grp){ toast('Gruppe nicht bestimmbar',true); return; } wo={art:'gruppe',wert:grp}; }
-  else wo={art:'alle'};
-  if(scope==='grp'||scope==='mat'){ const hits=ruleHits(e.material_key,wo); const ziel=(scope==='grp')?('die Gruppe „'+grp+'"'):'ALLE Standards';
-    if(!confirm('Änderung für '+ziel+' anwenden?\n\nBetrifft '+hits.vorkommen+' Vorkommen in '+hits.standards.length+' Standard(s).\nRückgängig jederzeit: Verwaltung → 🧾 Regeln & Journal.')) return; }
-  p.changes.forEach(c=>{ addRule({art:'material',key:e.material_key}, wo, c.prop, c.value); });
-  if(wo.art==='stelle') p.changes.forEach(c=>clearLegacyAt(e,p.cid,'stelle',c.prop));
-  else if(wo.art==='alle') p.changes.forEach(c=>clearLegacyAt(e,p.cid,'alle',c.prop));
-  buildMaterialIndex(); computeUkList(); editScopePending=null; showSheet(false);
-  const b=formCtx&&formCtx.back; formCtx=null;
-  toast(scope==='cid'?'Gespeichert':'Sammel-Änderung übernommen — rücknehmbar unter 🧾 Regeln & Journal');
-  if(b) b(); else reRenderDetail(); }
+/* renderEditScopeSheet()/applyEditScope() sind entfernt. Das Prüfblatt
+   (features/reichweite.js) hat beides abgelöst: Es zeigt vorher/nachher UND
+   lässt JE FELD eine eigene Reichweite zu. Der alte Weg konnte nur EINE
+   Reichweite für alle geänderten Felder — und bestätigte weite Reichweiten
+   mit confirm(), das in installierten PWAs gar nicht erscheint (Grundsatz ⑧).
+   Zwei Schreibwege für denselben Vorgang wären auseinandergelaufen. */
 
 function deleteAddEntry(sid,ri,aid){ const key=sid+'|'+ri; const arr=ADDITIONS.entries[key]; if(!arr) return; ADDITIONS.entries[key]=arr.filter(x=>x._aid!==aid); if(!ADDITIONS.entries[key].length) delete ADDITIONS.entries[key]; saveAdditions(); rebuildDB(); buildMaterialIndex(); }
 
 /* ---- Eigene Standards ---- */
 function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id):null; const title=s?'Standard bearbeiten':'Neuer Standard';
+  /* Bausteine gibt es nur beim ANLEGEN zur Auswahl: Ein bestehender Standard
+     bekommt sie in der Rubrik selbst („🧱 Bausteine einfügen") — dort sieht
+     man, wohin sie kommen (features/bausteine.js). */
+  if(!s && typeof bauStdWahlLeeren==='function') bauStdWahlLeeren();
+  const bauBlock=(!s && typeof bauStdWahlHTML==='function')?bauStdWahlHTML():'';
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Titel</div><input class="loc-input" id="sTitel" placeholder="z. B. Koronarangiografie" value="${esc(s?s.titel:'')}"></div>
     <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" list="grpList" placeholder="z. B. HKL — vorhandene wählen oder neue tippen" value="${esc(s?s.gruppe:'Eigene')}">
     <datalist id="grpList">${distinctGroups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>
-    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik über „＋ Eintrag hinzufügen" hinzu.</p>
+    ${bauBlock}
+    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik hinzu — getippt über „＋ Eintrag hinzufügen" oder angekreuzt über „☑ Ankreuzen statt Abtippen".</p>
     <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStandardForm(${s?`'${esc(s.id)}'`:'null'})">Speichern</button></div>
   </div>`;
   const back=(mode==='admin')?(()=>{ renderAdmin(); show('scr-admin'); updateBar(); }):(()=>{ setMode('use'); renderStandards($('searchInput')?$('searchInput').value:''); show('scr-standards'); updateBar(); });
   formCtx={desc:{kind:'std'}, back};
   $('scr-form').innerHTML=h; show('scr-form'); setBar(title,mode==='admin'?'Verwaltung':'Neuer Standard',true); }
 function saveStandardForm(id){ const titel=$('sTitel').value.trim(); const gruppe=$('sGruppe').value.trim(); if(!titel){ toast('Bitte einen Titel eingeben',true); return; }
-  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); } else { addStandard(titel,gruppe); toast('Standard angelegt'); } closeForm(); }
+  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); closeForm(); return; }
+  const sid=addStandard(titel,gruppe);
+  /* Angekreuzte Bausteine gleich mit einsetzen — jeder in seine Heimatrubrik.
+     Die Rückmeldung nennt Zahlen, weil ein neu entstandener Rubrikname sonst
+     wie ein Versehen aussähe. */
+  const ids=(typeof bauStdWahlIds==='function')?bauStdWahlIds():[];
+  let meldung='Standard angelegt';
+  if(ids.length && typeof bauInStandard==='function'){
+    const b=bauInStandard(sid, ids);
+    if(b.zeilen) meldung+=' · '+b.bausteine+' Baustein'+(b.bausteine===1?'':'e')+' mit '+b.zeilen+' Zeilen übernommen';
+    if(b.neueRubriken.length) meldung+=' · neu angelegt: '+b.neueRubriken.join(', ');
+  }
+  if(typeof bauStdWahlLeeren==='function') bauStdWahlLeeren();
+  toast(meldung); closeForm(); }
+/* Sorgt dafür, dass ein selbst angelegter Standard eine Rubrik dieses Namens
+   HAT, und liefert ihren Index. Gibt es sie schon, wird nichts angelegt.
+   Gebraucht beim Übernehmen von Bausteinen: Der Baustein bringt seine
+   Heimatrubrik mit, der frische Standard kennt sie noch nicht. */
+function stdRubrikSicherstellen(sid, name, typ){
+  const nm=String(name||'').trim(); if(!nm) return -1;
+  const s=ADDITIONS.standards.find(x=>x.id===sid);
+  if(!s || !Array.isArray(s.rubriken)) return -1;
+  const i=s.rubriken.findIndex(r=>String(r.name||'').trim().toLowerCase()===nm.toLowerCase());
+  if(i>=0) return i;
+  const t=(typ==='material'||typ==='geraete'||typ==='ablauf')?typ:'sonstige';
+  s.rubriken.push({ name:nm, typ:t, sub_bereiche:[] });
+  saveAdditions(); rebuildDB();
+  return s.rubriken.length-1; }
 
 /* ---- Rubrik-Vorlagen (Name, Typ, Geltungsbereich) ---- */
 function openRubrikForm(id){ const t=id?RUBTPL.find(x=>x.id===id):null;

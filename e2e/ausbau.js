@@ -273,6 +273,90 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   })()`);
   r.check('ohne gepflegte Merkmale/Bereiche steht nichts Leeres herum', leer.keineChips && leer.keinBereich && leer.kopfDa);
 
+  /* ═══════════ 10. Befunde der Systemanalyse ═══════════ */
+  const analyse = await A.page.evaluate(`(async function(){
+    // (a) Prüfblatt: „für alle Zeilen dieselbe Reichweite"
+    const s = DB.standards[0];
+    let cid=null;
+    s.rubriken.some((rb,ri)=>{ if(rb.typ!=='material') return false;
+      return (rb.sub_bereiche||[]).some((sb,si)=>(sb.eintraege||[]).some((e,ei)=>{
+        if(!e||!e.material_key) return false; cid=cidOf(s.id,ri,si,ei); return true; })); });
+    curStd = s;
+    let alleKnopf=false, gesetzt=false;
+    if(cid){
+      pbOeffnen(cid, [{prop:'name',value:'A1',vorher:'x'},{prop:'mengeVal',value:'2x',vorher:null}], 'cid', ()=>{});
+      alleKnopf = document.getElementById('sheet').innerHTML.indexOf('Für alle Zeilen dieselbe Reichweite')>=0;
+      pbScopeAlleWahl();
+      const knopf = [...document.querySelectorAll('#sheet .sheet-pick-btn')].pop();
+      if(knopf) knopf.click();
+      gesetzt = new Set(PB.zeilen.map(z=>z.scope)).size===1 && PB.zeilen[0].scope!=='cid';
+      pbAbbrechen();
+    }
+    // (b) Baustein-Kategorien: umbenennen und entfernen
+    const k = bauKatAnlegen('E2E-Kat');
+    openBausteinAdmin();
+    const leisteVorher = document.getElementById('scr-bausteine').innerHTML;
+    bauUiKatVerwalten();
+    const verwaltungDa = document.getElementById('scr-bausteine').innerHTML.indexOf('bau-katverw')>=0;
+    bauUiKatFeld(k.key,'wort','E2E-Umbenannt');
+    const neuerName = (bauKatOf(k.key)||{}).wort;
+    const schluesselGleich = !!bauKatOf(k.key);
+    bauUiKatWeg(k.key);                     // erst fragen
+    const fragt = document.getElementById('scr-bausteine').innerHTML.indexOf('Wirklich?')>=0;
+    bauUiKatWeg(k.key);                     // dann tun
+    const weg = !bauKatOf(k.key);
+    // (c) Merkmals-Abdeckung im Produktblatt
+    let abdeckung = 'kein Katalog';
+    if(typeof MERKKAT!=='undefined' && MERKKAT && (MERKKAT.klassen||[]).length){
+      const kl = MERKKAT.klassen[0];
+      GTINDB['m:e2eabd'] = { gtin:'m:e2eabd', manual:true, name:'E2E', klasse:kl.id, merkmale:{} };
+      openScanItem('m:e2eabd', false);
+      const t = document.getElementById('scr-scan-item').textContent;
+      abdeckung = /von \\d+ Merkmalen erfasst/.test(t) ? 'da' : 'fehlt';
+      delete GTINDB['m:e2eabd'];
+    }
+    return { alleKnopf, gesetzt, verwaltungDa, neuerName, schluesselGleich, fragt, weg, abdeckung,
+      leisteVorher: leisteVorher.length>0 };
+  })()`);
+  r.check('Prüfblatt: „für alle Zeilen dieselbe Reichweite" ist erreichbar', analyse.alleKnopf);
+  r.check('… und setzt wirklich alle Zeilen auf eine Reichweite', analyse.gesetzt);
+  r.check('Baustein-Kategorien lassen sich verwalten', analyse.verwaltungDa);
+  r.check('… umbenennen, ohne den Schlüssel zu verlieren', analyse.neuerName === 'E2E-Umbenannt' && analyse.schluesselGleich);
+  r.check('… und entfernen — mit Rückfrage, ohne natives Fenster', analyse.fragt && analyse.weg);
+  r.check('Produktblatt nennt die Merkmals-Abdeckung („x von y erfasst")', analyse.abdeckung !== 'fehlt');
+
+  /* Der Zerlegungs-Speicher hängt an POSITIONEN. Er wird seit der
+     Systemanalyse nur noch in rebuildDB() verworfen (statt bei jedem
+     buildMaterialIndex — das kostete 300 ms je Speichern). Diese Prüfung hält
+     die Zusage fest: Nach einer Löschung, die alle folgenden Zeilen
+     verschiebt, stimmen die kanonischen Schlüssel weiterhin. */
+  const cache = await A.page.evaluate(`(function(){
+    const quelle = DB.standards[0];
+    const neuId = stdDuplicate(quelle.id, 'E2E Cache-Pruefung', 'E2E');
+    if(!neuId) return { kein:true };
+    const std = DB.standards.find(x=>x.id===neuId);
+    let ri=-1, si=-1;
+    (std.rubriken||[]).some((rb,i)=>(rb.sub_bereiche||[]).some((sb,j)=>{
+      if((sb.eintraege||[]).length>=3){ ri=i; si=j; return true; } return false; }));
+    if(ri<0) return { kein:true };
+    const vorher = std.rubriken[ri].sub_bereiche[si].eintraege
+      .map((e,ei)=>({ text:(e.anzeige_text||''), key: effMatKey(e, cidOf(neuId,ri,si,ei)) })).slice(1);
+    ownDeleteEntry(cidOf(neuId,ri,si,0));
+    const std2 = DB.standards.find(x=>x.id===neuId);
+    const nachher = std2.rubriken[ri].sub_bereiche[si].eintraege
+      .map((e,ei)=>({ text:(e.anzeige_text||''), key: effMatKey(e, cidOf(neuId,ri,si,ei)) }));
+    matKeyCacheLeeren();
+    const frisch = std2.rubriken[ri].sub_bereiche[si].eintraege
+      .map((e,ei)=>effMatKey(e, cidOf(neuId,ri,si,ei)));
+    return { kein:false, n:vorher.length,
+      textGleich: JSON.stringify(vorher.map(x=>x.text))===JSON.stringify(nachher.map(x=>x.text)),
+      keyGleich:  JSON.stringify(vorher.map(x=>x.key)) ===JSON.stringify(nachher.map(x=>x.key)),
+      wieFrisch:  JSON.stringify(nachher.map(x=>x.key))===JSON.stringify(frisch) };
+  })()`);
+  r.check(`nach einer Loeschung ruecken die Zeilen auf (${cache.n} geprueft)`, !cache.kein && cache.textGleich);
+  r.check('… und ihre kanonischen Schluessel wandern korrekt mit', cache.keyGleich);
+  r.check('DER SPEICHER-VERTRAG: gecacht = frisch gerechnet', cache.wieFrisch);
+
   r.check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);
 })().catch(e => { console.error('DRIVER', e); process.exit(1); });

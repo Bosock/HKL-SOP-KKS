@@ -291,7 +291,16 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | „RF oder Kryo" | In der Rubrik: ⑂ Verfahrenszweige einrichten |
 | Einen Baustein sammeln | ⋯ → ＋ In Baustein übernehmen, dann Verwaltung → ⛓️ Bausteine |
 | Bausteine in eine Rubrik einfügen | In der Rubrik: 🧱 Bausteine einfügen (Ankreuzen) |
+| Einen neuen Standard aus Bausteinen aufbauen | ＋ Neuer Standard → dort die Bausteine ankreuzen; jeder landet in seiner Heimatrubrik (fehlt sie, entsteht sie) |
+| Eine Zeile einfügen, ohne sie abzutippen | In der Rubrik: ☑ Ankreuzen statt Abtippen — der ganze Bestand zur Auswahl, mehrere auf einmal |
+| Eine Baustein-Kategorie umbenennen oder entfernen | Verwaltung → ⛓️ Bausteine → in der Kategorie-Leiste „✎ ändern" |
+| Alle Felder einer Änderung gleich weit gelten lassen | Im Prüfblatt: „Für alle Zeilen dieselbe Reichweite …" |
+| Die Reihenfolge einer Rubrik ändern | In der Rubrik: ↕ Reihenfolge ändern → am Griff ⠿ ziehen oder ⤒ ⬆ ⬇ ⤓ drücken, dann „✓ Fertig" |
 | Den Stand endgültig machen | ⋯ Standard → 📚 Stand festschreiben |
+| Alle Materialien systematisch durchgehen | Materialzentrale → 🧹 Pflege-Weg · oder ⋯ an der Zeile → Pflege-Weg ab hier · oder ⋯ Standard → für diesen Standard |
+| Welche Schritte der Pflege-Weg abfragt | Verwaltung → 🧹 Pflege-Weg (an/aus, Wortlaut, Untertitel, Symbol, Reihenfolge) |
+| Einen eigenen Pflege-Schritt („im Lagersystem angelegt") | Dasselbe Panel → ＋ Eigenen Schritt anlegen (wird je Material von Hand abgehakt) |
+| Einen Schritt, der für EIN Material keinen Sinn hat | Im Pflege-Weg an diesem Material auf „entfällt" |
 
 **Wenn du eine dieser Stellen im Code suchst und nicht findest:** Das ist
 Absicht. Die Wörter stehen in `public/data/bezeichnungen.json`, die Werte im

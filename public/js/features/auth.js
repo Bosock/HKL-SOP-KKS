@@ -44,10 +44,5 @@ function updateAuthUI() {
   }
 }
 
-function isAuthenticated() {
-  return !!currentGithubUser;
-}
-
-function getGithubUserId() {
-  return currentGithubUser?.id || null;
-}
+/* isAuthenticated()/getGithubUserId() entfernt: nie benutzt. Der Zustand
+   steht in `currentGithubUser`; zwei Hüllen darum waren eine Fassade. */

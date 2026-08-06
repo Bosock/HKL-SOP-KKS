@@ -42,7 +42,24 @@ function umgebung(standards){
     makeAddEntry: (f) => ({ anzeige_text:f.name, menge:f.menge||null, natur:f.nat,
       unterkategorie:f.uk||null, _added:true, _aid:f.aid }),
     esc: (s) => String(s),
+    $: () => null,
+    buildMaterialIndex: () => {},
+    /* Kategorien wie in der App: `beschaffbar` heißt „Ding, das man holt". */
+    natOf: (k) => ({ key:k, label:k, color:'#888',
+      beschaffbar: (k==='material' || k==='geraet') }),
+    rubName: (r) => r.name || '',
+    /* Legt im Zielstandard eine Rubrik an, wenn sie fehlt (in der App:
+       public/js/ui/forms.js). Hier nachgebaut, damit dieser Test nur die
+       Baustein-Seite prüft. */
+    stdRubrikSicherstellen: null,
   });
+  ctx.stdRubrikSicherstellen = (sid, name, typ) => {
+    const s = ctx.DB.standards.find(x => x.id === sid); if(!s) return -1;
+    const i = s.rubriken.findIndex(r => (r.name||'').toLowerCase() === String(name).toLowerCase());
+    if(i >= 0) return i;
+    s.rubriken.push({ name, typ, sub_bereiche:[] });
+    return s.rubriken.length - 1;
+  };
   /* findEntry/qeGet wie in der App — hier bewusst schlank nachgebaut. */
   vm.runInContext(`
     function findEntry(cid){ const p=String(cid).split('|');
@@ -59,7 +76,11 @@ function umgebung(standards){
       zeilen:bauSammlungZeilen, ausSammlung:bauAusSammlung, leeren:bauSammlungLeeren,
       katAnlegen:bauKatAnlegen, katListe:bauKatListe, katSchalten:bauKatSchalten,
       katLoeschen:bauKatLoeschen, hatKat:bauHatKat,
-      rubriken:bauRubriken, fuerRubrik:bauFuerRubrik, rubrikVon:bauRubrikVon
+      rubriken:bauRubriken, fuerRubrik:bauFuerRubrik, rubrikVon:bauRubrikVon,
+      rubrikTyp:bauRubrikTyp, rubrikIndex:bauRubrikIndex, inStandard:bauInStandard,
+      stdWahl:()=>bauStdWahl, stdSchalten:bauStdUiSchalten, stdIds:bauStdWahlIds,
+      stdLeeren:bauStdWahlLeeren, stdBilanz:bauStdBilanzText, stdHTML:bauStdWahlHTML,
+      einfuegen:bauEinfuegen, anlegen:bauAnlegen
     };`, ctx);
   return ctx;
 }
@@ -583,4 +604,123 @@ test('bauRubriken listet die Heimatrubriken der Bibliothek', () => {
   B.__kur.sammeln('b|0|0|0');
   B.__kur.ausSammlung('Zwei', []);
   assert.equal(B.__kur.rubriken().join(','), 'Materialien');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   4. Bausteine beim ANLEGEN eines Standards
+   Der Betreiber wollte beim Neuanlegen ankreuzen können — und die Bausteine
+   sollen dort landen, wo sie herkommen. Getestet wird deshalb weniger das
+   Einfügen (das kann bauEinfuegen längst) als die ZUORDNUNG: Findet ein
+   Baustein seine Heimatrubrik? Und wenn es sie nicht gibt?
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ein Zielstandard, wie ihn addStandard() anlegt: drei leere Rubriken. */
+function frisch(){ return { id:'neu', titel:'Neuer Standard', gruppe:'Eigene', rubriken:[
+  { name:'Saal und Geräte', typ:'geraete', sub_bereiche:[] },
+  { name:'Material', typ:'material', sub_bereiche:[] },
+  { name:'Ablauf', typ:'ablauf', sub_bereiche:[] } ] }; }
+
+test('die Rubrik-Art wird an den Zeilen abgelesen, nicht geraten', () => {
+  const B = umgebung([]);
+  assert.equal(B.__kur.rubrikTyp({ zeilen:[{natur:'material'},{natur:'material'},{natur:'handgriff'}] }), 'material');
+  assert.equal(B.__kur.rubrikTyp({ zeilen:[{natur:'geraet'},{natur:'geraet'}] }), 'geraete');
+  assert.equal(B.__kur.rubrikTyp({ zeilen:[{natur:'handgriff'},{natur:'handgriff'}] }), 'ablauf');
+  assert.equal(B.__kur.rubrikTyp({ zeilen:[] }), 'sonstige', 'ohne Zeilen wird nichts behauptet');
+  assert.equal(B.__kur.rubrikTyp({ zeilen:[{natur:'material',weg:true},{natur:'geraet'}] }), 'geraete',
+    'entfernte Zeilen zählen nicht mit');
+});
+
+test('ein Baustein landet in der Rubrik, aus der er stammt', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  B.__kur.sammeln('a|0|0|0'); B.__kur.sammeln('a|0|0|1');
+  const b = B.__kur.ausSammlung('Tischaufbau', []);
+  b.rubrik = 'Material';                       /* Heimat: die Materialrubrik */
+  const erg = B.__kur.inStandard('neu', [b.id]);
+  assert.equal(erg.bausteine, 1);
+  assert.equal(erg.zeilen, 2);
+  assert.equal(erg.neueRubriken.length, 0, 'die Rubrik gab es schon');
+  assert.ok(B.ADDITIONS.entries['neu|1'], 'Index 1 ist „Material"');
+  assert.equal(B.ADDITIONS.entries['neu|1'].length, 2);
+});
+
+test('fehlt die Heimatrubrik, entsteht sie — statt die Zeilen irgendwo abzuladen', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  B.__kur.sammeln('a|0|0|0');
+  const b = B.__kur.ausSammlung('Vorbereitung', []);
+  b.rubrik = 'Patientenvorbereitung';
+  const erg = B.__kur.inStandard('neu', [b.id]);
+  assert.equal(erg.neueRubriken.join(','), 'Patientenvorbereitung');
+  const ziel = B.DB.standards.find(s => s.id === 'neu');
+  assert.equal(ziel.rubriken.length, 4);
+  assert.equal(ziel.rubriken[3].name, 'Patientenvorbereitung');
+  assert.equal(ziel.rubriken[3].typ, 'material', 'die Art kommt von den Zeilen');
+  assert.equal(B.ADDITIONS.entries['neu|3'].length, 1);
+});
+
+test('ein Baustein ohne Heimat geht nicht verloren', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  B.__kur.sammeln('a|0|0|0');
+  const b = B.__kur.ausSammlung('Heimatlos', []);
+  b.rubrik = '';
+  const erg = B.__kur.inStandard('neu', [b.id]);
+  assert.equal(erg.zeilen, 1, 'lieber in die erste Rubrik als nirgends (Grundsatz ②)');
+  assert.equal(B.ADDITIONS.entries['neu|0'].length, 1);
+});
+
+test('mehrere Bausteine verteilen sich auf ihre jeweiligen Rubriken', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  B.__kur.sammeln('a|0|0|0');
+  const b1 = B.__kur.ausSammlung('Eins', []); b1.rubrik = 'Material';
+  B.__kur.sammeln('a|0|0|1'); B.__kur.sammeln('a|0|0|2');
+  const b2 = B.__kur.ausSammlung('Zwei', []); b2.rubrik = 'Ablauf';
+  const erg = B.__kur.inStandard('neu', [b1.id, b2.id]);
+  assert.equal(erg.bausteine, 2);
+  assert.equal(erg.zeilen, 3);
+  assert.equal(B.ADDITIONS.entries['neu|1'].length, 1, 'einer nach Material');
+  assert.equal(B.ADDITIONS.entries['neu|2'].length, 2, 'zwei nach Ablauf');
+});
+
+test('ein unbekannter Baustein wird still übergangen', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  const erg = B.__kur.inStandard('neu', ['gibtsnicht']);
+  assert.equal(erg.bausteine, 0);
+  assert.equal(erg.zeilen, 0);
+});
+
+test('ohne Auswahl passiert nichts', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  const erg = B.__kur.inStandard('neu', []);
+  assert.equal(erg.zeilen, 0);
+  assert.equal(Object.keys(B.ADDITIONS.entries).length, 0);
+});
+
+test('bauRubrikIndex vergleicht über den ANGEZEIGTEN Namen', () => {
+  const B = umgebung(mini().concat([frisch()]));
+  assert.equal(B.__kur.rubrikIndex('neu', 'Material'), 1);
+  assert.equal(B.__kur.rubrikIndex('neu', '  material  '), 1, 'Groß/klein und Leerraum egal');
+  assert.equal(B.__kur.rubrikIndex('neu', 'Gibt es nicht'), -1);
+  assert.equal(B.__kur.rubrikIndex('gibtsnicht', 'Material'), -1);
+});
+
+test('die Auswahl im Formular zählt ehrlich und lässt sich leeren', () => {
+  const B = umgebung(mini());
+  B.__kur.sammeln('a|0|0|0'); B.__kur.sammeln('a|0|0|1');
+  const b = B.__kur.ausSammlung('Tischaufbau', []); b.rubrik = 'Material';
+  assert.match(B.__kur.stdBilanz(), /Nichts angekreuzt/);
+  B.__kur.stdSchalten(b.id, true);
+  assert.equal(B.__kur.stdIds().length, 1);
+  assert.match(B.__kur.stdBilanz(), /1 Baustein · 2 Zeilen · 1 Rubrik/);
+  B.__kur.stdSchalten(b.id, false);
+  assert.equal(B.__kur.stdIds().length, 0);
+  B.__kur.stdSchalten(b.id, true);
+  B.__kur.stdLeeren();
+  assert.equal(B.__kur.stdIds().length, 0, 'ein neues Formular startet ohne Altlasten');
+});
+
+test('ohne Bausteine gibt es im Formular keinen leeren Block', () => {
+  const B = umgebung(mini());
+  assert.equal(B.__kur.stdHTML(), '', 'eine Überschrift ohne Inhalt wäre eine Frage ohne Antwort');
+  B.__kur.sammeln('a|0|0|0');
+  B.__kur.ausSammlung('Eins', []);
+  assert.match(B.__kur.stdHTML(), /Bausteine übernehmen/);
 });

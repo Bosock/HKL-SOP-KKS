@@ -623,6 +623,122 @@ zurückgenommen (eingearbeitet); die ganze Fassung bleibt verwerfbar.
 
 Die Quelldatei wird nie verändert (Grundsatz ⑦).
 
+## Pflege-Weg (`hkl_pflegeschritte`, `hkl_pflegeeigen`, `hkl_pflegestand`)
+
+Klammer um vier vorhandene Werkzeuge (Aufräum-Assistent, Material-Editor,
+Etikett-Erfassung, Foto-Galerie). Baut nichts davon neu — führt sie in einer
+Abfolge vor und bringt jedes an die Stelle zurück, an der man war.
+
+**Einheit ist das Material**, nicht die Zeile und nicht der Text: `pfMaterialien()`
+gruppiert den Bestand nach dem kanonischen Schlüssel (`effMatKey`) und hängt an
+jedes Material seine Vorkommen (`stellen`), die rohen Wortlaute (`roh`) und die
+noch nicht entschiedenen Textschlüssel (`texteOffen`).
+
+**Schritte** stehen in `PF_SCHRITTE` mit `offen(m)` / `stand(m)` / `tun(m)`.
+Der Code kennt nur die Prüfung; Wort, Untertitel, Symbol, Reihenfolge und
+an/aus liegen in `hkl_pflegeschritte` (`pflWert`/`pflAus`/`pflSetzen` — dieselbe
+Bauart wie `features/stdkopf.js`). Eigene Schritte (`hkl_pflegeeigen`) sind
+reine Handhaken (`art:'hand'`).
+
+**Gespeichert wird nur, was sich nicht ablesen lässt** (`hkl_pflegestand`,
+je kanonischem Schlüssel): `entfaellt{schritt}` (Entscheidung des Menschen),
+`hand{schritt}` (Haken eigener Schritte), `fertig` (von Hand abgeschlossen).
+„Erledigt" kommt sonst immer aus den Daten — `pfSchrittZustand()` liefert
+`offen` · `fertig` · `entfaellt`.
+
+**Der Rückweg** ist der kritische Teil: `pflegeLaeuft()` / `pflegeRueckkehr()`
+werden von `scanZurueck()` (Herkunft `'pflege'`), von `saveScanItem()` und vom
+Aufräum-Assistenten (`cleanupRueckweg()`) aufgerufen. Der Assistent läuft dabei
+auf **einen** Text eingeengt (`cleanupFokus`). `reRenderDetail()` kennt
+`scr-pflege` als dritten Kontext, damit das ⋯-Menü (Bereich) von dort aus
+funktioniert.
+
+## Ankreuzen statt Abtippen (`features/ankreuzen.js`)
+
+Mehrfach-Wähler in jeder Rubrik. Die Liste kommt aus dem BESTAND, passend zur
+Sorte der Rubrik (`ankSorte`): Material/Geräte → der kanonische Materialbestand
+(`pfMaterialien()`) plus die Katalog-Positionen, die es dort noch nicht gibt;
+Ablauf/Sonstiges → die Zeilentexte der Ablauf-Rubriken, über `bauSlug`
+zusammengefasst. Sortiert nach Häufigkeit, gecacht je Sorte
+(`ankCacheLeeren()` hängt an `invalidateMatCaches()` und `hydrateVars()`).
+
+Eingefügt wird über `makeAddEntry` — derselbe Weg wie im Formular. Der
+Materialschlüssel entsteht dabei aus dem Namen, also trägt der neue Eintrag
+denselben wie sein Vorbild; Foto, Maße und Preis hängen sofort mit dran.
+
+Die frühere Einzel-Übernahme (`startAdoptCatalog` / `adoptCatalogItem`) ist
+ersatzlos entfernt: eine Position pro Tipp, und nur aus dem Katalog.
+
+**Bausteine beim Anlegen eines Standards** (`bauInStandard` in
+`features/bausteine.js`): Jeder Baustein kennt seine Heimatrubrik (`b.rubrik`)
+und landet dort. Fehlt sie im frischen Standard, legt
+`stdRubrikSicherstellen()` (`ui/forms.js`) sie an — mit der Art, die
+`bauRubrikTyp()` an den Zeilen abliest. Ohne Heimat geht der Baustein in die
+erste Rubrik statt verloren (Grundsatz ②).
+
+## Reihenfolge ziehen (`features/sortieren.js`)
+
+Zweite, ruhige Ansicht derselben Rubrik (`sortRi` = Rubrik-Index, `null` = aus).
+`openRubrik()` zweigt ganz oben dorthin ab; die Eintragszeile ist schon
+dreifach belegt (tippen = abhaken, halten = ⋯-Menü, eigene Schalter), ein
+viertes Verhalten darauf wäre ein Ratespiel.
+
+`sortGruppen(idx)` bildet genau die Einheiten, die EINE gespeicherte
+Reihenfolge haben: bei Material/Geräten die Unterkategorie
+(`collectGroupCids`), sonst der Abschnitt (`ablaufSegments`). Über eine
+Gruppengrenze hinweg lässt sich deshalb nichts ziehen — das wäre ein Wechsel
+der Unterkategorie bzw. ein Verschieben, nicht eine Sortierung.
+
+Gezogen wird über Zeiger-Ereignisse mit echtem `insertBefore`; am Ende wird die
+DOM-Folge abgelesen und über `sortSchreiben()` nach `ENTORD` geschrieben.
+**Die Ereignisse hängen am `document`, nicht am Griff:** Ein Knoten, der beim
+Ziehen umgehängt wird, verliert seine Zeigerbindung (`setPointerCapture`, bei
+Berührung die stillschweigende Bindung) — danach käme kein `pointerup` mehr an,
+der Zug endete nie und nichts würde gespeichert.
+
+Die reine Umordnung (`sortVerschieben`, `sortRang`) ist ohne Bildschirm
+testbar. `sortBeenden()` räumt den Modus beim Verlassen der Rubrik still auf
+(aus `setMode()` und `openStandard()`) — er ist ein Arbeitszustand wie ein
+offenes Formular, kein Merkmal der Rubrik.
+
+## Wer räumt welchen Zwischenspeicher? (Systemanalyse 06.08.2026)
+
+Der teuerste Fehler dieser Art war unsichtbar: `buildMaterialIndex()` verwarf
+den **Zerlegungs-Speicher** (`matKeyCache` in `features/matkey.js`) und rechnete
+danach die Zerlegung aller 4.475 Zeilen neu. Die Funktion läuft nach fast jedem
+Speichern — **gemessen 300 ms** auf einem schnellen Rechner, also gut eine
+Sekunde auf dem Tablet im Saal. Nach der Umstellung: **2,8 ms**.
+
+Der Vertrag lautet jetzt:
+
+| Speicher | hängt an | wird geräumt in |
+|---|---|---|
+| `matKeyCache` / `matKeyZerlCache` / `matKeyAltCache` | **Positionen** (nach `cid` indiziert) und `ZERLDB` | `rebuildDB()` · `zerlBestaetigen()` / `zerlVerwerfen()` · `hydrateVars()` |
+| `matStdMapCache`, `mcRowCache`, `mcEntryCache`, `pfCache`, `ankCache` | dem abgeleiteten Bestand | `invalidateMatCaches()`, also bei jedem `buildMaterialIndex()` |
+| `bauVorkCache`, `frgCache` | dem Bestand | `rebuildDB()` |
+
+Eine Regel, ein Preis oder ein Häkchen ändern die **Zerlegung** nicht — nur die
+abgeleiteten Listen. Deshalb gehören die beiden Gruppen auseinander.
+`e2e/ausbau.js` hält den Vertrag fest: Nach einer Löschung, die alle folgenden
+Zeilen verschiebt, muss der gecachte Schlüssel dem frisch gerechneten gleichen.
+
+## Sechste Maschinenprüfung: Verdrahtung
+
+`scripts/pruefungen/verdrahtung.js` (in `npm run check`) prüft vier Dinge, bei
+denen **nichts kaputtgeht** — es passiert einfach nichts:
+
+1. **Doppelte globale Namen** — alle Module teilen einen Namensraum; die
+   spätere Definition gewinnt lautlos. Duldet nichts.
+2. **Schaltflächen ohne Ziel** — `onclick="machWas()"` ohne `machWas()`.
+   Duldet nichts.
+3. **Funktionen ohne Verwendung** — zweimal war das hier keine tote Last,
+   sondern eine *vergessene Verdrahtung* (`pbScopeAlle`, `merkAbdeckung`).
+   Ratsche über `altlasten.json → toteFunktionen`.
+4. **Speicher-Schlüssel ohne Geräte-Teilung** — was nicht in `SHARED_KEYS`
+   steht, wirkt nur auf einem Gerät. Wer das will, begründet es in
+   `altlasten.json → geraetelokal`; eine Begründung ohne Schlüssel meldet
+   sich ebenfalls.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

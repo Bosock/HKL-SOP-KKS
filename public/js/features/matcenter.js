@@ -162,6 +162,7 @@ function mcMaterialHTML(offen){
   return `${scanCta}<div class="scan-help-slot"></div>
     <div class="mc-actions">
       <button class="add-entry-btn" onclick="matHubNew()">＋ Material anlegen</button>
+      ${(typeof openPflege==='function')?`<button class="add-entry-btn" onclick="openPflege({umfang:{art:'alle'}})">🧹 Pflege-Weg</button>`:''}
     </div>
     ${dup}
     <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Material, Standard, REF, Hersteller …" value="${esc(mcQ)}" oninput="mcSearchDebounced(this.value)" autocomplete="off"></div>
@@ -302,6 +303,21 @@ function mcPruefenHTML(gaps,legacy){
       <span class="mc-todo-main"><span class="mc-todo-l">${esc(label)}</span><span class="mc-todo-s">${esc(sub)}</span></span>
       <span class="mc-todo-n">${n}</span><span class="chev">›</span></div>`:'';
 
+  /* Der Pflege-Weg steht ÜBER der Lückenliste: Die Liste sagt, was fehlt —
+     der Weg erledigt es Material für Material, statt für jede Lücke einzeln
+     durch die App zu springen. */
+  let weg='';
+  if(typeof pfStats==='function'){
+    const p=pfStats({art:'alle'});
+    const proz=p.gesamt?Math.round(100*p.fertig/p.gesamt):0;
+    weg=`<div class="mc-weg" onclick="openPflege({umfang:{art:'alle'}})">
+      <span class="mc-weg-ico">🧹</span>
+      <span class="mc-weg-main"><span class="mc-weg-l">Pflege-Weg starten</span>
+        <span class="mc-weg-s">Ein Material nach dem anderen: Text aufräumen, Felder füllen, Etikett scannen, Foto machen — jeder Schritt öffnet das passende Werkzeug und kommt hierher zurück.</span>
+        <span class="mc-weg-p">${p.fertig} von ${p.gesamt} Materialien fertig (${proz} %) · ${p.schritteOffen} Schritte offen</span></span>
+      <span class="chev">›</span></div>`;
+  }
+
   let todo='';
   todo+=row('🧬','Einträge ohne Material',nichtVerknuepft,'Material öffnen und ausfüllen – dann gelten Foto, Maße und Preis überall',"mcJump('eintraege','nichtverknuepft')");
   todo+=row('⚠','Einstufung unsicher',unsicher,'die Automatik war sich bei der Kategorie nicht sicher',"mcJump('eintraege','unsicher')");
@@ -330,7 +346,7 @@ function mcPruefenHTML(gaps,legacy){
   }
   const nothing=(!todo)?`<div class="empty"><div class="ei">✅</div><h3>Alles gepflegt</h3><p>Keine offenen Lücken – Material und Einträge sind vollständig.</p></div>`:'';
   return `<div class="mc-hint">Diese Liste sagt dir, <b>was noch fehlt</b>. Jede Zeile führt direkt dorthin, wo es sich erledigen lässt.</div>
-    ${todo}${nothing}${migr}`;
+    ${weg}${todo}${nothing}${migr}`;
 }
 function mcJump(tab,filter){ mcTab=tab; mcFilter=filter||'alle'; mcQ=''; renderMatCenter(); }
 function mcMergeFirst(){ if(typeof matHubMerge==='function'){ matHubMerge(0); mcTab='pruefen'; renderMatCenter(); } }

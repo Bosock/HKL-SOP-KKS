@@ -150,8 +150,6 @@ function rubOrd(r,idx,std){ const e=RUBE[rubKey(r,idx,std)]; return (e&&e.ord!=n
 /* Standards werden ausschließlich über das Formular-System (openStandardForm →
    ADDITIONS) angelegt; das frühere prompt-basierte newStandard() wurde bei der
    Konsolidierung entfernt. */
-function editStandard(){ if(!ADMIN||!curStd) return; const t=prompt('Titel:',stdTitel(curStd)); if(t==null) return; const g=prompt('Gruppe:',stdGruppe(curStd)); if(g==null) return;
-  STDE[curStd.id]=Object.assign({},STDE[curStd.id],{titel:(t.trim()||stdTitel(curStd)),gruppe:(g.trim()||stdGruppe(curStd))}); saveSTDE(); openStandard(curStd.id,true); toast('Standard aktualisiert'); }
 function toggleStdHidden(){ if(!ADMIN||!curStd) return; const h=!stdHidden(curStd); if(h&&!confirm('Standard ausblenden? Kolleginnen sehen ihn dann nicht mehr; Wiederherstellung in Verwaltung → Ausgeblendete Einträge.')) return;
   STDE[curStd.id]=Object.assign({},STDE[curStd.id],{hidden:h}); saveSTDE(); toast(h?'Standard ausgeblendet':'Standard wieder sichtbar'); openStandard(curStd.id,true); }
 function deleteNewStandard(){ if(!ADMIN||!curStd||!curStd.__new) return; if(!confirm('Diesen App-eigenen Standard endgültig löschen (samt seiner Einträge)?')) return;

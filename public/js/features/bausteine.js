@@ -880,13 +880,57 @@ function bauKatLeisteHTML(){
     h += `<button type="button" class="bau-kb${bauKatWahl===k.key?' on':''}" data-k="${esc(k.key)}" onclick="bauUiKatWahl(this.dataset.k)">${esc(k.symbol||'')} ${esc(k.wort)} <span class="bau-kn">${n}</span></button>`;
   });
   h += `<button type="button" class="bau-kb bau-kneu" onclick="bauUiKatNeu()">＋ Kategorie</button>`;
+  if(kats.length) h += `<button type="button" class="bau-kb bau-kneu" onclick="bauUiKatVerwalten()">${bauKatVerw?'✕ fertig':'✎ ändern'}</button>`;
   h += `</div>`;
   if(bauKatForm){
     h += `<div class="bau-mform"><input class="loc-input" id="bauKatName" placeholder="Name, z. B. EPU">
       <div class="p-actions"><button class="btn btn-sec" onclick="bauUiKatAbbrechen()">Abbrechen</button>
       <button class="btn btn-pri" onclick="bauUiKatSpeichern()">Anlegen</button></div></div>`;
   }
+  if(bauKatVerw) h += bauKatVerwaltenHTML(kats);
   return h;
+}
+/* WAS HIER GEFEHLT HAT: Eine Kategorie ließ sich anlegen — und dann nie wieder
+   ändern. `bauKatAendern()` und `bauKatLoeschen()` gab es samt Tests von
+   Anfang an, nur keinen Weg dorthin. Ein Tippfehler im Namen war damit
+   dauerhaft, und genau das ist der Fehler, gegen den der unveränderliche
+   Schlüssel (bauKatSlug) gebaut wurde: Das WORT darf sich ändern, ohne dass
+   die Zuordnungen verlorengehen. Ohne Oberfläche half das niemandem
+   (Grundsatz ⑤ / Hausregel A7). */
+let bauKatVerw = false;
+function bauKatVerwaltenHTML(kats){
+  let h = `<div class="bau-katverw"><p class="hint">Wort und Symbol lassen sich jederzeit ändern — die Zuordnung der Bausteine bleibt, weil sie am unveränderlichen Schlüssel hängt.</p>`;
+  kats.forEach(k=>{
+    const n = BAUSTEINE.filter(b=>bauHatKat(b,k.key)).length;
+    h += `<div class="ber-zeile">
+      <input class="loc-input ber-sym" value="${esc(k.symbol||'')}" maxlength="4" data-k="${esc(k.key)}"
+        onchange="bauUiKatFeld(this.dataset.k,'symbol',this.value)" aria-label="Symbol">
+      <input class="loc-input" value="${esc(k.wort)}" data-k="${esc(k.key)}"
+        onchange="bauUiKatFeld(this.dataset.k,'wort',this.value)" aria-label="Bezeichnung">
+      <div class="ber-akt">
+        <span class="bau-kn" title="Bausteine in dieser Kategorie">${n}</span>
+        <button class="dgr" data-k="${esc(k.key)}" onclick="bauUiKatWeg(this.dataset.k)">${bauKatWeg===k.key?'Wirklich?':'Löschen'}</button>
+      </div></div>`;
+  });
+  return h + `</div>`;
+}
+let bauKatWeg = null;        /* Rückfrage ohne natives Fenster (Grundsatz ⑧) */
+function bauUiKatVerwalten(){ bauKatVerw=!bauKatVerw; bauKatWeg=null; renderBausteine(); }
+function bauUiKatFeld(key, feld, wert){
+  const w = String(wert||'').trim();
+  if(feld==='wort' && !w){ if(typeof toast==='function') toast('Eine Kategorie braucht einen Namen',true); renderBausteine(); return; }
+  bauKatAendern(key, feld, w);
+  renderBausteine();
+  if(typeof toast==='function') toast('Übernommen');
+}
+function bauUiKatWeg(key){
+  if(bauKatWeg!==key){ bauKatWeg=key; renderBausteine(); return; }   /* erst fragen */
+  const k = bauKatOf(key); const wort = k?k.wort:'';
+  bauKatWeg=null;
+  bauKatLoeschen(key);
+  if(bauKatWahl===key) bauKatWahl='';
+  renderBausteine();
+  if(typeof toast==='function') toast('Kategorie „'+wort+'" entfernt — die Bausteine bleiben');
 }
 let bauKatForm = null;
 function bauUiKatWahl(key){ bauKatWahl = key||''; renderBausteine(); }
@@ -952,4 +996,137 @@ function bauUiEinfuegenAusfuehren(sid, ri){
   if(typeof showSheet==='function') showSheet(false);
   if(typeof reRenderDetail==='function') reRenderDetail();
   if(typeof toast==='function') toast(n?(n+' Zeilen eingefügt'):'Nichts eingefügt');
+}
+
+/* ═══════════ 6. Bausteine beim ANLEGEN eines Standards ═══════════
+
+   Der Betreiber: „Wenn ich einen neuen Standard anlege, möchte ich die
+   Bausteine ankreuzen können — und die sollen automatisch dort einsortiert
+   werden, wo sie herkommen."
+
+   Damit zahlt sich die Heimatrubrik aus, die jeder Baustein beim Anlegen
+   bekommen hat (`b.rubrik`). Ein frischer Standard hat „Saal und Geräte",
+   „Material" und „Ablauf"; ein Baustein aus „Patientenvorbereitung" findet
+   dort keine Heimat — dann ENTSTEHT sie. Die Alternative wäre, ihn in eine
+   beliebige vorhandene Rubrik zu kippen; das wäre schneller programmiert und
+   für den, der den Standard später liest, eine Zumutung. */
+
+/* Welche Art Rubrik passt zu den Zeilen eines Bausteins? Abgelesen an den
+   Zeilen selbst, nicht geraten: Kategorien tragen die Antwort (`beschaffbar`
+   heißt „Ding, das man holt"). */
+function bauRubrikTyp(b){
+  const zaehler = {};
+  ((b && b.zeilen) || []).forEach(z=>{ if(z.weg) return;
+    const nat = z.natur || 'material'; zaehler[nat] = (zaehler[nat]||0)+1; });
+  const haeufigste = Object.keys(zaehler).sort((a,c)=>zaehler[c]-zaehler[a])[0];
+  if(!haeufigste) return 'sonstige';
+  if(haeufigste === 'geraet') return 'geraete';
+  const info = (typeof natOf==='function') ? natOf(haeufigste) : null;
+  if(info && info.beschaffbar) return 'material';
+  return 'ablauf';
+}
+
+/* Index der Rubrik dieses Namens in einem Standard — −1, wenn es sie (noch)
+   nicht gibt. Verglichen wird über den ANGEZEIGTEN Namen: Wer eine Rubrik
+   umbenannt hat, meint die umbenannte. */
+function bauRubrikIndex(sid, name){
+  const n = String(name||'').trim().toLowerCase(); if(!n) return -1;
+  const s = (typeof DB!=='undefined' && DB && DB.standards) ? DB.standards.find(x=>x.id===sid) : null;
+  if(!s) return -1;
+  return (s.rubriken||[]).findIndex((r,ri)=>{
+    const rn = (typeof rubName==='function') ? rubName(r,ri) : (r.name||'');
+    return String(rn||'').trim().toLowerCase() === n;
+  });
+}
+
+/* Mehrere Bausteine in einen Standard einfügen — jeder in SEINE Heimatrubrik.
+   Liefert eine ehrliche Bilanz, damit die Rückmeldung sagen kann, was
+   passiert ist (auch: welche Rubrik dafür entstanden ist). */
+function bauInStandard(sid, ids){
+  const erg = { bausteine:0, zeilen:0, neueRubriken:[] };
+  if(!sid || !Array.isArray(ids) || !ids.length) return erg;
+  ids.forEach(id=>{
+    const b = bauNach(id); if(!b) return;
+    const name = String(b.rubrik||'').trim();
+    let ri = name ? bauRubrikIndex(sid, name) : -1;
+    if(ri < 0 && name && typeof stdRubrikSicherstellen==='function'){
+      ri = stdRubrikSicherstellen(sid, name, bauRubrikTyp(b));
+      if(ri >= 0) erg.neueRubriken.push(name);
+    }
+    /* Ohne Heimat (oder wenn die Rubrik nicht entstehen konnte) lieber in die
+       erste Rubrik als gar nicht — nichts verschlucken (Grundsatz ②). */
+    if(ri < 0) ri = 0;
+    const n = bauEinfuegen(id, sid, ri);
+    if(n){ erg.bausteine++; erg.zeilen += n; }
+  });
+  return erg;
+}
+
+/* ── Die Auswahl im Formular „Neuer Standard" ──
+   Eigener Zustand statt Formularfeldern: Der Kategorie-Filter baut die Liste
+   neu, und die Häkchen dürfen dabei nicht verlorengehen. */
+let bauStdWahl = {};
+let bauStdKat = '';
+
+function bauStdWahlLeeren(){ bauStdWahl = {}; bauStdKat = ''; }
+function bauStdWahlIds(){ return Object.keys(bauStdWahl).filter(k=>bauStdWahl[k]); }
+
+/* Der ganze Block fürs Formular. Gibt es keine Bausteine, gibt es auch keinen
+   Block — eine leere Überschrift wäre nur eine Frage ohne Antwort. */
+function bauStdWahlHTML(){
+  if(!Array.isArray(BAUSTEINE) || !BAUSTEINE.length) return '';
+  return `<div class="form-grp">
+    <div class="flabel">🧱 Bausteine übernehmen (optional)</div>
+    <p class="hint">Angekreuzte Bausteine landen automatisch in ihrer Heimatrubrik. Fehlt sie im neuen Standard, wird sie angelegt.</p>
+    <div id="bauStdBlock">${bauStdWahlInnenHTML()}</div>
+  </div>`;
+}
+function bauStdWahlInnenHTML(){
+  const kats = bauKatListe();
+  let h = '';
+  if(kats.length){
+    h += `<div class="bau-katleiste">
+      <button type="button" class="bau-kb${bauStdKat?'':' on'}" onclick="bauStdUiKat('')">Alle</button>`;
+    kats.forEach(k=>{ h += `<button type="button" class="bau-kb${bauStdKat===k.key?' on':''}" data-k="${esc(k.key)}" onclick="bauStdUiKat(this.dataset.k)">${esc(k.symbol||'')} ${esc(k.wort)}</button>`; });
+    h += `</div>`;
+  }
+  const liste = BAUSTEINE.filter(b=>bauHatKat(b, bauStdKat));
+  if(!liste.length){ return h + `<p class="hint">In dieser Kategorie liegt kein Baustein.</p>`; }
+  /* Nach Heimatrubrik gruppiert — das ist die Ordnung, in der der Standard
+     hinterher dasteht. */
+  const gruppen = new Map();
+  liste.forEach(b=>{
+    const r = String(b.rubrik||'').trim() || 'ohne Heimatrubrik';
+    if(!gruppen.has(r)) gruppen.set(r, []);
+    gruppen.get(r).push(b);
+  });
+  [...gruppen.keys()].sort((a,b)=>a.localeCompare(b,'de')).forEach(r=>{
+    h += `<div class="bez-sec">${esc(r)}</div>`;
+    gruppen.get(r).forEach(b=>{
+      const zeilen = (b.zeilen||[]).filter(z=>!z.weg).length;
+      h += `<label class="bau-pick">
+        <input type="checkbox" value="${esc(b.id)}" ${bauStdWahl[b.id]?'checked':''} onchange="bauStdUiSchalten(this.value,this.checked)">
+        <span class="bau-pick-n">${esc(b.name)}</span>
+        <span class="bau-pick-s">${zeilen} Zeile${zeilen===1?'':'n'}</span></label>`;
+    });
+  });
+  h += `<div class="bau-bilanz" id="bauStdBilanz">${bauStdBilanzText()}</div>`;
+  return h;
+}
+function bauStdBilanzText(){
+  const ids = bauStdWahlIds();
+  if(!ids.length) return 'Nichts angekreuzt — der Standard entsteht leer.';
+  let zeilen = 0; const rubriken = new Set();
+  ids.forEach(id=>{ const b = bauNach(id); if(!b) return;
+    zeilen += (b.zeilen||[]).filter(z=>!z.weg).length;
+    rubriken.add(String(b.rubrik||'').trim() || 'ohne Heimatrubrik'); });
+  return ids.length+' Baustein'+(ids.length===1?'':'e')+' · '+zeilen+' Zeilen · '+rubriken.size+' Rubrik'+(rubriken.size===1?'':'en');
+}
+function bauStdUiKat(key){
+  bauStdKat = key||'';
+  const box = $('bauStdBlock'); if(box) box.innerHTML = bauStdWahlInnenHTML();
+}
+function bauStdUiSchalten(id, an){
+  if(an) bauStdWahl[id]=true; else delete bauStdWahl[id];
+  const b = $('bauStdBilanz'); if(b) b.textContent = bauStdBilanzText();
 }

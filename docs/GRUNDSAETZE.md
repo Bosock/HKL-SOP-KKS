@@ -158,7 +158,7 @@ sich schneller als jeder Entwicklungszyklus.
 | ③ | mitgelieferte Datei (`data/bezeichnungen.json`) | Auslieferung |
 | ④ | Rückfall im Code | nur damit die App auch ohne Datei startet |
 
-**Wo das heute greift** (Stand 05.08.2026 — die Liste ist der Prüfstand für
+**Wo das heute greift** (Stand 06.08.2026 — die Liste ist der Prüfstand für
 jede neue Funktion):
 
 | Fläche | einstellbar in der App |
@@ -172,6 +172,7 @@ jede neue Funktion):
 | **Merkmale an Standards** | anlegen · Wort · Symbol · Farbe · Art · Werte · im Kopf zeigen · als Reichweite freigeben |
 | **Bereiche** (zweite Sicht aufs Material) | anlegen · Wort · Symbol · Farbe · Reihenfolge |
 | **Baustein-Kategorien** | anlegen · Wort · Symbol · Reihenfolge |
+| **Pflege-Weg** (Schritte je Material) | je Schritt an/aus · Symbol · Wort · Untertitel · Reihenfolge · eigene Schritte als Handhaken; je Material einzeln „entfällt" |
 | **Bild-Darstellung** | Größe je Bild und Stelle (klein · mittel · groß), jederzeit änderbar |
 | **Schrift** | Größe und Gewicht je Zeile; Zeichen für Wort-Auszeichnungen frei wählbar |
 | Kategorien | Name · Farbe · Symbol · eigene anlegen und löschen |
@@ -179,6 +180,8 @@ jede neue Funktion):
 | Texte | App-Titel und die Einleitungen |
 | Anzeige im Eintrag | jedes Feld einzeln ein-/ausblendbar |
 | Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine · Bilder · Austauschgruppen · Verfahrenszweige |
+| **Einträge anlegen** | getippt (Formular) · angekreuzt aus dem Bestand (☑) · als Baustein (🧱) · beim Anlegen eines Standards gleich mit |
+| **Reihenfolge** | je Abschnitt: ziehen (⠿) oder ⤒ ⬆ ⬇ ⤓ — beides, weil Ziehen mit Handschuhen nicht immer trägt |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
@@ -189,6 +192,15 @@ können wäre keine Freiheit, sondern eine Falle.
 **Verstoß erkennt man an.** Einer festen Liste im Code, die eigentlich das Haus
 pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter) —
 oder einem neuen Knopf, der in dieser Tabelle keine Zeile findet.
+
+**Sechste Maschinenprüfung (06.08.2026): Verdrahtung.**
+`scripts/pruefungen/verdrahtung.js` fängt vier Fehlerklassen ab, bei denen
+nichts kaputtgeht: doppelte globale Namen · Schaltflächen ohne Ziel ·
+Funktionen ohne Verwendung · Speicher-Schlüssel ohne Geräte-Teilung. Die
+ersten beiden dulden nichts, die letzten beiden arbeiten mit begründeten
+Listen. Zwei der Funde waren keine tote Last, sondern eine vergessene
+Verdrahtung — die Funktion war da, angeschrieben und getestet, nur der Weg
+dorthin fehlte.
 
 ### A8 · Deutsch, lesbar, mit Begründung
 

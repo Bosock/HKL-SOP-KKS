@@ -90,9 +90,6 @@ function rwStufe(cid, mk, key){
   const l = rwStufen(cid, mk);
   return l.find(x=>x.key===key) || l[0];
 }
-/* Kurzform für Chips und Zusammenfassungen. */
-function rwKurz(cid, mk, key){ const s = rwStufe(cid, mk, key); return s ? (s.ico+' '+s.wort) : ''; }
-
 /* ═══════════ 2. Das Prüfblatt ═══════════ */
 
 /* PB = { cid, mk, zeilen:[{prop, label, vorher, nachher, scope}], fertig }
@@ -145,6 +142,14 @@ function pbZeichnen(){
     </div>`;
   });
   h += `</div>`;
+  /* Der häufige Fall: alle geänderten Felder sollen gleich weit gelten. Ohne
+     diesen Knopf musste man jede Zeile einzeln durch ein Untermenü führen —
+     bei fünf geänderten Feldern fünfmal. pbScopeAlle() gab es von Anfang an,
+     nur den Weg dorthin nicht. */
+  if(PB.zeilen.length>1 && PB.mk){
+    h += `<div class="p-actions" style="padding:2px 4px 0">
+      <button class="btn btn-sec" onclick="pbScopeAlleWahl()">Für alle Zeilen dieselbe Reichweite …</button></div>`;
+  }
   if(mehrere) h += `<p class="hint" style="padding:0 4px">Verschiedene Reichweiten in einem Vorgang — das ist gewollt und wird so gespeichert.</p>`;
   if(weit) h += `<p class="pb-warn">Mindestens eine Änderung wirkt über diesen Standard hinaus. Alles bleibt unter <b>🧾 Regeln &amp; Journal</b> rücknehmbar.</p>`;
   h += `<div class="p-actions" style="padding:10px 4px 4px">
@@ -177,6 +182,20 @@ function pbScopeAlle(key){
   if(!PB) return;
   PB.zeilen.forEach(z=>{ z.scope = key; });
   pbZeichnen();
+}
+/* Die Auswahl dazu — dieselbe Treppe wie je Zeile, damit die Wörter überall
+   dieselben sind (Grundsatz ⑥). */
+function pbScopeAlleWahl(){
+  if(!PB || !PB.mk) return;
+  let h = `<div class="sheet-grip"></div><div class="sheet-title">Wie weit gilt alles?</div>`;
+  h += `<p class="why-help">Die Wahl gilt für <b>alle ${PB.zeilen.length} Änderungen</b> dieses Vorgangs. Einzelne lassen sich danach noch abweichend setzen.</p>`;
+  h += `<div class="sheet-pick">`;
+  rwStufen(PB.cid, PB.mk).forEach(s=>{
+    h += `<button class="sheet-pick-btn" data-s="${esc(s.key)}" onclick="pbScopeAlle(this.dataset.s)">
+      ${s.ico} ${esc(s.lang||s.wort)} <span class="ps-sub">· ${esc(s.langSub||s.sub||'')}</span></button>`;
+  });
+  h += `</div><button class="sheet-close" onclick="pbZeichnen()">Zurück</button>`;
+  $('sheet').innerHTML = h;
 }
 
 function pbAbbrechen(){

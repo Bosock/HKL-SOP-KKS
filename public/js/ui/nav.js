@@ -18,6 +18,7 @@ function updateBar(){ const total=DB.standards.length;
 }
 function show(scr){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(scr).classList.add('active'); $('main').scrollTop=0; }
 function setMode(m){ if(!ADMIN&&m!=='use') m='use'; mode=m; formCtx=null; /* offenes Formular verwerfen beim Moduswechsel */
+  if(typeof sortBeenden==='function') sortBeenden();   /* dito der Sortiermodus (features/sortieren.js) */
   $('searchWrap').style.display=(m==='use'&&nav.length===0)?'block':'none';
   if(m==='use'){ nav=[]; try{ history.replaceState({d:0},''); }catch(e){} renderStandards(); show('scr-standards'); }
   else if(m==='catalog'){ renderCatalog(); show('scr-catalog'); }

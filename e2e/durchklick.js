@@ -85,7 +85,10 @@ const NICHT_AUSLOESEN = [
     { name: 'Anleitung (Ansicht)',  oeffnen: `openGuide(GUIDES[0] && GUIDES[0].id)` },
     { name: 'Anleitung (Editor)',   oeffnen: `openGuideEdit(GUIDES[0] && GUIDES[0].id)` },
     { name: 'Pop-up (Editor)',      oeffnen: `openPopupAdmin(); popupEdit(POPUPS[0] && POPUPS[0].id)` },
-    { name: 'Variante (Editor)',    oeffnen: `openVariantEdit(DB.standards[0].id)` },
+    /* Der Abweichungs-Editor öffnet nur mit gewähltem Arzt — ohne diesen Schritt
+       meldete er still „Erst oben einen Arzt auswählen" und der Bildschirm blieb
+       ungeprüft. Aufgefallen ist das erst der Abdeckungsprüfung unten. */
+    { name: 'Variante (Editor)',    oeffnen: `setVariant((VARIANTS.aerzte[0]||{}).id); openVariantEdit(DB.standards[0].id)` },
     { name: 'Eintrag bearbeiten',   oeffnen: `setMode('use'); openStandard(DB.standards[0].id, true); openRubrik(0, true); editEntry(document.querySelector('.entry-row[data-cid]').dataset.cid)` },
     { name: 'Änderung vorschlagen', oeffnen: `setMode('use'); openStandard(DB.standards[0].id, true); openRubrik(0, true); openProposeForm(document.querySelector('.entry-row[data-cid]').dataset.cid)` },
     { name: 'Standard duplizieren', oeffnen: `setMode('use'); openStandard(DB.standards[0].id, true); openDupStdForm()` },
@@ -96,7 +99,24 @@ const NICHT_AUSLOESEN = [
     { name: 'Rüstliste',            oeffnen: `setMode('use'); openRuestliste(DB.standards[0].id)` },
     { name: 'Bausteine',            oeffnen: `openBausteinAdmin()` },
     { name: 'Freigabe',             oeffnen: `openFreigabe(DB.standards[0].id)` },
+    { name: 'Funktionsregister',    oeffnen: `openFunktionen()` },
+    { name: 'Pflege-Weg',           oeffnen: `openPflege({umfang:{art:'alle'}})` },
+    { name: 'Rubrik (Reihenfolge)', oeffnen: `setMode('use'); openStandard(DB.standards[0].id, true); openRubrik(0, true); sortAn(0)` },
   ];
+
+  /* Jeder Bildschirm der App MUSS hier vorkommen. Diese Prüfung ist der Grund,
+     warum die Lücke überhaupt auffiel: „Pflege-Weg" und „Funktionsregister"
+     fehlten monatelang unbemerkt in der Liste — ihre Knöpfe wurden nie
+     ausgelöst, und der Lauf meldete trotzdem „alles in Ordnung". Eine
+     Abdeckungsliste, die still veraltet, schützt am Ende nichts (Grundsatz ⑨). */
+  const ABDECKUNG_AUSNAHME = {
+    'scr-form':      'Formularfläche — wird über „Eintrag bearbeiten" u. a. betreten',
+    'scr-search':    'wird als „Globale Suche" geöffnet',
+    'scr-suggest':   'wird als „Änderungsvorschläge" geöffnet',
+    'scr-glossary':  'wird als „Glossar" geöffnet',
+    'scr-variants':  'wird als „Ärzte & Varianten" geöffnet',
+    'scr-popups':    'wird als „Pop-up-Verwaltung" geöffnet',
+  };
 
   /* Login einmal — fast alles ist nur im Verwaltungsmodus sichtbar. */
   await A.page.evaluate(() => { doLogin('1234567'); });
@@ -123,6 +143,23 @@ const NICHT_AUSLOESEN = [
       saveQE(); frgCacheLeeren(); } catch (e) {}
     try { buildMaterialIndex(); } catch (e) {}
   });
+
+  /* Abdeckung prüfen, BEVOR geklickt wird: Welcher Bildschirm der App wird von
+     keinem Eintrag dieser Liste betreten? Gemessen wird ehrlich — jeder
+     Bildschirm wird einmal geöffnet und notiert, welche Fläche danach aktiv war. */
+  const abdeckung = await A.page.evaluate(({ liste, ausnahme }) => {
+    const alle = [...document.querySelectorAll('.screen')].map(s => s.id);
+    const erreicht = new Set();
+    liste.forEach(o => {
+      try { (new Function(o))(); } catch (e) {}
+      const a = document.querySelector('.screen.active');
+      if (a) erreicht.add(a.id);
+    });
+    return { offen: alle.filter(id => !erreicht.has(id) && !ausnahme[id]), alle: alle.length, erreicht: erreicht.size };
+  }, { liste: BILDSCHIRME.map(b => b.oeffnen), ausnahme: ABDECKUNG_AUSNAHME });
+  r.check(`Abdeckung: alle ${abdeckung.alle} Bildschirme der App sind in der Liste`
+    + (abdeckung.offen.length ? ' — FEHLT: ' + abdeckung.offen.join(', ') : ''),
+    abdeckung.offen.length === 0);
 
   let gesamtZiele = 0, gesamtFehler = 0;
   const defekte = [];
