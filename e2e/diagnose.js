@@ -99,7 +99,7 @@ const TIPP = `(el) => {
   }
 
   // ─────────── Schalter INNERHALB einer Zeile (dieselbe Fehlerklasse) ───────────
-  // Ein Schalter in einer Zeile (⭐ Favorit, 🔗 Produkt) muss vom
+  // Ein Schalter in einer Zeile (⭐ Favorit, 🧬 Material) muss vom
   // Halte-Detektor ausgenommen sein. Sonst beansprucht dieser den Tipp auf der
   // ganzen Zeile — der Schalter tut nichts, und stattdessen passiert das, was
   // die Zeile tut (öffnen bzw. abhaken).
@@ -114,7 +114,7 @@ const TIPP = `(el) => {
     tipp(row.querySelector('.fav-btn'));
     const stern = { fav: !!FAV[sid], screen: (document.querySelector('.screen.active') || {}).id };
 
-    // b) 🔗 am Eintrag darf NICHT abhaken
+    // b) der Material-Schalter am Eintrag darf NICHT abhaken
     let link = { uebersprungen: true };
     setMode('use');
     const std = DB.standards.find(s => (s.rubriken || []).some(rb =>
@@ -124,7 +124,7 @@ const TIPP = `(el) => {
       const ri = std.rubriken.findIndex(rb => (rb.sub_bereiche || []).some(sb =>
         (sb.eintraege || []).some(e => e.material_key)));
       openRubrik(ri);
-      // ein verknüpftes Material erzwingen, damit der 🔗-Schalter erscheint
+      // ein zugeordnetes Material erzwingen, damit der Schalter erscheint
       const zeile = document.querySelector('#scr-detail .entry-row[data-cid]');
       if (zeile) {
         const e = findEntry(zeile.dataset.cid);
@@ -146,9 +146,9 @@ const TIPP = `(el) => {
   }, TIPP);
   r.check('⭐ in der Zeile schaltet den Favoriten, statt zu öffnen',
     schalter.stern.fav === true && schalter.stern.screen === 'scr-standards');
-  if (schalter.link.uebersprungen) { r.fail('🔗-Schalter am Eintrag (kein verknüpftes Material gefunden)'); }
+  if (schalter.link.uebersprungen) { r.fail('Material-Schalter am Eintrag (kein zugeordnetes Material gefunden)'); }
   else {
-    r.check('🔗 am Eintrag hakt NICHT versehentlich ab', schalter.link.abgehakt === false);
+    r.check('der Material-Schalter am Eintrag hakt NICHT versehentlich ab', schalter.link.abgehakt === false);
     r.check('… sondern öffnet den Produkt-Stammsatz', schalter.link.screen === 'scr-scan-item');
   }
 

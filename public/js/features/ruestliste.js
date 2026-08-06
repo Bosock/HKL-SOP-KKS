@@ -118,6 +118,15 @@ function openRuestliste(sid){
   if(typeof setBar==='function') setBar('Rüstliste', s?stdTitel(s):'', true);
 }
 
+/* Welche Sicht ist gerade aktiv? Gerätelokal — die Sicht ist eine Frage der
+   Arbeitsweise, nicht des Standards. */
+let ruestSicht = (typeof store!=='undefined' && store && store.get) ? (store.get('hkl_ruestsicht')||'ablauf') : 'ablauf';
+function ruestSichtSetzen(art){
+  ruestSicht = (art==='bereich') ? 'bereich' : 'ablauf';
+  try{ if(typeof store!=='undefined' && store && store.set) store.set('hkl_ruestsicht', ruestSicht); }catch(e){}
+  renderRuestliste();
+}
+
 function ruestZeileHTML(z){
   const ico = (typeof natOf==='function') ? (natOf(z.nat).icon||'•') : '•';
   const farbe = `var(--n-${esc(z.nat)})`;
@@ -146,6 +155,38 @@ function renderRuestliste(){
     <p>Derselbe Standard, nach dem Arbeitsablauf sortiert: <b>erst holen, dann richten, Reserve zuletzt</b>. Die Häkchen sind dieselben wie im Standard — was Du hier abhakst, ist dort abgehakt.</p>
     <div class="rl-bilanz"><span><b>${z.offen}</b> offen von ${z.gesamt}</span>
       <span>${z.orte} Wege ins Lager</span><span>${z.tisch} auf den Tisch</span><span>${z.ansage} auf Ansage</span></div></div>`;
+
+  /* ZWEITE SICHT (features/bereiche.js): Dieselbe Liste, aber danach sortiert,
+     WOHIN das Material kommt — steriler Tisch, Umfeld, … Der Umschalter
+     erscheint nur, wenn das Haus überhaupt Bereiche pflegt; sonst wäre es ein
+     Knopf, hinter dem nichts steht. */
+  const hatBereiche = (typeof berListe==='function') && berListe().length;
+  if(hatBereiche){
+    h+=`<div class="rl-sicht" role="group" aria-label="Sicht">
+      <button type="button" class="rl-s${ruestSicht==='ablauf'?' on':''}" onclick="ruestSichtSetzen('ablauf')">Nach Ablauf</button>
+      <button type="button" class="rl-s${ruestSicht==='bereich'?' on':''}" onclick="ruestSichtSetzen('bereich')">Nach Bereich</button>
+    </div>`;
+  }
+  if(hatBereiche && ruestSicht==='bereich'){
+    const gruppen = berGruppen(ruestSid);
+    gruppen.forEach(g=>{
+      const titel = g.bereich ? ((g.bereich.symbol||'📍')+' '+g.bereich.wort) : '— ohne Bereich —';
+      const farbe = g.bereich ? g.bereich.farbe : '';
+      h+=`<div class="rl-fach"${farbe?` style="--ber:${esc(farbe)}"`:''}><div class="rl-fach-t">${esc(titel)}<span class="rl-ort-n">${g.zeilen.length}</span></div>`;
+      g.zeilen.forEach(x=>{
+        const nm=(typeof qeGet==='function'&&qeGet(x.e,x.cid,'name')!==undefined)?qeGet(x.e,x.cid,'name'):(x.e.anzeige_text||'');
+        const mv=(typeof qeGet==='function')?qeGet(x.e,x.cid,'mengeVal'):undefined;
+        h+=ruestZeileHTML({ cid:x.cid, name:nm, menge:(mv!==undefined?mv:x.e.menge)||'',
+          nat:(typeof effNatur==='function')?effNatur(x.e,x.cid):(x.e.natur||'material'),
+          groesse:'', bedingung:x.rubrik, erledigt:!!(typeof checks!=='undefined'&&checks[x.cid]) });
+      });
+      h+=`</div>`;
+    });
+    h+=`<div class="p-actions" style="margin-top:14px">
+      <button class="btn btn-sec" data-s="${esc(ruestSid)}" onclick="openStandard(this.dataset.s)">Zum Standard</button>
+      <button class="btn btn-sec" onclick="ruestDrucken()">🖨 Drucken</button></div>`;
+    box.innerHTML=h; return;
+  }
 
   /* ① Lager — nach Ort gebündelt, damit man je Ort EINEN Weg hat. */
   const orte = Object.keys(l.lager).sort((a,b)=>a.localeCompare(b,'de'));

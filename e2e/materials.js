@@ -41,7 +41,11 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('matCreateStamm legt manuellen Stammsatz an (m:… , manual:true)', r2.isM && r2.created);
   check('matLinkTo verknüpft, canonId/canonOf lösen auf', r2.linkedId && r2.canonName === 'Prüf-Führungsdraht');
 
-  // 3) Eintrag zeigt canon-Identität (🔗-Badge + Foto-Thumbnail) an
+  // 3) Eintrag zeigt die Material-Identität (Badge + Foto-Thumbnail) an.
+  //    OHNE Kettensymbol: Dass „Vorkommen im Standard" und „Material" intern
+  //    zwei Dinge sind, ist eine Implementierungsfrage und gehört nicht in den
+  //    Saal (K4). Und der Name erscheint nur, wenn er vom Zeilentext abweicht —
+  //    sonst stünde er zweimal nebeneinander.
   const r3 = await A.page.evaluate((prev) => {
     // Foto in den Stammsatz, damit die Karte ein Thumbnail zeigt
     GTINDB[prev.id].photo = 'data:image/png;base64,iVBORw0KGgo=';
@@ -53,11 +57,14 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const e = findEntry(cid);
     const card = entryCardHTML(e, cid, true);
     return {
-      badge: card.indexOf('entry-canon-btn') >= 0 && card.indexOf('🔗') >= 0,
+      badge: card.indexOf('entry-canon-btn') >= 0,
+      keineKette: card.indexOf('\u{1F517}') < 0,
+      name: card.indexOf('Prüf-Führungsdraht') >= 0,
       thumb: card.indexOf('data:image/png;base64,iVBORw0KGgo=') >= 0,
     };
   }, r2);
-  check('Eintragskarte zeigt 🔗-Badge zum Stammsatz', r3.badge);
+  check('Eintragskarte zeigt das Material als antippbaren Badge', r3.badge && r3.name);
+  check('… ohne Kettensymbol (die Naht des Datenmodells gehört nicht in den Saal)', r3.keineKette);
   check('Eintragskarte übernimmt Foto-Thumbnail des Stammsatzes', r3.thumb);
 
   // 4) Verknüpfung lösen

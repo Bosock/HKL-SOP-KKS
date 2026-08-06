@@ -221,7 +221,7 @@ function mcEntryListHTML(){
   if(!rows.length) return `<div class="empty"><div class="ei">✓</div><h3>Nichts in diesem Filter</h3><p>Hier ist gerade nichts zu tun.</p></div>`;
   return rows.slice(0,400).map(r=>{
     const tags=[
-      r.verknuepft?'<span class="mc-tag ok">🔗 Material</span>':'<span class="mc-tag warn">kein Material</span>',
+      r.verknuepft?'<span class="mc-tag ok">🧬 Material</span>':'<span class="mc-tag warn">kein Material</span>',
       r.unsicher?'<span class="mc-tag warn">⚠ Einstufung</span>':'',
       r.hidden?'<span class="mc-tag">ausgeblendet</span>':'',
       r.eigen?'<span class="mc-tag">eigen</span>':'',
@@ -303,7 +303,7 @@ function mcPruefenHTML(gaps,legacy){
       <span class="mc-todo-n">${n}</span><span class="chev">›</span></div>`:'';
 
   let todo='';
-  todo+=row('🔗','Einträge ohne Material',nichtVerknuepft,'einem Stammsatz zuordnen – dann gelten Foto, Maße und Preis überall',"mcJump('eintraege','nichtverknuepft')");
+  todo+=row('🧬','Einträge ohne Material',nichtVerknuepft,'Material öffnen und ausfüllen – dann gelten Foto, Maße und Preis überall',"mcJump('eintraege','nichtverknuepft')");
   todo+=row('⚠','Einstufung unsicher',unsicher,'die Automatik war sich bei der Kategorie nicht sicher',"mcJump('eintraege','unsicher')");
   MC_LUECKEN.forEach(l=>{ const n=gaps[l.key]||0;
     const filt=(l.key==='foto'||l.key==='preis'||l.key==='lagerort')?l.key:'alle';

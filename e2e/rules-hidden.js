@@ -49,7 +49,8 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   const b = await A.page.evaluate((usedCid) => {
     const x = allMatGerEntries().find(y => y.e.material_key && y.e.natur !== 'ueberschrift' && y.cid !== usedCid);
     if (!x) return { none: true };
-    openSheet(x.cid); sheetPending = { kind: 'hidden', value: true }; applyPending('mat'); // confirm auto-akzeptiert
+    openSheet(x.cid); sheetPending = { kind: 'hidden', value: true }; applyPending('mat');
+    document.querySelector('#sheet .btn-pri').click();   // Bestätigungs-Karte (Grundsatz ⑧)
     const inByMat = collectHidden().byMat.includes(x.e.material_key);
     restoreMat(x.e.material_key);
     const ruleGone = !rulesActive(RULES).some(z => z.ziel.key === x.e.material_key && z.prop === 'hidden' && z.wo.art === 'alle');

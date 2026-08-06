@@ -271,7 +271,7 @@ kein `click` und damit kein Inline-`onclick` mehr feuerte. Mit der Maus fiel
 das nicht auf. Behoben auf beiden Ebenen: der Detektor kennt jetzt beide
 Attribute, UND `onTap` meldet zurück, ob es den Tipp behandelt hat — nur ein
 behandelter Tipp wird noch unterdrückt. Die systematische Nachsuche fand zwei
-Geschwister derselben Klasse (⭐ Favorit in der Übersicht, 🔗 Produkt-Verweis
+Geschwister derselben Klasse (⭐ Favorit in der Übersicht, 🧬 Material-Verweis
 am Eintrag) — beide behoben. Die zweite, fast identische Kopie des Detektors
 in `attachLongPress` ist entfallen; Einträge nutzen jetzt denselben
 `attachHoldNav` (`rowSel:'.entry-row[data-cid]'`, `ignoreSel:ENTRY_BTNS`),
@@ -501,7 +501,7 @@ nicht abschließen.
 `hydrateVars`, gesichert über `BACKUP_KEYS`.
 Tests: `test/funktionen.test.js` (18), End-to-End: `e2e/funktionen.js` (29).
 
-## Bilder an Einträgen (`/api/media`, `hkl_medientexte`)
+## Bilder überall (`/api/media`, `hkl_medientexte`, `hkl_medienanker`)
 
 `server/media.js` + `server/routes/media.js` + `public/js/features/medien.js`.
 
@@ -535,6 +535,93 @@ unveränderlich). GIFs gehen ungerendert durch, sonst bliebe vom Bewegtbild nur
 das erste Einzelbild.
 
 Tests: `test/server.test.js` (10 Fälle), End-to-End: `e2e/medien.js` (17).
+
+
+**Anker — Bilder an Stellen, die kein Eintrag sind.** `hkl_medienanker` ist ein
+flacher Speicher nach Ankerschlüssel:
+
+```
+std:<sid>  ·  rub:<sid>|<ri>  ·  uk:<sid>|<ri>|<name>  ·  seg:<sid>|<ri>|<name>
+```
+
+Der Anker ist bewusst eine Zeichenkette: Eine weitere Stelle braucht keinen
+neuen Speicher. Diese Stellen haben keine Kaskade — sie *sind* jeweils genau
+eine Stelle.
+
+**Größe je Stelle.** Ein Bild trägt seine Größe nicht in sich. Die Liste
+speichert `{k, g}` mit `g ∈ {klein, mittel, gross}`; `medPaare()` liest auch die
+alte flache Form `['<kennung>', …]` und vergibt die Vorgabegröße. Kein
+Migrationslauf.
+
+**Antippen macht groß.** Jedes Bild trägt `data-zoom`; `initLightbox()` fängt
+den Klick zentral ab. `openLightbox(src, caption, details)` zeigt die Angaben
+zum Bild unter dem Bild.
+
+## Merkmale an Standards (`hkl_eigenschaften`, `hkl_stdeigen`)
+
+Ein Eingriff ist gleichzeitig sedierungspflichtig, Rechtsherz und Implantat —
+ein Baum kann das nicht. Deshalb **Facetten**: zwei getrennte Speicher, die
+Definition (`hkl_eigenschaften`) und die Vergabe (`hkl_stdeigen`).
+
+```
+{ key, wort, symbol, farbe, art:'ja'|'wert'|'auswahl', werte[],
+  zeigen:'kopf'|'still', alsReichweite:bool, ord }
+```
+
+Der **Schlüssel ist unveränderlich**: Wer das Wort korrigiert, verliert seine
+Vergaben nicht. Gezählt wird immer mit „ohne Angabe" (`eigBilanz`).
+
+Merkmale mit `alsReichweite` erscheinen in der Reichweiten-Treppe als
+`wo:{art:'eigenschaft', wert:key}` — Rang 2, gleichauf mit `gruppe`.
+
+## Reichweite und Prüfblatt (`features/reichweite.js`)
+
+`rwStufen(cid, mk)` ist die **eine** Treppe, die Formular und Schnellmenü
+gemeinsam benutzen. Jede Stufe trägt zwei Sprachebenen (`wort`/`sub` für
+Chips, `lang`/`langSub` fürs Menü) und ihre Trefferzahl.
+
+`pbOeffnen(cid, aenderungen, voreinstellung, fertig)` zeigt vor dem Speichern
+je Änderung *vorher → nachher* und ihre **eigene** Reichweite. `pbSpeichern()`
+schreibt je Zeile genau eine Regel mit deren Reichweite.
+
+## Standardkopf als Bauplan (`hkl_stdkopf`)
+
+`KOPF_BAUSTEINE` listet zehn Bausteine mit `tun(s)` → HTML. `stdKopfHTML(s)`
+setzt sie in der eingestellten Reihenfolge zusammen; ein Baustein ohne Inhalt
+erzeugt kein Markup. Gepflegt in der Verwaltung („🪧 Standardkopf").
+
+## Schrift und Auszeichnung (`features/textstil.js`)
+
+Zeilenstil (`{g,f}`) läuft als Eigenschaft `stil` über die normale Kaskade.
+Wort-Auszeichnungen sind Zeichenpaare aus `bezeichnungen.json` → `auszeichnungen`.
+`txsText()` entschärft **zuerst** (`esc`) und ersetzt **danach** — die Zeichen
+selbst gehen ebenfalls durch `esc`, sonst fände ein Paar wie `<<…>>` nie etwas.
+
+## Bereiche — zweite Sicht aufs Material (`hkl_bereiche`)
+
+Dritte Achse neben `natur` (was) und `unterkategorie` (wo im Standard):
+`bereich` sagt **wohin** — steriler Tisch, Umfeld. Läuft als normale
+Eigenschaft über die Kaskade. In der Rüstliste umschaltbar
+(`ruestSicht = 'ablauf' | 'bereich'`, gerätelokal).
+
+## Alternativen (`hkl_altgruppen`, `hkl_zweige`)
+
+**Austauschgruppen** sind geordnete Listen von Materialien (Rang 1 = Standard),
+verknüpft über den kanonischen Schlüssel (`effMatKey`). Angezeigt an jedem
+Glied als Chip.
+
+**Verfahrenszweige** hängen an einem Abschnitt: `ZWG[sid|ri] = {wort, zweige[],
+abschnitte:{name:zweigKey}}`. Die Wahl (`hkl_zweigwahl`) ist **gerätelokal** —
+sie gilt für den Fall, der heute läuft. Ohne Wahl sind alle Zweige sichtbar.
+
+## Fassungen (`hkl_fassungen`)
+
+Festschreiben friert den wirksamen Stand eines Standards ein; er tritt an die
+Stelle der Quelldatei. In `ruleCandidates` liegt die Fassung auf **Rang 0** —
+unter jeder echten Reichweite, über der Datei. Die beteiligten Regeln werden
+zurückgenommen (eingearbeitet); die ganze Fassung bleibt verwerfbar.
+
+Die Quelldatei wird nie verändert (Grundsatz ⑦).
 
 ## Bekannte Altlasten / bewusste Kompromisse
 

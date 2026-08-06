@@ -227,6 +227,128 @@ let BAUSTEINE = (typeof loadJSON==='function') ? loadJSON('hkl_bausteine', []) :
 if(!Array.isArray(BAUSTEINE)) BAUSTEINE = [];
 function saveBausteine(){ if(typeof saveJSON==='function') saveJSON('hkl_bausteine', BAUSTEINE); }
 
+/* ── KURATIEREN STATT VORSCHLAGEN ────────────────────────────
+   Die Vorschlagsmaschine bleibt als Werkzeug im Modul (bauFolgen …), aber sie
+   erscheint nirgends mehr von allein. Der Wunsch war eindeutig: „Ich will
+   keine Vorschläge, ich kenne meine Bausteine schon."
+
+   Gesammelt wird stattdessen im Vorbeigehen: Beim Durcharbeiten eines
+   Standards markiert man Zeilen über „⋯ → ＋ In Baustein übernehmen". Sie
+   landen in einer SAMMELMAPPE — nicht sofort in einem Baustein, denn bei der
+   ersten Zeile weiß man den Namen noch nicht.
+
+   Die Mappe wird geteilt: Wer am Tablet im Saal sammelt, macht am Rechner
+   weiter. */
+let BAUSAM = (typeof loadJSON==='function') ? loadJSON('hkl_bausammlung', []) : [];
+if(!Array.isArray(BAUSAM)) BAUSAM = [];
+function saveBauSam(){ if(typeof saveJSON==='function') saveJSON('hkl_bausammlung', BAUSAM); }
+
+/* Die Kategorien der Bibliothek gehören dem Haus: CRM, EPU, sedierungs-
+   pflichtige Prozeduren, Patientenvorbereitung, Tischvorbereitung … Ein
+   Baustein trägt BELIEBIG VIELE davon — wieder Facetten statt Baum, wie bei
+   den Merkmalen an Standards. */
+let BAUKAT = (typeof loadJSON==='function') ? loadJSON('hkl_bausteinkats', []) : [];
+if(!Array.isArray(BAUKAT)) BAUKAT = [];
+function saveBauKat(){ if(typeof saveJSON==='function') saveJSON('hkl_bausteinkats', BAUKAT); }
+
+function bauKatSlug(t){
+  let x = String(t==null?'':t).toLowerCase();
+  x = x.replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
+  return x.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,32) || ('k'+Date.now().toString(36));
+}
+function bauKatListe(){ return BAUKAT.slice().sort((a,b)=>(a.ord||0)-(b.ord||0)); }
+function bauKatOf(key){ return BAUKAT.find(k=>k.key===key)||null; }
+function bauKatAnlegen(wort){
+  const w = String(wort||'').trim(); if(!w) return null;
+  let key = bauKatSlug(w); let n=2;
+  while(bauKatOf(key)) key = bauKatSlug(w)+'-'+(n++);
+  const k = { key, wort:w, symbol:'🏷️', ord:BAUKAT.length };
+  BAUKAT.push(k); saveBauKat(); return k;
+}
+function bauKatAendern(key, feld, wert){ const k=bauKatOf(key); if(!k) return false; k[feld]=wert; saveBauKat(); return true; }
+function bauKatLoeschen(key){
+  BAUKAT = BAUKAT.filter(k=>k.key!==key); saveBauKat();
+  BAUSTEINE.forEach(b=>{ if(Array.isArray(b.kats)) b.kats = b.kats.filter(x=>x!==key); });
+  saveBausteine();
+}
+/* Trägt ein Baustein diese Kategorie? */
+function bauHatKat(b, key){ return !key || (Array.isArray(b.kats) && b.kats.indexOf(key)>=0); }
+function bauKatSchalten(id, key){
+  const b = bauNach(id); if(!b) return false;
+  b.kats = Array.isArray(b.kats)?b.kats:[];
+  const i = b.kats.indexOf(key);
+  if(i>=0) b.kats.splice(i,1); else b.kats.push(key);
+  saveBausteine(); return true;
+}
+
+/* ── SAMMELN ── */
+function bauSammelt(cid){ return BAUSAM.indexOf(cid)>=0; }
+function bauSammelZahl(){ return BAUSAM.length; }
+function bauSammeln(cid){
+  if(!cid) return false;
+  const i = BAUSAM.indexOf(cid);
+  if(i>=0) BAUSAM.splice(i,1); else BAUSAM.push(cid);
+  saveBauSam(); return true;
+}
+function bauSammlungLeeren(){ BAUSAM = []; saveBauSam(); }
+/* Die gesammelten Zeilen mit ihrem aktuellen Inhalt — in der Reihenfolge, in
+   der sie gesammelt wurden. Zeilen, die es nicht mehr gibt, fallen still weg. */
+function bauSammlungZeilen(){
+  const aus = [];
+  BAUSAM.forEach(cid=>{
+    const e = (typeof findEntry==='function') ? findEntry(cid) : null;
+    if(!e) return;
+    const nm = (typeof qeGet==='function' && qeGet(e,cid,'name')!==undefined) ? qeGet(e,cid,'name') : (e.anzeige_text||'');
+    if(!nm) return;
+    const mv = (typeof qeGet==='function') ? qeGet(e,cid,'mengeVal') : undefined;
+    aus.push({ cid, slug:bauSlug(nm), text:nm, menge:(mv!==undefined?mv:e.menge)||null,
+      natur:(typeof effNatur==='function')?effNatur(e,cid):(e.natur||'material'),
+      uk:(typeof canonUk==='function')?(canonUk(e,cid)||null):(e.unterkategorie||null),
+      rubrik:bauRubrikVon(cid) });
+  });
+  return aus;
+}
+/* Aus welcher Rubrik stammt eine Stelle? Das ist die Heimat des Bausteins —
+   „Saal und Geräte", „Patientenvorbereitung" — und sortiert ihn später
+   automatisch dorthin, wo man ihn sucht. */
+function bauRubrikVon(cid){
+  if(!cid || typeof DB==='undefined' || !DB || !DB.standards) return '';
+  const t = String(cid).split('|'); if(t.length<2) return '';
+  const s = DB.standards.find(x=>x.id===t[0]); if(!s) return '';
+  const r = (s.rubriken||[])[+t[1]];
+  return r ? (typeof rubName==='function' ? rubName(r,+t[1]) : (r.name||'')) : '';
+}
+/* Aus der Sammelmappe einen Baustein machen. */
+function bauAusSammlung(name, kats){
+  const zeilen = bauSammlungZeilen();
+  if(!zeilen.length) return null;
+  /* Die Heimat ist die Rubrik, aus der die MEISTEN Zeilen kommen — nicht die
+     erste: Wer eine Zeile versehentlich aus einer anderen Rubrik mitnimmt,
+     soll den Baustein trotzdem dort finden, wo er hingehört. */
+  const zaehler = {};
+  zeilen.forEach(z=>{ if(z.rubrik) zaehler[z.rubrik]=(zaehler[z.rubrik]||0)+1; });
+  const rubrik = Object.keys(zaehler).sort((a,b)=>zaehler[b]-zaehler[a])[0] || '';
+  const b = bauAnlegen(name, zeilen, zeilen.map(z=>z.slug));
+  if(!b) return null;
+  b.rubrik = rubrik;
+  b.kats = Array.isArray(kats)?kats.slice():[];
+  b.quelle = 'kuratiert';
+  saveBausteine(); bauSammlungLeeren();
+  return b;
+}
+/* Alle Rubriknamen, unter denen Bausteine liegen. */
+function bauRubriken(){
+  const s = new Set();
+  BAUSTEINE.forEach(b=>{ if(b.rubrik) s.add(b.rubrik); });
+  return [...s].sort((a,b)=>a.localeCompare(b,'de'));
+}
+/* Bausteine für eine Rubrik (nach Name) — das ist der Weg beim Anlegen eines
+   neuen Standards: erst in „Saal und Geräte", dort alles ankreuzen. */
+function bauFuerRubrik(name, kat){
+  const n = String(name||'').toLowerCase();
+  return BAUSTEINE.filter(b=>(!n || String(b.rubrik||'').toLowerCase()===n) && bauHatKat(b,kat));
+}
+
 /* IDs nur aus [a-z0-9] — sie landen in onclick-Attributen. */
 function bauNeueId(){ return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function bauNach(id){ return BAUSTEINE.find(b=>b.id===id)||null; }
@@ -483,9 +605,6 @@ function bauBilanz(){
    Millisekunden. Er läuft deshalb nicht beim Start der App, sondern erst hier
    — und sein Ergebnis bleibt bis zur nächsten Datenänderung liegen. */
 
-let bauMehr = false;      /* Vorschlagsliste ganz zeigen? */
-const BAU_ZEIGE = 12;
-
 function openBausteinAdmin(){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(openBausteinAdmin); return; }
   bauForm = null;   /* nichts Halboffenes aus einem früheren Besuch */
@@ -524,18 +643,6 @@ function bauUiLoeschen(id){ const b=bauNach(id); if(!b) return;
 function bauUiLoeschenBestaetigen(id){
   bauLoeschen(id); bauForm=null; renderBausteine(); toast('Baustein gelöscht'); }
 
-function bauUiAnlegen(i){
-  const k = bauVorschlaege()[i]; if(!k) return;
-  bauForm={art:'anlegen', i, wert:bauTitelVorschlag(k.zeilen)}; renderBausteine(); bauFormFokus(); }
-function bauUiAnlegenSpeichern(i){
-  const k = bauVorschlaege()[i]; if(!k) return;
-  const name=($('bauFormName')&&$('bauFormName').value||'').trim();
-  if(!name){ toast('Bitte einen Namen eingeben',true); const el=$('bauFormName'); if(el) el.focus(); return; }
-  const b = bauAnlegen(name, k.zeilen, k.schluessel);
-  if(!b){ toast('Konnte nicht angelegt werden',true); return; }
-  bauForm=null; renderBausteine();
-  toast('Angelegt — steht an '+bauVorkommen(b.id).length+' Stellen');
-}
 
 /* Eingabefläche für einen Namen — an Ort und Stelle, nicht in einem Fenster. */
 function bauNameFormHTML(titel, hinweis, wert, jaText, jaFn){
@@ -570,7 +677,6 @@ function bauRubrikOptionen(sid){
     return `<option value="${ri}">${esc(nm)}</option>`;
   }).join('') || '<option value="">—</option>';
 }
-function bauUiMehr(){ bauMehr = !bauMehr; renderBausteine(); }
 /* Von einer Abweichung direkt an die Stelle springen. */
 function bauZurStelle(cid){
   const p = String(cid||'').split('|'); if(p.length<4) return;
@@ -668,47 +774,43 @@ function bauKarteHTML(b){
   return h;
 }
 
-function bauVorschlagHTML(k, i){
-  const titelVon = (sid)=>{ const s=bauStandards().find(x=>x.id===sid); return s?bauStdName(s):sid; };
-  const offen = !!(bauForm && bauForm.art==='anlegen' && bauForm.i===i);
-  return `<details class="vpanel bau-vor"${offen?' open':''}>
-    <summary><span class="vp-ico">🔁</span><span class="vp-txt">
-      <span class="vp-title">${esc(bauTitelVorschlag(k.zeilen))}</span>
-      <span class="vp-desc">${k.laenge} Zeilen · gleich in ${k.standards.length} Standards</span>
-    </span><span class="vp-badge">${k.ersparnis} Zeilen doppelt gepflegt</span></summary>
-    <div class="vpanel-body">
-      <div class="bau-vorz">${k.zeilen.map(z=>`<div class="bau-vz"><span class="bau-vm">${esc(z.menge||'')}</span><span>${esc(z.text)}</span></div>`).join('')}</div>
-      <p class="hint">Steht in: ${k.standards.map(s=>esc(titelVon(s))).join(' · ')}</p>
-      ${(bauForm && bauForm.art==='anlegen' && bauForm.i===i)
-        ? bauNameFormHTML('Als Baustein anlegen','Der Name steht später in jedem Standard, in dem der Baustein gefunden wird.', bauForm.wert, 'Anlegen', 'bauUiAnlegenSpeichern('+i+')')
-        : `<div class="p-actions"><button class="btn btn-pri" data-i="${i}" onclick="bauUiAnlegen(+this.dataset.i)">Als Baustein anlegen</button></div>`}
-    </div></details>`;
-}
+/* Die Vorschlagsmaschine (bauFolgen/bauKandidaten/bauVorschlaege) bleibt als
+   WERKZEUG im Modul: Sie ist rein, geprüft und für Auswertungen brauchbar.
+   Aber sie erscheint NIRGENDS mehr von allein — der Bildschirm dafür ist
+   ersatzlos entfallen. Der Betreiber hat das zweimal deutlich gesagt: „Ich
+   will keine Vorschläge, ich kenne meine Bausteine schon."
+
+   Der Unterschied ist wichtig: Eine Funktion zu behalten, die niemand sieht,
+   kostet nichts. Eine Liste stehen zu lassen, die man wegklicken muss, kostet
+   jeden Tag Aufmerksamkeit. */
 
 function renderBausteine(){
   const box = $('scr-bausteine'); if(!box) return;
   const bil = bauBilanz();
 
   let h = `<div class="banner"><h2>⛓️ Bausteine</h2>
-    <p>Die Standards sind voneinander abgeschrieben. Derselbe Aufbau steht deshalb vielfach im Bestand — und muss vielfach nachgezogen werden, wenn sich etwas ändert. Ein <b>Baustein</b> ist eine wiederkehrende Folge von Zeilen: einmal benennen, einmal pflegen, überall gültig.</p>
+    <p>Ein <b>Baustein</b> ist eine Folge von Zeilen, die Du selbst zusammenstellst — beim Durcharbeiten eines Standards über „⋯ → ＋ In Baustein übernehmen". Er merkt sich, aus welcher <b>Rubrik</b> er stammt, und liegt dort, wo Du ihn beim nächsten Standard suchst.</p>
     <div class="rl-bilanz"><span><b>${bil.bausteine}</b> Bausteine</span><span>${bil.stellen} Fundstellen</span><span>in ${bil.standards} Standards</span>${bil.abweichungen?`<span class="warn"><b>${bil.abweichungen}</b> Abweichungen</span>`:''}</div></div>`;
 
-  if(BAUSTEINE.length){
-    h += `<div class="bez-sec">Deine Bausteine</div>`;
-    h += BAUSTEINE.map(bauKarteHTML).join('');
+  /* ① Die Sammelmappe zuerst — sie ist der laufende Vorgang. */
+  h += bauSammlungHTML();
+
+  /* ② Die Bibliothek: nach Kategorie einschränkbar, nach RUBRIK gegliedert.
+        Die Rubrik ist die Heimat eines Bausteins — wer beim Anlegen eines
+        neuen Standards in „Saal und Geräte" steht, findet dort seine
+        Bausteine und muss nicht in einer flachen Liste suchen. */
+  h += bauKatLeisteHTML();
+  const gefiltert = BAUSTEINE.filter(b=>bauHatKat(b, bauKatWahl));
+  if(!gefiltert.length){
+    h += `<p class="hint">${BAUSTEINE.length?'Kein Baustein in dieser Kategorie.':'Noch kein Baustein. Markiere beim Durcharbeiten eines Standards Zeilen über „⋯ → ＋ In Baustein übernehmen" — sie sammeln sich oben und werden dann zu einem Baustein.'}</p>`;
+  } else {
+    const rubriken = [...new Set(gefiltert.map(b=>b.rubrik||''))].sort((a,b)=>a.localeCompare(b,'de'));
+    rubriken.forEach(r=>{
+      h += `<div class="bez-sec">${esc(r||'ohne Rubrik')}</div>`;
+      h += gefiltert.filter(b=>(b.rubrik||'')===r).map(bauKarteHTML).join('');
+    });
   }
 
-  const vs = bauVorschlaege();
-  h += `<div class="bez-sec">Gefundene Wiederholungen</div>`;
-  if(!vs.length){
-    h += `<p class="hint">Keine weiteren Folgen gefunden, die in mindestens ${BAU_MIN_STANDARDS} Standards gleich vorkommen.</p>`;
-  } else {
-    const gesamt = vs.reduce((n,k)=>n+k.ersparnis,0);
-    h += `<p class="hint">${vs.length} Folgen kommen mehrfach vor. Zusammen werden dadurch <b>${gesamt} Zeilen doppelt gepflegt</b>. Es wirkt nichts davon, bevor Du es anlegst.</p>`;
-    const zeig = bauMehr ? vs : vs.slice(0, BAU_ZEIGE);
-    h += zeig.map((k,i)=>bauVorschlagHTML(k,i)).join('');
-    if(vs.length>BAU_ZEIGE) h += `<div class="p-actions"><button class="btn btn-sec" onclick="bauUiMehr()">${bauMehr?'Weniger zeigen':('Alle '+vs.length+' zeigen')}</button></div>`;
-  }
   box.innerHTML = h;
 }
 
@@ -725,4 +827,129 @@ function bausteinPanelHTML(){
     ${bil.bausteine?`<p class="hint"><b>${bil.stellen}</b> Fundstellen in <b>${bil.standards}</b> Standards${bil.abweichungen?` · <b>${bil.abweichungen}</b> Abweichungen`:' · einheitlich'}.</p>`:''}
     <div class="p-actions"><button class="btn btn-pri" onclick="openBausteinAdmin()">Bausteine öffnen</button></div>
     </div></details>`;
+}
+
+/* ═══════════ 5. Sammelmappe, Kategorien, Einfügen ═══════════ */
+
+let bauKatWahl = '';          /* '' = alle Kategorien */
+let bauSamForm = null;        /* offene Eingabefläche „Baustein daraus machen" */
+
+/* Die Sammelmappe: der laufende Vorgang, ganz oben. Ohne gesammelte Zeilen
+   entsteht KEIN Markup — eine leere Mappe wäre eine stumme Aufforderung. */
+function bauSammlungHTML(){
+  const zeilen = bauSammlungZeilen();
+  if(!zeilen.length) return '';
+  let h = `<div class="bau-mappe"><div class="bau-mappe-t">🧺 Gesammelt · ${zeilen.length} Zeile${zeilen.length===1?'':'n'}</div>`;
+  h += zeilen.map(z=>`<div class="bau-mz"><span class="bau-vm">${esc(z.menge||'')}</span><span>${esc(z.text)}</span>
+    <button class="dgr" data-c="${esc(z.cid)}" onclick="bauUiSammelnAus(this.dataset.c)" aria-label="aus der Mappe nehmen">✕</button></div>`).join('');
+  if(bauSamForm){
+    const kats = bauKatListe();
+    h += `<div class="bau-mform">
+      <input class="loc-input" id="bauSamName" placeholder="Name des Bausteins, z. B. Kleiner Tisch" value="${esc(bauSamForm.wert||'')}">
+      ${kats.length?`<div class="bau-katwahl">${kats.map(k=>`<label class="bau-kchk"><input type="checkbox" value="${esc(k.key)}"> ${esc(k.symbol||'')} ${esc(k.wort)}</label>`).join('')}</div>`:`<p class="hint">Kategorien legst Du unten an — sie sind später jederzeit nachtragbar.</p>`}
+      <div class="p-actions"><button class="btn btn-sec" onclick="bauUiSamAbbrechen()">Abbrechen</button>
+        <button class="btn btn-pri" onclick="bauUiSamSpeichern()">Baustein anlegen</button></div></div>`;
+  } else {
+    h += `<div class="p-actions"><button class="btn btn-sec" onclick="bauUiSammlungLeeren()">Mappe leeren</button>
+      <button class="btn btn-pri" onclick="bauUiSamForm()">Baustein daraus machen</button></div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+function bauUiSammelnAus(cid){ bauSammeln(cid); renderBausteine(); }
+function bauUiSammlungLeeren(){ bauSammlungLeeren(); renderBausteine(); if(typeof toast==='function') toast('Mappe geleert'); }
+function bauUiSamForm(){ bauSamForm={wert:''}; renderBausteine();
+  setTimeout(()=>{ const i=$('bauSamName'); if(i) i.focus(); },50); }
+function bauUiSamAbbrechen(){ bauSamForm=null; renderBausteine(); }
+function bauUiSamSpeichern(){
+  const i = $('bauSamName'); const n = (i&&i.value||'').trim();
+  if(!n){ if(typeof toast==='function') toast('Bitte einen Namen eingeben',true); const el=$('bauSamName'); if(el) el.focus(); return; }
+  const kats = [...document.querySelectorAll('.bau-katwahl input:checked')].map(x=>x.value);
+  const b = bauAusSammlung(n, kats);
+  bauSamForm=null; renderBausteine();
+  if(typeof toast==='function') toast(b?('Baustein „'+n+'" angelegt'+(b.rubrik?(' · '+b.rubrik):'')):'Nichts zu übernehmen');
+}
+
+/* Die Kategorie-Leiste der Bibliothek. */
+function bauKatLeisteHTML(){
+  const kats = bauKatListe();
+  let h = `<div class="bau-katleiste">`;
+  h += `<button type="button" class="bau-kb${bauKatWahl?'':' on'}" onclick="bauUiKatWahl('')">Alle</button>`;
+  kats.forEach(k=>{
+    const n = BAUSTEINE.filter(b=>bauHatKat(b,k.key)).length;
+    h += `<button type="button" class="bau-kb${bauKatWahl===k.key?' on':''}" data-k="${esc(k.key)}" onclick="bauUiKatWahl(this.dataset.k)">${esc(k.symbol||'')} ${esc(k.wort)} <span class="bau-kn">${n}</span></button>`;
+  });
+  h += `<button type="button" class="bau-kb bau-kneu" onclick="bauUiKatNeu()">＋ Kategorie</button>`;
+  h += `</div>`;
+  if(bauKatForm){
+    h += `<div class="bau-mform"><input class="loc-input" id="bauKatName" placeholder="Name, z. B. EPU">
+      <div class="p-actions"><button class="btn btn-sec" onclick="bauUiKatAbbrechen()">Abbrechen</button>
+      <button class="btn btn-pri" onclick="bauUiKatSpeichern()">Anlegen</button></div></div>`;
+  }
+  return h;
+}
+let bauKatForm = null;
+function bauUiKatWahl(key){ bauKatWahl = key||''; renderBausteine(); }
+function bauUiKatNeu(){ bauKatForm=true; renderBausteine(); setTimeout(()=>{ const i=$('bauKatName'); if(i) i.focus(); },50); }
+function bauUiKatAbbrechen(){ bauKatForm=null; renderBausteine(); }
+function bauUiKatSpeichern(){
+  const i=$('bauKatName'); const w=(i&&i.value||'').trim();
+  if(!w){ if(typeof toast==='function') toast('Bitte einen Namen eingeben',true); return; }
+  bauKatAnlegen(w); bauKatForm=null; renderBausteine();
+  if(typeof toast==='function') toast('Kategorie „'+w+'" angelegt');
+}
+
+/* ── Einfügen per Ankreuzen ──
+   Der eigentliche Zeitgewinn beim Anlegen eines Standards: In der Rubrik
+   „Saal und Geräte" stehen die Bausteine dieser Rubrik — ankreuzen, einfügen,
+   fertig. Statt einer flachen Liste über alle Rubriken hinweg. */
+let bauWahl = {};
+function bauEinfuegenSheet(sid, ri, kat){
+  if(typeof ADMIN!=='undefined' && !ADMIN) return;
+  const s = (typeof DB!=='undefined'&&DB&&DB.standards) ? DB.standards.find(x=>x.id===sid) : null;
+  const r = s ? (s.rubriken||[])[ri] : null;
+  const rname = r ? ((typeof rubName==='function')?rubName(r,ri):(r.name||'')) : '';
+  const passend = bauFuerRubrik(rname, kat||'');
+  const andere = BAUSTEINE.filter(b=>passend.indexOf(b)<0 && bauHatKat(b, kat||''));
+  const kats = bauKatListe();
+
+  let h = `<div class="sheet-grip"></div><div class="sheet-title">🧱 Bausteine einfügen</div>
+    <div class="sheet-name">${esc(rname)}</div>`;
+  if(kats.length){
+    h += `<div class="bau-katleiste">
+      <button type="button" class="bau-kb${kat?'':' on'}" data-s="${esc(sid)}" data-r="${ri}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')">Alle</button>`;
+    kats.forEach(k=>{ h += `<button type="button" class="bau-kb${kat===k.key?' on':''}" data-s="${esc(sid)}" data-r="${ri}" data-k="${esc(k.key)}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,this.dataset.k)">${esc(k.symbol||'')} ${esc(k.wort)}</button>`; });
+    h += `</div>`;
+  }
+  const karte = (b, heimisch)=>`<label class="bau-pick${heimisch?'':' fremd'}">
+    <input type="checkbox" value="${esc(b.id)}" ${bauWahl[b.id]?'checked':''} onchange="bauWahlSchalten(this.value,this.checked)">
+    <span class="bau-pick-n">${esc(b.name)}</span>
+    <span class="bau-pick-s">${(b.zeilen||[]).filter(z=>!z.weg).length} Zeilen${b.rubrik&&!heimisch?(' · '+esc(b.rubrik)):''}</span></label>`;
+  if(passend.length){ h += `<div class="bez-sec">Für „${esc(rname)}"</div>` + passend.map(b=>karte(b,true)).join(''); }
+  else h += `<p class="hint" style="padding:0 4px">Für diese Rubrik ist noch kein Baustein hinterlegt.</p>`;
+  if(andere.length){ h += `<div class="bez-sec">Aus anderen Rubriken</div>` + andere.map(b=>karte(b,false)).join(''); }
+
+  const n = Object.keys(bauWahl).filter(k=>bauWahl[k]).length;
+  h += `<div class="p-actions" style="padding:10px 4px 4px">
+    <button class="btn btn-sec" onclick="showSheet(false)">Abbrechen</button>
+    <button class="btn btn-pri" data-s="${esc(sid)}" data-r="${ri}" onclick="bauUiEinfuegenAusfuehren(this.dataset.s,+this.dataset.r)"${n?'':' disabled'}>${n?('Einfügen ('+n+')'):'Nichts gewählt'}</button></div>`;
+  $('sheet').innerHTML = h;
+  if(typeof showSheet==='function') showSheet(true);
+}
+function bauWahlSchalten(id, an){
+  if(an) bauWahl[id]=true; else delete bauWahl[id];
+  /* Nur den Knopf auffrischen — ein Neuaufbau würde die Bildlaufposition
+     verlieren, und man kreuzt hier mehrere Zeilen hintereinander an. */
+  const btn = $('sheet') && $('sheet').querySelector('.btn-pri');
+  const n = Object.keys(bauWahl).filter(k=>bauWahl[k]).length;
+  if(btn){ btn.textContent = n?('Einfügen ('+n+')'):'Nichts gewählt'; btn.disabled = !n; }
+}
+function bauUiEinfuegenAusfuehren(sid, ri){
+  const ids = Object.keys(bauWahl).filter(k=>bauWahl[k]);
+  let n = 0;
+  ids.forEach(id=>{ n += bauEinfuegen(id, sid, ri); });
+  bauWahl = {};
+  if(typeof showSheet==='function') showSheet(false);
+  if(typeof reRenderDetail==='function') reRenderDetail();
+  if(typeof toast==='function') toast(n?(n+' Zeilen eingefügt'):'Nichts eingefügt');
 }

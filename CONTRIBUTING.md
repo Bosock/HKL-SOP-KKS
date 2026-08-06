@@ -271,6 +271,32 @@ wird maschinell gegen quickmenu.js abgeglichen, in beide Richtungen.
 wer ihn sieht (`alle`/`admin`/`gast`); `fest:true` nur, wenn ein Ausblenden
 jemanden aussperren würde.
 
+## Ohne Code: die neuen Stellschrauben
+
+Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
+☰ → Anmelden → Verwaltung.
+
+| Was du willst | Wo |
+|---|---|
+| Ein Bild irgendwohin | Am Ort: ⋯ → Bilder (Eintrag) · 🖼-Knopf (Rubrik, Abschnitt) · ⋯ Standard → Bilder am Standard |
+| Ein Bild größer oder kleiner | In derselben Bilderliste: klein · mittel · groß |
+| Angaben zum Bild (erscheinen in der Großansicht) | Dort im Feld unter der Bildunterschrift |
+| „sedierungspflichtig" & Co. | Verwaltung → 💤 Merkmale an Standards → ＋ Merkmal anlegen; vergeben über ⋯ Standard → Merkmale |
+| Ein Merkmal als Reichweite nutzen | Im selben Panel den Haken „als Reichweite anbieten" |
+| Was oben im Standard steht | Verwaltung → 🪧 Standardkopf (an/aus, Wortlaut, Reihenfolge) |
+| Eine Zeile größer oder fett | ⋯ → 🔠 Schrift & Auszeichnung |
+| Ein einzelnes **Wort** hervorheben | Im Text: `**Wort**` · `__Wort__` · `~Wort~` (Zeichen änderbar unter Bezeichnungen) |
+| Steriler Tisch vs. Umfeld | Verwaltung → 📍 Bereiche anlegen; vergeben über ⋯ → Bereich |
+| „Statt A geht auch B" | ⋯ → ⇄ Alternativen |
+| „RF oder Kryo" | In der Rubrik: ⑂ Verfahrenszweige einrichten |
+| Einen Baustein sammeln | ⋯ → ＋ In Baustein übernehmen, dann Verwaltung → ⛓️ Bausteine |
+| Bausteine in eine Rubrik einfügen | In der Rubrik: 🧱 Bausteine einfügen (Ankreuzen) |
+| Den Stand endgültig machen | ⋯ Standard → 📚 Stand festschreiben |
+
+**Wenn du eine dieser Stellen im Code suchst und nicht findest:** Das ist
+Absicht. Die Wörter stehen in `public/data/bezeichnungen.json`, die Werte im
+geteilten Zustand — im Quelltext steht nur der Rückfall.
+
 ## Zwei Regeln, die die Maschine durchsetzt
 
 `npm run check` bricht ab, wenn eine davon verletzt wird. Beide stehen mit

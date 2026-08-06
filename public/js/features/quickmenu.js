@@ -69,6 +69,8 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   S.akt('wichtig','⭐',imp?'Wichtig-Markierung entfernen':'Als wichtig markieren',imp?'aktuell markiert':'hervorheben',"sheetToggle('important')");
   S.akt('mengehi','🔢',mHi?'Zahl normal anzeigen':'Zahl/Menge hervorheben',(qeGet(e,cid,'mengeHi')!==undefined?'manuell übersteuert · ':'automatisch bei ≠1x · ')+(mengeEffRaw?'Menge '+mengeEffRaw:'keine Menge'),"sheetToggle('mengeHi')");
   S.akt('farbe','🎨','Farblich absetzen','eigene Akzentfarbe',"sheetGo('color')");
+  if(typeof txsVon==='function'){ const stil=txsVon(e,cid);
+    S.akt('schrift','🔠','Schrift & Auszeichnung', txsBeschreibung(stil)+(txsHatAuszeichnung(name)?' · Wörter hervorgehoben':''), "sheetGo('stil')"); }
   /* Bilder gibt es an JEDER Zeile, nicht nur an Material — ein Handgriff ist
      genauso erklärungsbedürftig wie ein Produkt (features/medien.js). */
   if(typeof medVonEintrag==='function'){ const nb=medVonEintrag(e,cid).length;
@@ -77,13 +79,28 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   S.gruppe('organisation','Organisation','Wohin er gehört');
   S.akt('kategorie','🏷️','Kategorie ändern',cur.label,"sheetGo('cat')");
   if(isMat){ S.akt('uk','🗂️','Unterkategorie ändern','Gruppe zuweisen',"sheetGo('uk')"); }
+  if(isMat&&typeof berVon==='function'){ const b=berVon(e,cid);
+    S.akt('bereich','📍','Bereich', b?(b.symbol+' '+b.wort):'steriler Tisch, Umfeld …', "sheetGo('bereich')"); }
+  if(isMat&&typeof altFuerZeile==='function'){ const t=altFuerZeile(e,cid);
+    S.akt('alternativen','⇄','Alternativen', t.length?(t.length===1?'1 Austauschgruppe':(t.length+' Austauschgruppen')):'was geht stattdessen?', "sheetGo('alt')"); }
+  /* EIN Punkt statt zweier Zustände: „verknüpft" und „nicht verknüpft" waren
+     eine Datenmodell-Entscheidung, die in die Bedienung durchgeschlagen ist.
+     Ein Material ist ein Material — openMaterial() legt den Stammsatz beim
+     ersten Öffnen still an, falls es noch keinen gibt. */
   if(isMat&&e.material_key){ const cn=(typeof canonOf==='function')?canonOf(e.material_key):null;
-    S.akt('verknuepfen','🔗', cn?('Verknüpft: '+(cn.name||cn.ref||cn.gtin)):'Mit Produkt verknüpfen', cn?'Stammsatz zeigen / lösen':'Etikett-Produkt zuordnen (destillieren)','renderSheetLink()'); }
-  S.akt('eigenefelder','🔗','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
+    const fehlt=cn?[(cn.photo?null:'Foto'),(cn.lagerort?null:'Lagerort')].filter(Boolean):null;
+    S.akt('material','🧬','Material öffnen',
+      cn ? (fehlt.length?('es fehlt: '+fehlt.join(' und ')):'vollständig gepflegt') : 'Angaben, Etikett scannen, Foto',
+      'matManage()'); }
+  S.akt('eigenefelder','＋','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
   S.akt('verschieben','📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   S.akt('hoch','⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
   S.akt('runter','⬇','Nach unten','Reihenfolge in der Gruppe','moveEntry(1)');
   if(isMat){ S.akt('katalog','📥','In Katalog aufnehmen','für andere Standards verfügbar','sheetAddToCatalog()'); }
+  if(typeof bauSammeln==='function'){ const drin=bauSammelt(cid); const n=bauSammelZahl();
+    S.akt('sammeln', drin?'🧺':'＋', drin?'Aus der Baustein-Mappe nehmen':'In Baustein übernehmen',
+      n?(n+' Zeile'+(n===1?'':'n')+' gesammelt'):'sammeln und später zu einem Baustein machen',
+      'bauUiSammelnZeile()'); }
 
   S.gruppe('gefahr','Gefahrenzone','Entfernen & zurücksetzen');
   if(e._added){ S.akt('loeschen','🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
@@ -107,6 +124,8 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   S.akt('merkmale','🏷','Merkmale', (typeof eigChips==='function'&&eigChips(s.id).length)?(eigChips(s.id).length+' vergeben'):'z. B. sedierungspflichtig', 'eigSheet(curStd.id)');
   S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
+  if(typeof fasSheet==='function'){ const f=fasFuerStandard(s.id);
+    S.akt('festschreiben','📚','Stand festschreiben', f?('Fassung „'+f.wort+'" gilt'):'die App wird zur Grundlage', 'fasSheet(curStd.id)'); }
   S.gruppe('kopieren','Neuen Standard daraus machen','Kopieren statt abtippen');
   S.akt('duplizieren','⧉','Duplizieren','vollständige, unabhängige Kopie als Entwurf','showSheet(false);openDupStdForm()');
   if(typeof ownHatStruktur==='function' && ownHatStruktur(s.id)){
@@ -162,7 +181,7 @@ function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; c
   const dup=CATALOG.items.some(it=>(it.name||'').trim().toLowerCase()===f.name.trim().toLowerCase()&&(it.nat||'material')===(f.nat||'material'));
   if(dup){ showSheet(false); toast('Schon im Katalog',true); return; }
   CATALOG.items=upsertCatalogItem(CATALOG.items,makeCatalogItem(Object.assign({},f,{id:newAid()}))); saveCatalog(); showSheet(false); toast('In Katalog aufgenommen'); }
-function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); else if(state==='zusatz') renderSheetZusatz(); else if(state==='bilder') renderSheetBilder(); }
+function sheetGo(state){ if(state==='cat') renderSheetCat(); else if(state==='uk') renderSheetUk(); else if(state==='color') renderSheetColor(); else if(state==='zusatz') renderSheetZusatz(); else if(state==='bilder') renderSheetBilder(); else if(state==='stil') renderSheetStil(); else if(state==='bereich') renderSheetBereich(); else if(state==='alt') renderSheetAlternative(); }
 
 /* ── Verschieben (Souveränität): Eintrag in andere Rubrik/anderen Standard ──
    Eigene Einträge (additions/NEW) werden ECHT umgehängt; Basis-Einträge aus
@@ -190,7 +209,7 @@ function matLinkListHTML(prods,q){ const list=(typeof filterGtin==='function')?f
   return list.slice(0,40).map(r=>`<button class="sheet-pick-btn" data-g="${esc(r.gtin)}" onclick="matLinkPick(this.dataset.g)">${r.photo?'🖼 ':'🏷️ '}${esc(r.name||r.ref||r.gtin)}<span class="ps-sub">${esc([r.hersteller,(r.ref?('REF '+r.ref):'')].filter(Boolean).join(' · ')||'—')}</span></button>`).join(''); }
 function renderSheetLink(){ const e=sheetEntry; if(!e||!e.material_key){ showSheet(false); return; }
   const mk=e.material_key; const curIdv=(typeof canonId==='function')?canonId(mk):null; const cur=(typeof canonOf==='function')?canonOf(mk):null;
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">🔗 Mit Produkt verknüpfen</div>`;
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">🧬 Material zuordnen</div>`;
   h+=`<p class="why-help">Ordne dieses Material seinem echten Produkt-Stammsatz zu (Name, Foto, Maße, Eigenschaften). Der Eintrag im Standard bleibt — er bekommt die destillierte Identität. Jederzeit lösbar.</p>`;
   h+=`<button class="scan-cta" style="margin:2px 0 10px" onclick="matManage()">🧬 Material verwalten — scannen, Foto, Maße, Eigenschaften</button>`;
   if(cur){ h+=`<div class="why-row"><span class="why-src">Aktuell</span><span class="why-val">${esc(cur.name||cur.ref||cur.gtin)}</span></div>
@@ -244,7 +263,7 @@ function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!
    Reichweiten-Wahl, Journal, „Warum so?" und Geräte-Sync inklusive. */
 function renderSheetZusatz(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
   const cur=(qeGet(e,cid,'zusatz')||[]);
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">🔗 Eigene Felder</div>
+  let h=`<div class="sheet-grip"></div><div class="sheet-title">＋ Eigene Felder</div>
     <p class="why-help">Eigene Zusatz-Infos (z. B. „Schrank: B3" oder „nur bei ICD"), die als Badge am Eintrag erscheinen. Du wählst gleich, wo sie gelten.</p>`;
   cur.forEach((f,i)=>{ h+=`<div class="why-row"><span class="why-src">${esc(f.n)}</span><span class="why-val">${esc(f.w||'')}</span><button class="why-undo" data-i="${i}" onclick="sheetZusatzDel(+this.dataset.i)">✕</button></div>`; });
   h+=`<input type="text" id="zfName" class="txtinp" style="width:100%;margin-top:10px" placeholder="Feldname, z. B. Schrank">
@@ -320,7 +339,7 @@ function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ appl
   const stufen=(typeof rwStufen==='function')?rwStufen(cid,e.material_key):[];
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div>`;
   h+=`<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
-  stufen.forEach(x=>{ h+=`<button class="sheet-pick-btn" data-s="${esc(x.key)}" onclick="applyPending(this.dataset.s)">${x.ico} ${esc(x.wort)} <span class="ps-sub">· ${esc(x.sub||'')}</span></button>`; });
+  stufen.forEach(x=>{ h+=`<button class="sheet-pick-btn" data-s="${esc(x.key)}" onclick="applyPending(this.dataset.s)">${x.ico} ${esc(x.lang||x.wort)} <span class="ps-sub">· ${esc(x.langSub||x.sub||'')}</span></button>`; });
   h+=`</div><button class="sheet-close" onclick="renderSheetMain()">Abbrechen</button>`;
   $('sheet').innerHTML=h; }
 /* Weite Reichweiten werden bestätigt — als KARTE, nicht als natives Fenster:
@@ -437,7 +456,7 @@ const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-bt
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-menu-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry||!entry.id) return; const cid=entry.id.replace(/^e-/,''); if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } });
   /* 💡-Button: klappt das „Warum"-Detail auf/zu (für alle, kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-why-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry) return; const open=entry.classList.toggle('show-why'); b.setAttribute('aria-expanded',open?'true':'false'); });
-  /* 🔗-Badge: öffnet den verknüpften Produkt-Stammsatz (kein Abhaken). */
+  /* Material-Badge: öffnet das Material (kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-canon-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const g=b.dataset.g; if(g&&typeof openScanItem==='function') openScanItem(g,false); });
 })();
 
@@ -503,7 +522,7 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
   /* Einträge: kurz tippen = abhaken, halten = Bearbeiten-Menü (bzw. Vorschlag).
      Nutzt jetzt denselben Detektor wie die anderen Ebenen — vorher lag hier
      eine eigene, fast identische Umsetzung, in der die Rückmeldung „behandelt"
-     und der 🔗-Schalter fehlten. Der Selektor `[data-cid]` grenzt bewusst auf
+     und der Material-Schalter fehlten. Der Selektor `[data-cid]` grenzt bewusst auf
      ECHTE Eintragszeilen ein; reine Anzeige-Zeilen (Arzt-Varianten) tragen
      keine Kennung und sind damit ausdrücklich nicht bedienbar. */
   attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
@@ -512,3 +531,12 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
       if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } } });
 })();
 
+/* Sammeln aus dem Schnellmenü heraus (features/bausteine.js). Das Menü bleibt
+   offen und frischt nur den Zähler auf — man sammelt mehrere Zeilen
+   hintereinander, und jedes Mal das Menü zu schließen wäre eine Zumutung. */
+function bauUiSammelnZeile(){
+  const cid = sheetCid; if(!cid || typeof bauSammeln!=='function') return;
+  bauSammeln(cid);
+  renderSheetMain();
+  if(typeof toast==='function') toast(bauSammelt(cid) ? ('Gesammelt — '+bauSammelZahl()+' in der Mappe') : 'Aus der Mappe genommen');
+}

@@ -200,15 +200,22 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const stufen = bar ? [...bar.querySelectorAll('.scope-chip')].map(b => b.dataset.s) : [];
     const four = ['cid','std','grp','mat'].every(k => stufen.includes(k));
     window.confirm = () => true;
-    bar.querySelector('.scope-chip[data-s="mat"]').click();   // „Überall“ wählen
-    saveEntryForm();                                          // wendet direkt an
+    bar.querySelector('.scope-chip[data-s="mat"]').click();   // „Überall“ als Voreinstellung
+    saveEntryForm();                                          // öffnet das Prüfblatt
+    // PRÜFBLATT (features/reichweite.js): zeigt vorher → nachher je Feld samt
+    // Reichweite. Erst der Knopf dort schreibt — genau so war es gewünscht.
+    const pruef = /Prüfen und speichern/.test(document.getElementById('sheet').textContent);
+    const scopeChip = document.querySelector('#sheet .pb-scope');
+    document.querySelector('#sheet .btn-pri').click();
     let all = true, n = 0;
     DB.standards.forEach(s => (s.rubriken || []).forEach((r, i) => (r.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => { if (e.material_key === mk) { n++; if (qeGet(e, cidOf(s.id, i, si, ei), 'name') !== 'REICHWEITE-TEST') all = false; } }))));
     const ruled = rulesActive(RULES).some(x => x.prop === 'name' && x.ziel && x.ziel.key === mk && x.wo && x.wo.art === 'alle');
-    return { shown, four, all, n, ruled };
+    return { shown, four, all, n, ruled, pruef, chipText:scopeChip?scopeChip.textContent.trim():'' };
   });
   r.check('F: Bearbeiten-Formular zeigt den Geltungsbereich sichtbar', fscope.shown);
   r.check('F: … mit allen vier Stufen (hier/Standard/Gruppe/überall)', fscope.four);
+  r.check('F: Prüfblatt erscheint vor dem Speichern', fscope.pruef);
+  r.check('F: … und zeigt je Feld die geltende Reichweite', /Überall/.test(fscope.chipText));
   r.check('F: „Überall" ändert alle Vorkommen des Materials', fscope.all && fscope.n >= 1);
   r.check('F: … als Regel journaliert (rücknehmbar)', fscope.ruled);
 

@@ -2,7 +2,17 @@
 function setBar(t,c,b){ $('barTitle').textContent=t; $('barCrumb').textContent=c; $('backBtn').hidden=!b; }
 function updateBar(){ const total=DB.standards.length;
   if(mode==='use'&&nav.length===0) setBar(txt('appTitle'),total+' Standards',false);
-  else if(mode==='care'){ const d=MAT_INDEX.filter(m=>(typeof canonId==='function'&&canonId(m.key))||careMem[m.key]).length; setBar('Material',MAT_INDEX.length+' Materialien · '+d+' gepflegt',false); }
+  else if(mode==='care'){
+    /* Gezählt wird nicht mehr, was „verknüpft" ist — das war die Naht des
+       Datenmodells, nicht die Arbeit. Gezählt wird, was NOCH FEHLT. */
+    const offen=MAT_INDEX.filter(m=>{
+      const c=(typeof canonOf==='function')?canonOf(m.key):null;
+      const care=careMem[m.key];
+      const foto=(c&&c.photo)||(care&&care.photo);
+      const ort=(c&&c.lagerort)||(care&&care.loc);
+      return !foto || !ort;
+    }).length;
+    setBar('Material', MAT_INDEX.length+' Materialien · '+(offen?(offen+' unvollständig'):'alle gepflegt'), false); }
   else if(mode==='catalog'){ setBar('Katalog',CATALOG.items.length+' Geräte & Materialien',false); }
   else if(mode==='admin') setBar('Verwaltung','Kategorien · Unterkategorien · Prüfen',false);
 }

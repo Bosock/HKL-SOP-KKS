@@ -46,18 +46,27 @@
 function rwStufen(cid, mk){
   const aus = [];
   const treffer = (wo)=>{ try{ return (typeof ruleHits==='function') ? ruleHits(mk, wo) : null; }catch(e){ return null; } };
-  aus.push({ key:'cid', ico:'📍', wort:'Nur hier', sub:'diese eine Stelle', wo:{art:'stelle',wert:cid} });
+  /* Jede Stufe trägt ZWEI Sprachebenen:
+       wort / sub    kurz — für Chips, wo Platz knapp ist
+       lang / langSub  ausgeschrieben — für das Menü, wo man entscheidet
+     Ein Chip mit „In der Gruppe „HKL" · betrifft 23 Vorkommen in 9 Standards"
+     wäre unlesbar; ein Menüpunkt „Gruppe · 23× / 9 Std." wäre zu knapp für
+     eine Entscheidung, die 23 Stellen ändert. */
+  aus.push({ key:'cid', ico:'📍', wort:'Nur hier', sub:'diese eine Stelle',
+    lang:'Nur hier', langSub:'nur an dieser Stelle', wo:{art:'stelle',wert:cid} });
 
   const sid = (typeof cidStd==='function') ? cidStd(cid) : null;
   if(sid){
     const h = treffer({art:'standard',wert:sid});
     if(h) aus.push({ key:'std', ico:'📄', wort:'Standard', sub:h.vorkommen+'× hier',
+      lang:'In diesem Standard', langSub:'betrifft '+h.vorkommen+'× hier',
       wo:{art:'standard',wert:sid}, hits:h });
   }
   const grp = (sid && typeof stdGruppeById==='function') ? stdGruppeById(sid) : null;
   if(grp){
     const h = treffer({art:'gruppe',wert:grp});
     if(h) aus.push({ key:'grp', ico:'🗂', wort:'Gruppe „'+grp+'"', sub:h.vorkommen+'× / '+h.standards.length+' Std.',
+      lang:'In der Gruppe „'+grp+'"', langSub:'betrifft '+h.vorkommen+' Vorkommen in '+h.standards.length+' Standards',
       wo:{art:'gruppe',wert:grp}, hits:h, weit:true });
   }
   if(sid && typeof eigReichweiten==='function'){
@@ -66,11 +75,14 @@ function rwStufen(cid, mk){
       const wo = {art:'eigenschaft',wert:e.key};
       const h = treffer(wo);
       if(h) aus.push({ key:'eig:'+e.key, ico:'🏷', wort:'alle mit „'+e.wort+'"',
-        sub:h.vorkommen+'× / '+h.standards.length+' Std.', wo, hits:h, weit:true });
+        sub:h.vorkommen+'× / '+h.standards.length+' Std.',
+        lang:'In allen mit „'+e.wort+'"', langSub:'betrifft '+h.vorkommen+' Vorkommen in '+h.standards.length+' Standards',
+        wo, hits:h, weit:true });
     });
   }
   const ha = treffer({art:'alle'});
   aus.push({ key:'mat', ico:'🌐', wort:'Überall', sub:ha?(ha.vorkommen+'× / '+ha.standards.length+' Std.'):'',
+    lang:'Überall', langSub:ha?('betrifft '+ha.vorkommen+' Vorkommen in '+ha.standards.length+' Standards'):'',
     wo:{art:'alle'}, hits:ha, weit:true });
   return aus;
 }
@@ -150,7 +162,7 @@ function pbScopeWahl(i){
   h += `<div class="sheet-chips"><span class="schip">${esc(pbWert(z.prop, z.nachher))}</span><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
   rwStufen(PB.cid, PB.mk).forEach(s=>{
     h += `<button class="sheet-pick-btn${s.key===z.scope?' sel':''}" data-i="${i}" data-s="${esc(s.key)}" onclick="pbScopeSetzen(+this.dataset.i,this.dataset.s)">
-      ${s.ico} ${esc(s.wort)} <span class="ps-sub">· ${esc(s.sub||'')}</span></button>`;
+      ${s.ico} ${esc(s.lang||s.wort)} <span class="ps-sub">· ${esc(s.langSub||s.sub||'')}</span></button>`;
   });
   h += `</div><button class="sheet-close" onclick="pbZeichnen()">Zurück</button>`;
   $('sheet').innerHTML = h;

@@ -177,7 +177,7 @@ function kopfPanelHTML(){
         </div></div>`;
     }).join('');
   const head = (typeof vsum==='function')
-    ? vsum('🧱','Standardkopf','Was oben in einem Standard steht — Reihenfolge, Wortlaut, an/aus', kopfGeaendert()?'angepasst':'')
+    ? vsum('🪧','Standardkopf','Was oben in einem Standard steht — Reihenfolge, Wortlaut, an/aus', kopfGeaendert()?'angepasst':'')
     : `<summary>🧱 Standardkopf</summary>`;
   return `<details class="vpanel" data-keys="standardkopf kopf oben titel freigabe merkmale beschreibung bilder plankosten reihenfolge">
     ${head}<div class="vpanel-body">

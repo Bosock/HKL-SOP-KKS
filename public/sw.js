@@ -76,7 +76,7 @@ const SHELL = [
   'js/features/freigabe.js',
   'js/features/facetten.js',
   'js/features/funktionen.js',
-  'js/features/medien.js','js/features/eigenschaften.js','js/features/reichweite.js','js/features/stdkopf.js',
+  'js/features/medien.js','js/features/eigenschaften.js','js/features/reichweite.js','js/features/textstil.js','js/features/bereiche.js','js/features/alternativen.js','js/features/fassung.js','js/features/stdkopf.js',
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',

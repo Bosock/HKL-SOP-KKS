@@ -225,7 +225,7 @@ let eigForm = null;   /* {art:'neu'} — offene Eingabefläche statt prompt() */
 function eigPanelHTML(){
   const liste = eigListe();
   const head = (typeof vsum==='function')
-    ? vsum('🏷️','Merkmale an Standards','Eigenschaften wie „sedierungspflichtig" — anlegen, zählen, als Reichweite freigeben', liste.length?(liste.length+' angelegt'):'')
+    ? vsum('💤','Merkmale an Standards','Eigenschaften wie „sedierungspflichtig" — anlegen, zählen, als Reichweite freigeben', liste.length?(liste.length+' angelegt'):'')
     : `<summary>🏷️ Merkmale an Standards</summary>`;
   let h = `<details class="vpanel" data-keys="merkmale eigenschaften facetten sedierung sedierungspflichtig attribute kennzeichen statistik zählen reichweite">
     ${head}<div class="vpanel-body">

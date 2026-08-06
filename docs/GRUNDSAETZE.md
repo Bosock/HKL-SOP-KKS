@@ -158,7 +158,7 @@ sich schneller als jeder Entwicklungszyklus.
 | ③ | mitgelieferte Datei (`data/bezeichnungen.json`) | Auslieferung |
 | ④ | Rückfall im Code | nur damit die App auch ohne Datei startet |
 
-**Wo das heute greift** (Stand 04.08.2026 — die Liste ist der Prüfstand für
+**Wo das heute greift** (Stand 05.08.2026 — die Liste ist der Prüfstand für
 jede neue Funktion):
 
 | Fläche | einstellbar in der App |
@@ -167,12 +167,18 @@ jede neue Funktion):
 | Symbole der Kopfleiste | Lupe · Anmeldung · Hell/Dunkel je an/aus |
 | Verwaltungs-Karten | an/aus · Symbol · Name · Beschreibung · Reihenfolge |
 | **Bearbeiten-Menü ⋯** (Eintrag · Standard · Rubrik) | je Punkt an/aus · Symbol · Name · Untertitel · Reihenfolge; ganze Gruppen abschaltbar |
+| **Standardkopf** | zehn Bausteine je an/aus · Wortlaut · Reihenfolge |
 | Merkmalsleiste der Startseite | je Merkmal an/aus, Namen frei |
+| **Merkmale an Standards** | anlegen · Wort · Symbol · Farbe · Art · Werte · im Kopf zeigen · als Reichweite freigeben |
+| **Bereiche** (zweite Sicht aufs Material) | anlegen · Wort · Symbol · Farbe · Reihenfolge |
+| **Baustein-Kategorien** | anlegen · Wort · Symbol · Reihenfolge |
+| **Bild-Darstellung** | Größe je Bild und Stelle (klein · mittel · groß), jederzeit änderbar |
+| **Schrift** | Größe und Gewicht je Zeile; Zeichen für Wort-Auszeichnungen frei wählbar |
 | Kategorien | Name · Farbe · Symbol · eigene anlegen und löschen |
-| Bezeichnungen | Hersteller · Größenarten · Rubriknamen · Merkmale · Freigabewörter |
+| Bezeichnungen | Hersteller · Größenarten · Rubriknamen · Merkmale · Freigabewörter · Bildgrößen · Schriftgrößen · Auszeichnungen · Merkmalsarten |
 | Texte | App-Titel und die Einleitungen |
 | Anzeige im Eintrag | jedes Feld einzeln ein-/ausblendbar |
-| Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine |
+| Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine · Bilder · Austauschgruppen · Verfahrenszweige |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
@@ -302,7 +308,7 @@ E2E-Läufe unter `e2e/`. Vor jedem Zusammenführen: `npm run check && npm test`.
 
 ## Teil C — Was die Maschine prüft
 
-`npm run check` prüft vier Dinge und bricht bei jedem Problem ab:
+`npm run check` prüft fünf Dinge und bricht bei jedem Problem ab:
 
 | # | Prüfung | dahinterliegender Grundsatz |
 |---|---|---|
@@ -310,8 +316,15 @@ E2E-Läufe unter `e2e/`. Vor jedem Zusammenführen: `npm run check && npm test`.
 | 2 | `sw.js`-SHELL ⇄ `index.html` synchron | Offlinefähigkeit |
 | 3 | **Kein neues `prompt()` / `confirm()`** | ⑧ |
 | 4 | **Kein Fachwort in einem Vergleich** | ④ |
+| 5 | **Kein Kettensymbol in der Bedienung** | ⑥ · Naht des Datenmodells |
 
-Prüfung 3 und 4 arbeiten mit einer **Altlastenliste**
+Prüfung 5 hält einen erreichten Zustand fest: Die Verknüpfung Zeile↔Material war
+eine Datenmodell-Entscheidung, die in die Oberfläche durchgeschlagen ist — ein
+Menüpunkt, ein Zustand, ein Badge, ein Zähler. Sie ist abgeräumt. Käme sie
+zurück, ginge **nichts kaputt** — genau deshalb braucht es eine Prüfung.
+Ausnahme mit `kette:ok`, wenn wirklich ein Link im Wortsinn gemeint ist.
+
+Prüfung 3, 4 und 5 arbeiten mit einer **Altlastenliste**
 (`scripts/pruefungen/altlasten.json`): Was am Tag der Einführung schon da war, ist
 je Datei gezählt und bleibt geduldet. Neue Fälle brechen ab — und wenn eine Zahl
 *zu hoch* ist, bricht die Prüfung ebenfalls ab und nennt die neue, kleinere Zahl.

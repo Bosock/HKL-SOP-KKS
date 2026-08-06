@@ -1,156 +1,129 @@
-# Konzept — Fünf Ausbauten
+# Konzept — Ausbau der App
 
 Stand: 05.08.2026 · Grundlage: der Bestand auf `claude/github-oauth-connect-ljdxp2`
 
-Dieses Papier ist ein **Konzept, kein Bauauftrag**. Es beschreibt für fünf
-gewünschte Ausbauten je: was heute wirklich im Quelltext steht (Befund), was
-das Handwerk außerhalb dieses Hauses dazu gelernt hat (Stand der Technik), das
-Zielbild, das Datenmodell, die Bedienung, den Weg dorthin ohne Datenverlust —
-und ausdrücklich das, was **nicht** gebaut werden sollte.
+Dieses Papier beschreibt für jeden Ausbau: was heute wirklich im Quelltext
+steht (Befund), was das Handwerk außerhalb dieses Hauses dazu gelernt hat
+(Stand der Technik), das Zielbild, das Datenmodell, die Bedienung, den Weg
+dorthin ohne Datenverlust — und ausdrücklich das, was **nicht** gebaut werden
+sollte.
 
-Alle fünf stehen unter denselben Vorgaben wie der Rest der App
+> **Fassung 2 (05.08.2026).** Nach der ersten Durchsicht durch den Betreiber
+> wurde **K1 vollständig umgeschrieben**: Statt *Vorgaben*, wo ein Bild
+> hingehört, gibt es jetzt die *Möglichkeit*, überall eines hinzusetzen — mit
+> frei wählbarer Darstellungsgröße. Dazu kamen fünf weitere Ausbauten (K6–K10).
+> Die Abschnitte K2–K5 sind inhaltlich unverändert und um das ergänzt, was der
+> Betreiber präzisiert hat.
+
+Alle Ausbauten stehen unter denselben Vorgaben wie der Rest der App
 (`docs/GRUNDSAETZE.md`), besonders unter **A7** (volle Kontrolle ohne
 Entwickler) und **⑤ Alles konfigurierbar**: Jedes Wort, jede Kategorie, jede
-Vorgabe, jeder Bedienpunkt aus diesen fünf Ausbauten muss in einer
-Verwaltungsmaske änderbar sein. Nichts davon darf je eine Code-Änderung
-brauchen.
+Vorgabe, jeder Bedienpunkt daraus muss in einer Verwaltungsmaske änderbar
+sein. Nichts davon darf je eine Code-Änderung brauchen.
 
 | | Ausbau | Kern in einem Satz | Größe |
 |---|---|---|---|
-| **K1** | Medienplätze | Bilder bekommen eine **Vorgabe je Stelle** statt nur eine Möglichkeit. | mittel |
+| **K1** | Bilder überall | An **jeder** Stelle kann ein Bild stehen — mit frei wählbarer Größe. | mittel |
 | **K2** | Eigenschaften an Standards | Ein Eingriff bekommt **Merkmale** („sedierungspflichtig") — sichtbar, zählbar, als Reichweite nutzbar. | mittel |
-| **K3** | Reichweite je Feld | Eine Bearbeitung darf **pro Feld** unterschiedlich weit reichen. | klein |
+| **K3** | Reichweite je Feld | Eine Bearbeitung darf **pro Feld** unterschiedlich weit reichen — mit Prüfblatt vor dem Speichern. | klein |
 | **K4** | Material ohne 🔗 | Die Verknüpfung verschwindet aus der Bedienung — **ein Material ist ein Material**. | groß |
-| **K5** | Bausteine kuratiert | Der Mensch **sammelt** Bausteine; die Vorschlagsmaschine kommt weg. | mittel |
+| **K5** | Bausteine kuratiert | Der Mensch **sammelt** Bausteine; sie sind **rubrikgebunden**. | mittel |
+| **K6** | Standardkopf als Bauplan | Was oben in einem Standard steht, ist eine Liste umbenennbarer Bausteine. | klein |
+| **K7** | Schrift & Auszeichnung | Größe und Gewicht je Zeile, Hervorhebung je Wort. | klein |
+| **K8** | Bereiche | Zweite Sicht aufs Material: steriler Tisch · Umfeld. | klein |
+| **K9** | Alternativen | Austauschgruppen (Material) und Verfahrenszweige (Ablauf). | mittel |
+| **K10** | Fassung festschreiben | Der erreichte Stand wird zur neuen Grundlage. | mittel |
 
 ---
 
-## K1 · Medienplätze — „hier muss ein Bild hin"
+## K1 · Bilder überall — Möglichkeit statt Vorgabe
+
+### Der Kurswechsel
+
+Die erste Fassung dieses Papiers schlug **Medienplätze** vor: eine Vorgabe je
+Stelle, welche Art Bild dort *hingehört*, wie viele, und ob es sein *muss* oder
+*soll*.
+
+Der Betreiber hat das verworfen, und zwar zu Recht:
+
+> „Ich möchte keine Vorgaben bei den Medien angeben, sondern ich möchte
+> entscheiden, an welcher Stelle kommt ein Bild hin."
+
+Das ist der bessere Entwurf. Eine Vorgabe hätte einen zweiten Regelkreis
+eingezogen, der gepflegt werden will, und hätte in der Praxis genau zwei
+Zustände produziert: erfüllt und unerfüllt. Beides interessiert niemanden im
+Saal. Gebraucht wird die **Möglichkeit**, nicht die Pflicht.
 
 ### Befund
 
-`public/js/features/medien.js` kann heute: an **jeder** Zeile beliebig viele
-Bilder (max. 12), inhaltsadressiert gespeichert (SHA-256), mit Reichweite
-📍/📄/🗂/🌐, offline-fähig über eine IndexedDB-Warteschlange.
-
-Was fehlt, ist die andere Richtung: **eine Vorgabe.** Die App kann sagen „hier
-darf ein Bild sein". Sie kann nicht sagen „hier **soll** eine dreiteilige
-Bildfolge sein und hier **muss** ein Foto des Geräts sein". Damit bleibt jede
-Bebilderung Zufall — sie hängt daran, ob jemand daran gedacht hat.
-
-### Stand der Technik
-
-Das ist kein Bildproblem, sondern eine **Feldvorgabe** — und dafür gibt es eine
-eingespielte Bauform. In strukturierten Redaktionssystemen hängt an einem
-Bildfeld eine Validierungsregel: `Rule.required().min(1).max(3)` an einem
-Bild-Array, `assetRequired()` für „nicht bloß ein leerer Platzhalter"
-([Sanity, Validation](https://www.sanity.io/docs/studio/validation),
-[Array-Länge](https://www.sanity.io/recipes/custom-validation-on-field-array-length-4237e475)).
-Was dort im Quelltext eines Entwicklers steht, muss hier im Menü der Leitung
-stehen — das ist der ganze Unterschied.
-
-Zweiter Befund aus derselben Ecke: Ein Bild trägt seine Bedeutung nicht in
-sich. Dasselbe Foto heißt an einer Stelle „Übersicht Tisch", an einer anderen
-„Schritt 2". Deshalb gehört die Beschriftung **an den Platz**, nicht an die
-Datei
-([Hygraph, Image SEO im Headless CMS](https://hygraph.com/blog/image-seo-with-headless-cms)).
+`features/medien.js` konnte Bilder nur an **Einträgen** — und alle gleich
+groß, als kleiner Streifen.
 
 ### Zielbild
 
-Ein **Medienplatz** ist eine benannte, vorgegebene Stelle für Bilder:
+**Drei Dinge, mehr nicht:**
 
-> An jedem Eintrag der Rubrik „Ablauf" **soll** ein Bild stehen (Titel:
-> „Handgriff"). An jedem Eintrag der Kategorie „Gerät" **muss** ein Foto
-> stehen. An dieser einen Stelle **soll** eine Bildfolge aus drei Bildern
-> stehen (Titel: „Aufbau in drei Schritten").
-
-Die Vorgabe wird nicht 4.475-mal gesetzt, sondern **einmal je Reichweite** —
-mit derselben Treppe wie alles andere in dieser App, um zwei Stufen erweitert,
-die hier unentbehrlich sind:
-
-```
-📍 diese Stelle        (Rang 6)
-📄 dieser Standard     (Rang 5)
-🗂 diese Rubrik in diesem Standard   (Rang 4)
-🗂 diese Rubrik überall              (Rang 3)
-🏷 diese Kategorie (Material/Gerät/Handgriff …)  (Rang 2)
-🌐 alle                (Rang 1)
-```
-
-Der spezifischste Rang gewinnt; bei Gleichstand die neuere Vorgabe. Das ist
-wortgleich die Regel aus `features/rules.js` (`ruleRank`/`ruleBeats`) — bewusst,
-denn zwei verschiedene Kaskaden in einer App sind eine Falle.
+1. **Überall.** Neben Einträgen auch am Standardkopf, an einer Rubrik und an
+   jedem Abschnitt.
+2. **Größe je Stelle.** Klein wie ein Symbol · mittel · groß wie in einer
+   Anleitung. Jederzeit nachträglich änderbar.
+3. **Antippen macht groß** — an jeder Stelle in der App, samt der Angaben zum
+   Bild.
 
 ### Datenmodell
 
-Ein eigener, geteilter Speicher `hkl_medienplaetze`, append-only wie das
-Regelwerk (jede Vorgabe rücknehmbar, nichts wird überschrieben):
+Stellen, die kein Eintrag sind, haben keine Regel-Kaskade; sie **sind** jeweils
+genau eine Stelle. Deshalb ein eigener, flacher Speicher `hkl_medienanker`,
+nach **Ankerschlüssel**:
 
 ```
-{ id, ts, von, op:'set'|'revoke', ref?,
-  wo: { art:'stelle'|'standard'|'rubrikStd'|'rubrik'|'kategorie'|'alle',
-        wert, wert2? },
-  plaetze: [ { key, titel, art, min, max, pflicht, hinweis } ] }
+std:<sid>                 Kopf eines Standards
+rub:<sid>|<ri>            eine Rubrik
+uk:<sid>|<ri>|<name>      ein Abschnitt (Material/Geräte)
+seg:<sid>|<ri>|<name>     ein Abschnitt (Ablauf)
 ```
 
-* **`plaetze` ist eine Liste**, weil an einer Stelle mehreres sinnvoll ist:
-  ein Übersichtsbild **und** eine dreiteilige Folge. Jeder Platz hat einen
-  Schlüssel (`uebersicht`, `schritte`, `warnung`) und einen **Titel, den das
-  Haus vergibt**.
-* **`art`** ist ein Schlüssel, kein Wort: `bild` · `bewegt` · `folge`. Das
-  angezeigte Wort kommt aus `data/bezeichnungen.json` → neuer Zweig
-  `medienarten` (Grundsatz ④; die Maschinenprüfung `scripts/pruefungen/fachwort.js`
-  erzwingt das ohnehin).
-* **`folge` ist eine eigene Art, nicht bloß `max>1`.** Eine Folge wird
-  nummeriert und in Reihenfolge dargestellt (1/2/3, wischbar); zwei
-  unabhängige Bilder stehen nebeneinander. Das ist ein Darstellungs-
-  unterschied, kein Zählunterschied — und genau der Unterschied, den
-  „hier soll eine Bildabfolge rein" meint.
-* **`pflicht`**: `muss` · `soll` · `kann`. Drei Stufen, weil das Haus im
-  Alltag drei benutzt.
+Der Anker ist bewusst eine **Zeichenkette**: Kommt morgen eine weitere Stelle
+dazu, braucht es keinen neuen Speicher und keine neue Funktion.
 
-### Zuordnung Bild → Platz (ohne Bruch)
+An Einträgen bleibt alles wie es war — die Bilder laufen weiter über die
+Reichweiten-Treppe, damit ein Foto des Coro-Sets mit einem Tipp an allen 23
+Stellen erscheint.
 
-Heute steht an einer Zeile eine flache Liste `[kennung, …]`. `medListe()` liest
-bereits **beide** Formen — `x.k !== undefined ? x.k : x`. Damit ist der Weg
-schon offen: Ein Bild darf künftig als `{k: kennung, p: platzKey}` gespeichert
-werden. Bilder ohne `p` liegen im **ersten** Platz, bis jemand sie zuordnet.
-Kein Migrationslauf, kein Datenverlust, jederzeit rückwärts lesbar.
+### Größe: die entscheidende Einsicht
 
-### Was passiert, wenn ein `muss`-Platz leer ist
+**Ein Bild trägt seine Größe nicht in sich.** Dieselbe Aufnahme ist an einer
+Materialzeile ein Symbol und in einer Anleitung eine ganze Seite. Die Größe
+gehört deshalb an die **Stelle**, nicht an die Datei.
 
-**Nichts wird blockiert.** Im Saal darf keine Vorgabe eine Arbeit anhalten —
-das ist die Konsequenz aus „Leer schlägt falsch" (①) und aus dem Grundsatz,
-dass die App ein Nachschlagewerk ist, kein Freigabesystem.
+```
+[ {k: '<kennung>', g: 'klein'|'mittel'|'gross'}, … ]
+```
 
-Stattdessen wird die Lücke **sichtbar**:
+Die alte flache Liste `['<kennung>', …]` wird weiter gelesen und bekommt die
+Vorgabegröße. **Kein Migrationslauf, kein Datenverlust** — und genau das prüfen
+sechs Tests, weil ein Fehler an dieser Stelle Bilder wortlos verschwinden
+ließe.
 
-1. Am Eintrag ein dezenter Platzhalter mit dem Titel des Platzes
-   („📷 Übersichtsbild fehlt") — **nur im Verwaltungsmodus**, im Saal nicht.
-2. Eine Liste „Was fehlt noch?" in der Verwaltung, gleiche Bauart wie
-   `bauAbweichungen()`: alle offenen Plätze, ein Tipp springt hin.
-3. Im Freigabe-Ablauf (`features/freigabe.js`) als **Vermerk**, nicht als
-   Sperre: „3 Pflicht-Bilder offen".
+Die Wörter „klein/mittel/groß" stehen in `data/bezeichnungen.json` → Zweig
+`mediengroessen`.
 
-### Bedienung ohne Code
+### Antippen macht groß — überall dieselbe Regel
 
-* Neue Verwaltungs-Karte **„🖼 Medienplätze"**: Liste der Vorgaben, je Vorgabe
-  Reichweite, Plätze, und die **Treffervorschau** („betrifft 214 Zeilen in 8
-  Standards") — dieselbe Bauart wie `ruleHits()`.
-* Angelegt wird eine Vorgabe aber **am Ort**, aus dem ⋯-Menü heraus:
-  „Hier sollen Bilder hin…". Man entscheidet dort, wo man die Stelle vor
-  Augen hat, nicht in einer abstrakten Maske.
-* Die Karte ist über das Funktionsregister (`features/funktionen.js`)
-  ausblendbar und umbenennbar wie jede andere.
+Jedes Bild trägt `data-zoom`; ein zentraler Klick-Melder öffnet die
+Großansicht. Das gilt auch für das **Produktfoto** an einer Materialzeile.
+Sonst müsste man sich merken, welches Bild sich vergrößern lässt und welches
+nicht.
+
+Die Großansicht zeigt zwei Dinge: die **Bildunterschrift** oben und die
+**Angaben zum Bild** unter dem Bild. Fehlen Angaben, verschwindet die Fläche
+ganz — ein leerer Kasten sähe aus wie ein Ladefehler.
 
 ### Bewusst nicht
 
-* **Kein hartes Pflichtfeld.** Ein `muss` ohne Bild darf das Speichern nie
-  verhindern.
-* **Keine Vorgaben zu Dateigröße/Auflösung je Platz** — der Speicher normiert
-  bereits (1280 px, JPEG 0,72); ein zweiter Regelkreis wäre Ballast.
-* **Kein Video.** GIF ist gedeckt (`medVerkleinern` reicht GIF ungerendert
-  durch); Video ist ein anderer Speicher und eine andere Bandbreite.
+* **Keine Pflichtplätze.** Ausdrücklich verworfen (siehe oben).
+* **Keine Vorgaben zu Dateigröße** — der Speicher normiert bereits.
+* **Kein Video.** GIF ist gedeckt; Video ist ein anderer Speicher.
 
 ---
 
@@ -467,10 +440,39 @@ wegkonstruieren*: Die **Beziehung** verschwindet aus der Bedienung, die
 
 ### Reihenfolge
 
-1. Oberfläche entflechten (Menüpunkt, Badge, Zähler, Status) — sofort spürbar,
-   ohne Datenrisiko.
-2. Stillschweigender Stammsatz beim ersten Öffnen.
+1. **Oberfläche entflechten** (Menüpunkt, Badge, Zähler, Status) — sofort
+   spürbar, ohne Datenrisiko. **Gebaut.**
+2. Stillschweigender Stammsatz beim ersten Öffnen. *(`openMaterial()` legt ihn
+   bereits an; der Sonderfall „noch nicht verknüpft" ist damit aus der
+   Bedienung verschwunden.)*
 3. Automatische Zusammenführung bei exakter Kennung + Prüfliste + Trennung.
+   **Offen.**
+
+### Was Schritt 1 konkret geändert hat
+
+| Vorher | Jetzt |
+|---|---|
+| ⋯ → „🔗 Mit Produkt verknüpfen" / „Verknüpft: X" | ⋯ → **„🧬 Material öffnen"** — ein Punkt, kein Zustand. Der Untertitel sagt, was fehlt: *„es fehlt: Foto und Lagerort"* |
+| 🔗-Badge an jeder zugeordneten Zeile | Produktname **ohne Kettensymbol**, und nur wenn er vom Zeilentext abweicht |
+| „x gepflegt" (= x verknüpft) | **„x unvollständig"** — die Arbeit, die wirklich wartet |
+| Status `Stammsatz` · `teilgepflegt` · `offen` | `gepflegt` · `unvollständig` · `noch nichts hinterlegt` |
+
+`MATLINK` bleibt unverändert bestehen — als Index, nicht als Bedienkonzept.
+Grundsatz ⑦, und die vorhandenen Verknüpfungen sind echte Arbeit.
+
+### Was noch fehlt (der geschlossene Pflege-Weg)
+
+> „Ich möchte systematisch durch alle Materialien gehen, während ich die App
+> benutze … die Materialien aufbereiten und bereinigen … gleichzeitig die
+> Felder richtig befüllen und Etiketten scannen, ein Bild vom Produkt machen.
+> Das muss alles kohärent, reibungslos ineinandergreifen."
+
+Die **Bausteine dafür stehen alle**: der Aufräum-Assistent (Zerlegung),
+der Etikett-Scanner, der Material-Editor, die Dublettenliste. Was fehlt, ist
+die **Klammer**: ein Weg, der beim Durcharbeiten eines Standards von Zeile zu
+Zeile führt, an jeder Stelle sagt, was noch fehlt, und die vier Werkzeuge in
+einer Abfolge anbietet statt an vier Orten. Das ist der nächste Schritt und
+verdient einen eigenen Durchgang.
 
 ---
 
@@ -542,6 +544,25 @@ Texte gleichhalten, bräuchte man einen dauerhaften Verweis vom Text zu seiner
 Quelle — und damit hätte man das 🔗 an einer neuen Stelle wieder eingebaut.
 Genau der Fehler, der in K4 abgeräumt wird, darf hier nicht neu entstehen.
 
+### Rubrikgebunden — der eigentliche Zeitgewinn
+
+Der Betreiber hat hier präzisiert, und es ist der wichtigste Zusatz:
+
+> „Da, wo ich die Bausteine markiere, wo sie ursprünglich herkommen — also
+> Saal und Geräte oder Patient — da möchte ich die auch automatisch einsortiert
+> haben, dass ich beim Erstellen eines neuen Standards direkt in Saal und
+> Geräte gehe und da alle Bausteine finde und nur per Checkbox sage: das
+> möchte ich haben."
+
+Ein Baustein merkt sich deshalb seine **Heimatrubrik** — automatisch, aus den
+Stellen, aus denen er gesammelt wurde. Genauer: aus der Rubrik, aus der die
+**meisten** seiner Zeilen stammen. Wer versehentlich eine Zeile aus einer
+anderen Rubrik mitnimmt, findet den Baustein trotzdem dort, wo er hingehört.
+
+In der Rubrik selbst steht dann ein Knopf **„🧱 Bausteine einfügen"**: oben die
+Bausteine *dieser* Rubrik, darunter die aus anderen. Ankreuzen, einfügen,
+fertig. Statt einer flachen Liste über alles.
+
 ### Das Sammeln
 
 Der vorgeschlagene Weg ist der richtige, und er passt in die vorhandene
@@ -584,18 +605,228 @@ benutzt hat, still die Standards fernsteuern.
 
 ---
 
+## K6 · Der Standardkopf als Bauplan
+
+### Befund
+
+Was oben in einem Standard steht, war eine feste Abfolge im Quelltext: erst die
+Varianten-Leiste, dann der Freigabe-Kasten, dann der Verwaltungsbalken, dann
+die Plankosten. Wer daran etwas ändern wollte — eine Zeile weg, eine andere
+Reihenfolge, ein eigenes Wort — brauchte einen Entwickler. Genau das verbietet
+A7.
+
+### Zielbild
+
+Der Kopf ist eine **Liste von Bausteinen**, jeder mit *an/aus · eigenes Wort ·
+Reihenfolge*:
+
+```
+varianten · freigabe · eigenschaften · titel · beschreibung
+bild · hinweis · zaehler · verwaltung · kosten
+```
+
+Gepflegt unter „🧱 Standardkopf". Die Bauart ist dieselbe wie beim
+Funktionsregister — wer eines versteht, versteht auch das andere (Grundsatz ⑥).
+
+**Nichts ist unabschaltbar.** Auch ein völlig leerer Kopf ist erlaubt: Der
+Titel steht ohnehin in der Kopfleiste. Ein Baustein ohne Inhalt erzeugt kein
+Markup — keine leere Fläche, die wie ein Fehler aussieht.
+
+Neu dabei: eine freie **Beschreibung** am Standard (in `STDE`, also auch an
+Standards aus der Quelldatei).
+
+---
+
+## K7 · Schrift und Auszeichnung
+
+### Zwei Wünsche, die man nicht mit einem Werkzeug erschlägt
+
+> „Ich möchte jede Textzeile oder jedes Wort im Standard, was seine
+> Schriftgröße angeht, anpassen und auch, ob es fett oder normal ist."
+
+**Eine Zeile** größer oder fetter zu machen ist eine Eigenschaft der Zeile —
+wie Farbe oder Menge. Also läuft sie über dieselbe Kaskade: 📍 · 📄 · 🗂 · 🏷 ·
+🌐. Wer die Warnzeile eines Materials überall groß haben will, tippt einmal.
+
+**Ein Wort** im Satz hervorzuheben ist etwas anderes: Das Wort steckt im Text.
+Hier hilft eine **Auszeichnung** — ein Zeichenpaar um das Wort:
+
+```
+**CAVE**   fett      __wichtig__   größer      ~nebensache~   kleiner
+```
+
+### Warum Zeichenpaare und kein Formatierungsknopf
+
+Ein Formatierungsknopf braucht einen Editor mit Cursorposition, Auswahl und
+Zwischenzustand. Im Saal wird auf einem Tablet mit Handschuhen getippt. Ein
+Sternchen um ein Wort überlebt jedes Kopieren, jeden Export, jede Suche — und
+ist im Zweifel immer noch lesbar. Das ist der belastbarere Weg.
+
+**Welche Zeichen was bedeuten,** steht in `bezeichnungen.json` → Zweig
+`auszeichnungen` und ist änderbar. Der Code kennt nur die Regel „Zeichen auf,
+Text, Zeichen zu".
+
+### Sicherheit vor Bequemlichkeit
+
+Ausgezeichnet wird **immer auf dem bereits entschärften Text**: erst `esc()`,
+dann die Zeichenpaare — und die Zeichen selbst gehen ebenfalls durch `esc()`,
+sonst fände ein Zeichenpaar wie `<<…>>` nie etwas. Ein Text aus einer
+Word-Datei darf niemals Markup werden, nur weil er zufällig eine spitze
+Klammer enthält. Drei Tests sichern genau das.
+
+Eine Auszeichnung reicht **nie über eine Zeile hinweg**: Ein vergessenes
+Zeichen darf nicht den halben Standard fetten.
+
+---
+
+## K8 · Bereiche — die zweite Sicht aufs Material
+
+> „Die Standards sind schon so geschrieben, dass es quasi eine Rüstliste ist.
+> Ich möchte aber differenzieren können nach: das ist Material für den sterilen
+> Tisch, und das ist Material, was du so drumherum brauchst."
+
+Das ist eine **zweite Achse**, keine weitere Kategorie. Die vorhandenen Achsen
+sind vergeben:
+
+| Achse | Frage | Beispiel |
+|---|---|---|
+| `natur` | **Was** ist es? | Material · Gerät · Handgriff |
+| `unterkategorie` | **Wo** im Standard? | „Material auf Ansage" |
+| `bereich` *(neu)* | **Wohin** kommt es? | steriler Tisch · Umfeld |
+
+Alle drei gelten gleichzeitig. Ein 6F-Schleusenset ist Material, steht unter
+„Zugang" und gehört auf den sterilen Tisch. Wer das in eine Achse presst,
+verliert zwei Informationen.
+
+Der Bereich läuft über **dieselbe Kaskade** wie alles andere. Wer einmal sagt
+„Kompressen gehören überall auf den sterilen Tisch", hat es an allen 60 Stellen
+gesagt.
+
+In der **Rüstliste** gibt es dadurch einen Umschalter: *Nach Ablauf* (wie
+bisher) oder *Nach Bereich*. Der Umschalter erscheint nur, wenn das Haus
+überhaupt Bereiche pflegt — sonst wäre es ein Knopf, hinter dem nichts steht.
+
+**Ausgeliefert wird bewusst nichts.** Ein Haus, das mit „steriler Tisch"
+nichts anfangen kann, soll nicht erst etwas wegräumen müssen.
+
+---
+
+## K9 · Alternativen — zwei Dinge, die gleich klingen
+
+### ① Austauschgruppen (Material)
+
+> „Beim LAA gibt es eine Merit-Medical-Schleuse, die soll standardmäßig genutzt
+> werden. Wenn die nicht da ist oder es ein schwerer Fall ist, gibt es auch
+> eine Schwartz SL1 von Abbott."
+
+Eine Gruppe ist eine **geordnete Liste** von Materialien: Rang 1 ist der
+Standard, Rang 2+ sind die Alternativen, jede mit ihrem Grund. Eine Gruppe
+statt gerichteter Paare, weil es sonst bei drei Produkten sechs Beziehungen
+wären — und weil die Frage „was nehme ich stattdessen" immer die ganze Gruppe
+meint.
+
+Angezeigt wird sie an **jedem** Glied, direkt an der Zeile:
+
+```
+⇄ oder Schwartz SL1        (an der Merit-Zeile)
+⇄ Alternative zu Merit …   (an der Schwartz-Zeile)
+```
+
+**Keine Kategorie.** Eine Kategorie wäre eine Schublade, in die im Saal niemand
+schaut. Das Material muss die Alternative selbst tragen.
+
+Verknüpft wird über den **kanonischen Materialschlüssel** (`effMatKey`), damit
+die Gruppe auch über verschiedene Schreibweisen desselben Produkts hinweg
+greift.
+
+### ② Verfahrenszweige (Ablauf)
+
+> „Wenn wir eine AVNRT machen, gibt es die alternative Therapievariante, dass
+> wir statt mit RF mit Kryo arbeiten."
+
+Das ist kein Material, sondern ein **Zweig im Verfahren**: Ein ganzer Abschnitt
+tritt an die Stelle eines anderen, mit eigenem Material und eigenem Ablauf.
+
+Ein Zweig hängt deshalb an einem **Abschnitt**. Oben in der Rubrik steht ein
+Umschalter; die Abschnitte der nicht gewählten Zweige verschwinden:
+
+```
+⑂ Ablationsverfahren    [alle]  [RF]  [Kryo]
+```
+
+Die Wahl ist **gerätelokal** — sie gilt für den Fall, der heute läuft, nicht
+für den Standard und nicht für die Kollegin im anderen Saal.
+
+**Ohne Wahl sind alle Zweige sichtbar.** Leer schlägt falsch: Wer nichts
+entschieden hat, darf nicht die Hälfte des Standards verlieren.
+
+---
+
+## K10 · Fassung festschreiben
+
+> „Da wir gesagt haben, dass die App die neue Wahrheit ist und die Word-Datei
+> nicht mehr, möchte ich im Journal endgültige Änderungen festlegen können.
+> Wenn ich sage, das ist endgültig, dann ist das der neue Ist-Zustand und dann
+> kann man das auch nicht mehr rückgängig machen."
+
+### Der Widerspruch, und warum er nötig ist
+
+Das Ziel ist richtig. Die naheliegende Umsetzung — „Rücknahme löschen" — wäre
+es nicht. Gebraucht wird keine gelöschte Rücknahme, sondern eine **neue
+Grundlage**:
+
+> Der aktuelle wirksame Stand eines Standards wird eingefroren und tritt an die
+> Stelle der Quelldatei. Die Regeln, die dahin geführt haben, sind danach
+> **eingearbeitet** — sie verschwinden aus der Liste und lassen sich einzeln
+> nicht mehr zurücknehmen. Genau das ist gewollt.
+
+Der Unterschied zur harten Variante: Die **ganze Fassung** bleibt
+wiederherstellbar. Einzel-Rücknahme weg, Katastrophen-Rückweg bleibt. Ohne den
+zweiten Teil wäre ein Fehlgriff dauerhaft — und Festschreiben ist genau die
+Handlung, bei der man sich irrt, weil man sie selten macht.
+
+### Wo die Fassung in der Kaskade steht
+
+```
+📍 Stelle  >  📄 Standard  >  🗂 Gruppe / 🏷 Merkmal  >  🌐 alle
+                                                      >  📚 FASSUNG
+                                                      >  Quelldatei
+```
+
+Neue Regeln wirken weiterhin ganz normal darüber. Die Fassung ersetzt nur, was
+vorher die Datei sagte.
+
+### Was eingefroren wird
+
+Nur, was **von der Quelldatei abweicht** — sonst schleppte eine Fassung 4.475
+unveränderte Werte mit und der geteilte Zustand ginge unnötig auf. Und nur die
+**inhaltlichen** Felder: Häkchen und Ansichtseinstellungen sind kein Inhalt
+eines Standards.
+
+Vor dem Festschreiben steht eine Vorschau mit den echten Zahlen: *so viele
+Stellen, so viele Angaben, so viele Regeln werden eingearbeitet.*
+
+**Die Quelldatei wird nie angefasst** — Grundsatz ⑦ gilt weiter.
+
+---
+
 ## Querschnitt
 
 ### Reihenfolge und Abhängigkeiten
 
 ```
-K3  Reichweite je Feld        klein, größter Alltagsgewinn, kein Datenrisiko
- │
-K2  Eigenschaften an Standards  liefert die neue Reichweite 🏷, die K3 dann
- │                              automatisch mit anbietet
-K1  Medienplätze              lehnt sich an die Kaskade aus K2/K3 an
-K5  Bausteine kuratiert       unabhängig, jederzeit möglich
- │
+GEBAUT (in dieser Reihenfolge)
+K1  Bilder überall            Anker, Größe je Stelle, Großansicht mit Angaben
+K2  Eigenschaften an Standards  Merkmale, Zählung, neue Reichweite 🏷
+K6  Standardkopf als Bauplan
+K3  Reichweite je Feld        Prüfblatt vor dem Speichern
+K7  Schrift & Auszeichnung
+K8  Bereiche                  zweite Sicht + zweite Sicht in der Rüstliste
+K9  Alternativen              Austauschgruppen + Verfahrenszweige
+K5  Bausteine kuratiert       Sammelmappe, Rubrikbindung, Kategorien
+K10 Fassung festschreiben
+
+OFFEN
 K4  Material ohne 🔗          größter Eingriff in Gewohnheiten; braucht
                               Trennfunktion + Journal, deshalb zuletzt
 ```

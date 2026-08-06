@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -50,6 +50,13 @@ function hydrateVars(){
   if(typeof GERAETE!=='undefined'){ GERAETE=loadJSON('hkl_geraete',{}); if(!GERAETE||typeof GERAETE!=='object') GERAETE={}; }
   if(typeof BAUSTEINE!=='undefined'){ BAUSTEINE=loadJSON('hkl_bausteine',[]); if(!Array.isArray(BAUSTEINE)) BAUSTEINE=[];
     if(typeof bauCacheLeeren==='function') bauCacheLeeren(); }
+  /* Sammelmappe und Kategorien der Baustein-Bibliothek: Wer am Tablet im Saal
+     sammelt, macht am Rechner weiter. */
+  if(typeof BAUSAM!=='undefined'){ BAUSAM=loadJSON('hkl_bausammlung',[]); if(!Array.isArray(BAUSAM)) BAUSAM=[]; }
+  if(typeof BAUKAT!=='undefined'){ BAUKAT=loadJSON('hkl_bausteinkats',[]); if(!Array.isArray(BAUKAT)) BAUKAT=[]; }
+  /* Festgeschriebene Fassungen (features/fassung.js) — sie sind die Grundlage
+     der Standards und müssen auf jedem Gerät dieselben sein. */
+  if(typeof FAS!=='undefined'){ FAS=loadJSON('hkl_fassungen',[]); if(!Array.isArray(FAS)) FAS=[]; FAS_IDX=null; }
   /* Menü- und Karten-Einstellungen (features/funktionen.js) — sie gelten für
      alle Geräte, deshalb kommen sie beim Sync mit. */
   if(typeof FKT!=='undefined'){ FKT=loadJSON('hkl_funktionen',{});
@@ -64,6 +71,13 @@ function hydrateVars(){
   if(typeof EIG!=='undefined'){ EIG=loadJSON('hkl_eigenschaften',[]); if(!Array.isArray(EIG)) EIG=[]; }
   if(typeof EIGSTD!=='undefined'){ EIGSTD=loadJSON('hkl_stdeigen',{}); if(!EIGSTD||typeof EIGSTD!=='object') EIGSTD={};
     if(typeof facCacheLeeren==='function') facCacheLeeren(); }
+  /* Zweite Sicht aufs Material (features/bereiche.js) und Alternativen
+     (features/alternativen.js). Die ZWEIGWAHL bleibt bewusst lokal: Sie gilt
+     für den Fall, der hier gerade läuft. */
+  if(typeof BEREICHE!=='undefined'){ BEREICHE=loadJSON('hkl_bereiche',[]); if(!Array.isArray(BEREICHE)) BEREICHE=[]; }
+  if(typeof ALTG!=='undefined'){ ALTG=loadJSON('hkl_altgruppen',[]); if(!Array.isArray(ALTG)) ALTG=[];
+    if(typeof altMaterialCacheLeeren==='function') altMaterialCacheLeeren(); }
+  if(typeof ZWG!=='undefined'){ ZWG=loadJSON('hkl_zweige',{}); if(!ZWG||typeof ZWG!=='object') ZWG={}; }
   /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
      sie jemand am anderen Gerät ab, muss das hier ankommen. */
   if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}

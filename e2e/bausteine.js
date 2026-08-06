@@ -40,48 +40,85 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('die Verwaltung hat einen Bausteine-Bereich', einstieg.imPanel && einstieg.knopf);
   check('… und er öffnet die Ansicht', einstieg.aktiv === 'scr-bausteine');
 
-  // ═══════════ 2. Erkennung am echten Bestand ═══════════
-  const funde = await A.page.evaluate(() => {
-    const vs = bauVorschlaege();
+  // ═══════════ 2. KURATIEREN statt vorschlagen ═══════════
+  //
+  // Der Betreiber hat die Vorschlagsmaschine ausdrücklich abbestellt: „Ich will
+  // keine Vorschläge, ich kenne meine Bausteine schon." Gesammelt wird jetzt
+  // beim Durcharbeiten eines Standards. Die Erkennungsfunktionen bleiben im
+  // Modul (sie sind billig und geprüft) — sie dürfen nur nirgends von allein
+  // erscheinen. Genau das prüft der erste Punkt.
+  const ohneVorschlag = await A.page.evaluate(() => {
     const txt = document.getElementById('scr-bausteine').textContent;
-    return { anzahl: vs.length, ersparnis: vs.reduce((n, k) => n + k.ersparnis, 0),
-      top: vs[0] ? { std: vs[0].standards.length, len: vs[0].laenge } : null,
-      zeigtListe: txt.includes('Gefundene Wiederholungen'),
-      knoepfe: document.querySelectorAll('#scr-bausteine .bau-vor').length };
+    return { keineListe: !/Gefundene Wiederholungen/.test(txt),
+      keineKarten: document.querySelectorAll('#scr-bausteine .bau-vor').length === 0,
+      erklaert: /In Baustein übernehmen/.test(txt) || /Baustein/.test(txt) };
   });
-  check(`am echten Bestand werden Wiederholungen gefunden (${funde.anzahl})`, funde.anzahl >= 20);
-  check(`… mit messbarem Nutzen (${funde.ersparnis} doppelt gepflegte Zeilen)`, funde.ersparnis > 400);
-  check(`… die stärkste steht in ${funde.top ? funde.top.std : 0} Standards`, !!funde.top && funde.top.std >= 5);
-  check('… und sie stehen als Vorschläge auf dem Bildschirm', funde.zeigtListe && funde.knoepfe > 0);
+  check('keine Vorschlagsliste mehr auf dem Bildschirm', ohneVorschlag.keineListe && ohneVorschlag.keineKarten);
+  check('… stattdessen erklärt der Bildschirm den Sammelweg', ohneVorschlag.erklaert);
 
-  // ═══════════ 3. Anlegen über die Bedienoberfläche ═══════════
+  // ═══════════ 3. Sammeln und daraus einen Baustein machen ═══════════
   const angelegt = await A.page.evaluate(() => {
-    const knopf = [...document.querySelectorAll('#scr-bausteine button')]
-      .find(b => /Als Baustein anlegen/.test(b.textContent));
-    if (!knopf) return { kein: true };
-    /* Seit Grundsatz ⑧ öffnet der Knopf eine Eingabefläche an Ort und Stelle
-       statt eines prompt()-Fensters — in installierten PWAs erschien dort auf
-       manchen Android-Chrome-Versionen gar nichts. */
-    knopf.click();
-    const feld = document.getElementById('bauFormName');
+    /* Eine echte Folge aus dem Bestand suchen: drei aufeinanderfolgende Zeilen
+       einer Material-Rubrik, die es auch anderswo gibt. */
+    const kand = bauVorschlaege()[0];
+    if (!kand) return { kein: true, keinKandidat: true };
+    const vor = bauFindenIn(kand.zeilen.map(z => z.slug), bauBloeckeJetzt());
+    if (!vor.length) return { kein: true, keineStelle: true };
+    const v = vor[0];
+    const rubrik = bauRubrikVon(v.sid + '|' + v.ri);
+    /* Sammeln — genau wie es das ⋯-Menü tut. */
+    v.eis.forEach(ei => bauSammeln(v.sid + '|' + v.ri + '|' + v.si + '|' + ei));
+    openBausteinAdmin();
+    const mappeDa = /Gesammelt/.test(document.getElementById('scr-bausteine').textContent);
+    const machen = [...document.querySelectorAll('#scr-bausteine button')]
+      .find(b => /Baustein daraus machen/.test(b.textContent));
+    if (!machen) return { kein: true, keinKnopf: true };
+    machen.click();
+    const feld = document.getElementById('bauSamName');
     if (!feld) return { kein: true, keinFeld: true };
     feld.value = 'E2E-Baustein';
     const anlegen = [...document.querySelectorAll('#scr-bausteine button')]
-      .find(x => x.textContent.trim() === 'Anlegen');
-    if (!anlegen) return { kein: true, keinKnopf: true };
+      .find(x => x.textContent.trim() === 'Baustein anlegen');
+    if (!anlegen) return { kein: true, keinAnlegen: true };
     anlegen.click();
     const b = BAUSTEINE[0];
-    const vor = b ? bauVorkommen(b.id) : [];
-    return { kein: false, name: b && b.name, zeilen: b ? b.zeilen.length : 0,
-      stellen: vor.length, standards: [...new Set(vor.map(v => v.sid))].length,
-      cid0: vor.length ? (vor[0].sid + '|' + vor[0].ri + '|' + vor[0].si + '|' + vor[0].eis[0]) : null,
-      inListe: document.getElementById('scr-bausteine').textContent.includes('Deine Bausteine') };
+    const f = b ? bauVorkommen(b.id) : [];
+    return { kein: false, mappeDa, name: b && b.name, rubrik: b && b.rubrik, erwartet: rubrik,
+      quelle: b && b.quelle, mappeLeer: bauSammelZahl() === 0,
+      zeilen: b ? b.zeilen.length : 0,
+      stellen: f.length, standards: [...new Set(f.map(x => x.sid))].length,
+      cid0: f.length ? (f[0].sid + '|' + f[0].ri + '|' + f[0].si + '|' + f[0].eis[0]) : null,
+      inListe: document.getElementById('scr-bausteine').textContent.includes(rubrik || '') };
   });
-  check('ein Vorschlag lässt sich anlegen — über eine Eingabefläche, nicht über ein Fenster',
-    !angelegt.kein && angelegt.name === 'E2E-Baustein');
+  check('gesammelte Zeilen erscheinen als Mappe', !angelegt.kein && angelegt.mappeDa);
+  check('aus der Mappe entsteht ein Baustein — über eine Eingabefläche, nicht über ein Fenster',
+    !angelegt.kein && angelegt.name === 'E2E-Baustein' && angelegt.quelle === 'kuratiert');
+  check('… und die Mappe ist danach leer', angelegt.mappeLeer === true);
+  check(`… er merkt sich seine Rubrik („${angelegt.rubrik || ''}")`,
+    !!angelegt.rubrik && angelegt.rubrik === angelegt.erwartet);
   check(`… er findet seine Fundstellen (${angelegt.stellen} in ${angelegt.standards} Standards)`,
     angelegt.stellen >= 3 && angelegt.standards >= 3);
-  check('… und steht danach oben in der Liste', angelegt.inListe === true);
+  check('… und steht in der Bibliothek unter seiner Rubrik', angelegt.inListe === true);
+
+  // ═══════════ 3b. Kategorien: Facetten statt Baum ═══════════
+  const kategorien = await A.page.evaluate(() => {
+    const k1 = bauKatAnlegen('E2E-CRM');
+    const k2 = bauKatAnlegen('E2E-EPU');
+    const b = BAUSTEINE[0];
+    bauKatSchalten(b.id, k1.key);
+    bauKatSchalten(b.id, k2.key);
+    const beide = bauHatKat(BAUSTEINE[0], k1.key) && bauHatKat(BAUSTEINE[0], k2.key);
+    renderBausteine();
+    const leiste = document.querySelectorAll('#scr-bausteine .bau-kb').length;
+    bauKatLoeschen(k1.key);
+    const wegAusBaustein = !bauHatKat(BAUSTEINE[0], k1.key);
+    bauKatLoeschen(k2.key);
+    renderBausteine();
+    return { beide, leiste, wegAusBaustein };
+  });
+  check('ein Baustein trägt mehrere Kategorien gleichzeitig', kategorien.beide);
+  check('… die Bibliothek zeigt sie als Leiste', kategorien.leiste >= 3);
+  check('… und eine gelöschte Kategorie verschwindet auch aus dem Baustein', kategorien.wegAusBaustein);
 
   // ═══════════ 4. Einmal ändern — überall gültig ═══════════
   const geaendert = await A.page.evaluate(() => {
