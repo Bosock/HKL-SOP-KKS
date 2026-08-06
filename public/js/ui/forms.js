@@ -292,18 +292,51 @@ function deleteAddEntry(sid,ri,aid){ const key=sid+'|'+ri; const arr=ADDITIONS.e
 
 /* ---- Eigene Standards ---- */
 function openStandardForm(id){ const s=id?ADDITIONS.standards.find(x=>x.id===id):null; const title=s?'Standard bearbeiten':'Neuer Standard';
+  /* Bausteine gibt es nur beim ANLEGEN zur Auswahl: Ein bestehender Standard
+     bekommt sie in der Rubrik selbst („🧱 Bausteine einfügen") — dort sieht
+     man, wohin sie kommen (features/bausteine.js). */
+  if(!s && typeof bauStdWahlLeeren==='function') bauStdWahlLeeren();
+  const bauBlock=(!s && typeof bauStdWahlHTML==='function')?bauStdWahlHTML():'';
   const h=`<div class="pcard">
     <div class="form-grp"><div class="flabel">Titel</div><input class="loc-input" id="sTitel" placeholder="z. B. Koronarangiografie" value="${esc(s?s.titel:'')}"></div>
     <div class="form-grp"><div class="flabel">Gruppe</div><input class="loc-input" id="sGruppe" list="grpList" placeholder="z. B. HKL — vorhandene wählen oder neue tippen" value="${esc(s?s.gruppe:'Eigene')}">
     <datalist id="grpList">${distinctGroups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>
-    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik über „＋ Eintrag hinzufügen" hinzu.</p>
+    ${bauBlock}
+    <p class="hint">Ein neuer Standard erhält die Rubriken „Saal und Geräte", „Material" und „Ablauf". Einträge fügst du danach in der jeweiligen Rubrik hinzu — getippt über „＋ Eintrag hinzufügen" oder angekreuzt über „☑ Ankreuzen statt Abtippen".</p>
     <div class="p-actions"><button class="btn btn-sec" onclick="closeForm()">Abbrechen</button><button class="btn btn-pri" onclick="saveStandardForm(${s?`'${esc(s.id)}'`:'null'})">Speichern</button></div>
   </div>`;
   const back=(mode==='admin')?(()=>{ renderAdmin(); show('scr-admin'); updateBar(); }):(()=>{ setMode('use'); renderStandards($('searchInput')?$('searchInput').value:''); show('scr-standards'); updateBar(); });
   formCtx={desc:{kind:'std'}, back};
   $('scr-form').innerHTML=h; show('scr-form'); setBar(title,mode==='admin'?'Verwaltung':'Neuer Standard',true); }
 function saveStandardForm(id){ const titel=$('sTitel').value.trim(); const gruppe=$('sGruppe').value.trim(); if(!titel){ toast('Bitte einen Titel eingeben',true); return; }
-  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); } else { addStandard(titel,gruppe); toast('Standard angelegt'); } closeForm(); }
+  if(id){ updateStandard(id,titel,gruppe); toast('Gespeichert'); closeForm(); return; }
+  const sid=addStandard(titel,gruppe);
+  /* Angekreuzte Bausteine gleich mit einsetzen — jeder in seine Heimatrubrik.
+     Die Rückmeldung nennt Zahlen, weil ein neu entstandener Rubrikname sonst
+     wie ein Versehen aussähe. */
+  const ids=(typeof bauStdWahlIds==='function')?bauStdWahlIds():[];
+  let meldung='Standard angelegt';
+  if(ids.length && typeof bauInStandard==='function'){
+    const b=bauInStandard(sid, ids);
+    if(b.zeilen) meldung+=' · '+b.bausteine+' Baustein'+(b.bausteine===1?'':'e')+' mit '+b.zeilen+' Zeilen übernommen';
+    if(b.neueRubriken.length) meldung+=' · neu angelegt: '+b.neueRubriken.join(', ');
+  }
+  if(typeof bauStdWahlLeeren==='function') bauStdWahlLeeren();
+  toast(meldung); closeForm(); }
+/* Sorgt dafür, dass ein selbst angelegter Standard eine Rubrik dieses Namens
+   HAT, und liefert ihren Index. Gibt es sie schon, wird nichts angelegt.
+   Gebraucht beim Übernehmen von Bausteinen: Der Baustein bringt seine
+   Heimatrubrik mit, der frische Standard kennt sie noch nicht. */
+function stdRubrikSicherstellen(sid, name, typ){
+  const nm=String(name||'').trim(); if(!nm) return -1;
+  const s=ADDITIONS.standards.find(x=>x.id===sid);
+  if(!s || !Array.isArray(s.rubriken)) return -1;
+  const i=s.rubriken.findIndex(r=>String(r.name||'').trim().toLowerCase()===nm.toLowerCase());
+  if(i>=0) return i;
+  const t=(typ==='material'||typ==='geraete'||typ==='ablauf')?typ:'sonstige';
+  s.rubriken.push({ name:nm, typ:t, sub_bereiche:[] });
+  saveAdditions(); rebuildDB();
+  return s.rubriken.length-1; }
 
 /* ---- Rubrik-Vorlagen (Name, Typ, Geltungsbereich) ---- */
 function openRubrikForm(id){ const t=id?RUBTPL.find(x=>x.id===id):null;

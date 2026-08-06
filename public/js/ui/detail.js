@@ -235,7 +235,13 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       html+=`</div>`; }
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
-  const adoptBtn=isMatGer?`<button class="add-entry-btn" onclick="startAdoptCatalog()">⬇ Aus Katalog übernehmen</button>`:'';
+  /* „Ankreuzen statt Abtippen" (features/ankreuzen.js) hat „⬇ Aus Katalog
+     übernehmen" abgelöst: Der alte Weg konnte EINE Position auf einmal und
+     kannte nur den Katalog — den kleinsten der vorhandenen Töpfe. Der neue
+     kreuzt mehrere an und zieht aus dem ganzen Bestand. In Ablauf-Rubriken
+     gibt es ihn ebenfalls; dort stehen die Handgriffe zur Wahl. */
+  const adoptBtn=(ADMIN&&typeof ankOeffnen==='function')
+    ?`<button class="add-entry-btn" data-r="${idx}" onclick="ankOeffnen(+this.dataset.r)">☑ Ankreuzen statt Abtippen</button>`:'';
   /* Eigene Abschnitte in JEDER Rubrik anlegbar (Souveränität): bei Material/
      Geräte als Unterkategorie-Sektion (UKSEC), in Ablauf-Rubriken als eigene
      Überschrift — nur im Verwaltungsmodus. */
@@ -325,22 +331,12 @@ function segHeadDelete(idx,aid){ const e=findAddEntry(curStd.id,idx,aid); if(!e)
   const key=curStd.id+'|'+idx; ADDITIONS.entries[key]=(ADDITIONS.entries[key]||[]).filter(x=>x._aid!==aid);
   if(!ADDITIONS.entries[key].length) delete ADDITIONS.entries[key];
   saveAdditions(); rebuildDB(); showSheet(false); reRenderDetail(); toast('Abschnitt gelöscht'); }
-/* Übernahme aus dem Katalog: Auswahl-Sheet öffnen, ausgewählten Eintrag als
-   neuen (eigenen) Eintrag in die aktuell offene Rubrik einfügen. */
-function startAdoptCatalog(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
-  if(!CATALOG.items.length){ toast('Katalog ist leer – erst im Katalog anlegen',true); return; }
-  renderCatalogPickSheet(); showSheet(true); }
-function renderCatalogPickSheet(){ const items=CATALOG.items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
-  let h=`<div class="sheet-grip"></div><div class="sheet-title">Aus Katalog übernehmen</div><div class="sheet-pick">`;
-  items.forEach(it=>{ const info=natOf(it.nat); const g=(it.sizeVal?[{typ:it.sizeTyp||'dimension',wert:it.sizeVal,roh:it.sizeVal}]:[]); const sizes=g.length?' '+sizeBadges(g):'';
-    h+=`<button class="sheet-pick-btn" onclick="adoptCatalogItem('${esc(it.id)}')"><span style="width:14px;height:14px;border-radius:4px;background:${info.color};display:inline-block"></span>${esc(it.name)}<span class="ps-sub">${esc(info.label)}${it.menge?' · '+esc(it.menge):''}${sizes}</span></button>`; });
-  h+=`</div><button class="sheet-close" onclick="showSheet(false)">Abbrechen</button>`;
-  $('sheet').innerHTML=h; }
-function adoptCatalogItem(id){ const it=findCatalogItem(id); const top=nav[nav.length-1];
-  if(!it||!top||top.lvl!=='rub'||!curStd){ showSheet(false); return; }
-  const key=curStd.id+'|'+top.idx; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]);
-  arr.push(makeAddEntry(Object.assign(catalogToForm(it),{aid:newAid()})));
-  saveAdditions(); rebuildDB(); buildMaterialIndex(); showSheet(false); toast('Aus Katalog übernommen'); reRenderDetail(); }
+/* Die Einzel-Übernahme aus dem Katalog (startAdoptCatalog / adoptCatalogItem)
+   ist ersatzlos entfernt: Sie konnte EINE Position auf einmal und kannte nur
+   den Katalog. „☑ Ankreuzen statt Abtippen" (features/ankreuzen.js) kann
+   beides besser und zieht zusätzlich aus dem tatsächlichen Bestand — den
+   Katalog eingeschlossen. Zwei Wege für dieselbe Absicht nebeneinander
+   stehen zu lassen wäre die teurere Entscheidung gewesen. */
 function toggleUk(ckey){ collapsed[ckey]=(collapsed[ckey]===false)?true:false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub'){ openRubrik(top.idx,true); } }
 function toggleCheck(cid){ checks[cid]=!checks[cid]; if(!checks[cid]) delete checks[cid]; saveChecks(); const el=$('e-'+cid); if(el) el.classList.toggle('done',!!checks[cid]);
   /* Konfigurierbare Pop-up-Dialoge: Abhaken/Entfernen ist der häufigste

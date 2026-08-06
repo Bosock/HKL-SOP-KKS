@@ -180,6 +180,7 @@ jede neue Funktion):
 | Texte | App-Titel und die Einleitungen |
 | Anzeige im Eintrag | jedes Feld einzeln ein-/ausblendbar |
 | Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine · Bilder · Austauschgruppen · Verfahrenszweige |
+| **Einträge anlegen** | getippt (Formular) · angekreuzt aus dem Bestand (☑) · als Baustein (🧱) · beim Anlegen eines Standards gleich mit |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie

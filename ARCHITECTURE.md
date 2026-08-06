@@ -653,6 +653,29 @@ auf **einen** Text eingeengt (`cleanupFokus`). `reRenderDetail()` kennt
 `scr-pflege` als dritten Kontext, damit das ⋯-Menü (Bereich) von dort aus
 funktioniert.
 
+## Ankreuzen statt Abtippen (`features/ankreuzen.js`)
+
+Mehrfach-Wähler in jeder Rubrik. Die Liste kommt aus dem BESTAND, passend zur
+Sorte der Rubrik (`ankSorte`): Material/Geräte → der kanonische Materialbestand
+(`pfMaterialien()`) plus die Katalog-Positionen, die es dort noch nicht gibt;
+Ablauf/Sonstiges → die Zeilentexte der Ablauf-Rubriken, über `bauSlug`
+zusammengefasst. Sortiert nach Häufigkeit, gecacht je Sorte
+(`ankCacheLeeren()` hängt an `invalidateMatCaches()` und `hydrateVars()`).
+
+Eingefügt wird über `makeAddEntry` — derselbe Weg wie im Formular. Der
+Materialschlüssel entsteht dabei aus dem Namen, also trägt der neue Eintrag
+denselben wie sein Vorbild; Foto, Maße und Preis hängen sofort mit dran.
+
+Die frühere Einzel-Übernahme (`startAdoptCatalog` / `adoptCatalogItem`) ist
+ersatzlos entfernt: eine Position pro Tipp, und nur aus dem Katalog.
+
+**Bausteine beim Anlegen eines Standards** (`bauInStandard` in
+`features/bausteine.js`): Jeder Baustein kennt seine Heimatrubrik (`b.rubrik`)
+und landet dort. Fehlt sie im frischen Standard, legt
+`stdRubrikSicherstellen()` (`ui/forms.js`) sie an — mit der Art, die
+`bauRubrikTyp()` an den Zeilen abliest. Ohne Heimat geht der Baustein in die
+erste Rubrik statt verloren (Grundsatz ②).
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

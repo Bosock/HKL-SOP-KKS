@@ -85,6 +85,7 @@ function hydrateVars(){
   if(typeof PFLEIGEN!=='undefined'){ PFLEIGEN=loadJSON('hkl_pflegeeigen',[]); if(!Array.isArray(PFLEIGEN)) PFLEIGEN=[]; }
   if(typeof PFSTAND!=='undefined'){ PFSTAND=loadJSON('hkl_pflegestand',{}); if(!PFSTAND||typeof PFSTAND!=='object') PFSTAND={};
     if(typeof pfCacheLeeren==='function') pfCacheLeeren(); }
+  if(typeof ankCacheLeeren==='function') ankCacheLeeren();
   /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
      sie jemand am anderen Gerät ab, muss das hier ankommen. */
   if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}

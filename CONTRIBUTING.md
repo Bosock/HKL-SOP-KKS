@@ -291,6 +291,8 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | „RF oder Kryo" | In der Rubrik: ⑂ Verfahrenszweige einrichten |
 | Einen Baustein sammeln | ⋯ → ＋ In Baustein übernehmen, dann Verwaltung → ⛓️ Bausteine |
 | Bausteine in eine Rubrik einfügen | In der Rubrik: 🧱 Bausteine einfügen (Ankreuzen) |
+| Einen neuen Standard aus Bausteinen aufbauen | ＋ Neuer Standard → dort die Bausteine ankreuzen; jeder landet in seiner Heimatrubrik (fehlt sie, entsteht sie) |
+| Eine Zeile einfügen, ohne sie abzutippen | In der Rubrik: ☑ Ankreuzen statt Abtippen — der ganze Bestand zur Auswahl, mehrere auf einmal |
 | Den Stand endgültig machen | ⋯ Standard → 📚 Stand festschreiben |
 | Alle Materialien systematisch durchgehen | Materialzentrale → 🧹 Pflege-Weg · oder ⋯ an der Zeile → Pflege-Weg ab hier · oder ⋯ Standard → für diesen Standard |
 | Welche Schritte der Pflege-Weg abfragt | Verwaltung → 🧹 Pflege-Weg (an/aus, Wortlaut, Untertitel, Symbol, Reihenfolge) |

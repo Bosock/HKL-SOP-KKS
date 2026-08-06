@@ -613,6 +613,16 @@ In der Rubrik selbst steht dann ein Knopf **„🧱 Bausteine einfügen"**: oben
 Bausteine *dieser* Rubrik, darunter die aus anderen. Ankreuzen, einfügen,
 fertig. Statt einer flachen Liste über alles.
 
+**Und beim ANLEGEN eines Standards** — der Satz, um den es dem Betreiber ging
+— stehen sie im Formular „Neuer Standard" selbst, nach Heimatrubrik gruppiert
+und nach Kategorie filterbar (CRM · EPU · …). Angekreuzt landet jeder in
+seiner Heimatrubrik. Fehlt sie im frischen Standard, **entsteht sie**: Ein
+Baustein aus „Patientenvorbereitung" bekommt seine Rubrik, mit der Art, die
+aus seinen Zeilen abgelesen ist. Die Alternative — alles in eine vorhandene
+Rubrik kippen — wäre schneller programmiert und für den, der den Standard
+später liest, eine Zumutung. Die Rückmeldung nennt Zahlen und den neuen
+Rubriknamen, damit er nicht wie ein Versehen aussieht.
+
 ### Das Sammeln
 
 Der vorgeschlagene Weg ist der richtige, und er passt in die vorhandene
@@ -629,10 +639,33 @@ Bedienung:
 5. Der Langdruck bleibt die Abkürzung zum ⋯-Menü — er bekommt keine eigene,
    zweite Bedeutung.
 
-**Verbindung zu einer bereits zugesagten Funktion:** „Ankreuzen statt
-Abtippen" (Mehrfachauswahl in einer Rubrik) ist der bequeme Weg, viele Zeilen
-auf einmal zu sammeln. Die beiden gehören zusammen und sollten zusammen
-gebaut werden.
+### „Ankreuzen statt Abtippen" — gebaut, und größer als geplant
+
+Geplant war Mehrfachauswahl in einer Rubrik. Beim Bauen zeigte sich, dass es
+dafür bereits einen halben Weg gab: „⬇ Aus Katalog übernehmen" — eine Position
+pro Tipp, und nur aus dem Katalog, also dem kleinsten der vorhandenen Töpfe.
+Zwei Wege für dieselbe Absicht nebeneinander stehen zu lassen wäre die
+teurere Entscheidung gewesen; der alte ist **ersatzlos entfernt**.
+
+Der neue (`features/ankreuzen.js`) zieht aus dem BESTAND, passend zur Sorte
+der Rubrik:
+
+| Rubrik | zur Auswahl |
+|---|---|
+| Material · Geräte | der **kanonische** Materialbestand — 334 Zeilen aus 4.475, jedes Material genau einmal — plus die Katalog-Positionen, die es dort noch nicht gibt |
+| Ablauf · Sonstiges | die Handgriffe der Ablauf-Rubriken, über `bauSlug` zusammengefasst (145 Zeilen); „Time-out" und „Time out" sind einer |
+
+Sortiert nach **Häufigkeit**: Was im Haus oft vorkommt, wird auch hier meistens
+gesucht (oben steht „500ml NaCl-Flasche", 53×). Angekreuztes bleibt sichtbar,
+auch wenn die Suche es gerade ausschließt — sonst kreuzt man an, tippt weiter
+und glaubt, es sei weg.
+
+Der eigentliche Gewinn ist nicht die Zeit, sondern die **Schreibweise**:
+„Radialschleuse 6 F" neben „Radialschleuse 6F" ist der Anfang genau der
+Dublettenarbeit, die anderswo mühsam aufgeräumt wird. Ein angekreuzter Eintrag
+trägt denselben Namen wie sein Vorbild und damit denselben Materialschlüssel —
+Foto, Maße und Preis hängen sofort dran, ohne dass jemand etwas verknüpfen
+müsste.
 
 ### Die Bibliothek
 
@@ -874,6 +907,7 @@ K7  Schrift & Auszeichnung
 K8  Bereiche                  zweite Sicht + zweite Sicht in der Rüstliste
 K9  Alternativen              Austauschgruppen + Verfahrenszweige
 K5  Bausteine kuratiert       Sammelmappe, Rubrikbindung, Kategorien
+    · Ankreuzen                beim Anlegen eines Standards + je Rubrik
 K10 Fassung festschreiben
 K4  Material ohne 🔗          Schritt 1: Naht aus der Bedienung
     · Pflege-Weg              Schritt 2: die Klammer um die vier Werkzeuge
@@ -896,6 +930,7 @@ dass die Maske davon wissen muss.
 | K4 | Kein 🔗 mehr in den Bedienflächen (Ratchet `pruefungen/kettensymbol.js`) · jede Zeile mit `material_key` liefert einen Stammsatz |
 | K4/Pflege-Weg | Gruppierung nach dem kanonischen Schlüssel · „fertig" wird abgelesen, nie gespeichert · jede Kette endet wieder im Weg (E2E: Editor **und** Aufräum-Assistent) · ausgeblendeter Schritt fällt aus Anzeige **und** Rechnung |
 | K5 | Keine Vorschlagsliste im Bildschirm · jeder Baustein hat Kategorien oder ausdrücklich keine |
+| K5/Ankreuzen | Jedes Material steht genau EINMAL zur Auswahl · Material und Handgriffe werden nie vermischt · ein angekreuzter Eintrag trägt denselben Materialschlüssel wie sein Vorbild · ein Baustein ohne Heimatrubrik geht nicht verloren |
 
 ### Was in jedem Fall konfigurierbar bleibt (A7)
 

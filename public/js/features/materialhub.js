@@ -29,7 +29,11 @@ let matStdMapCache=null;
 function invalidateMatCaches(){ matStdMapCache=null;
   if(typeof matKeyCacheLeeren==='function') matKeyCacheLeeren();
   if(typeof mcRowCache!=='undefined') mcRowCache=null;
-  if(typeof mcEntryCache!=='undefined') mcEntryCache=null; }
+  if(typeof mcEntryCache!=='undefined') mcEntryCache=null;
+  /* Beide leiten sich aus demselben Bestand ab (Pflege-Weg, Ankreuz-Wähler) —
+     sie müssen mit fallen, sonst zeigt die App gerechnete Zahlen von gestern. */
+  if(typeof pfCacheLeeren==='function') pfCacheLeeren();
+  if(typeof ankCacheLeeren==='function') ankCacheLeeren(); }
 function matStdMap(){ if(matStdMapCache) return matStdMapCache;
   const m={};
   if(typeof DB==='undefined'||!DB||!DB.standards) return m;

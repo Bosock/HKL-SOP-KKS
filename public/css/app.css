@@ -1311,3 +1311,18 @@
 .pf-vsub { margin-top:6px; font-size:12.5px; }
 .pf-frage { margin-top:9px; padding:10px 12px; border-radius:11px; font-size:12.5px; line-height:1.5;
   background:rgba(224,90,90,.1); border:1px solid rgba(224,90,90,.4); }
+
+/* ═══════════ Ankreuzen statt Abtippen ═══════════ */
+.ank-liste { max-height:52vh; overflow-y:auto; margin:8px 0 2px; padding-right:2px; }
+.ank-zeile { display:grid; grid-template-columns:22px 8px 1fr; gap:10px; align-items:center;
+  padding:9px 10px; margin:5px 0; border:1px solid var(--line); border-radius:11px;
+  background:var(--surface); cursor:pointer; }
+.ank-zeile.on { border-color:var(--accent); background:rgba(61,155,224,.1); }
+.ank-zeile input { width:20px; height:20px; }
+.ank-farbe { width:8px; height:26px; border-radius:4px; }
+.ank-haupt { min-width:0; }
+.ank-n { display:block; font-size:14px; font-weight:640; }
+.ank-s { display:block; font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+/* Bilanz der Baustein-Auswahl im Formular „Neuer Standard". */
+.bau-bilanz { margin-top:9px; padding:8px 11px; border-radius:10px; font-size:12.5px; font-weight:640;
+  background:var(--surface-2); border:1px solid var(--line); color:var(--text-dim); }
