@@ -739,6 +739,29 @@ denen **nichts kaputtgeht** — es passiert einfach nichts:
    `altlasten.json → geraetelokal`; eine Begründung ohne Schlüssel meldet
    sich ebenfalls.
 
+## Auslieferung: „grün" muss etwas heißen (07.08.2026)
+
+Am 06.08. lief ein Deploy nicht. Nicht, weil etwas kaputt war: Der Test-Job
+hing 15 Minuten und wurde abgebrochen; der zweite Versuch lief in **15
+Sekunden** durch. Teuer war nicht der Ausrutscher, sondern dass man ihm nicht
+ansah, was er war. Drei Eigenschaften halten das jetzt fest — und
+`scripts/pruefungen/pipeline.js` erzwingt sie in `npm run check`:
+
+| Eigenschaft | Warum |
+|---|---|
+| **Jeder Job hat `timeout-minutes`** (10 / 30 / 15) | Ohne Zeitlimit läuft ein hängender Job bis zu **sechs Stunden** und meldet dabei „läuft noch". Mit Zeitlimit wird aus einem Rätsel eine Fehlermeldung. |
+| **`cancel-in-progress` nur bei Pull Requests** | Auf `main` ist Abbrechen ein stiller Verlust: Zwei Merges kurz hintereinander, der erste Deploy endet mitten im Lauf — kein Fehler, keine Meldung, die App bleibt auf dem alten Stand. |
+| **Ein Nachweis-Schritt nach dem Deploy** | „Workflow grün" hieß nur, dass die Befehle zurückkamen. Der Schritt holt `\$PUBLIC_URL/sw.js` über HTTPS und vergleicht die `CACHE_VERSION` mit der im gebauten Commit. Stimmt sie nicht, ist der Deploy **rot**. |
+
+Der Nachweis unterscheidet zwei Fehlerbilder, weil man sonst an der falschen
+Stelle sucht: **nicht erreichbar** (Netz, Proxy, Container tot) gegen
+**antwortet mit dem alten Stand** (Deploy lief, kam nicht an). Bis zu zwölf
+Versuche im Abstand von 10 s — der neue Container braucht einen Moment.
+
+Die öffentliche Adresse kommt aus der Repository-Variablen `PUBLIC_URL`
+(Settings → Secrets and variables → Actions → Variables); ohne sie gilt
+`https://sops.kardio.wiki`.
+
 ## Bekannte Altlasten / bewusste Kompromisse
 
 - `esc()` escaped seit dem QA-Fix (P2) auch `'` (`&#39;`) — die frühere

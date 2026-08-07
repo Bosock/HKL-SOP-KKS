@@ -202,6 +202,13 @@ Listen. Zwei der Funde waren keine tote Last, sondern eine vergessene
 Verdrahtung — die Funktion war da, angeschrieben und getestet, nur der Weg
 dorthin fehlte.
 
+**Siebte Maschinenprüfung (07.08.2026): Auslieferung.**
+`scripts/pruefungen/pipeline.js` verlangt, dass jeder CI-Job ein Zeitlimit
+hat, dass der Auslieferungszweig laufende Deploys nicht abbricht, und dass
+nach dem Deploy ein Schritt die ausgelieferte App **abruft**. Sonst heißt
+„grün" nur, dass die Befehle zurückgekommen sind — nicht, dass draußen der
+neue Stand liegt. Das ist Grundsatz ⑨, angewandt auf die Auslieferung selbst.
+
 ### A8 · Deutsch, lesbar, mit Begründung
 
 **Die Regel.** Bezeichner und Kommentare sind deutsch. Kommentare erklären das
