@@ -29,13 +29,23 @@ const SORTS = [
   { key:'kosten', label:'Kosten',         ico:'💶', nur:'standard' },
   { key:'faellig',label:'Fällig',         ico:'⏰', nur:'anleitung' },
 ];
-function sortsFor(seg){ return SORTS.filter(s=>!s.nur || s.nur===seg); }
+/* `seg` ist heute eine SEITE (oder noch eine alte Kennung). Gefiltert wird
+   nach ihrer ART — sonst bekäme eine zweite Standard-Seite namens „EPU" keine
+   Kosten-Sortierung, nur weil sie anders heißt. */
+function segArt(seg){
+  if(seg && typeof seg==='object') return seg.art==='anleitungen' ? 'anleitung' : (seg.art==='standards' ? 'standard' : seg.art);
+  if(typeof seiteNach==='function'){ const s=seiteNach(seg);
+    if(s) return s.art==='anleitungen' ? 'anleitung' : (s.art==='standards' ? 'standard' : s.art); }
+  return seg;
+}
+function sortsFor(seg){ const a=segArt(seg); return SORTS.filter(s=>!s.nur || s.nur===a); }
 
 /* ===== Reine, testbare Helfer ===== */
 /* Ist die Sortierung im aktuellen Bereich erlaubt? Sonst fällt sie auf
    'gruppe' zurück (z. B. „Kosten" beim Wechsel zu Anleitungen). Rein. */
 function sortValid(key, seg){ const s=SORTS.find(x=>x.key===key); if(!s) return 'gruppe';
-  if(s.nur && s.nur!==seg) return 'gruppe'; return key; }
+  const a=(typeof segArt==='function')?segArt(seg):seg;
+  if(s.nur && s.nur!==a) return 'gruppe'; return key; }
 /* Favorit-Status. Rein (liest FAV). */
 function isFav(id){ return !!(FAV && FAV[id]); }
 /* Nutzungszahl / letzter Zugriff. Rein (liest USAGE). */
@@ -56,7 +66,12 @@ function sortItems(list, key){
 }
 
 /* ===== Zustand-Operationen ===== */
-function setSeg(seg){ curSeg=(seg==='anleitung')?'anleitung':'standard';
+function setSeg(seg){
+  /* Jede angelegte Seite ist erlaubt — nicht mehr nur zwei Literale. Zeigt
+     die Kennung ins Leere, greift seiteAktuell() auf die erste sichtbare
+     zurück, statt einen leeren Bildschirm zu zeigen. */
+  curSeg = seg || 'standard';
+  if(typeof seiteAktuell==='function') seiteAktuell();
   curSort=sortValid(curSort,curSeg);
   if(typeof renderStandards==='function') renderStandards();
   if(typeof updateBar==='function') updateBar(); }
@@ -69,13 +84,10 @@ function noteUsage(id){ if(!id) return; const u=USAGE[id]||(USAGE[id]={n:0,last:
   u.n=(u.n||0)+1; u.last=Date.now(); saveUsage(); }
 
 /* Umschalter + Sortierleiste als HTML (wird von renderStandards eingebunden). */
-function segBarHTML(){
-  const cnt=(typeof DB!=='undefined'&&DB&&DB.standards)?DB.standards.filter(s=>!stdHidden(s)||ADMIN).length:0;
-  const gcnt=(typeof guideList==='function')?guideList().length:0;
-  const b=(key,label,n)=>`<button class="seg-btn${curSeg===key?' on':''}" role="tab" aria-selected="${curSeg===key?'true':'false'}" tabindex="${curSeg===key?'0':'-1'}" onclick="setSeg('${key}')">${label}<span class="seg-n">${n}</span></button>`;
-  const sorts=sortsFor(curSeg).map(s=>`<button class="sortchip${curSort===s.key?' on':''}" aria-pressed="${curSort===s.key?'true':'false'}" onclick="setSort('${s.key}')" title="${esc(s.label)}"><span aria-hidden="true">${s.ico}</span> ${esc(s.label)}</button>`).join('');
-  return `<div class="segbar" role="tablist" aria-label="Standards oder Anleitungen">${b('standard','📋 Standards',cnt)}${b('anleitung','📘 Anleitungen',gcnt)}</div>
-    <div class="sortbar" role="group" aria-label="Sortierung">${sorts}</div>`;
-}
+/* segBarHTML() liegt jetzt in features/seiten.js: Die Leiste ist ein
+   REGISTER geworden — der Code kennt Seitenarten, das Haus legt Seiten an.
+   Zwei fest getippte Knöpfe waren die letzte Fläche der App, die sich nicht
+   ohne Entwickler ändern ließ. */
+
 /* ⭐-Schalter für eine Zeile (Freitext bleibt außerhalb des onclick). */
 function favBtnHTML(id){ return `<button type="button" class="fav-btn${isFav(id)?' on':''}" data-fid="${esc(id)}" onclick="event.stopPropagation();toggleFav(this.dataset.fid)" aria-label="Favorit">${isFav(id)?'★':'☆'}</button>`; }

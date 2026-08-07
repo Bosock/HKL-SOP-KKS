@@ -43,5 +43,9 @@
     "hkl_hint_daily": "einmaliger Hinweis auf den Tages-Reset — pro Gerät einmal",
     "hkl_gudid": "Zwischenspeicher fremder Katalogdaten; was zählt, landet beim Übernehmen im Stammsatz — und DER wird geteilt",
     "hkl_popup_log": "Auslöse-Protokoll der Pop-ups auf diesem Gerät (Diagnose)"
+  },
+  "_pipeline": "Prüfung 7 (scripts/pruefungen/pipeline.js): jeder CI-Job braucht ein Zeitlimit, der Auslieferungszweig darf laufende Deploys nicht abbrechen, und nach dem Deploy muss ein Schritt die ausgelieferte App ABRUFEN. Anlass: Am 06.08.2026 hing der Test-Job 15 Minuten und wurde abgebrochen — der zweite Versuch lief in 15 Sekunden durch. Teuer war nicht der Ausrutscher, sondern dass man ihm nicht ansah, was er war. `ohneZeitlimit` listet begründete Ausnahmen als \"<datei>:<jobname>\".",
+  "pipeline": {
+    "ohneZeitlimit": []
   }
 }

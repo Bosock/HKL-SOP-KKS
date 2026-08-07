@@ -1352,3 +1352,94 @@
 /* Kategorien der Baustein-Bibliothek ändern (Wort, Symbol, entfernen). */
 .bau-katverw { margin:8px 0 4px; padding:10px; border:1px dashed var(--line); border-radius:12px; }
 .bau-katverw .hint { margin:0 0 8px; }
+
+/* ═══════════ Seiten-Register (die Leiste oben) ═══════════ */
+.seg-btn.seg-aus { opacity:.45; }
+.seg-btn.seg-neu { flex:0 0 auto; min-width:44px; font-size:17px; opacity:.7; }
+/* ═══════════ Kürzel ═══════════ */
+.auf-wer { margin-top:9px; font-size:12.5px; color:var(--text-dim); }
+.auf-krz { min-height:32px; padding:3px 11px; margin-left:6px; border-radius:9px; font-size:12.5px; font-weight:700;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--text); }
+/* ═══════════ Aufgaben ═══════════ */
+.auf-bilanz { display:flex; gap:8px; margin-top:9px; }
+.auf-warn, .auf-heute { font-size:12px; font-weight:800; padding:2px 9px; border-radius:9px; color:#fff; }
+.auf-warn { background:var(--warn); }
+.auf-heute { background:var(--accent); }
+.auf-karte { display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:start;
+  padding:12px; margin-bottom:8px; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
+.auf-karte.auf-ueber { border-color:var(--warn); }
+.auf-karte.auf-heute { border-color:var(--accent); }
+.auf-karte.auf-fertig { opacity:.6; }
+.auf-haken { width:48px; height:48px; border-radius:14px; font-size:22px; line-height:1;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim); }
+.auf-karte.auf-ueber .auf-haken { border-color:var(--warn); color:var(--warn); }
+.auf-karte.auf-fertig .auf-haken { color:var(--ok); border-color:var(--ok); }
+.auf-haupt { min-width:0; }
+.auf-wort { font-size:15px; font-weight:700; }
+.auf-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; font-size:11.5px; color:var(--text-dim); }
+.auf-stand { font-weight:800; }
+.auf-karte.auf-ueber .auf-stand { color:var(--warn); }
+.auf-karte.auf-heute .auf-stand { color:var(--accent); }
+.auf-text { font-size:13px; margin-top:6px; line-height:1.5; }
+.auf-zuletzt { font-size:11.5px; color:var(--text-dim); margin-top:6px; }
+.auf-zuletzt.auf-nie { font-style:italic; opacity:.75; }
+.auf-akt { display:flex; flex-direction:column; gap:5px; }
+.auf-akt button { width:40px; height:40px; border-radius:11px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--text); font-size:15px; }
+.auf-verlauf { margin-top:9px; padding:9px 11px; border-radius:11px; background:var(--surface-2); border:1px solid var(--line); }
+.auf-vz { font-size:12px; padding:2px 0; }
+.auf-vf { opacity:.6; margin-left:7px; }
+.auf-vzurueck { margin-top:7px; font-size:12px; background:none; border:none; color:var(--accent); text-decoration:underline; padding:0; }
+.auf-form { padding:13px; margin-bottom:10px; border:1px solid var(--accent); border-radius:14px; background:var(--surface-2); }
+/* ═══════════ Aktuelles (Pinnwand) ═══════════ */
+.akt-karte { padding:13px; margin-bottom:9px; border-radius:14px; background:var(--surface);
+  border:1px solid var(--line); border-left:5px solid var(--akt, #8a93a5); }
+.akt-karte.akt-laut { background:color-mix(in srgb, var(--akt) 10%, var(--surface)); }
+.akt-karte.akt-alt { opacity:.55; }
+.akt-kopf { display:flex; flex-wrap:wrap; gap:9px; align-items:center; font-size:11.5px; }
+.akt-art { font-weight:800; color:var(--akt, var(--text-dim)); }
+.akt-ort, .akt-rest { color:var(--text-dim); }
+.akt-rest { margin-left:auto; font-weight:700; }
+.akt-wort { font-size:15.5px; font-weight:700; margin-top:6px; }
+.akt-text { font-size:13.5px; line-height:1.55; margin-top:5px; }
+.akt-fuss { font-size:11px; color:var(--text-dim); margin-top:7px; }
+.akt-akt { display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+.akt-akt button { min-height:36px; padding:5px 11px; border-radius:10px; font-size:12.5px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--text); }
+/* ═══════════ Bestellungen ═══════════ */
+.best-karte { padding:13px; margin-bottom:9px; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
+.best-karte.best-dringend { border-color:var(--warn); }
+.best-karte.best-alt { opacity:.55; }
+.best-wort { font-size:15px; font-weight:700; }
+.best-menge { font-size:12px; font-weight:800; padding:1px 7px; border-radius:8px;
+  background:var(--surface-2); color:var(--text-dim); }
+.best-mat, .best-notiz { font-size:12px; color:var(--text-dim); margin-top:4px; }
+.best-spur { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.best-schritt { font-size:11px; padding:3px 9px; border-radius:9px; border:1px dashed var(--line); color:var(--text-dim); }
+.best-schritt.on { border-style:solid; border-color:var(--ok); color:var(--text); }
+.best-akt { display:flex; gap:7px; flex-wrap:wrap; margin-top:11px; }
+.best-akt .btn { flex:0 1 auto; min-height:40px; padding:8px 14px; }
+
+/* ── Liste einfügen (features/einfuegen.js) ──────────────────────────────
+   Der Prüfschritt ist die eigentliche Funktion: Er muss auf einem Handy mit
+   Handschuhen bedienbar sein. Deshalb große Trefferflächen, ein Haken links
+   (der Daumen ist dort) und der Name als echtes Eingabefeld — nicht erst
+   nach einem weiteren Tipp. */
+.einf-liste{max-height:46vh;overflow-y:auto;margin:8px 0;
+  border:1px solid var(--line);border-radius:12px}
+.einf-zeile{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;
+  border-bottom:1px solid var(--line);opacity:.55;transition:opacity .12s}
+.einf-zeile:last-child{border-bottom:0}
+.einf-zeile.on{opacity:1}
+.einf-zeile input[type=checkbox]{width:22px;height:22px;margin-top:6px;flex:0 0 auto}
+.einf-felder{flex:1;min-width:0}
+.einf-name{width:100%}
+.einf-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.einf-menge{width:88px;flex:0 0 auto}
+.einf-tag{font-size:11px;padding:2px 7px;border-radius:999px;
+  background:var(--chip);color:var(--muted);white-space:nowrap}
+.einf-tag.einf-ok{background:rgba(45,164,78,.16);color:#2da44e}
+.einf-tag.einf-warn,.schip.einf-warn{background:rgba(214,69,69,.16);color:#d64545}
+.einf-art{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.einf-zeile.einf-ueber .einf-name{font-weight:700;text-transform:uppercase;letter-spacing:.03em}

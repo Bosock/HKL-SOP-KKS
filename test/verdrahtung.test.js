@@ -194,6 +194,95 @@ test('eine Begründung für einen Schlüssel, den es nicht mehr gibt, veraltet n
   });
 });
 
+/* ═══ ⑤ Wache auf einen Namen, den es nicht gibt ═══ */
+
+test('eine Wache auf einen Namen, den es nirgends gibt, wird gemeldet', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof zwiee==='function') zwiee(); }\ndrei();\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 1);
+    assert.match(p[0], /Wache auf einen Namen, den es nicht gibt: „zwiee"/);
+    assert.match(p[0], /c\.js:1/);
+    assert.match(p[0], /für immer falsch/);
+  });
+});
+
+test('die Wache auf einen echten Namen ist in Ordnung', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof zwei==='function') zwei(); }\ndrei();\n",
+  }), w => {
+    assert.equal(V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} }).length, 0);
+  });
+});
+
+/* Der häufigste Grund für einen Fehlalarm: gefragt wird nach etwas, das nur
+   in dieser Datei existiert — ein Parameter, eine Variable im Block. */
+test('Parameter und örtliche Variablen lösen keinen Fehlalarm aus', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': [
+      "function drei(danach, ...rest){ if(typeof danach==='function') danach(); }",
+      "function vier(){ const origToast = zwei; if(typeof origToast==='function') origToast(); }",
+      "const fuenf = (fertig)=>{ if(typeof fertig==='function') fertig(); };",
+      "function sechs(){ [1].forEach(x=>{ if(typeof x==='number') return x; }); }",
+      "drei(); vier(); fuenf(); sechs();",
+    ].join('\n') + '\n',
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 0, 'Fehlalarme:\n' + p.join('\n'));
+  });
+});
+
+test('ein geduldeter Name schlägt nicht an — die Ausnahme steht in der Liste', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof spaeter==='function') spaeter(); }\ndrei();\n",
+  }), w => {
+    assert.equal(V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {}, wachen: ['spaeter'] }).length, 0);
+  });
+});
+
+/* `let curStd=null, curSeg='standard';` erklärt ZWEI globale Namen. Wurde nur
+   der erste erfasst, galt der zweite als „gibt es nicht" — und jede Wache
+   darauf schlug an. 24 Fehlalarme auf einmal. */
+test('mehrere Namen in EINER Deklaration werden alle erfasst', () => {
+  const n = V.deklarierteNamen("let a=null, b='x', c;\nconst d = f(x, y), e = 2;");
+  ['a', 'b', 'c', 'd', 'e'].forEach(x => assert.ok(n.indexOf(x) >= 0, 'fehlt: ' + x));
+  assert.equal(n.indexOf('x'), -1, 'ein Argument in einem Aufruf ist keine Deklaration');
+  assert.equal(n.indexOf('y'), -1);
+});
+
+test('eine Wache auf einen mit-deklarierten Namen ist kein Fehlalarm', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "let ers=1, zwei2=2;\nfunction drei(){ if(typeof zwei2!=='undefined') return zwei2; }\ndrei(); ers;\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 0, 'Fehlalarme:\n' + p.join('\n'));
+  });
+});
+
+test('auch `typeof x !== "undefined"` auf einen Namen, den es nicht gibt, wird gemeldet', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof GIBTSNICHT!=='undefined') return GIBTSNICHT; }\ndrei();\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 1);
+    assert.match(p[0], /„GIBTSNICHT"/);
+  });
+});
+
+test('ortsnamen sammelt Deklarationen, Parameter und Pfeil-Argumente', () => {
+  const n = V.ortsnamen([
+    'let a = 1; const b = 2, c = 3;',
+    'function f(p1, p2){ }',
+    'const g = function(q1){ };',
+    '(r1, r2) => r1;',
+    'liste.map(s1 => s1);',
+    'try{}catch(err){}',
+  ].join('\n'));
+  ['a','b','f','p1','p2','g','q1','r1','r2','s1','err'].forEach(x =>
+    assert.ok(n.has(x), 'fehlt: ' + x));
+});
+
 /* ═══ Und schließlich: das echte Projekt ═══ */
 
 test('das echte Projekt ist verdrahtet — keine Lücke, kein toter Rest', () => {

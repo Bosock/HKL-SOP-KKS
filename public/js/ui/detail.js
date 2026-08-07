@@ -252,6 +252,12 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
   /* Der Zeitgewinn beim Anlegen eines Standards: In DIESER Rubrik stehen die
      Bausteine dieser Rubrik — ankreuzen, einfügen, fertig
      (features/bausteine.js). */
+  /* Der größte Zeitgewinn beim SCHREIBEN eines Standards: Die fertige Liste
+     liegt fast immer schon irgendwo (Word, Mail, abfotografierter Zettel).
+     „Liste einfügen" übernimmt sie in einem Zug — mit Prüfschritt dazwischen
+     (features/einfuegen.js). */
+  const listBtn=(ADMIN&&typeof einfOeffnen==='function')
+    ?`<button class="add-entry-btn" data-r="${idx}" onclick="einfOeffnen(+this.dataset.r)">📋 Liste einfügen</button>`:'';
   const bauBtn=(ADMIN&&typeof bauEinfuegenSheet==='function')
     ?`<button class="add-entry-btn" data-s="${esc(curStd.id)}" data-r="${idx}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')">🧱 Bausteine einfügen</button>`:'';
   const sortBtn=(ADMIN&&typeof sortAn==='function')
@@ -261,7 +267,7 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     :`<button class="add-entry-btn" onclick="addSegSectionUI(${idx})">＋ Abschnitt (Überschrift)</button>`):'';
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn+bauBtn+sortBtn+sectionBtn;
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn+listBtn+bauBtn+sortBtn+sectionBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */

@@ -9,10 +9,21 @@ function renderStandards(query){ const box=$('scr-standards'); const q=(query||'
   /* Merkmalsleiste (features/facetten.js): macht aus den Bindestrich-Titeln
      auswählbare Merkmale. Steht über der Liste, nicht dahinter — sie ist der
      schnelle Weg, nicht eine Zusatzfunktion. */
-  const facBar=(typeof facBarHTML==='function' && (typeof curSeg==='undefined' || curSeg!=='anleitung'))?facBarHTML():'';
+  /* Seiten, die nicht zur Auslieferung gehören (Aufgaben, Aktuelles,
+     Bestellungen …), zeichnet ihre ART — hier steht nur die Leiste darüber.
+     So braucht eine neue Seitenart keine Änderung an diesem Bildschirm
+     (features/seiten.js). */
+  if(typeof seiteAktuell==='function'){
+    const seite=seiteAktuell();
+    if(seite && seite.art!=='standards' && seite.art!=='anleitungen'){
+      box.innerHTML = html + ((typeof seitenZeichnen==='function') ? seitenZeichnen(seite, query) : '');
+      return;
+    }
+  }
+  const facBar=(typeof facBarHTML==='function' && !(typeof seiteIstArt==='function' && seiteIstArt('anleitungen')))?facBarHTML():'';
 
   /* ---- Bereich „Anleitungen" ---- */
-  if(typeof curSeg!=='undefined' && curSeg==='anleitung'){
+  if(typeof seiteIstArt==='function' ? seiteIstArt('anleitungen') : (typeof curSeg!=='undefined' && curSeg==='anleitung')){
     if(ADMIN) html+=`<button class="sheet-pick-btn" style="margin:0 0 12px" onclick="guideNew()">＋ Neue Anleitung</button>`;
     html+=(typeof guideRowsHTML==='function')?guideRowsHTML(query):'';
     box.innerHTML=html; return;

@@ -11,7 +11,12 @@ on:
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+  # NUR bei Pull Requests abbrechen. Auf `main` wäre Abbrechen ein stiller
+  # Verlust der Auslieferung: Zwei Merges kurz hintereinander, der erste Deploy
+  # wird mitten im Lauf beendet — kein Fehler, keine Meldung, die App bleibt
+  # einfach auf dem alten Stand. Genau diese Klasse Fehler ist der Grund,
+  # warum am Ende niemand mehr sicher sagen konnte, was live ist.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   IMAGE: ghcr.io/bosock/hkl-sop-kks
@@ -20,6 +25,13 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    # Prüfung und Tests brauchen zusammen rund 20 Sekunden. 10 Minuten sind
+    # großzügig — und machen aus einem hängenden Lauf eine klare Meldung statt
+    # eines Jobs, der sechs Stunden lang „läuft noch" anzeigt. (Am 06.08. hing
+    # genau dieser Job 15 Minuten; der zweite Versuch lief in 15 Sekunden
+    # durch — ein Ausrutscher der Infrastruktur, der ohne Zeitlimit wie ein
+    # Fehler im Code aussah.)
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +56,7 @@ jobs:
     # Auf Pull Requests NICHT bauen/pushen — nur bei push auf main bzw. manuell.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -86,6 +99,7 @@ jobs:
     # Nie aus einem Pull Request deployen.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -137,3 +151,51 @@ jobs:
             docker compose up -d
             docker image prune -f
             docker logout ghcr.io
+
+      # ── DER NACHWEIS ──────────────────────────────────────────────
+      # „Workflow grün" hieß bisher nur: die Befehle sind ohne Fehler
+      # zurückgekommen. Es hieß NICHT, dass unter der öffentlichen Adresse
+      # wirklich der neue Stand liegt. Genau daran ist das Vertrauen
+      # zerbrochen — es war schlicht nicht feststellbar, was live ist.
+      #
+      # Dieser Schritt holt die ausgelieferte sw.js über HTTPS und vergleicht
+      # ihre CACHE_VERSION mit der im gerade gebauten Commit. Stimmt sie nicht,
+      # ist der Deploy ROT — auch wenn alle Befehle davor durchgelaufen sind.
+      # Die Cache-Version ist der richtige Zeuge: An ihr hängt, ob der Browser
+      # die neue Fassung überhaupt lädt.
+      - name: Nachweis — liefert die App wirklich den neuen Stand aus?
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL || 'https://sops.kardio.wiki' }}
+        run: |
+          set -uo pipefail
+          erwartet="$(sed -n "s/^const CACHE_VERSION = '\\(.*\\)';.*/\\1/p" public/sw.js | head -1)"
+          if [ -z "$erwartet" ]; then
+            echo "::error::CACHE_VERSION liess sich nicht aus public/sw.js lesen."
+            exit 1
+          fi
+          echo "Erwartet wird: $erwartet"
+          # Zwei Fehlerbilder, die man auseinanderhalten muss: Die Adresse ist
+          # nicht erreichbar (Netz, Proxy, Container tot) ODER sie antwortet mit
+          # dem ALTEN Stand (Deploy lief, kam aber nicht an). Die Meldung am
+          # Ende sagt, welches von beiden es war — sonst sucht man an der
+          # falschen Stelle. Bis zu 12 Versuche im Abstand von 10 s, weil der
+          # neue Container einen Moment braucht.
+          letzterStatus="?"
+          geliefert=""
+          for versuch in $(seq 1 12); do
+            antwort="$(curl -sS --max-time 15 -w '\n%{http_code}' "$PUBLIC_URL/sw.js" 2>/dev/null || true)"
+            letzterStatus="$(printf '%s' "$antwort" | tail -1)"
+            geliefert="$(printf '%s' "$antwort" | sed -n "s/^const CACHE_VERSION = '\\(.*\\)';.*/\\1/p" | head -1)"
+            if [ "$geliefert" = "$erwartet" ]; then
+              echo "OK: $PUBLIC_URL liefert $erwartet — Stand angekommen (Versuch $versuch, HTTP $letzterStatus)."
+              exit 0
+            fi
+            echo "  Versuch $versuch/12: HTTP ${letzterStatus:-keine Antwort}, ausgeliefert '${geliefert:-nichts}', erwartet '$erwartet' — warte 10 s."
+            sleep 10
+          done
+          if [ "$letzterStatus" != "200" ]; then
+            echo "::error::$PUBLIC_URL ist nicht erreichbar (zuletzt HTTP ${letzterStatus:-keine Antwort}). Der Deploy lief durch, aber die App antwortet nicht — Container, Proxy oder DNS pruefen."
+          else
+            echo "::error::$PUBLIC_URL antwortet, liefert aber weiterhin '${geliefert:-nichts}' statt '$erwartet'. Der neue Stand ist NICHT angekommen — laeuft der alte Container noch? Zieht docker compose wirklich das neue Image?"
+          fi
+          exit 1

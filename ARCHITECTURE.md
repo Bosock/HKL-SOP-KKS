@@ -501,6 +501,127 @@ nicht abschließen.
 `hydrateVars`, gesichert über `BACKUP_KEYS`.
 Tests: `test/funktionen.test.js` (18), End-to-End: `e2e/funktionen.js` (29).
 
+## Seitenregister — die Startseite als Liste (`hkl_seiten`)
+
+`public/js/features/seiten.js`. Die Leiste oben („📋 Standards | 📘
+Anleitungen") war die letzte Fläche der App, die fest im Quelltext stand: zwei
+getippte Knöpfe und ein Umschalter mit genau zwei erlaubten Werten. Nach
+Regel A7 ist das ein Fehler — ausgerechnet der erste Bildschirm ließ sich
+nicht ohne Entwickler ändern.
+
+**Die Trennung.** Der Code kennt **Seitenarten** (was eine Seite *tut* — das
+ist Verhalten und gehört in den Quelltext), das Haus legt **Seiten** an (Wort,
+Symbol, Reihenfolge, an/aus). Dasselbe Muster wie Funktionsregister,
+Standardkopf und Pflege-Weg (mit `features/bildorte.js` inzwischen das fünfte
+Register dieser Bauart).
+Weil jede Art mehrfach vorkommen darf, sind zwei Aufgaben-Seiten („Täglich",
+„Wartung") eine Einstellung und kein Auftrag an einen Entwickler.
+
+`SEITEN_ARTEN` führt fünf Arten: `standards` · `anleitungen` (beide
+`eingebaut:true`, sie geben an den vorhandenen Code ab und stehen nur hier,
+damit die Leiste **eine** Quelle hat) sowie `aufgaben` · `aktuelles` ·
+`bestellungen`. Jede eigenständige Art trägt `zeichne(seite, suche)` und
+`zaehler(seite)`; `renderStandards()` erkennt an `art`, ob es eine der zwei
+eingebauten ist, und delegiert sonst an `seitenZeichnen()`. Eine neue Seitenart
+braucht damit **keine** Änderung an `ui/standards.js`.
+
+**Ausgeliefert wird der Zustand von vorher.** `hkl_seiten` ist leer; dann gilt
+`SEITEN_VORGABE` mit denselben zwei Kennungen `standard` / `anleitung` wie
+zuvor. Erst der erste Eingriff macht daraus eine echte Liste
+(`seitenVerselbstaendigen`). Wer nichts ändert, merkt vom Umbau nichts
+(Grundsatz ①).
+
+**Zwei Fallen, in die diese Bauart führt** — beide sind hier passiert und
+beide sind jetzt maschinell abgesichert:
+
+1. `seitenAlle()` baut die Seiten bei jedem Aufruf **neu** zusammen. Ein
+   Vergleich per `indexOf()` traf deshalb nie zu, und jede Umschaltung fiel
+   stumm auf die erste Seite zurück. Verglichen wird über die **Kennung**.
+2. Die vorsichtige Wache `typeof x==='function'` auf einen Namen, den es nicht
+   gibt (`aktuellGeltende` statt `aktGeltende`), ist für immer falsch: der
+   Zweig läuft nie, völlig lautlos. Dafür gibt es jetzt Teilprüfung ⑤ in
+   `scripts/pruefungen/verdrahtung.js`.
+
+**Bearbeitet wird durch langes Tippen auf den Reiter** (`attachHoldNav` auf
+`.seg-btn[data-seite]` in `quickmenu.js` → `seiteSheet(id)`), nicht über ein
+Untermenü. Zusätzlich gibt es die Karte „🗄 Seiten der Startseite" in der
+Verwaltung. Eingebaute Seiten lassen sich ausblenden, aber nicht löschen —
+sonst wären die Standards unerreichbar. Beim Löschen einer eigenen Seite
+bleiben ihre Inhalte im Speicher und sind wieder da, sobald eine Seite
+derselben Art entsteht (Grundsatz ②).
+
+`segArt(seg)` bildet die Arten auf die alten Einzahl-Wörter `standard` /
+`anleitung` ab; daran hängt die Sortierleiste (`sortsFor`), und die sollte
+nicht zweimal existieren.
+
+### Die drei neuen Seitenarten
+
+**Aufgaben** (`features/aufgaben.js`, `hkl_aufgaben`). Beantwortet die Frage
+aus vier räumlich getrennten Sälen: „ist das gemacht, und von wem?" Ein Haken
+wird **angehängt**, nie überschrieben — `verlauf[]` mit `ts`, `kuerzel` und
+`fuer` (dem Soll-Termin, für den er galt). Daraus folgt, dass
+`aufZuruecknehmen()` auch den Termin zurückstellt. `aufNaechste()` rechnet vom
+**Soll**-Termin, nicht vom Erledigungstag, und schaltet bei lange Liegengebliebenem
+so lange weiter, bis ein Termin in der Zukunft steht — es entsteht *ein*
+nächster Termin, nicht zwölf offene. Monatliche Takte rechnen über den
+Kalender (31. Januar → 28. Februar).
+
+**Aktuelles** (`features/aktuelles.js`, `hkl_aktuelles` + `hkl_aktuellarten`).
+Die Pinnwand: Notfall, Wartung, Sperrung, Info — die Arten sind konfigurierbar
+(Wort, Symbol, Farbe, `laut`). Jeder Aushang hat **von sich aus ein Ende**
+(Vorgabe: heute Abend), sonst wird die Pinnwand zur Tapete und der eine
+wichtige Aushang geht unter. „Beenden" setzt das Ende auf jetzt und löscht
+nicht — Abgelaufenes bleibt lesbar. `von` in der Zukunft macht daraus eine
+Ankündigung („ab zwölf Uhr Wartung").
+
+**Bestellungen** (`features/bestellungen.js`, `hkl_bestellungen`). Drei Stufen
+`gemeldet → bestellt → geliefert`, jede mit Kürzel und Uhrzeit. Ist der
+gemeldete Name genau ein Material aus dem Bestand, wandert dessen kanonischer
+Schlüssel mit; dann stehen Hersteller, REF und Lagerort eindeutig dabei
+(`bestMatZeile` über `canonOf`). `bestAusMaterial()` ist der kurze Weg aus dem
+⋯-Menü einer Materialzeile.
+
+**Kürzel** (`features/kuerzel.js`, `hkl_kuerzel`). Bewusst **gerätelokal** und
+bewusst kein Konto: Es beantwortet „wer hat es gemacht", nicht „wer war wann in
+der App". Protokolliert wird ausschließlich gemeldete **Arbeit** — nie ein
+Zugriff (Mitbestimmung).
+
+Tests: `test/seiten.test.js` (42), End-to-End: `e2e/seiten.js` (59).
+
+## Eine ganze Liste auf einmal (`features/einfuegen.js`)
+
+Nach dem ersten selbst geschriebenen Standard: *„Es ist sehr holprig."* Der
+Grund ist zählbar — 60 bis 100 Zeilen, je Zeile einmal Formular öffnen,
+tippen, speichern, auf den Neuaufbau warten. Die Liste, die dabei abgeschrieben
+wird, liegt fast immer schon fertig daneben (Word, Mail, abfotografierter
+Zettel).
+
+**Zwei Schritte, dazwischen der Mensch.** `einfZerlegen(text)` ist rein und
+ohne Bildschirm: Spiegelstriche (`- – — • * · ▪ >`), Nummerierungen (`1.`,
+`2)`, `(3)`, `a)`), Tabulatoren aus einer Tabelle, Mengen vorn (`2x`, `10 Stk.`)
+wie hinten, geschützte Leerzeichen aus Word. Ein Doppelpunkt am Ende macht die
+Zeile zu einer **Überschrift**. Was nicht sicher erkannt wird, bleibt stehen —
+römische Zahlen etwa werden nicht geraten.
+
+Danach zeigt der Prüfschritt **jede** Zeile: Name änderbar, Menge änderbar,
+Haken wegnehmbar, Überschrift ⇄ Zeile umschaltbar. Erst „Einfügen" legt an
+(Grundsatz ③ und ⑨). Ein Werkzeug, das 60 halbfalsche Zeilen still übernimmt,
+ist teurer als 60 getippte richtige.
+
+**Der stille Gewinn.** `einfAbgleichen()` hält jede Zeile gegen den vorhandenen
+Bestand (`ankBestand` + `bauSlug`). Passt sie, wird **genau die vorhandene
+Schreibweise** übernommen — damit ist die neue Zeile dasselbe Material wie ihre
+Geschwister und erbt Foto, Maße und Preis, ohne dass jemand etwas tut.
+Uneinheitliche Schreibweisen sind der teuerste Fehler in diesem Datenbestand;
+hier werden sie gar nicht erst geboren.
+
+Dubletten werden **markiert und ohne Haken** vorgeschlagen, nicht entfernt: In
+einer Liste darf dasselbe zweimal stehen, aber wer 60 Zeilen einfügt, will es
+sehen (Grundsatz ②). Eingefügt wird über `makeAddEntry` — denselben Weg wie
+getippt und angekreuzt, damit es hinterher keinen Unterschied gibt.
+
+Tests: `test/einfuegen.test.js` (30), End-to-End: `e2e/einfuegen.js` (27).
+
 ## Bilder überall (`/api/media`, `hkl_medientexte`, `hkl_medienanker`)
 
 `server/media.js` + `server/routes/media.js` + `public/js/features/medien.js`.
@@ -542,11 +663,39 @@ flacher Speicher nach Ankerschlüssel:
 
 ```
 std:<sid>  ·  rub:<sid>|<ri>  ·  uk:<sid>|<ri>|<name>  ·  seg:<sid>|<ri>|<name>
+akt:<id>   (ein Aushang der Pinnwand)
 ```
 
 Der Anker ist bewusst eine Zeichenkette: Eine weitere Stelle braucht keinen
 neuen Speicher. Diese Stellen haben keine Kaskade — sie *sind* jeweils genau
-eine Stelle.
+eine Stelle. `akt:` kam mit der Pinnwand dazu und brauchte genau eine Zeile
+Code — der Beweis, dass die Bauart trägt.
+
+**Wo Bilder stehen dürfen (`features/bildorte.js`, `hkl_bildorte`).** Bilder
+ließen sich längst überall anhängen und entfernen; was fehlte, war der
+Schalter davor. *„ich möchte das Icon und auch die Bilder allgemein möchte ich
+anschalten oder ausschalten können."* Zwei verschiedene Wünsche, deshalb zwei
+Schalter je Stellen-Art:
+
+| Schalter | wirkt |
+|---|---|
+| **Bilder aus** | an dieser Art von Stelle wird kein Bild mehr gezeigt |
+| **Symbol aus** | nur der Weg zum Hinzufügen fällt weg; vorhandene Bilder bleiben |
+
+Dazu ein großer Schalter über allem („Alle Bilder ausblenden"). Der Code kennt
+sechs Arten (`BILD_ORTE`: Zeile · Rubrik · Unterkategorie · Abschnitt ·
+Standardkopf · Aushang); `bildArtVonOrt(ort)` schließt vom Anker auf die Art,
+`bildZeigen(ort)` und `bildKnopfZeigen(ort)` sind die zwei Fragen, die der
+Rest der App stellt. Ist eine Stelle aus, verschwindet auch ihr ⋯-Punkt
+„Bilder" — sonst legte man Bilder an, die danach niemand sieht.
+
+**Nichts wird gelöscht.** Ein Schalter blendet aus; der Speicher bleibt
+unangetastet und die Verwaltung zeigt weiter, wie viele Bilder dort liegen
+(`bildOrtBestand`). Das ist Grundsatz ② und der Grund, warum das hier ein
+Schalter ist und keine Löschfunktion. Fehlt das Modul, wird gezeigt — eine
+Komfortfunktion darf die Anzeige nie verhindern.
+
+Tests: `test/bildorte.test.js` (15), End-to-End: `e2e/bildorte.js` (30).
 
 **Größe je Stelle.** Ein Bild trägt seine Größe nicht in sich. Die Liste
 speichert `{k, g}` mit `g ∈ {klein, mittel, gross}`; `medPaare()` liest auch die
@@ -738,6 +887,29 @@ denen **nichts kaputtgeht** — es passiert einfach nichts:
    steht, wirkt nur auf einem Gerät. Wer das will, begründet es in
    `altlasten.json → geraetelokal`; eine Begründung ohne Schlüssel meldet
    sich ebenfalls.
+
+## Auslieferung: „grün" muss etwas heißen (07.08.2026)
+
+Am 06.08. lief ein Deploy nicht. Nicht, weil etwas kaputt war: Der Test-Job
+hing 15 Minuten und wurde abgebrochen; der zweite Versuch lief in **15
+Sekunden** durch. Teuer war nicht der Ausrutscher, sondern dass man ihm nicht
+ansah, was er war. Drei Eigenschaften halten das jetzt fest — und
+`scripts/pruefungen/pipeline.js` erzwingt sie in `npm run check`:
+
+| Eigenschaft | Warum |
+|---|---|
+| **Jeder Job hat `timeout-minutes`** (10 / 30 / 15) | Ohne Zeitlimit läuft ein hängender Job bis zu **sechs Stunden** und meldet dabei „läuft noch". Mit Zeitlimit wird aus einem Rätsel eine Fehlermeldung. |
+| **`cancel-in-progress` nur bei Pull Requests** | Auf `main` ist Abbrechen ein stiller Verlust: Zwei Merges kurz hintereinander, der erste Deploy endet mitten im Lauf — kein Fehler, keine Meldung, die App bleibt auf dem alten Stand. |
+| **Ein Nachweis-Schritt nach dem Deploy** | „Workflow grün" hieß nur, dass die Befehle zurückkamen. Der Schritt holt `\$PUBLIC_URL/sw.js` über HTTPS und vergleicht die `CACHE_VERSION` mit der im gebauten Commit. Stimmt sie nicht, ist der Deploy **rot**. |
+
+Der Nachweis unterscheidet zwei Fehlerbilder, weil man sonst an der falschen
+Stelle sucht: **nicht erreichbar** (Netz, Proxy, Container tot) gegen
+**antwortet mit dem alten Stand** (Deploy lief, kam nicht an). Bis zu zwölf
+Versuche im Abstand von 10 s — der neue Container braucht einen Moment.
+
+Die öffentliche Adresse kommt aus der Repository-Variablen `PUBLIC_URL`
+(Settings → Secrets and variables → Actions → Variables); ohne sie gilt
+`https://sops.kardio.wiki`.
 
 ## Bekannte Altlasten / bewusste Kompromisse
 

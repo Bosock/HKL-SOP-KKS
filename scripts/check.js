@@ -20,6 +20,10 @@
      4. FACHWORT IN EINEM VERGLEICH — eine Zeichenkette, die jemand umbenennen
         kann, steuert Verhalten (Grundsatz ④, docs/GRUNDSAETZE.md).
 
+     7. AUSLIEFERUNG — jeder CI-Job hat ein Zeitlimit, der Auslieferungszweig
+        bricht laufende Deploys nicht ab, und am Ende steht ein Schritt, der
+        die ausgelieferte App ABRUFT statt nur „grün" zu melden.
+
      6. VERDRAHTUNG — doppelte globale Namen, Schaltflächen ohne Ziel,
         Funktionen ohne Verwendung, Speicher-Schlüssel ohne Geräte-Teilung.
         Vier Fehlerklassen, bei denen NICHTS kaputtgeht: Es passiert einfach
@@ -46,6 +50,7 @@ const eingabefenster = require('./pruefungen/eingabefenster');
 const fachwort = require('./pruefungen/fachwort');
 const kettensymbol = require('./pruefungen/kettensymbol');
 const verdrahtung = require('./pruefungen/verdrahtung');
+const pipeline = require('./pruefungen/pipeline');
 
 const ROOT = path.join(__dirname, '..');
 const ALTLASTEN = path.join(__dirname, 'pruefungen', 'altlasten.json');
@@ -110,7 +115,7 @@ function shellSyncProblems() {
    Altlastenliste. */
 function altlasten() {
   try { return JSON.parse(fs.readFileSync(ALTLASTEN, 'utf8')); }
-  catch (e) { return { eingabefenster: {}, fachwort: {}, kettensymbol: {}, toteFunktionen: [], geraetelokal: {} }; }
+  catch (e) { return { eingabefenster: {}, fachwort: {}, kettensymbol: {}, toteFunktionen: [], geraetelokal: {}, pipeline: {} }; }
 }
 function grundsatzProblems() {
   const alt = altlasten();
@@ -118,7 +123,8 @@ function grundsatzProblems() {
     eingabefenster.pruefe(ROOT, 'public/js', alt.eingabefenster || {}),
     fachwort.pruefe(ROOT, 'public/js', alt.fachwort || {}),
     kettensymbol.pruefe(ROOT, 'public/js', alt.kettensymbol || {}),
-    verdrahtung.pruefe(ROOT, alt));
+    verdrahtung.pruefe(ROOT, alt),
+    pipeline.pruefe(ROOT, alt.pipeline || {}));
 }
 
 function collectProblems() {
@@ -128,7 +134,7 @@ function collectProblems() {
 function main() {
   const problems = collectProblems();
   if (problems.length === 0) {
-    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich · kein Kettensymbol in der Bedienung · Verdrahtung vollständig.');
+    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich · kein Kettensymbol in der Bedienung · Verdrahtung vollständig · Auslieferung beweist sich.');
     return 0;
   }
   console.error(`✗ check: ${problems.length} Problem(e) gefunden:\n`);
