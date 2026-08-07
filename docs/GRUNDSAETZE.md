@@ -182,6 +182,8 @@ jede neue Funktion):
 | Inhalte | Standards · Rubriken · Einträge · Unterkategorien · Pop-ups · Anleitungen · Arzt-Varianten · Bausteine · Bilder · Austauschgruppen · Verfahrenszweige |
 | **Einträge anlegen** | getippt (Formular) · angekreuzt aus dem Bestand (☑) · als Baustein (🧱) · beim Anlegen eines Standards gleich mit |
 | **Reihenfolge** | je Abschnitt: ziehen (⠿) oder ⤒ ⬆ ⬇ ⤓ — beides, weil Ziehen mit Handschuhen nicht immer trägt |
+| **Die Reiter der Startseite** | eigene Seiten anlegen · Wort · Symbol · Reihenfolge · ausblenden · entfernen — durch **langes Tippen auf den Reiter** |
+| **Arten von Aushängen** (Pinnwand) | anlegen · Wort · Symbol · Farbe · „laut" |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
@@ -193,14 +195,21 @@ können wäre keine Freiheit, sondern eine Falle.
 pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter) —
 oder einem neuen Knopf, der in dieser Tabelle keine Zeile findet.
 
-**Sechste Maschinenprüfung (06.08.2026): Verdrahtung.**
-`scripts/pruefungen/verdrahtung.js` fängt vier Fehlerklassen ab, bei denen
+**Sechste Maschinenprüfung (06.08.2026, erweitert 07.08.2026): Verdrahtung.**
+`scripts/pruefungen/verdrahtung.js` fängt fünf Fehlerklassen ab, bei denen
 nichts kaputtgeht: doppelte globale Namen · Schaltflächen ohne Ziel ·
-Funktionen ohne Verwendung · Speicher-Schlüssel ohne Geräte-Teilung. Die
-ersten beiden dulden nichts, die letzten beiden arbeiten mit begründeten
-Listen. Zwei der Funde waren keine tote Last, sondern eine vergessene
-Verdrahtung — die Funktion war da, angeschrieben und getestet, nur der Weg
-dorthin fehlte.
+Funktionen ohne Verwendung · Speicher-Schlüssel ohne Geräte-Teilung · **Wachen
+auf einen Namen, den es nicht gibt**. Die erste, zweite und fünfte dulden
+nichts, die übrigen arbeiten mit begründeten Listen. Zwei der Funde waren keine
+tote Last, sondern eine vergessene Verdrahtung — die Funktion war da,
+angeschrieben und getestet, nur der Weg dorthin fehlte.
+
+Die fünfte kam dazu, weil beim Seitenregister genau das passiert war: Weil die
+Module lose nebeneinanderliegen, fragt der Code vorsichtig
+`typeof x==='function'`, bevor er ruft. Steht dort ein Name, den es nirgends
+gibt, ist diese Wache **für immer falsch** — der Zweig läuft nie, und der
+Tippfehler sieht im Quelltext aus wie sorgfältige Programmierung. Sichtbar
+wurde er erst im Browser, am fehlenden Zähler auf einem Reiter.
 
 **Siebte Maschinenprüfung (07.08.2026): Auslieferung.**
 `scripts/pruefungen/pipeline.js` verlangt, dass jeder CI-Job ein Zeitlimit

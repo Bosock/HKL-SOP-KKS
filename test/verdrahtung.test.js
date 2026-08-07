@@ -194,6 +194,66 @@ test('eine Begründung für einen Schlüssel, den es nicht mehr gibt, veraltet n
   });
 });
 
+/* ═══ ⑤ Wache auf einen Namen, den es nicht gibt ═══ */
+
+test('eine Wache auf einen Namen, den es nirgends gibt, wird gemeldet', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof zwiee==='function') zwiee(); }\ndrei();\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 1);
+    assert.match(p[0], /Wache auf einen Namen, den es nicht gibt: „zwiee"/);
+    assert.match(p[0], /c\.js:1/);
+    assert.match(p[0], /für immer falsch/);
+  });
+});
+
+test('die Wache auf einen echten Namen ist in Ordnung', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof zwei==='function') zwei(); }\ndrei();\n",
+  }), w => {
+    assert.equal(V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} }).length, 0);
+  });
+});
+
+/* Der häufigste Grund für einen Fehlalarm: gefragt wird nach etwas, das nur
+   in dieser Datei existiert — ein Parameter, eine Variable im Block. */
+test('Parameter und örtliche Variablen lösen keinen Fehlalarm aus', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': [
+      "function drei(danach, ...rest){ if(typeof danach==='function') danach(); }",
+      "function vier(){ const origToast = zwei; if(typeof origToast==='function') origToast(); }",
+      "const fuenf = (fertig)=>{ if(typeof fertig==='function') fertig(); };",
+      "function sechs(){ [1].forEach(x=>{ if(typeof x==='number') return x; }); }",
+      "drei(); vier(); fuenf(); sechs();",
+    ].join('\n') + '\n',
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 0, 'Fehlalarme:\n' + p.join('\n'));
+  });
+});
+
+test('ein geduldeter Name schlägt nicht an — die Ausnahme steht in der Liste', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof spaeter==='function') spaeter(); }\ndrei();\n",
+  }), w => {
+    assert.equal(V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {}, wachen: ['spaeter'] }).length, 0);
+  });
+});
+
+test('ortsnamen sammelt Deklarationen, Parameter und Pfeil-Argumente', () => {
+  const n = V.ortsnamen([
+    'let a = 1; const b = 2, c = 3;',
+    'function f(p1, p2){ }',
+    'const g = function(q1){ };',
+    '(r1, r2) => r1;',
+    'liste.map(s1 => s1);',
+    'try{}catch(err){}',
+  ].join('\n'));
+  ['a','b','f','p1','p2','g','q1','r1','r2','s1','err'].forEach(x =>
+    assert.ok(n.has(x), 'fehlt: ' + x));
+});
+
 /* ═══ Und schließlich: das echte Projekt ═══ */
 
 test('das echte Projekt ist verdrahtet — keine Lücke, kein toter Rest', () => {

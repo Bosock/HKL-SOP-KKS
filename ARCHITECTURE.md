@@ -501,6 +501,92 @@ nicht abschließen.
 `hydrateVars`, gesichert über `BACKUP_KEYS`.
 Tests: `test/funktionen.test.js` (18), End-to-End: `e2e/funktionen.js` (29).
 
+## Seitenregister — die Startseite als Liste (`hkl_seiten`)
+
+`public/js/features/seiten.js`. Die Leiste oben („📋 Standards | 📘
+Anleitungen") war die letzte Fläche der App, die fest im Quelltext stand: zwei
+getippte Knöpfe und ein Umschalter mit genau zwei erlaubten Werten. Nach
+Regel A7 ist das ein Fehler — ausgerechnet der erste Bildschirm ließ sich
+nicht ohne Entwickler ändern.
+
+**Die Trennung.** Der Code kennt **Seitenarten** (was eine Seite *tut* — das
+ist Verhalten und gehört in den Quelltext), das Haus legt **Seiten** an (Wort,
+Symbol, Reihenfolge, an/aus). Dasselbe Muster wie Funktionsregister,
+Standardkopf und Pflege-Weg; es ist damit das vierte Register dieser Bauart.
+Weil jede Art mehrfach vorkommen darf, sind zwei Aufgaben-Seiten („Täglich",
+„Wartung") eine Einstellung und kein Auftrag an einen Entwickler.
+
+`SEITEN_ARTEN` führt fünf Arten: `standards` · `anleitungen` (beide
+`eingebaut:true`, sie geben an den vorhandenen Code ab und stehen nur hier,
+damit die Leiste **eine** Quelle hat) sowie `aufgaben` · `aktuelles` ·
+`bestellungen`. Jede eigenständige Art trägt `zeichne(seite, suche)` und
+`zaehler(seite)`; `renderStandards()` erkennt an `art`, ob es eine der zwei
+eingebauten ist, und delegiert sonst an `seitenZeichnen()`. Eine neue Seitenart
+braucht damit **keine** Änderung an `ui/standards.js`.
+
+**Ausgeliefert wird der Zustand von vorher.** `hkl_seiten` ist leer; dann gilt
+`SEITEN_VORGABE` mit denselben zwei Kennungen `standard` / `anleitung` wie
+zuvor. Erst der erste Eingriff macht daraus eine echte Liste
+(`seitenVerselbstaendigen`). Wer nichts ändert, merkt vom Umbau nichts
+(Grundsatz ①).
+
+**Zwei Fallen, in die diese Bauart führt** — beide sind hier passiert und
+beide sind jetzt maschinell abgesichert:
+
+1. `seitenAlle()` baut die Seiten bei jedem Aufruf **neu** zusammen. Ein
+   Vergleich per `indexOf()` traf deshalb nie zu, und jede Umschaltung fiel
+   stumm auf die erste Seite zurück. Verglichen wird über die **Kennung**.
+2. Die vorsichtige Wache `typeof x==='function'` auf einen Namen, den es nicht
+   gibt (`aktuellGeltende` statt `aktGeltende`), ist für immer falsch: der
+   Zweig läuft nie, völlig lautlos. Dafür gibt es jetzt Teilprüfung ⑤ in
+   `scripts/pruefungen/verdrahtung.js`.
+
+**Bearbeitet wird durch langes Tippen auf den Reiter** (`attachHoldNav` auf
+`.seg-btn[data-seite]` in `quickmenu.js` → `seiteSheet(id)`), nicht über ein
+Untermenü. Zusätzlich gibt es die Karte „🗄 Seiten der Startseite" in der
+Verwaltung. Eingebaute Seiten lassen sich ausblenden, aber nicht löschen —
+sonst wären die Standards unerreichbar. Beim Löschen einer eigenen Seite
+bleiben ihre Inhalte im Speicher und sind wieder da, sobald eine Seite
+derselben Art entsteht (Grundsatz ②).
+
+`segArt(seg)` bildet die Arten auf die alten Einzahl-Wörter `standard` /
+`anleitung` ab; daran hängt die Sortierleiste (`sortsFor`), und die sollte
+nicht zweimal existieren.
+
+### Die drei neuen Seitenarten
+
+**Aufgaben** (`features/aufgaben.js`, `hkl_aufgaben`). Beantwortet die Frage
+aus vier räumlich getrennten Sälen: „ist das gemacht, und von wem?" Ein Haken
+wird **angehängt**, nie überschrieben — `verlauf[]` mit `ts`, `kuerzel` und
+`fuer` (dem Soll-Termin, für den er galt). Daraus folgt, dass
+`aufZuruecknehmen()` auch den Termin zurückstellt. `aufNaechste()` rechnet vom
+**Soll**-Termin, nicht vom Erledigungstag, und schaltet bei lange Liegengebliebenem
+so lange weiter, bis ein Termin in der Zukunft steht — es entsteht *ein*
+nächster Termin, nicht zwölf offene. Monatliche Takte rechnen über den
+Kalender (31. Januar → 28. Februar).
+
+**Aktuelles** (`features/aktuelles.js`, `hkl_aktuelles` + `hkl_aktuellarten`).
+Die Pinnwand: Notfall, Wartung, Sperrung, Info — die Arten sind konfigurierbar
+(Wort, Symbol, Farbe, `laut`). Jeder Aushang hat **von sich aus ein Ende**
+(Vorgabe: heute Abend), sonst wird die Pinnwand zur Tapete und der eine
+wichtige Aushang geht unter. „Beenden" setzt das Ende auf jetzt und löscht
+nicht — Abgelaufenes bleibt lesbar. `von` in der Zukunft macht daraus eine
+Ankündigung („ab zwölf Uhr Wartung").
+
+**Bestellungen** (`features/bestellungen.js`, `hkl_bestellungen`). Drei Stufen
+`gemeldet → bestellt → geliefert`, jede mit Kürzel und Uhrzeit. Ist der
+gemeldete Name genau ein Material aus dem Bestand, wandert dessen kanonischer
+Schlüssel mit; dann stehen Hersteller, REF und Lagerort eindeutig dabei
+(`bestMatZeile` über `canonOf`). `bestAusMaterial()` ist der kurze Weg aus dem
+⋯-Menü einer Materialzeile.
+
+**Kürzel** (`features/kuerzel.js`, `hkl_kuerzel`). Bewusst **gerätelokal** und
+bewusst kein Konto: Es beantwortet „wer hat es gemacht", nicht „wer war wann in
+der App". Protokolliert wird ausschließlich gemeldete **Arbeit** — nie ein
+Zugriff (Mitbestimmung).
+
+Tests: `test/seiten.test.js` (42), End-to-End: `e2e/seiten.js` (59).
+
 ## Bilder überall (`/api/media`, `hkl_medientexte`, `hkl_medienanker`)
 
 `server/media.js` + `server/routes/media.js` + `public/js/features/medien.js`.

@@ -301,6 +301,14 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | Welche Schritte der Pflege-Weg abfragt | Verwaltung → 🧹 Pflege-Weg (an/aus, Wortlaut, Untertitel, Symbol, Reihenfolge) |
 | Einen eigenen Pflege-Schritt („im Lagersystem angelegt") | Dasselbe Panel → ＋ Eigenen Schritt anlegen (wird je Material von Hand abgehakt) |
 | Einen Schritt, der für EIN Material keinen Sinn hat | Im Pflege-Weg an diesem Material auf „entfällt" |
+| Einen Reiter oben umbenennen oder ein anderes Symbol geben | **Lang auf den Reiter tippen** · oder Verwaltung → 🗄 Seiten der Startseite |
+| Einen Reiter ausblenden oder nach links/rechts schieben | Dasselbe Sheet bzw. Panel (die zwei ausgelieferten Seiten lassen sich nur ausblenden, nicht löschen) |
+| Einen ganz neuen Reiter anlegen | In der Leiste auf **＋** → Art wählen (Aufgaben · Aktuelles · Bestellungen · Standards · Anleitungen) |
+| Zwei Aufgaben-Seiten („Täglich" und „Wartung") | Zweimal ＋ → Aufgaben, danach jede lang antippen und benennen |
+| Wer etwas erledigt hat, sichtbar machen | Kürzel oben auf der Aufgaben-/Bestellseite antippen — es bleibt auf diesem Gerät |
+| „HKL 3 hat einen Notfall aufliegen" | Seite **Aktuelles** → ＋ Aushang anlegen (jeder Aushang hat ein Ende, sonst wird die Pinnwand zur Tapete) |
+| Welche Arten von Aushängen es gibt (Notfall, Wartung …) | Verwaltung → 📌 Aushänge (Wort, Symbol, Farbe, „laut") |
+| „Der Führungskatheter ist leer" melden | Seite **Bestellungen** → ＋ · oder ⋯ an einer Materialzeile → 🛒 „ist leer" melden |
 
 **Wenn du eine dieser Stellen im Code suchst und nicht findest:** Das ist
 Absicht. Die Wörter stehen in `public/data/bezeichnungen.json`, die Werte im

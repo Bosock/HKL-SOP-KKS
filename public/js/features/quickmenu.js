@@ -93,6 +93,10 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
      Material für Material durchgehen (features/pflege.js). */
   if(isMat&&typeof pflegeAbZeile==='function'){
     S.akt('pflege','🧹','Pflege-Weg ab hier','dieses Material fertig pflegen, dann das nächste','sheetPflegeWeg()'); }
+  /* Der kürzeste Weg von „ist leer" zur Meldung: im Saal gesehen, hier
+     gemeldet, im anderen Saal sofort sichtbar (features/bestellungen.js). */
+  if(isMat&&typeof bestAusMaterial==='function'){
+    S.akt('bestellen','🛒','„ist leer" melden','landet auf der Bestell-Seite — mit Kürzel und Uhrzeit','sheetBestellen()'); }
   S.akt('eigenefelder','＋','Eigene Felder','Zusatz-Infos als Badges am Eintrag',"sheetGo('zusatz')");
   S.akt('verschieben','📦','Verschieben','in andere Rubrik oder anderen Standard','renderSheetMove()');
   S.akt('hoch','⬆','Nach oben','Reihenfolge in der Gruppe','moveEntry(-1)');
@@ -179,6 +183,12 @@ function editEntry(cid){ const e=findEntry(cid); if(!e) return;
   else { openEntryForm({kind:'editBase',cid,back:()=>reRenderDetail()}); } }
 function sheetEditDetails(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false); editEntry(cid); }
 /* Erst merken, dann schließen: showSheet(false) räumt sheetCid/sheetEntry ab. */
+function sheetBestellen(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
+  const nm=(typeof qeGet==='function'&&qeGet(e,cid,'name')!==undefined)?qeGet(e,cid,'name'):(e.anzeige_text||'');
+  const mk=(typeof effMatKey==='function')?effMatKey(e,cid):e.material_key;
+  showSheet(false);
+  if(typeof bestAusMaterial==='function') bestAusMaterial(mk, nm); }
+
 function sheetPflegeWeg(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
   if(typeof pflegeAbZeile==='function') pflegeAbZeile(cid,e); }
 function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
@@ -500,6 +510,15 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
      Schalters kommt gar nicht erst zum Zug, weil der Detektor am CONTAINER
      lauscht (Delegation), nicht an der Zeile. Ohne diese Ausnahme öffnete ein
      Tipp auf ⭐ am Handy den Standard, statt den Favoriten zu setzen. */
+  /* Die Reiter oben: kurz tippen wechselt, lang halten BEARBEITET. Damit ist
+     die letzte Fläche der App direkt änderbar — kein Weg über die Verwaltung
+     (features/seiten.js). Ein eigener Detektor, weil die Reiter im selben
+     Bildschirm stecken wie die Standardliste, aber anders reagieren. */
+  attachHoldNav($('scr-standards'), { rowSel:'.seg-btn[data-seite]', keys:['seite'],
+    onTap:rw=>{ const id=rw.dataset.seite; if(!id) return false;
+      if(typeof setSeg==='function') setSeg(id); return true; },
+    onHold:rw=>{ const id=rw.dataset.seite;
+      if(id && ADMIN && typeof seiteSheet==='function'){ refreshAuth(); seiteSheet(id); } } });
   attachHoldNav($('scr-standards'), { rowSel:'.std', keys:['sid','gid'], ignoreSel:'.fav-btn',
     onTap:rw=>{
       const sid=rw.dataset.sid; if(sid){ openStandard(sid); return true; }

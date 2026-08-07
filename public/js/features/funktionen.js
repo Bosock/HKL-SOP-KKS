@@ -267,6 +267,7 @@ const FKT_SHEET_KATALOG = {
         { key:'alternativen', ico:'⇄',   label:'Alternativen',           sub:'Material, das stattdessen geht' },
         { key:'material',     ico:'🧬',  label:'Material öffnen',        sub:'Angaben, Etikett scannen, Foto' },
         { key:'pflege',       ico:'🧹',  label:'Pflege-Weg ab hier',     sub:'dieses Material fertig pflegen, dann das nächste' },
+        { key:'bestellen',    ico:'🛒',  label:'„ist leer" melden',      sub:'landet auf der Bestell-Seite — mit Kürzel und Uhrzeit' },
         { key:'eigenefelder', ico:'＋',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },
         { key:'verschieben',  ico:'📦',  label:'Verschieben',            sub:'in andere Rubrik oder anderen Standard' },
         { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge in der Gruppe' },
