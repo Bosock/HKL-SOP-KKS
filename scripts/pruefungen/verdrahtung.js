@@ -33,7 +33,9 @@
       ein umbenanntes Modul —, ist die Wache für immer falsch. Der Zweig läuft
       nie, und zwar so leise, dass er nach „vorsichtig programmiert" aussieht.
       Genau so verschwand der Zähler auf dem Reiter „Aktuelles": die Wache
-      fragte nach `aktuellGeltende`, die Funktion heißt `aktGeltende`.
+      fragte nach `aktuellGeltende`, die Funktion heißt `aktGeltende`. Und im
+      Diagnose-Bericht stand jahrelang ein leeres Feld „Version", weil dort
+      nach `APP_VERSION` gefragt wurde — eine Größe, die es nie gab.
 
    Alle fünf arbeiten mit einer Ratsche in beide Richtungen: zu viele Fälle
    brechen ab, zu wenige ebenfalls — eine Liste, die still veraltet, schützt
@@ -50,7 +52,8 @@ const EINGEBAUT = new Set(['alert','confirm','prompt','print','fetch','setTimeou
   'Array','String','Number','Boolean','Date','Set','Map','WeakMap','Promise','parseInt','parseFloat',
   'isNaN','isFinite','console','document','window','navigator','history','location','event','open',
   'requestAnimationFrame','URL','URLSearchParams','Blob','File','FileReader','Image','CustomEvent',
-  'Intl','RegExp','Error','TypeError','structuredClone','queueMicrotask','btoa','atob']);
+  'Intl','RegExp','Error','TypeError','structuredClone','queueMicrotask','btoa','atob',
+  'caches','indexedDB','IDBKeyRange','crypto','localStorage','sessionStorage','performance']);
 
 /* Schlüsselwörter, die vor einer Klammer stehen dürfen, ohne Aufruf zu sein. */
 const SCHLUESSELWORT = new Set(['if','for','while','switch','return','typeof','function','catch',
@@ -61,6 +64,34 @@ function quellen(wurzel){
   const js = jsDateien(path.join(wurzel, 'public/js'));
   const html = path.join(wurzel, 'public/index.html');
   return { js, alle: js.concat(fs.existsSync(html) ? [html] : []) };
+}
+
+/* Alle Namen, die ein `let`/`const`/`var` in diesem Text erklärt.
+   `const a = 1, b = 2;` erklärt ZWEI Namen — deshalb wird ab dem Schlüsselwort
+   bis zum Zeilenende bzw. Semikolon gelaufen und bei jedem Komma auf
+   Klammerebene 0 der nächste Name mitgenommen. Ein einfaches Muster übersähe
+   den zweiten, und alles, was auf ihn zeigt, hielte er für unbekannt. */
+function deklarierteNamen(txt){
+  const n = [];
+  const rd = /\b(?:let|const|var)\s+/g;
+  let d;
+  while((d = rd.exec(txt))){
+    let i = d.index + d[0].length, tiefe = 0, erwarteName = true;
+    for(; i < txt.length; i++){
+      const c = txt[i];
+      if(c === '\n' || (c === ';' && tiefe === 0)) break;
+      if('([{'.includes(c)) tiefe++;
+      else if(')]}'.includes(c)){ if(tiefe === 0) break; tiefe--; }
+      else if(c === ',' && tiefe === 0) erwarteName = true;
+      else if(erwarteName && /[A-Za-z_$]/.test(c)){
+        const m = /^[A-Za-z_$][\w$]*/.exec(txt.slice(i));
+        if(n.indexOf(m[0]) < 0) n.push(m[0]);
+        i += m[0].length - 1; erwarteName = false;
+      }
+      else if(erwarteName && !/\s/.test(c) && c !== '{' && c !== '[') erwarteName = false;
+    }
+  }
+  return n;
 }
 
 /* Alles, was auf oberster Ebene einen globalen Namen belegt. */
@@ -79,8 +110,11 @@ function definitionen(dateien, wurzel){
         }
         (aus[m[1]] = aus[m[1]] || []).push({ rel, nr:i+1, art:'function' });
       }
-      if((m = /^(?:let|const|var)\s+([A-Za-z_$][\w$]*)\s*[=;]/.exec(z)))
-        (aus[m[1]] = aus[m[1]] || []).push({ rel, nr:i+1, art:'variable' });
+      /* `let curStd=null, curSeg='standard';` erklärt ZWEI globale Namen.
+         Früher wurde nur der erste erfasst — dadurch galt `curSeg` als
+         „gibt es nicht", und Prüfung ⑤ schlug bei jeder Wache darauf an. */
+      if(/^(?:let|const|var)\s/.test(z))
+        deklarierteNamen(z).forEach(n=>(aus[n] = aus[n] || []).push({ rel, nr:i+1, art:'variable' }));
     });
   });
   return aus;
@@ -198,27 +232,8 @@ function ortsnamen(txt){
   /* Funktionen an jeder Stelle — auch die eingerückten, die `definitionen()`
      bewusst auslässt, weil sie keinen globalen Namen belegen. */
   for(const m of txt.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/g)) n.add(m[1]);
-  /* Deklarationen an jeder Stelle, auch eingerückt und mehrfach je Zeile.
-     `const a = 1, b = 2;` erklärt ZWEI Namen — deshalb wird ab dem Schlüssel-
-     wort bis zum Zeilenende bzw. Semikolon gelaufen und bei jedem Komma auf
-     Klammerebene 0 der nächste Name mitgenommen. */
-  const rd = /\b(?:let|const|var)\s+/g;
-  let d;
-  while((d = rd.exec(txt))){
-    let i = d.index + d[0].length, tiefe = 0, erwarteName = true;
-    for(; i < txt.length; i++){
-      const c = txt[i];
-      if(c === '\n' || (c === ';' && tiefe === 0)) break;
-      if('([{'.includes(c)) tiefe++;
-      else if(')]}'.includes(c)){ if(tiefe === 0) break; tiefe--; }
-      else if(c === ',' && tiefe === 0) erwarteName = true;
-      else if(erwarteName && /[A-Za-z_$]/.test(c)){
-        const m = /^[A-Za-z_$][\w$]*/.exec(txt.slice(i));
-        n.add(m[0]); i += m[0].length - 1; erwarteName = false;
-      }
-      else if(erwarteName && !/\s/.test(c) && c !== '{' && c !== '[') erwarteName = false;
-    }
-  }
+  /* Deklarationen an jeder Stelle, auch eingerückt und mehrfach je Zeile. */
+  deklarierteNamen(txt).forEach(x=>n.add(x));
   /* Parameterlisten: function f(a,b), (a,b)=>, a=>, catch(e) */
   const listen = [];
   for(const m of txt.matchAll(/function\s*[A-Za-z_$][\w$]*\s*\(([^)]*)\)/g)) listen.push(m[1]);
@@ -241,7 +256,7 @@ function wacheOhneNamen(wurzel, defs, geduldet){
     const txt = fs.readFileSync(p,'utf8');
     const hier = ortsnamen(txt);
     txt.split('\n').forEach((z,i)=>{
-      for(const m of z.matchAll(/typeof\s+([A-Za-z_$][\w$]*)\s*===?\s*'(?:function|object|string|number)'/g)){
+      for(const m of z.matchAll(/typeof\s+([A-Za-z_$][\w$]*)\s*[=!]==?\s*'(?:function|object|string|number|undefined)'/g)){
         const name = m[1];
         if(EINGEBAUT.has(name) || bekannt.has(name) || hier.has(name)) continue;
         if((geduldet||[]).indexOf(name) >= 0) continue;
@@ -267,4 +282,4 @@ function pruefe(wurzel, altlasten){
 }
 
 module.exports = { pruefe, definitionen, doppelteNamen, handlerOhneZiel, toteFunktionen,
-  ungeteilteSchluessel, ortsnamen, wacheOhneNamen };
+  ungeteilteSchluessel, ortsnamen, wacheOhneNamen, deklarierteNamen };

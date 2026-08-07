@@ -512,7 +512,8 @@ nicht ohne Entwickler ändern.
 **Die Trennung.** Der Code kennt **Seitenarten** (was eine Seite *tut* — das
 ist Verhalten und gehört in den Quelltext), das Haus legt **Seiten** an (Wort,
 Symbol, Reihenfolge, an/aus). Dasselbe Muster wie Funktionsregister,
-Standardkopf und Pflege-Weg; es ist damit das vierte Register dieser Bauart.
+Standardkopf und Pflege-Weg (mit `features/bildorte.js` inzwischen das fünfte
+Register dieser Bauart).
 Weil jede Art mehrfach vorkommen darf, sind zwei Aufgaben-Seiten („Täglich",
 „Wartung") eine Einstellung und kein Auftrag an einen Entwickler.
 
@@ -587,6 +588,40 @@ Zugriff (Mitbestimmung).
 
 Tests: `test/seiten.test.js` (42), End-to-End: `e2e/seiten.js` (59).
 
+## Eine ganze Liste auf einmal (`features/einfuegen.js`)
+
+Nach dem ersten selbst geschriebenen Standard: *„Es ist sehr holprig."* Der
+Grund ist zählbar — 60 bis 100 Zeilen, je Zeile einmal Formular öffnen,
+tippen, speichern, auf den Neuaufbau warten. Die Liste, die dabei abgeschrieben
+wird, liegt fast immer schon fertig daneben (Word, Mail, abfotografierter
+Zettel).
+
+**Zwei Schritte, dazwischen der Mensch.** `einfZerlegen(text)` ist rein und
+ohne Bildschirm: Spiegelstriche (`- – — • * · ▪ >`), Nummerierungen (`1.`,
+`2)`, `(3)`, `a)`), Tabulatoren aus einer Tabelle, Mengen vorn (`2x`, `10 Stk.`)
+wie hinten, geschützte Leerzeichen aus Word. Ein Doppelpunkt am Ende macht die
+Zeile zu einer **Überschrift**. Was nicht sicher erkannt wird, bleibt stehen —
+römische Zahlen etwa werden nicht geraten.
+
+Danach zeigt der Prüfschritt **jede** Zeile: Name änderbar, Menge änderbar,
+Haken wegnehmbar, Überschrift ⇄ Zeile umschaltbar. Erst „Einfügen" legt an
+(Grundsatz ③ und ⑨). Ein Werkzeug, das 60 halbfalsche Zeilen still übernimmt,
+ist teurer als 60 getippte richtige.
+
+**Der stille Gewinn.** `einfAbgleichen()` hält jede Zeile gegen den vorhandenen
+Bestand (`ankBestand` + `bauSlug`). Passt sie, wird **genau die vorhandene
+Schreibweise** übernommen — damit ist die neue Zeile dasselbe Material wie ihre
+Geschwister und erbt Foto, Maße und Preis, ohne dass jemand etwas tut.
+Uneinheitliche Schreibweisen sind der teuerste Fehler in diesem Datenbestand;
+hier werden sie gar nicht erst geboren.
+
+Dubletten werden **markiert und ohne Haken** vorgeschlagen, nicht entfernt: In
+einer Liste darf dasselbe zweimal stehen, aber wer 60 Zeilen einfügt, will es
+sehen (Grundsatz ②). Eingefügt wird über `makeAddEntry` — denselben Weg wie
+getippt und angekreuzt, damit es hinterher keinen Unterschied gibt.
+
+Tests: `test/einfuegen.test.js` (30), End-to-End: `e2e/einfuegen.js` (27).
+
 ## Bilder überall (`/api/media`, `hkl_medientexte`, `hkl_medienanker`)
 
 `server/media.js` + `server/routes/media.js` + `public/js/features/medien.js`.
@@ -628,11 +663,39 @@ flacher Speicher nach Ankerschlüssel:
 
 ```
 std:<sid>  ·  rub:<sid>|<ri>  ·  uk:<sid>|<ri>|<name>  ·  seg:<sid>|<ri>|<name>
+akt:<id>   (ein Aushang der Pinnwand)
 ```
 
 Der Anker ist bewusst eine Zeichenkette: Eine weitere Stelle braucht keinen
 neuen Speicher. Diese Stellen haben keine Kaskade — sie *sind* jeweils genau
-eine Stelle.
+eine Stelle. `akt:` kam mit der Pinnwand dazu und brauchte genau eine Zeile
+Code — der Beweis, dass die Bauart trägt.
+
+**Wo Bilder stehen dürfen (`features/bildorte.js`, `hkl_bildorte`).** Bilder
+ließen sich längst überall anhängen und entfernen; was fehlte, war der
+Schalter davor. *„ich möchte das Icon und auch die Bilder allgemein möchte ich
+anschalten oder ausschalten können."* Zwei verschiedene Wünsche, deshalb zwei
+Schalter je Stellen-Art:
+
+| Schalter | wirkt |
+|---|---|
+| **Bilder aus** | an dieser Art von Stelle wird kein Bild mehr gezeigt |
+| **Symbol aus** | nur der Weg zum Hinzufügen fällt weg; vorhandene Bilder bleiben |
+
+Dazu ein großer Schalter über allem („Alle Bilder ausblenden"). Der Code kennt
+sechs Arten (`BILD_ORTE`: Zeile · Rubrik · Unterkategorie · Abschnitt ·
+Standardkopf · Aushang); `bildArtVonOrt(ort)` schließt vom Anker auf die Art,
+`bildZeigen(ort)` und `bildKnopfZeigen(ort)` sind die zwei Fragen, die der
+Rest der App stellt. Ist eine Stelle aus, verschwindet auch ihr ⋯-Punkt
+„Bilder" — sonst legte man Bilder an, die danach niemand sieht.
+
+**Nichts wird gelöscht.** Ein Schalter blendet aus; der Speicher bleibt
+unangetastet und die Verwaltung zeigt weiter, wie viele Bilder dort liegen
+(`bildOrtBestand`). Das ist Grundsatz ② und der Grund, warum das hier ein
+Schalter ist und keine Löschfunktion. Fehlt das Modul, wird gezeigt — eine
+Komfortfunktion darf die Anzeige nie verhindern.
+
+Tests: `test/bildorte.test.js` (15), End-to-End: `e2e/bildorte.js` (30).
 
 **Größe je Stelle.** Ein Bild trägt seine Größe nicht in sich. Die Liste
 speichert `{k, g}` mit `g ∈ {klein, mittel, gross}`; `medPaare()` liest auch die

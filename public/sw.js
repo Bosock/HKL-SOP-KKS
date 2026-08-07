@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v62';
+const CACHE_VERSION = 'v63';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -64,6 +64,7 @@ const SHELL = [
   'js/features/pflege.js',
   'js/features/ankreuzen.js',
   'js/features/sortieren.js',
+  'js/features/einfuegen.js',
   'js/features/lightbox.js',
   'js/features/listview.js',
   'js/features/kuerzel.js',
@@ -84,6 +85,7 @@ const SHELL = [
   'js/features/freigabe.js',
   'js/features/facetten.js',
   'js/features/funktionen.js',
+  'js/features/bildorte.js',
   'js/features/medien.js','js/features/eigenschaften.js','js/features/reichweite.js','js/features/textstil.js','js/features/bereiche.js','js/features/alternativen.js','js/features/fassung.js','js/features/stdkopf.js',
   'js/features/gudid.js',
   'js/features/ocr.js',

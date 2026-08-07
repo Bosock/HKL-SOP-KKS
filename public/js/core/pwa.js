@@ -21,5 +21,23 @@
     navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(err=>{
       console.warn('[pwa] Service-Worker-Registrierung fehlgeschlagen:', err && err.message);
     });
+    pwaStandLesen();
   });
 })();
+
+/* Welcher Stand läuft hier gerade? Die einzige ehrliche Antwort steht im Namen
+   des Shell-Zwischenspeichers, den der Service Worker angelegt hat („hkl-shell-v63").
+   Nur der sagt, welcher AUSGELIEFERTE Code im Browser liegt — eine Nummer im
+   Quelltext sagte nur, was ausgeliefert werden SOLLTE.
+
+   Der Diagnose-Bericht braucht das: „bei mir geht es nicht" ist ohne den Stand
+   nicht beantwortbar. Gelesen wird einmal beim Start; bis dahin steht dort
+   nichts, und das ist ehrlicher als eine geratene Nummer. */
+let APP_STAND = '';
+function pwaStandLesen(){
+  if(typeof caches==='undefined' || !caches.keys) return;
+  caches.keys().then(namen=>{
+    const shell = (namen||[]).filter(n=>String(n).indexOf('hkl-shell-')===0).sort().pop();
+    if(shell) APP_STAND = String(shell).replace('hkl-shell-','');
+  }).catch(()=>{});
+}

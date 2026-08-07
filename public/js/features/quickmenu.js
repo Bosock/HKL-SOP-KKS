@@ -70,7 +70,11 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
     S.akt('schrift','🔠','Schrift & Auszeichnung', txsBeschreibung(stil)+(txsHatAuszeichnung(name)?' · Wörter hervorgehoben':''), "sheetGo('stil')"); }
   /* Bilder gibt es an JEDER Zeile, nicht nur an Material — ein Handgriff ist
      genauso erklärungsbedürftig wie ein Produkt (features/medien.js). */
-  if(typeof medVonEintrag==='function'){ const nb=medVonEintrag(e,cid).length;
+  /* Ist das Bild-Symbol an dieser Art von Stelle abgeschaltet
+     (features/bildorte.js), fällt auch dieser Punkt weg — sonst legte man
+     Bilder an, die danach niemand sieht. */
+  if(typeof medVonEintrag==='function' && (typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(cid))){
+    const nb=medVonEintrag(e,cid).length;
     S.akt('bilder','🖼️','Bilder', nb?(nb+' Bild'+(nb===1?'':'er')+' — ansehen, ergänzen, ordnen'):'Foto, Bildfolge oder Skizze hinzufügen', "sheetGo('bilder')"); }
 
   S.gruppe('organisation','Organisation','Wohin er gehört');
@@ -127,7 +131,8 @@ function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(
   S.gruppe('inhalt','Inhalt','Titel, Gruppe & Freigabe');
   S.akt('titel','✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
   S.akt('merkmale','🏷','Merkmale', (typeof eigChips==='function'&&eigChips(s.id).length)?(eigChips(s.id).length+' vergeben'):'z. B. sedierungspflichtig', 'eigSheet(curStd.id)');
-  S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
+  if(typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(medAnkStd(s.id)))
+    S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
   if(typeof fasSheet==='function'){ const f=fasFuerStandard(s.id);
     S.akt('festschreiben','📚','Stand festschreiben', f?('Fassung „'+f.wort+'" gilt'):'die App wird zur Grundlage', 'fasSheet(curStd.id)'); }
@@ -528,6 +533,23 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
     onHold:rw=>{
       const sid=rw.dataset.sid; if(sid&&ADMIN){ refreshAuth(); openStdSheet(sid); return; }
       const gid=rw.dataset.gid; if(gid&&ADMIN&&typeof openGuideEdit==='function'){ refreshAuth(); openGuideEdit(gid); }
+    } });
+  /* Die Karten der neuen Seiten: langes Halten bearbeitet — dieselbe Geste wie
+     überall sonst („im Verwaltungsmodus tippe ich lange irgendwo drauf und
+     kann bearbeiten, was ich will"). Kurz tippen tut hier NICHTS: Die Karten
+     tragen ihre eigenen Schalter (Haken, „bestellt", „Beenden"), und ein
+     zweites Verhalten auf derselben Fläche wäre ein Fehlgriff-Erzeuger.
+     Deshalb liefert onTap `false` — der native Klick geht durch. */
+  attachHoldNav($('scr-standards'), { rowSel:'.auf-karte,.akt-karte,.best-karte',
+    ignoreSel:'button,input,textarea,select,label,a', keys:['i'],
+    onTap:()=>false,
+    onHold:rw=>{
+      if(typeof ADMIN==='undefined' || !ADMIN) return;
+      const id=rw.dataset.i; if(!id) return;
+      refreshAuth();
+      if(rw.classList.contains('auf-karte') && typeof aufUiBearbeiten==='function') aufUiBearbeiten(id);
+      else if(rw.classList.contains('akt-karte') && typeof aktUiBearbeiten==='function') aktUiBearbeiten(id);
+      else if(rw.classList.contains('best-karte') && typeof bestUiBearbeiten==='function') bestUiBearbeiten(id);
     } });
   attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn', keys:['ri'],
     onTap:rw=>{ const i=rw.dataset.ri; if(i==null) return false; openRubrik(+i); return true; },

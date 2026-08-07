@@ -160,7 +160,7 @@ function bestKarteHTML(b, alt){
   const weiterWort = bestWort(stufe, 'tu');
   const schritt = (wo, k)=> k ? `<span class="best-schritt on">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))} · ${esc(kuerzelVermerk(k))}</span>`
                               : `<span class="best-schritt">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))}</span>`;
-  return `<div class="best-karte best-${esc(stufe)}${alt?' best-alt':''}${b.dringend?' best-dringend':''}">
+  return `<div class="best-karte best-${esc(stufe)}${alt?' best-alt':''}${b.dringend?' best-dringend':''}" data-i="${esc(b.id)}">
     <div class="best-kopf">
       <span class="best-wort">${b.dringend?'❗ ':''}${esc(b.wort)}${b.menge?` <span class="best-menge">${esc(b.menge)}</span>`:''}</span>
     </div>

@@ -144,6 +144,9 @@ function medAnkStd(sid){ return 'std:'+sid; }
 function medAnkRub(sid, ri){ return 'rub:'+sid+'|'+ri; }
 function medAnkUk(sid, ri, uk){ return 'uk:'+sid+'|'+ri+'|'+uk; }
 function medAnkSeg(sid, ri, seg){ return 'seg:'+sid+'|'+ri+'|'+seg; }
+/* Ein Aushang auf der Pinnwand (features/aktuelles.js): „so sieht das Gerät
+   gerade aus" sagt mehr als drei Sätze Beschreibung. */
+function medAnkAkt(id){ return 'akt:'+id; }
 function medAnkerPaare(anker){ return medPaare(MEDANK[anker]); }
 function medAnkerSchreiben(anker, paare){
   if(!anker) return false;
@@ -263,7 +266,7 @@ async function medWarteschlangeAbarbeiten(){
 /* Ein „Ort" ist entweder eine Zeile (cid) oder ein Anker. Beide werden gleich
    bedient — ein Menü, zwei Kontexte (Grundsatz ⑥). Ist `ort` ein Anker,
    entfällt die Reichweitenfrage: der Anker IST die Stelle. */
-function medIstAnker(ort){ return typeof ort==='string' && /^(std|rub|uk|seg):/.test(ort); }
+function medIstAnker(ort){ return typeof ort==='string' && /^(std|rub|uk|seg|akt):/.test(ort); }
 function medOrtPaare(ort){
   if(medIstAnker(ort)) return medAnkerPaare(ort);
   const e = (typeof findEntry==='function') ? findEntry(ort) : null;
@@ -363,19 +366,33 @@ function medPaareHTML(paare){
   return h;
 }
 
+/* Ob an einer Stelle überhaupt Bilder gezeigt werden, entscheidet das
+   Bilder-Register (features/bildorte.js). Fehlt das Modul, wird gezeigt —
+   eine Komfortfunktion darf die Anzeige nie verhindern. */
+function medZeigen(ort){ return (typeof bildZeigen==='function') ? bildZeigen(ort) : true; }
+function medKnopf(ort){
+  if(typeof bildKnopfZeigen==='function') return bildKnopfZeigen(ort);
+  return (typeof ADMIN!=='undefined') && ADMIN;
+}
+
 /* Der Bilderstreifen unter einer Zeile. */
-function medStreifenHTML(e, cid){ return medPaareHTML(medPaareVonEintrag(e, cid)); }
+function medStreifenHTML(e, cid){
+  if(!medZeigen(cid)) return '';
+  return medPaareHTML(medPaareVonEintrag(e, cid));
+}
 
 /* Die Bilder eines Ankers (Standardkopf, Rubrik, Abschnitt) — plus, im
    Verwaltungsmodus, der Weg zum Hinzufügen. Ohne Bild und ohne Verwaltung
    entsteht KEIN Markup: eine leere Fläche wäre eine stumme Aufforderung. */
 function medAnkerHTML(anker, titel){
+  if(!medZeigen(anker)) return '';
   const paare = medAnkerPaare(anker);
-  const admin = (typeof ADMIN!=='undefined') && ADMIN;
-  if(!paare.length && !admin) return '';
-  const knopf = admin
+  const knopfDa = medKnopf(anker);
+  if(!paare.length && !knopfDa) return '';
+  const wort = (typeof bildOrtIco==='function') ? bildOrtIco(anker) : '🖼';
+  const knopf = knopfDa
     ? `<button type="button" class="med-plus" data-a="${esc(anker)}" data-t="${esc(titel||'')}"
-         onclick="medAnkerSheet(this.dataset.a,this.dataset.t)">🖼 ${paare.length?('Bilder ('+paare.length+')'):'Bild hinzufügen'}</button>`
+         onclick="medAnkerSheet(this.dataset.a,this.dataset.t)">${esc(wort)} ${paare.length?('Bilder ('+paare.length+')'):'Bild hinzufügen'}</button>`
     : '';
   return `<div class="med-anker">${medPaareHTML(paare)}${knopf}</div>`;
 }
@@ -397,7 +414,13 @@ let medOrtTitel = '';
 function medListeHTML(ort){
   const paare = medOrtPaare(ort);
   const warte = medWarteAnzahl;
-  let h = `<div class="sheet-chips"><span class="schip">🖼 ${paare.length} Bild${paare.length===1?'':'er'}</span>${warte?`<span class="schip">⏳ ${warte} wartet auf Netz</span>`:''}</div>`;
+  /* Welche ART von Stelle das ist, steht mit dabei: In der Verwaltung lassen
+     sich Bilder je Art abschalten (features/bildorte.js) — dafür muss man
+     wissen, unter welchem Namen man hier steht. */
+  const artWort = (typeof bildOrtWort==='function') ? bildOrtWort(ort) : '';
+  let h = `<div class="sheet-chips"><span class="schip">🖼 ${paare.length} Bild${paare.length===1?'':'er'}</span>`
+    + (artWort?`<span class="schip">${esc(artWort)}</span>`:'')
+    + `${warte?`<span class="schip">⏳ ${warte} wartet auf Netz</span>`:''}</div>`;
   if(!paare.length) h += `<p class="hint" style="padding:0 4px">Noch kein Bild. „Bild aufnehmen" öffnet die Kamera, „Bild wählen" die Galerie. Eine Bildfolge (GIF) bleibt bewegt.</p>`;
   h += `<div class="med-liste">`;
   paare.forEach(p=>{
@@ -445,7 +468,7 @@ function medAnkerSheet(anker, titel){
   const h = `<div class="sheet-grip"></div><div class="sheet-title">Bilder</div>
     <div class="sheet-name">${esc(medOrtTitel)}</div>`
     + medListeHTML(anker)
-    + `<button class="sheet-close" onclick="showSheet(false);reRenderDetail()">Fertig</button>`;
+    + `<button class="sheet-close" data-a="${esc(anker)}" onclick="showSheet(false);medAuffrischen(this.dataset.a)">Fertig</button>`;
   $('sheet').innerHTML = h;
   if(typeof showSheet==='function') showSheet(true);
 }
@@ -517,34 +540,48 @@ async function medUiSpeichern(reichweite){
     }
   }
   medSheetZurueck(n.ort);
+  medAuffrischen(n.ort);
+}
+
+/* Nach einer Bildänderung: den Bildschirm auffrischen, auf dem das Bild steht.
+   Ein Aushang der Pinnwand hängt nicht am Rubriken-Bildschirm — würde hier
+   stur reRenderDetail() laufen, bliebe das neue Foto bis zum nächsten
+   Umschalten unsichtbar. */
+function medAuffrischen(ort){
+  if(typeof ort==='string' && ort.indexOf('akt:')===0){
+    if(typeof seiteAuffrischen==='function'){ seiteAuffrischen(); return; }
+  }
   if(typeof reRenderDetail==='function') reRenderDetail();
+  if(typeof seiteAuffrischen==='function' && typeof seiteIstArt==='function' && seiteIstArt('aktuelles')) seiteAuffrischen();
 }
 
 function medUiEntfernen(kennung){
   const ort = medOrt; if(!ort) return;
   medEntfernen(ort, kennung, 'cid');
   medSheetZurueck(ort);
+  medAuffrischen(ort);
   if(typeof toast==='function') toast('Bild von dieser Stelle entfernt');
 }
 function medUiVerschieben(kennung, richtung){
   const ort = medOrt; if(!ort) return;
   if(!medVerschieben(ort, kennung, richtung, 'cid')) return;
   medSheetZurueck(ort);
+  medAuffrischen(ort);
 }
 /* Größe ändern — nachträglich, jederzeit, ohne das Bild anzufassen. */
 function medUiGroesse(kennung, groesse){
   const ort = medOrt; if(!ort) return;
   medGroesseSetzen(ort, kennung, groesse, 'cid');
   medSheetZurueck(ort);
-  if(typeof reRenderDetail==='function') reRenderDetail();
+  medAuffrischen(ort);
 }
 function medUiText(kennung, text){
   medTextSetzen(kennung, text);
-  if(typeof reRenderDetail==='function') reRenderDetail();
+  medAuffrischen(medOrt);
 }
 function medUiDetail(kennung, text){
   medDetailSetzen(kennung, text);
-  if(typeof reRenderDetail==='function') reRenderDetail();
+  medAuffrischen(medOrt);
 }
 
 /* ═══════════ 7. Verwaltung: der Bestand ═══════════ */

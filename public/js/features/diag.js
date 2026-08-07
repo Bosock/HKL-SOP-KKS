@@ -457,7 +457,10 @@ function diagSheetClose(){ const el=document.getElementById('diagSheet'); if(!el
 function diagBerichtDaten(){
   return {
     jetzt:new Date().toISOString(),
-    version:(typeof APP_VERSION!=='undefined')?APP_VERSION:'',
+    /* Der Stand kommt aus dem Namen des Shell-Zwischenspeichers (core/pwa.js).
+       Er stand hier jahrelang als APP_VERSION — eine Größe, die es nie gab;
+       das Feld war deshalb immer leer. */
+    version:(typeof APP_STAND!=='undefined' && APP_STAND) ? APP_STAND : 'unbekannt',
     geraet:diagGeraet(),
     netz:(typeof navigator!=='undefined'&&navigator.onLine===false)?'offline':'online',
     pruefungen:diagChecks().map(p=>({ ok:p.ok, titel:p.titel, info:p.info })),

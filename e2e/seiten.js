@@ -287,6 +287,28 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('„↺ zurücknehmen" löscht den Haken und stellt den Termin zurück',
     verlauf.verlauf === 1 && verlauf.nachher !== verlauf.vorher);
 
+  /* ═══════════ 6b. Langes Tippen auf die Karte bearbeitet sie ═══════════ */
+  const kartePos = await A.page.evaluate(`(function(){
+    aufUiVerlauf(null); seiteAuffrischen();
+    const k=document.querySelector('#scr-standards .auf-karte');
+    if(!k) return { kein:true };
+    const r=k.getBoundingClientRect();
+    return { kein:false, kennung:k.dataset.i, x:r.x+r.width*0.55, y:r.y+r.height/2 };
+  })()`);
+  r.check('jede Karte trägt ihre Kennung an der Wurzel — sonst greift der Halte-Detektor ins Leere',
+    !kartePos.kein && !!kartePos.kennung);
+  await A.page.mouse.move(kartePos.x, kartePos.y);
+  await A.page.mouse.down();
+  await A.page.waitForTimeout(750);
+  await A.page.mouse.up();
+  const langKarte = await A.page.evaluate(`(function(){
+    const auf=!!document.getElementById('aufWort');
+    if(auf) aufUiAbbrechen();
+    return { auf, verlauf:aufgabenFuer(seiteNach(${JSON.stringify(aufId)}))[0].verlauf.length };
+  })()`);
+  r.check('LANGES TIPPEN auf eine Aufgabenkarte öffnet ihre Bearbeitung', langKarte.auf);
+  r.check('… ohne dabei versehentlich abzuhaken', langKarte.verlauf === 1);
+
   /* ═══════════ 7. Kette Aktuelles: aushängen → beenden ═══════════ */
   const aktSid = await A.page.evaluate(`(function(){
     const s=seitenAlle().find(x=>x.art==='aktuelles'); curSeg=s.id; renderStandards(); return s.id;

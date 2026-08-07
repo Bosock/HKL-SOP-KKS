@@ -1419,3 +1419,27 @@
 .best-schritt.on { border-style:solid; border-color:var(--ok); color:var(--text); }
 .best-akt { display:flex; gap:7px; flex-wrap:wrap; margin-top:11px; }
 .best-akt .btn { flex:0 1 auto; min-height:40px; padding:8px 14px; }
+
+/* ── Liste einfügen (features/einfuegen.js) ──────────────────────────────
+   Der Prüfschritt ist die eigentliche Funktion: Er muss auf einem Handy mit
+   Handschuhen bedienbar sein. Deshalb große Trefferflächen, ein Haken links
+   (der Daumen ist dort) und der Name als echtes Eingabefeld — nicht erst
+   nach einem weiteren Tipp. */
+.einf-liste{max-height:46vh;overflow-y:auto;margin:8px 0;
+  border:1px solid var(--line);border-radius:12px}
+.einf-zeile{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;
+  border-bottom:1px solid var(--line);opacity:.55;transition:opacity .12s}
+.einf-zeile:last-child{border-bottom:0}
+.einf-zeile.on{opacity:1}
+.einf-zeile input[type=checkbox]{width:22px;height:22px;margin-top:6px;flex:0 0 auto}
+.einf-felder{flex:1;min-width:0}
+.einf-name{width:100%}
+.einf-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.einf-menge{width:88px;flex:0 0 auto}
+.einf-tag{font-size:11px;padding:2px 7px;border-radius:999px;
+  background:var(--chip);color:var(--muted);white-space:nowrap}
+.einf-tag.einf-ok{background:rgba(45,164,78,.16);color:#2da44e}
+.einf-tag.einf-warn,.schip.einf-warn{background:rgba(214,69,69,.16);color:#d64545}
+.einf-art{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.einf-zeile.einf-ueber .einf-name{font-weight:700;text-transform:uppercase;letter-spacing:.03em}

@@ -196,7 +196,7 @@ function aktuellSeiteHTML(seite, suche){
 function aktKarteHTML(x, istAdmin, abgelaufen, kuenftig){
   const a = aktArt(x.art);
   const rest = kuenftig ? ('ab '+aktWann(x.von)) : aktRest(x);
-  return `<div class="akt-karte${abgelaufen?' akt-alt':''}${a&&a.laut?' akt-laut':''}" style="--akt:${esc((a&&a.farbe)||'#8a93a5')}">
+  return `<div class="akt-karte${abgelaufen?' akt-alt':''}${a&&a.laut?' akt-laut':''}" data-i="${esc(x.id)}" style="--akt:${esc((a&&a.farbe)||'#8a93a5')}">
     <div class="akt-kopf">
       <span class="akt-art">${esc((a&&a.symbol)||'📌')} ${esc((a&&a.wort)||'')}</span>
       ${x.ort?`<span class="akt-ort">📍 ${esc(x.ort)}</span>`:''}
@@ -204,6 +204,7 @@ function aktKarteHTML(x, istAdmin, abgelaufen, kuenftig){
     </div>
     <div class="akt-wort">${esc(x.wort)}</div>
     ${x.text?`<div class="akt-text">${esc(x.text)}</div>`:''}
+    ${(typeof medAnkerHTML==='function')?medAnkerHTML(medAnkAkt(x.id), x.wort):''}
     <div class="akt-fuss">${esc(aktWann(x.erstellt))}${x.kuerzel?(' · '+esc(x.kuerzel)):''}</div>
     ${istAdmin?`<div class="akt-akt">
       ${abgelaufen?'':`<button type="button" data-i="${esc(x.id)}" onclick="aktUiVerlaengern(this.dataset.i,2)">+2 Std.</button>

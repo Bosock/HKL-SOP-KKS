@@ -309,6 +309,11 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | „HKL 3 hat einen Notfall aufliegen" | Seite **Aktuelles** → ＋ Aushang anlegen (jeder Aushang hat ein Ende, sonst wird die Pinnwand zur Tapete) |
 | Welche Arten von Aushängen es gibt (Notfall, Wartung …) | Verwaltung → 📌 Aushänge (Wort, Symbol, Farbe, „laut") |
 | „Der Führungskatheter ist leer" melden | Seite **Bestellungen** → ＋ · oder ⋯ an einer Materialzeile → 🛒 „ist leer" melden |
+| Eine ganze Liste aus Word übernehmen | In der Rubrik: **📋 Liste einfügen** → hineinkopieren → jede Zeile prüfen → einfügen |
+| Bilder an einer Art von Stelle ausblenden | Verwaltung → 🖼 Wo Bilder stehen → „Bilder aus" (löscht nichts) |
+| Nur das 🖼-Symbol weghaben, Bilder aber behalten | Dasselbe Panel → „Symbol aus" |
+| Alle Bilder auf einmal ausblenden | Dasselbe Panel → „Alle Bilder ausblenden" |
+| Ein Foto an einen Aushang der Pinnwand | Auf der Seite **Aktuelles** am Aushang: 🖼 Bild hinzufügen |
 
 **Wenn du eine dieser Stellen im Code suchst und nicht findest:** Das ist
 Absicht. Die Wörter stehen in `public/data/bezeichnungen.json`, die Werte im

@@ -184,6 +184,8 @@ jede neue Funktion):
 | **Reihenfolge** | je Abschnitt: ziehen (⠿) oder ⤒ ⬆ ⬇ ⤓ — beides, weil Ziehen mit Handschuhen nicht immer trägt |
 | **Die Reiter der Startseite** | eigene Seiten anlegen · Wort · Symbol · Reihenfolge · ausblenden · entfernen — durch **langes Tippen auf den Reiter** |
 | **Arten von Aushängen** (Pinnwand) | anlegen · Wort · Symbol · Farbe · „laut" |
+| **Wo Bilder stehen** | je Stelle: Bilder an/aus · Symbol an/aus · Wort · Symbol; dazu ein Schalter für alle auf einmal |
+| **Einträge aus einer fertigen Liste** | einfügen, jede Zeile prüfen, korrigieren, abwählen — dann anlegen |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
@@ -210,6 +212,14 @@ Module lose nebeneinanderliegen, fragt der Code vorsichtig
 gibt, ist diese Wache **für immer falsch** — der Zweig läuft nie, und der
 Tippfehler sieht im Quelltext aus wie sorgfältige Programmierung. Sichtbar
 wurde er erst im Browser, am fehlenden Zähler auf einem Reiter.
+
+Sie deckt auch `typeof x !== 'undefined'` ab, die häufigste Form dieser Wache.
+Dafür musste die Prüfung erst lernen, dass `let curStd=null, curSeg='standard';`
+**zwei** Namen erklärt — vorher galt jeder zweite Name einer Deklaration als
+„gibt es nicht". Der erste Lauf danach fand einen Befund, der seit Monaten
+dastand: Der Diagnose-Bericht meldete ein leeres Feld *Version*, weil er nach
+`APP_VERSION` fragte — eine Größe, die es nie gab. Er nennt jetzt den Stand,
+der wirklich im Browser liegt (den Namen des Shell-Zwischenspeichers).
 
 **Siebte Maschinenprüfung (07.08.2026): Auslieferung.**
 `scripts/pruefungen/pipeline.js` verlangt, dass jeder CI-Job ein Zeitlimit

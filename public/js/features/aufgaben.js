@@ -217,7 +217,7 @@ function aufgabenSeiteHTML(seite, suche){
     const st = aufStand(a, h);
     const letzt = aufLetzter(a);
     const takt = aufTakt(a.takt);
-    html += `<div class="auf-karte auf-${esc(st.key)}${a.erledigt?' auf-fertig':''}">
+    html += `<div class="auf-karte auf-${esc(st.key)}${a.erledigt?' auf-fertig':''}" data-i="${esc(a.id)}">
       <button type="button" class="auf-haken" data-i="${esc(a.id)}" onclick="aufUiHaken(this.dataset.i)"
         aria-label="Als erledigt melden">${a.erledigt?'✓':'○'}</button>
       <div class="auf-haupt" data-i="${esc(a.id)}">

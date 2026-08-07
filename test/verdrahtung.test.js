@@ -241,6 +241,35 @@ test('ein geduldeter Name schlägt nicht an — die Ausnahme steht in der Liste'
   });
 });
 
+/* `let curStd=null, curSeg='standard';` erklärt ZWEI globale Namen. Wurde nur
+   der erste erfasst, galt der zweite als „gibt es nicht" — und jede Wache
+   darauf schlug an. 24 Fehlalarme auf einmal. */
+test('mehrere Namen in EINER Deklaration werden alle erfasst', () => {
+  const n = V.deklarierteNamen("let a=null, b='x', c;\nconst d = f(x, y), e = 2;");
+  ['a', 'b', 'c', 'd', 'e'].forEach(x => assert.ok(n.indexOf(x) >= 0, 'fehlt: ' + x));
+  assert.equal(n.indexOf('x'), -1, 'ein Argument in einem Aufruf ist keine Deklaration');
+  assert.equal(n.indexOf('y'), -1);
+});
+
+test('eine Wache auf einen mit-deklarierten Namen ist kein Fehlalarm', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "let ers=1, zwei2=2;\nfunction drei(){ if(typeof zwei2!=='undefined') return zwei2; }\ndrei(); ers;\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 0, 'Fehlalarme:\n' + p.join('\n'));
+  });
+});
+
+test('auch `typeof x !== "undefined"` auf einen Namen, den es nicht gibt, wird gemeldet', () => {
+  projekt(Object.assign({}, GESUND, {
+    'public/js/c.js': "function drei(){ if(typeof GIBTSNICHT!=='undefined') return GIBTSNICHT; }\ndrei();\n",
+  }), w => {
+    const p = V.pruefe(w, { toteFunktionen: ['zeichne'], geraetelokal: {} });
+    assert.equal(p.length, 1);
+    assert.match(p[0], /„GIBTSNICHT"/);
+  });
+});
+
 test('ortsnamen sammelt Deklarationen, Parameter und Pfeil-Argumente', () => {
   const n = V.ortsnamen([
     'let a = 1; const b = 2, c = 3;',
