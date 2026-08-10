@@ -6,7 +6,10 @@ const fs = require('fs');
 const path = require('path');
 
 const files = fs.readdirSync(__dirname)
-  .filter(f => f.endsWith('.js') && !['run.js', 'util.js'].includes(f))
+  /* messen.js ist KEINE Prüfung, sondern ein Messstand: Es liefert Zahlen und
+     schlägt nie fehl. In diesem Lauf hätte es nichts zu sagen und kostete nur
+     eine Minute. Aufruf einzeln über `npm run messen`. */
+  .filter(f => f.endsWith('.js') && !['run.js', 'util.js', 'messen.js'].includes(f))
   .sort();
 
 let failed = [];

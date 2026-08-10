@@ -178,8 +178,21 @@ function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[
 /* Symbol (Emoji) genau DIESER Rubrik ändern (RUBICON ist nach Rubrik-Name
    indiziert – anders als editRubIcon, das den Verwaltungs-Index nutzt). */
 function editRubIconFor(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const name=rubName(r,idx);
-  const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return;
-  if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); openStandard(curStd.id,true); toast('Symbol geändert'); }
+  const cur=RUBICON[name]||'';
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Symbol der Rubrik</div>
+    <div class="sheet-name">${esc(name)}</div>
+    <input type="text" id="skRubIco" class="txtinp" style="width:100%" maxlength="4" value="${esc(cur)}">
+    <p class="hint" style="padding:6px 4px">Gilt für alle Rubriken dieses Namens. Leer lassen nimmt das Symbol weg.</p>
+    <div class="p-actions" style="margin-top:10px">
+      <button class="btn btn-sec" onclick="showSheet(false)">Abbrechen</button>
+      <button class="btn btn-pri" data-n="${esc(name)}" onclick="editRubIconSpeichern(this.dataset.n)">Übernehmen</button></div>`;
+  if(typeof showSheet==='function') showSheet(true);
+  const inp=$('skRubIco'); if(inp) setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },50); }
+function editRubIconSpeichern(name){
+  const inp=$('skRubIco'); const v=(inp?inp.value:'').trim();
+  if(v==='') delete RUBICON[name]; else RUBICON[name]=v;
+  saveRUBICON(); if(typeof showSheet==='function') showSheet(false);
+  if(curStd) openStandard(curStd.id,true); toast('Symbol geändert'); }
 
 /* Öffnet das Bearbeiten-Formular direkt für eine cid (vom ✎-Button und vom
    Schnellmenü genutzt – eine gemeinsame Stelle statt doppelter Logik). */
@@ -196,8 +209,11 @@ function sheetBestellen(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 
 function sheetPflegeWeg(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
   if(typeof pflegeAbZeile==='function') pflegeAbZeile(cid,e); }
-function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
-  const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
+function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return;
+  sheetFrage('Eintrag endgültig löschen?',
+    'Dieser Eintrag wurde selbst angelegt — es gibt keine Quelldatei, aus der er zurückkäme. Das lässt sich nicht rückgängig machen.',
+    'Endgültig löschen',
+    ()=>{ const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }, true); }
 /* Übernimmt den aktuellen Eintrag (mit effektiven Werten) in den Katalog. */
 function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; const f=entryToForm(e,cid);
   if(!f.name||!f.name.trim()){ toast('Kein Name vorhanden',true); return; }
@@ -324,7 +340,51 @@ function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sh
   h+=`<button class="sheet-pick-btn" onclick="sheetSetColor(null)">Farbe entfernen</button><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetColor(val){ sheetPending={kind:'color',value:val}; askScope(); }
-function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text); const nn=prompt('Neuer Anzeigename:',cur); if(nn==null||!nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }
+/* EIN Eingabefeld als Karte im Menü — für alle Schnellbearbeitungen.
+   Vorher stand hier viermal `prompt()`. Das ist nicht nur gegen Grundsatz ⑧:
+   In installierten PWAs erscheint auf mehreren Android-Chrome-Versionen KEIN
+   Fenster, der Aufruf liefert sofort null — „Schnell umbenennen", die
+   meistbenutzte Bearbeitung der App, schlug am Tablet im Saal LAUTLOS fehl.
+   Gemessen wurde das am Messstand (e2e/messen.js): Der Weg kam nie an. */
+let skTextTun = null;
+function sheetTextFrage(titel, wert, hinweis, tun){
+  skTextTun = (typeof tun==='function') ? tun : null;
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${esc(titel)}</div>
+    <div class="sheet-name">${esc(sheetEntry?((qeGet(sheetEntry,sheetCid,'name')!==undefined?qeGet(sheetEntry,sheetCid,'name'):sheetEntry.anzeige_text)||''):'')}</div>
+    <input type="text" id="skText" class="txtinp" style="width:100%" value="${esc(wert==null?'':wert)}">
+    ${hinweis?`<p class="hint" style="padding:6px 4px">${esc(hinweis)}</p>`:''}
+    <div class="p-actions" style="margin-top:10px">
+      <button class="btn btn-sec" onclick="renderSheetMain()">Abbrechen</button>
+      <button class="btn btn-pri" onclick="sheetTextSpeichern()">Übernehmen</button></div>`;
+  const inp = $('skText');
+  if(inp){ setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} }, 50);
+    inp.onkeydown = (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); sheetTextSpeichern(); } }; }
+}
+/* Eine Rückfrage als Karte im Menü — statt confirm(). Derselbe Grund wie
+   oben: In installierten PWAs erscheint kein Fenster, der Aufruf liefert
+   sofort `false`. Das ist bei einer Löschung zwar die sichere Richtung, aber
+   der Knopf tut dann eben nichts — und das sieht im Saal aus wie ein
+   hakendes Tablet. Die Karte nennt außerdem, was WIRKLICH passiert; ein
+   nativer Dialog kann keine zwei Absätze. */
+let skFrageTun = null;
+function sheetFrage(titel, text, wortJa, tun, gefahr){
+  skFrageTun = (typeof tun==='function') ? tun : null;
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${esc(titel)}</div>
+    <p class="why-help">${esc(text)}</p>
+    <div class="p-actions" style="margin-top:12px">
+      <button class="btn btn-sec" onclick="renderSheetMain()">Abbrechen</button>
+      <button class="btn btn-pri"${gefahr?' style="background:#d64545;border-color:#d64545"':''} onclick="sheetFrageJa()">${esc(wortJa||'Ja')}</button></div>`;
+}
+function sheetFrageJa(){ const f = skFrageTun; skFrageTun = null; if(f) f(); }
+
+function sheetTextSpeichern(){
+  const inp = $('skText'); const v = inp ? inp.value : '';
+  const f = skTextTun; skTextTun = null;
+  if(f) f(v);
+}
+function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text);
+  sheetTextFrage('Anzeigename', cur, 'Nur der angezeigte Name. Wie weit die Änderung reicht, wird gleich danach gefragt.',
+    (nn)=>{ if(!nn || !nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }); }
 function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
   /* mengeHi hat einen automatischen Grundzustand (≠1x); der Umschalter muss
      IMMER den gerade angezeigten (effektiven) Zustand umkehren — sonst
@@ -382,29 +442,41 @@ function applyPending(scope,bestaetigt){ const e=sheetEntry,cid=sheetCid,p=sheet
   else if(p.kind==='uk'){ reassign[cid]=(p.value===''?null:p.value); saveJSON('hkl_reassign',reassign); computeUkList(); }
   else { qeSet('cid',e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
   sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
-function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||''; const nn=prompt('Neue Menge (z. B. 2x — leer lassen = keine Menge):',cur); if(nn==null) return; const val=nn.trim()===''?null:nn.trim(); sheetPending={kind:'mengeVal',value:val}; askScope(); }
+function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||'';
+  sheetTextFrage('Menge', cur, 'z. B. „2x". Leer lassen heißt: keine Menge.',
+    (nn)=>{ sheetPending={kind:'mengeVal',value:(nn.trim()===''?null:nn.trim())}; askScope(); }); }
 function guessSizeTyp(t){ const s=t.toLowerCase(); if(/f(r|rench)?$/.test(s)&&/\d/.test(s)) return 'french'; if(/cm$/.test(s)) return 'laenge'; if(/mm$/.test(s)) return 'durchmesser'; if(/(ml|l)$/.test(s)&&/\d/.test(s)) return 'volumen'; if(/\dx\d/.test(s)) return 'dimension'; if(/er$/.test(s)) return 'naht'; return 'typcode'; }
 function parseSizesInput(text){ return (text||'').split(/[,;]+/).map(t=>t.trim()).filter(Boolean).map(t=>({typ:guessSizeTyp(t),wert:t,roh:t})); }
 function sheetEditSizes(){ const e=sheetEntry,cid=sheetCid; const gv=qeGet(e,cid,'groessen'); const cur=((gv!==undefined?gv:e.groessen)||[]).map(g=>g.wert).join(', ');
-  const nn=prompt('Größen, durch Komma getrennt (z. B. 6F, 260cm — leer = keine):',cur); if(nn==null) return;
-  sheetPending={kind:'groessen',value:parseSizesInput(nn)}; askScope(); }
+  sheetTextFrage('Größen', cur, 'Durch Komma getrennt, z. B. „6F, 260cm". Leer lassen heißt: keine Größe.',
+    (nn)=>{ sheetPending={kind:'groessen',value:parseSizesInput(nn)}; askScope(); }); }
 function sheetEditSpez(){ const e=sheetEntry,cid=sheetCid; const sv=qeGet(e,cid,'spez');
   const cur=(sv!==undefined)?(sv||''):((Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation)||'');
-  const nn=prompt('Spezifikation (Klammerzusatz/Standort — leer = keine):',cur); if(nn==null) return;
-  sheetPending={kind:'spez',value:(nn.trim()===''?null:nn.trim())}; askScope(); }
+  sheetTextFrage('Spezifikation', cur, 'Klammerzusatz oder Standort, z. B. „femoral". Leer lassen heißt: keine.',
+    (nn)=>{ sheetPending={kind:'spez',value:(nn.trim()===''?null:nn.trim())}; askScope(); }); }
 function sheetDelete(){
-  if(sheetCid&&sheetCid.indexOf('new|')===0){ if(!confirm('Diesen selbst angelegten Eintrag endgültig löschen?')) return;
-    const id=sheetCid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
-    if(QE.cid[sheetCid]) delete QE.cid[sheetCid]; if(overrides[sheetCid]){ delete overrides[sheetCid]; saveJSON('hkl_overrides',overrides); }
-    saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); return; }
+  const cid=sheetCid;
+  if(cid&&cid.indexOf('new|')===0){
+    sheetFrage('Eintrag endgültig löschen?',
+      'Dieser Eintrag wurde selbst angelegt. Es gibt keine Quelldatei, aus der er zurückkäme.',
+      'Endgültig löschen',
+      ()=>{ const id=cid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
+        if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); }
+        saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); }, true);
+    return; }
   /* In einem EIGENEN Standard (Kopie/Neuanlage mit eigener Struktur) gibt es
      keine Quelldatei, die man schonen müsste — dort ist Löschen echtes
      Löschen. Genau das braucht man beim Aufbau eines neuen Standards. */
-  if(typeof ownHatStruktur==='function' && sheetCid && ownHatStruktur(sheetCid.split('|')[0])){
-    if(!confirm('Diesen Eintrag endgültig löschen? In einem eigenen Standard ist das nicht wiederherstellbar.')) return;
-    if(ownDeleteEntry(sheetCid)){ showSheet(false); toast('Eintrag gelöscht'); reRenderDetail(); }
+  if(typeof ownHatStruktur==='function' && cid && ownHatStruktur(cid.split('|')[0])){
+    sheetFrage('Eintrag endgültig löschen?',
+      'Dieser Standard hat eine eigene Struktur — hier ist Löschen echtes Löschen und nicht wiederherstellbar.',
+      'Endgültig löschen',
+      ()=>{ if(ownDeleteEntry(cid)){ showSheet(false); toast('Eintrag gelöscht'); reRenderDetail(); } }, true);
     return; }
-  if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
+  sheetFrage('Eintrag ausblenden?',
+    'Er verschwindet aus der Anzeige und aus der Materialpflege — gelöscht wird nichts. Über „Verwaltung → Ausgeblendete Einträge" kommt er jederzeit zurück, und die Quelldatei bleibt unangetastet.',
+    'Ausblenden',
+    ()=>{ sheetPending={kind:'hidden',value:true}; askScope(); }); }
 /* Setzt NUR die Änderungen an dieser Stelle zurück: 📍-Regeln (revoke) + die
    Alt-Speicher an diesem cid. Standard-/Gruppen-/Überall-Regeln bleiben — die
    sind bewusste Sammel-Entscheidungen und werden im 🧾 Journal zurückgenommen. */
@@ -551,6 +623,59 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
       else if(rw.classList.contains('akt-karte') && typeof aktUiBearbeiten==='function') aktUiBearbeiten(id);
       else if(rw.classList.contains('best-karte') && typeof bestUiBearbeiten==='function') bestUiBearbeiten(id);
     } });
+  /* DIE VIER FLÄCHEN, DIE DER MESSSTAND ALS OFFEN GEMELDET HAT.
+     Hausregel A7 verlangt den Langdruck DORT, wo das Ding steht. Gemessen
+     (e2e/messen.js) fehlte er noch an 44 Flächen: Kopf des Standards (2),
+     Knöpfe unter der Liste (6), Sortier-Knöpfe (6), Merkmals-Knöpfe (30).
+     Alle vier führen auf dasselbe Sheet (features/funktionen.js), weil alle
+     vier dieselbe Sorte Einstellung tragen: Wort, Symbol, an/aus. */
+
+  /* ① Die Knöpfe unter der Liste. Kurz tippen tut, was draufsteht (der
+     native Klick geht durch — deshalb onTap:false), lang halten stellt ein. */
+  attachHoldNav($('scr-detail'), { rowSel:'.add-entry-btn[data-k]', keys:['k'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const k=rw.dataset.k; if(!k || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      fktFlaecheSheet('rubknopf', k, { wort:rw.textContent.replace(/^\s*\S+\s*/,'').trim(),
+        ico:(rw.textContent.trim().split(/\s+/)[0]||''),
+        titel:'Knopf der Rubrik', sub:'Gilt in JEDER Rubrik — der Knopf ist derselbe.' });
+    } });
+
+  /* ② Der Kopf des Standards. Er ist die Fläche, auf der man steht, wenn man
+     „an diesem Standard" etwas ändern will — also führt der Langdruck genau
+     dorthin, wo das schon geht: in sein ⋯-Menü. */
+  attachHoldNav($('scr-rubriken'), { rowSel:'.banner[data-sid]', ignoreSel:'button,a,input,.med-anker', keys:['sid'],
+    onTap:()=>false,
+    onHold:()=>{ if(ADMIN && typeof curStd!=='undefined' && curStd && typeof openStdSheet==='function'){
+      refreshAuth(); openStdSheet(curStd.id); } } });
+
+  /* ③ Die Sortier-Knöpfe der Startseite. */
+  attachHoldNav($('scr-standards'), { rowSel:'.sortchip[data-k]', keys:['k'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const k=rw.dataset.k; if(!k || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      fktFlaecheSheet('sortierung', k, { wort:(rw.dataset.w||rw.textContent.trim()),
+        ico:(rw.dataset.ico||''), titel:'Sortierung',
+        sub:'Welche Sortierungen oben zur Wahl stehen.' });
+    } });
+
+  /* ④ Die Merkmals-Knöpfe. Eingestellt wird die ART (alle Knöpfe einer
+     Reihe), nicht der einzelne Wert: Die Werte kommen aus den Daten und
+     wechseln mit ihnen — eine Einstellung daran wäre morgen verwaist. */
+  attachHoldNav($('scr-standards'), { rowSel:'.facchip[data-f]', keys:['f'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const f=rw.dataset.f; if(!f || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      const reihe=rw.closest('.fac-reihe');
+      const name=reihe?(reihe.querySelector('.fac-name')||{}).textContent||f:f;
+      fktFlaecheSheet('facette', f, { wort:String(name).trim(), ohneIco:true,
+        titel:'Merkmal in der Leiste',
+        sub:'Gilt für die ganze Reihe. Eine ausgeblendete Reihe mit aktiver Auswahl bleibt sichtbar — sonst wirkte ein Filter unsichtbar weiter.' });
+    } });
+
   attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn', keys:['ri'],
     onTap:rw=>{ const i=rw.dataset.ri; if(i==null) return false; openRubrik(+i); return true; },
     onHold:rw=>{ const i=rw.dataset.ri; if(i!=null&&ADMIN){ refreshAuth(); openRubSheet(+i); } } });

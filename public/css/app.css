@@ -1443,3 +1443,46 @@
 .einf-art{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);
   background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
 .einf-zeile.einf-ueber .einf-name{font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+
+/* ── Zeilen ändern (features/zeilen.js) ─────────────────────────────────
+   Die Rubrik wird zum Formular. Zwei Dinge entscheiden hier über
+   Benutzbarkeit mit Handschuhen: Die Felder sind hoch genug (44 px), und
+   eine geänderte Zeile ist auf einen Blick erkennbar — sonst weiß man nach
+   zehn Zeilen nicht mehr, was man angefasst hat. */
+.zl-liste{margin:0 0 12px}
+.zl-zeile{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;
+  border-bottom:1px solid var(--line);position:relative}
+.zl-zeile:last-child{border-bottom:0}
+.zl-zeile-dran{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.zl-farbe{width:4px;align-self:stretch;border-radius:2px;flex:0 0 4px}
+.zl-felder{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.zl-feld{display:flex;align-items:center;gap:8px}
+.zl-lab{flex:0 0 56px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--muted)}
+.zl-feld .loc-input{flex:1;min-height:44px}
+.zl-feld.zl-dran .loc-input{border-color:var(--accent);
+  box-shadow:inset 0 0 0 1px var(--accent)}
+.zl-zurueck{flex:0 0 44px;min-height:44px;border:1px solid var(--line);border-radius:10px;
+  background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
+.zl-kopf .p-actions{margin-top:10px}
+
+/* Das Prüfblatt über alle Änderungen. */
+.zl-pruef{max-height:38vh;overflow-y:auto;margin:8px 0;
+  border:1px solid var(--line);border-radius:12px}
+.zl-pz{padding:8px 12px;border-bottom:1px solid var(--line);position:relative;padding-right:44px}
+.zl-pz:last-child{border-bottom:0}
+.zl-pz-kopf{font-size:13px;font-weight:600}
+.zl-pz-feld{font-size:11px;font-weight:400;color:var(--muted);
+  background:var(--chip);padding:1px 6px;border-radius:999px;margin-left:6px}
+.zl-pz-werte{display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap}
+.zl-vor{color:var(--muted);text-decoration:line-through}
+.zl-pfeil{color:var(--muted)}
+.zl-nach{color:var(--accent);font-weight:600}
+.zl-pz-weg{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;border:0;background:transparent;color:var(--muted);
+  font-size:16px;cursor:pointer}
+/* Der ↺-Knopf steht immer im Markup (sonst erschiene er beim Tippen nie,
+   weil die Liste dabei bewusst NICHT neu gebaut wird) und wird hier
+   sichtbar gemacht, sobald die Zeile eine Änderung trägt. */
+.zl-zeile .zl-zurueck{visibility:hidden}
+.zl-zeile-dran .zl-zurueck{visibility:visible}

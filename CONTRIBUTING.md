@@ -310,6 +310,11 @@ Alles hier ist **Verwaltungsarbeit**, kein Programmieren. Der Weg ist immer:
 | Welche Arten von Aushängen es gibt (Notfall, Wartung …) | Verwaltung → 📌 Aushänge (Wort, Symbol, Farbe, „laut") |
 | „Der Führungskatheter ist leer" melden | Seite **Bestellungen** → ＋ · oder ⋯ an einer Materialzeile → 🛒 „ist leer" melden |
 | Eine ganze Liste aus Word übernehmen | In der Rubrik: **📋 Liste einfügen** → hineinkopieren → jede Zeile prüfen → einfügen |
+| Mehrere Zeilen korrigieren, ohne die Liste zu verlassen | In der Rubrik: **✏️ Zeilen ändern** → direkt in die Felder tippen → „✓ Fertig" zeigt alles mit vorher → nachher |
+| Einen Knopf unter der Liste umbenennen oder weglassen | **Lang darauf tippen** (gilt für alle Rubriken) |
+| Eine Sortierung oben weglassen | **Lang auf den Sortier-Knopf tippen** |
+| Eine Merkmals-Reihe weglassen | **Lang auf einen Merkmals-Knopf tippen** |
+| Das ⋯-Menü eines Standards öffnen | **Lang auf den Kopf des Standards tippen** |
 | Bilder an einer Art von Stelle ausblenden | Verwaltung → 🖼 Wo Bilder stehen → „Bilder aus" (löscht nichts) |
 | Nur das 🖼-Symbol weghaben, Bilder aber behalten | Dasselbe Panel → „Symbol aus" |
 | Alle Bilder auf einmal ausblenden | Dasselbe Panel → „Alle Bilder ausblenden" |

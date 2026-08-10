@@ -13,7 +13,7 @@
     "public/js/features/matcenter.js": 3,
     "public/js/features/matcleanup.js": 1,
     "public/js/features/popups.js": 2,
-    "public/js/features/quickmenu.js": 9,
+    "public/js/features/quickmenu.js": 0,
     "public/js/features/scanner.js": 2,
     "public/js/features/suggestions.js": 1,
     "public/js/features/variants.js": 2,
