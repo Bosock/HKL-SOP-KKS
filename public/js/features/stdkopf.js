@@ -103,7 +103,15 @@ function stdKopfHTML(s){
     try{ teil = b.tun(s) || ''; }catch(e){ teil = ''; }
     if(teil) h += teil;
   });
-  return h;
+  /* Eine Hülle mit der Kennung des Standards. Daran erkennt der Halte-Detektor
+     (features/quickmenu.js), dass der ganze Kopf bedienbar ist: langes Tippen
+     darauf öffnet das ⋯-Menü des Standards.
+
+     Warum die HÜLLE und nicht die einzelnen Bausteine: Der Kopf ist ein
+     Bauplan — welche Bausteine er zeigt, entscheidet das Haus. Eine Kennung
+     an jedem einzelnen müsste bei jedem neuen Baustein nachgetragen werden
+     und würde genau dann vergessen. */
+  return h ? `<div class="std-kopf" data-sid="${esc(s.id)}">${h}</div>` : '';
 }
 
 /* ── Helfer der einzelnen Bausteine ── */

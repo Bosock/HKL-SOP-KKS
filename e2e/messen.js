@@ -272,7 +272,7 @@ function meldeZeit(was, mittel, schlecht, info){
     };
     setMode('admin'); openStandard(DB.standards[0].id);
     sammle('scr-rubriken','.rub','Rubrikenzeile');
-    sammle('scr-rubriken','.banner','Kopf des Standards');
+    sammle('scr-rubriken','.std-kopf','Kopf des Standards');
     openRubrik(${ziel.ri});
     sammle('scr-detail','.entry-row[data-cid]','Eintragszeile');
     sammle('scr-detail','.ukhead,.uk-head','Kopf einer Unterkategorie');

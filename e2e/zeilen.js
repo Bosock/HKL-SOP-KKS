@@ -236,12 +236,25 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('bis hierher: kein einziges natives Fenster', dialoge === 0);
 
   /* ═══════════ ⑦ Langdruck auf die vier gemessenen Flächen ═══════════ */
+  /* Gehalten wird an einer FREIEN Stelle der Fläche. Die Mitte eines
+     Standardkopfes liegt oft auf einem Knopf — und Knöpfe sind vom
+     Halte-Detektor ausdrücklich ausgenommen (sonst öffnete ein Tipp auf
+     „✎ Bearbeiten" das falsche Menü). Der Griff sucht deshalb einen Punkt,
+     an dem wirklich die Fläche liegt. */
   const halten = async (sel) => {
     const box = await page.evaluate(`(function(){
       const el=document.querySelector(${JSON.stringify(sel)});
       if(!el) return null;
       el.scrollIntoView({block:'center'});
       const r=el.getBoundingClientRect();
+      const frei=(x,y)=>{ const t=document.elementFromPoint(x,y);
+        return t && el.contains(t) && !t.closest('button,a,input,select,textarea,label'); };
+      for(const fx of [0.5,0.02,0.05,0.95,0.5,0.5]){
+        for(const fy of [0.5,0.08,0.92,0.25,0.75]){
+          const x=r.x+r.width*fx, y=r.y+r.height*fy;
+          if(frei(x,y)) return { x, y };
+        }
+      }
       return { x:r.x+r.width/2, y:r.y+r.height/2 };
     })()`);
     if (!box) return false;
@@ -277,7 +290,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('… und Zurücksetzen bringt ihn zurück', wirkt.wieder);
 
   await page.evaluate(`(function(){ showSheet(false); openStandard(${JSON.stringify(ziel.sid)}); })()`);
-  const gehalten2 = await halten('#scr-rubriken .banner');
+  const gehalten2 = await halten('#scr-rubriken .std-kopf');
   const stdSheet = await page.evaluate(`(function(){
     const s=document.getElementById('sheet');
     const auf=s.classList.contains('show') && /Titel|Merkmale|Freigabe/.test(s.textContent);
@@ -332,7 +345,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     };
     setMode('admin'); openStandard(DB.standards[0].id);
     sammle('scr-rubriken','.rub','Rubrikenzeile');
-    sammle('scr-rubriken','.banner','Kopf des Standards');
+    sammle('scr-rubriken','.std-kopf','Kopf des Standards');
     openRubrik(${ziel.ri});
     sammle('scr-detail','.entry-row[data-cid]','Eintragszeile');
     sammle('scr-detail','.add-entry-btn','Knöpfe unter der Liste');

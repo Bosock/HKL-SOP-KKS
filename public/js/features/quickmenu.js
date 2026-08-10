@@ -645,10 +645,10 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
   /* ② Der Kopf des Standards. Er ist die Fläche, auf der man steht, wenn man
      „an diesem Standard" etwas ändern will — also führt der Langdruck genau
      dorthin, wo das schon geht: in sein ⋯-Menü. */
-  attachHoldNav($('scr-rubriken'), { rowSel:'.banner[data-sid]', ignoreSel:'button,a,input,.med-anker', keys:['sid'],
+  attachHoldNav($('scr-rubriken'), { rowSel:'.std-kopf[data-sid]', ignoreSel:'button,a,input,select,textarea,label,.med-anker', keys:['sid'],
     onTap:()=>false,
-    onHold:()=>{ if(ADMIN && typeof curStd!=='undefined' && curStd && typeof openStdSheet==='function'){
-      refreshAuth(); openStdSheet(curStd.id); } } });
+    onHold:rw=>{ const sid=rw.dataset.sid;
+      if(sid && ADMIN && typeof openStdSheet==='function'){ refreshAuth(); openStdSheet(sid); } } });
 
   /* ③ Die Sortier-Knöpfe der Startseite. */
   attachHoldNav($('scr-standards'), { rowSel:'.sortchip[data-k]', keys:['k'],

@@ -19,10 +19,10 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
        Halte-Detektor, dass diese Fläche bedienbar ist (langes Tippen öffnet
        das ⋯-Menü des Standards). Ohne Kennung meldet der Selbsttest zu Recht
        „Zeile ohne Handler" — eine Fläche, die auf nichts zeigt. */
-    if(ADMIN) html+=`<div class="banner" data-sid="${esc(curStd.id)}" style="padding:12px 14px"><div style="display:flex;gap:7px;align-items:center">
+    if(ADMIN) html+=`<div class="std-kopf" data-sid="${esc(s.id)}"><div class="banner" style="padding:12px 14px"><div style="display:flex;gap:7px;align-items:center">
       <span style="flex:1"></span>
       <button class="btn btn-sec" onclick="openStdSheet()">✎ Bearbeiten</button>
-      <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div>`;
+      <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div></div>`;
   }
   const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   let listHtml='';

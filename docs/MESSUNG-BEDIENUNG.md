@@ -79,6 +79,20 @@ weil alle vier dieselbe Sorte Einstellung tragen (Wort, Symbol, an/aus).
 eine Fläche der Kernbedienung wieder ohne Langdruck dasteht. A7 ist damit keine
 Absichtserklärung mehr, sondern eine Prüfung.
 
+**Die Prüfung hat sich sofort bewährt.** Der erste Versuch, den Kopf des
+Standards anzuschließen, setzte die Kennung in den *Rückfall*-Zweig von
+`openStandard()` — also in den Code, der nur läuft, wenn `features/stdkopf.js`
+fehlt. Im echten Betrieb rendert stdkopf.js den Kopf, und dort stand keine
+Kennung. Einzeln lief die Suite trotzdem grün (der alte Selektor traf noch
+alles); erst der vollständige Lauf mit dem geschärften Selektor meldete
+„Kopf des Standards: 2 von 2 ohne Langdruck".
+
+Die Lösung sitzt jetzt an der richtigen Stelle: `stdKopfHTML()` legt eine Hülle
+`<div class="std-kopf" data-sid="…">` um den ganzen Kopf. Bewusst die Hülle und
+nicht die einzelnen Bausteine — der Kopf ist ein Bauplan, welche Bausteine er
+zeigt entscheidet das Haus. Eine Kennung an jedem einzelnen müsste bei jedem
+neuen Baustein nachgetragen werden und würde genau dann vergessen.
+
 ---
 
 ## Teil 3 — Wartezeit der Renderpfade
