@@ -49,8 +49,154 @@ let BEST = (typeof loadJSON==='function') ? loadJSON('hkl_bestellungen', []) : [
 if(!Array.isArray(BEST)) BEST = [];
 function saveBest(){ if(typeof saveJSON==='function') saveJSON('hkl_bestellungen', BEST); }
 
+/* ─────────────────────────────────────────────────────────────
+   DIE MITWACHSENDE BESTELL-DATENBANK (Rückkopplung, „Bestätigung zuerst")
+
+   Der Betreiber: „Da die Materialien immer wiederkehrend sind und dem
+   Material, das verbraucht wird, entsprechen, wäre es sinnvoll, kontinuierlich
+   abzugleichen — damit man irgendwann ohne Foto die Bestelldaten hat."
+
+   Der Befund: Die verlässliche Bestell-Datenbank existiert längst — sie heißt
+   GTINDB (Produkt-Stammsätze) + MATLINK (material_key → Stammsatz). Der
+   Bestell-Scan behielt GTIN und Foto aber nur an der EINZELNEN Bestellung; das
+   Gelernte versickerte. Jetzt zahlt jeder Scan in den gemeinsamen Stamm ein.
+
+   Vier Takte:
+     ① Einzahlung  Jeder Scan legt/ergänzt den Stammsatz (nur leere Felder) und
+                   hängt das Foto dort an — wiederverwendbar. Das Paar
+                   material_key ↔ GTIN wird als VORSCHLAG notiert.
+     ② Reifung     Ein Vorschlag bleibt Vorschlag, bis ein MENSCH ihn einmal
+                   bestätigt (→ echte MATLINK-Verknüpfung). „Bestätigung zuerst":
+                   maximale Zuverlässigkeit. Ein Widerspruch (schon verlinkt,
+                   aber ein anderes Produkt gescannt) wird nie still übernommen,
+                   sondern vorgelegt.
+     ③ Auszahlung  Ist einmal bestätigt, steht REF/Hersteller/Lagerort/GTIN beim
+                   nächsten „ist leer" sofort da — ganz ohne Foto.
+     ④ Prüffläche  Ein Admin-Panel zeigt offene Vorschläge und Widersprüche zum
+                   Bestätigen oder Verwerfen. Der Mensch behält die Hoheit.
+
+   Grundsatz ①: „leer schlägt falsch" — nichts wird geraten, nichts überschrieben,
+   alles ist rücknehmbar (MATLINK ist eine reine Verweis-Ebene).
+   ───────────────────────────────────────────────────────────── */
+
+let BESTLERN = (typeof loadJSON==='function') ? loadJSON('hkl_bestlern', {}) : {};
+if(!BESTLERN || typeof BESTLERN!=='object' || Array.isArray(BESTLERN)) BESTLERN = {};
+function saveBestlern(){ if(typeof saveJSON==='function') saveJSON('hkl_bestlern', BESTLERN); }
+
+/* Der schon bestätigte Stammsatz-Schlüssel eines Materials (oder null). Nutzt
+   die bestehende Brücke MATLINK/canonId — dieselbe, die die Materialzentrale
+   pflegt. So profitiert die Bestellung von jeder dort gemachten Verknüpfung. */
+function bestVerlinkt(matKey){
+  if(!matKey) return null;
+  if(typeof canonId==='function') return canonId(matKey) || null;
+  if(typeof MATLINK!=='undefined' && MATLINK && MATLINK[matKey]) return MATLINK[matKey];
+  return null;
+}
+
+/* Zustand eines Materials in der Lern-Datenbank. Rein/testbar.
+     'verlinkt'    Ein bestätigter Stammsatz steht — Auszahlung möglich.
+     'widerspruch' Verlinkt, aber ein ANDERES Produkt wurde gescannt.
+     'vorschlag'   Noch nicht verlinkt, aber ein Scan liegt als Vorschlag vor.
+     'leer'        Nichts bekannt. */
+function bestLernStatus(matKey){
+  const linked = bestVerlinkt(matKey);
+  const e = BESTLERN[matKey];
+  const vor = (e && e.vor) ? Object.keys(e.vor) : [];
+  if(linked){
+    return vor.some(g=>g!==linked) ? 'widerspruch' : 'verlinkt';
+  }
+  return vor.length ? 'vorschlag' : 'leer';
+}
+
+/* Der stärkste offene Vorschlag (häufigster Scan), der NICHT der schon
+   verlinkte ist. Für die Auszahlungs-Zeile und das Prüf-Panel. */
+function bestVorschlag(matKey){
+  const e = BESTLERN[matKey]; if(!e || !e.vor) return null;
+  const linked = bestVerlinkt(matKey);
+  const paare = Object.keys(e.vor).filter(g=>g!==linked).map(g=>Object.assign({ gtin:g }, e.vor[g]));
+  if(!paare.length) return null;
+  paare.sort((a,b)=>(b.n||0)-(a.n||0) || String(b.letzt||'').localeCompare(String(a.letzt||'')));
+  return paare[0];
+}
+
+/* ① Einzahlung: ein gesehenes Paar material_key ↔ GTIN als Vorschlag notieren.
+   Bereits Verworfenes wird nicht erneut vorgeschlagen. Rein bis auf den
+   Speicher. */
+function bestLernErfassen(matKey, gtin, info){
+  if(!matKey || !gtin) return false;
+  const f = info || {};
+  let e = BESTLERN[matKey];
+  if(!e){ e = BESTLERN[matKey] = { vor:{}, weg:[] }; }
+  if(!e.vor) e.vor = {}; if(!Array.isArray(e.weg)) e.weg = [];
+  if(e.weg.indexOf(gtin) >= 0) return false;   /* schon einmal verworfen */
+  const now = new Date().toISOString();
+  const v = e.vor[gtin] || { n:0, erst:now };
+  v.n += 1; v.letzt = now;
+  if(f.name && !v.name) v.name = f.name;
+  if(f.ref && !v.ref) v.ref = f.ref;
+  if(f.hersteller && !v.hersteller) v.hersteller = f.hersteller;
+  e.vor[gtin] = v; saveBestlern();
+  return true;
+}
+
+/* ② Reifung durch Bestätigung: aus dem Vorschlag wird eine echte Verknüpfung.
+   Ab jetzt zahlt die Datenbank ohne Foto aus. */
+function bestLernBestaetigen(matKey, gtin){
+  if(!matKey || !gtin) return false;
+  if(typeof matLinkTo==='function') matLinkTo(matKey, gtin);
+  const e = BESTLERN[matKey];
+  if(e && e.vor && e.vor[gtin]) delete e.vor[gtin];   /* erfüllt — raus aus den Offenen */
+  saveBestlern();
+  return true;
+}
+
+/* Einen Vorschlag verwerfen: kommt in die „weg"-Liste, damit er nicht wieder
+   auftaucht. Ein Fehlscan soll nicht ewig nerven. */
+function bestLernVerwerfen(matKey, gtin){
+  if(!matKey || !gtin) return false;
+  let e = BESTLERN[matKey];
+  if(!e){ e = BESTLERN[matKey] = { vor:{}, weg:[] }; }
+  if(!e.vor) e.vor = {}; if(!Array.isArray(e.weg)) e.weg = [];
+  if(e.vor[gtin]) delete e.vor[gtin];
+  if(e.weg.indexOf(gtin) < 0) e.weg.push(gtin);
+  saveBestlern();
+  return true;
+}
+
+/* ③ Auszahlung: die verlässlichen Bestelldaten eines Materials — nur aus einem
+   BESTÄTIGTEN Stammsatz. Ohne Bestätigung: null (leer schlägt falsch). */
+function bestBestelldaten(matKey){
+  const id = bestVerlinkt(matKey); if(!id) return null;
+  const r = (typeof GTINDB!=='undefined' && GTINDB) ? GTINDB[id] : null;
+  if(!r) return null;
+  return { id, gtin:(/^\d+$/.test(String(id))?id:(r.gtin&&/^\d+$/.test(String(r.gtin))?r.gtin:null)),
+    name:r.name||'', ref:r.ref||'', hersteller:r.hersteller||'', lagerort:r.lagerort||'' };
+}
+
+/* ④ Die Prüfliste: alle Materialien mit offenem Vorschlag oder Widerspruch,
+   Häufigstes zuerst. Grundlage für das Admin-Panel und die Zähler. Braucht die
+   Materialliste aus den Standards (pfMaterialien). */
+function bestLernOffen(){
+  const mats = (typeof pfMaterialien==='function') ? pfMaterialien() : [];
+  const nameOf = {}; mats.forEach(m=>{ nameOf[m.key] = m.name || m.key; });
+  const out = [];
+  Object.keys(BESTLERN).forEach(matKey=>{
+    const st = bestLernStatus(matKey);
+    if(st!=='vorschlag' && st!=='widerspruch') return;
+    const v = bestVorschlag(matKey); if(!v) return;
+    const prod = (typeof GTINDB!=='undefined' && GTINDB && GTINDB[v.gtin]) ? GTINDB[v.gtin] : null;
+    out.push({ matKey, status:st,
+      name: nameOf[matKey] || (v.name) || matKey,
+      gtin: v.gtin, n: v.n||1,
+      produkt: (prod&&prod.name)||v.name||'', ref:(prod&&prod.ref)||v.ref||'',
+      hersteller:(prod&&prod.hersteller)||v.hersteller||'',
+      altId: bestVerlinkt(matKey) || null });
+  });
+  return out.sort((a,b)=> (a.status===b.status ? (b.n-a.n) : (a.status==='widerspruch'?-1:1)) );
+}
+
 /* Transiente Scan-Ergebnisse für das gerade offene Formular. */
-let bestScanState = { gtin: null, foto: null };
+let bestScanState = { gtin: null, foto: null, name:'', ref:'', hersteller:'' };
 
 function bestNeueId(){ return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function bestNach(id){ return BEST.find(b=>b.id===id) || null; }
@@ -143,6 +289,9 @@ function bestSeiteHTML(seite, suche){
   if(bestForm==='neu') html += bestFormHTML(null);
   else html += `<button class="add-entry-btn" onclick="bestUiNeu()">＋ „ist leer" melden</button>`;
 
+  /* ④ Prüffläche (nur Admin): offene Vorschläge und Widersprüche bestätigen. */
+  html += bestLernPanelHTML();
+
   if(!offen.length){
     html += `<div class="empty"><div class="ei">🛒</div><h3>${q?'Nichts gefunden':'Nichts offen'}</h3>
       <p>${q?'Kein Treffer.':'Keine offene Meldung. Wer etwas leer sieht, meldet es oben.'}</p></div>`;
@@ -201,10 +350,11 @@ function bestFormHTML(b){
   return `<div class="auf-form">
     <div class="flabel">${b?'MELDUNG BEARBEITEN':'WAS IST LEER?'}</div>
     <div class="best-scan-reihe">
-      <input class="loc-input" id="bestWort" list="bestMatList" placeholder="Material — tippen oder aus der Liste wählen" value="${esc(b?b.wort:'')}">
+      <input class="loc-input" id="bestWort" list="bestMatList" placeholder="Material — tippen oder aus der Liste wählen" value="${esc(b?b.wort:'')}" onchange="bestDatenZeigen()" oninput="bestDatenZeigen()">
       <button type="button" class="btn btn-sec" onclick="bestScanFoto()" title="Etikett fotografieren — GTIN wird automatisch gelesen">📷</button>
     </div>
     <datalist id="bestMatList">${liste}</datalist>
+    <div id="bestDaten"></div>
     ${fotoBox}
     <div class="form-row" style="margin-top:8px">
       <input class="loc-input" id="bestMenge" placeholder="Menge (optional)" value="${esc(b?b.menge:'')}" style="flex:0 0 40%">
@@ -219,9 +369,10 @@ function bestFormHTML(b){
 }
 
 /* ── Bedienung ── */
-function bestUiNeu(){ bestScanState={gtin:null,foto:null}; bestForm='neu'; seiteAuffrischen(); setTimeout(()=>{ const i=$('bestWort'); if(i) i.focus(); },50); }
-function bestUiBearbeiten(id){ bestScanState={gtin:null,foto:null}; bestForm=id; seiteAuffrischen(); }
-function bestUiAbbrechen(){ bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen(); }
+function bestScanReset(){ bestScanState = { gtin:null, foto:null, name:'', ref:'', hersteller:'' }; }
+function bestUiNeu(){ bestScanReset(); bestForm='neu'; seiteAuffrischen(); setTimeout(()=>{ const i=$('bestWort'); if(i) i.focus(); },50); }
+function bestUiBearbeiten(id){ bestScanReset(); bestForm=id; seiteAuffrischen(); setTimeout(()=>{ if(typeof bestDatenZeigen==='function') bestDatenZeigen(); },50); }
+function bestUiAbbrechen(){ bestScanReset(); bestForm=null; seiteAuffrischen(); }
 function bestUiAlt(){ bestZeigeAlt=!bestZeigeAlt; seiteAuffrischen(); }
 function bestUiKuerzel(){ if(typeof kuerzelFragen==='function') kuerzelFragen(()=>seiteAuffrischen()); }
 function bestUiSpeichern(id){
@@ -234,21 +385,26 @@ function bestUiSpeichern(id){
     const t = pfMaterialien().find(m=>String(m.name||'').trim().toLowerCase()===wort.toLowerCase());
     if(t) matKey = t.key;
   }
+  const gtin = bestScanState.gtin || (id ? (bestNach(id)||{}).gtin : null) || null;
   const felder = { wort, menge:($('bestMenge')&&$('bestMenge').value)||'',
     notiz:($('bestNotiz')&&$('bestNotiz').value)||'',
     dringend:!!($('bestDringend')&&$('bestDringend').checked),
-    matKey,
-    gtin: bestScanState.gtin || (id ? (bestNach(id)||{}).gtin : null) || null,
+    matKey, gtin,
     foto: bestScanState.foto || (id ? (bestNach(id)||{}).foto : null) || null };
   const tun = ()=>{
     if(id){ Object.keys(felder).forEach(k=>bestAendern(id,k,felder[k])); }
     else bestMelden(felder);
-    bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen();
+    /* ① Einzahlung: Name↔GTIN als Vorschlag notieren, sofern beides feststeht
+       und noch nicht bestätigt verlinkt. Das ist die Saat für „ohne Foto". */
+    if(matKey && gtin && bestLernStatus(matKey)!=='verlinkt'){
+      bestLernErfassen(matKey, gtin, { name:bestScanState.name, ref:bestScanState.ref, hersteller:bestScanState.hersteller });
+    }
+    bestScanReset(); bestForm=null; seiteAuffrischen();
     if(typeof toast==='function') toast(id?'Gespeichert':'Gemeldet — im anderen Saal sofort sichtbar');
   };
   if(typeof kuerzelDannn==='function') kuerzelDannn(tun); else tun();
 }
-function bestUiLoeschen(id){ bestLoeschen(id); bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen(); if(typeof toast==='function') toast('Meldung entfernt'); }
+function bestUiLoeschen(id){ bestLoeschen(id); bestScanReset(); bestForm=null; seiteAuffrischen(); if(typeof toast==='function') toast('Meldung entfernt'); }
 function bestUiWeiter(id){
   kuerzelDannn(()=>{
     const neu = bestWeiter(id, kuerzel());
@@ -294,22 +450,157 @@ async function bestScanVerarbeiten(dataUrl){
   const gtin = (typeof gtinKey==='function') ? gtinKey(code.gtin) : String(code.gtin);
   bestScanState.gtin = gtin;
 
-  /* Name aus eigenem Stammsatz, dann Katalog, dann Netz. */
-  let name = '';
+  /* Name/REF/Hersteller: eigener Stammsatz zuerst, dann Katalog, dann Netz.
+     Die Auflösung liefert die Herkunft mit — Netz-Treffer sind „unbestätigt". */
+  let name = '', ref = '', hersteller = '', herkunft = 'stammsatz';
   const rec = (typeof GTINDB!=='undefined') ? GTINDB[gtin] : null;
-  if(rec) name = rec.name || rec.ref || '';
-  if(!name && typeof gtinAufloesen==='function'){
-    try{ const t = await gtinAufloesen(gtin); if(t) name = t.name || t.ref || ''; }catch(e){}
+  if(rec){ name = rec.name || ''; ref = rec.ref || ''; hersteller = rec.hersteller || ''; }
+  if((!name || !ref || !hersteller) && typeof gtinAufloesen==='function'){
+    try{ const t = await gtinAufloesen(gtin);
+      if(t){ if(!name) name = t.name || ''; if(!ref) ref = t.ref || ''; if(!hersteller) hersteller = t.hersteller || '';
+        herkunft = t.herkunft || herkunft; }
+    }catch(e){}
   }
+
+  bestScanState.name = name; bestScanState.ref = ref; bestScanState.hersteller = hersteller;
+
+  /* ① Einzahlung in den gemeinsamen Stamm: Stammsatz anlegen/ergänzen (nur
+     leere Felder) und das Foto dort anhängen — ab jetzt für jeden nutzbar,
+     nicht nur an dieser einen Bestellung. */
+  bestStammEinzahlen(gtin, { name, ref, hersteller, herkunft, foto:dataUrl });
 
   const inp = $('bestWort');
   if(inp && name && !inp.value.trim()) inp.value = name;
-  if(typeof toast==='function') toast(name ? ('Erkannt: ' + name) : ('GTIN ' + gtin + ' — Name bitte prüfen'));
+  /* Der Name steht jetzt vielleicht fest → prüfen, ob es schon verlässliche
+     Bestelldaten oder einen früheren Vorschlag gibt. */
+  if(typeof bestDatenZeigen==='function') bestDatenZeigen();
+  if(typeof toast==='function') toast(name ? ('Erkannt: ' + name + (ref?(' · REF '+ref):'')) : ('GTIN ' + gtin + ' — Name bitte prüfen'));
+}
+
+/* Legt einen Stammsatz zu einer GTIN an oder ergänzt ihn — ausschließlich leere
+   Felder, nie überschreibend. Web-Treffer werden als „unbestätigt" markiert.
+   Das Foto kommt an die Fotoliste des Stammsatzes (matPhotoAdd, ohne Dubletten).
+   So wächst dieselbe Produktdatenbank, die auch der Etikett-Scanner pflegt. */
+function bestStammEinzahlen(gtin, f){
+  if(!gtin || typeof GTINDB==='undefined') return null;
+  f = f || {};
+  const now = new Date().toISOString();
+  let r = GTINDB[gtin];
+  if(!r){
+    r = GTINDB[gtin] = { gtin, name:'', hersteller:null, ref:null, verwendung:null,
+      french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
+      lagerort:null, preis:null, photo:null, fotos:[], props:{},
+      createdAt:now, updatedAt:now };
+    /* Ein frisch aus dem Netz geborener Satz ist unbestätigt — bis ihn jemand
+       im Etikett-Scanner prüft. */
+    if(f.herkunft && f.herkunft!=='stammsatz') r.quelle = (f.herkunft==='katalog') ? 'Referenz-Katalog' : 'AccessGUDID (NLM)';
+  }
+  if(f.name && !r.name) r.name = f.name;
+  if(f.ref && !r.ref) r.ref = f.ref;
+  if(f.hersteller && !r.hersteller) r.hersteller = f.hersteller;
+  if(f.foto){
+    if(typeof matPhotoAdd==='function'){ r.fotos = matPhotoAdd(r.fotos, f.foto, 'Bestell-Scan'); }
+    if(!r.photo) r.photo = f.foto;
+  }
+  r.updatedAt = now;
+  if(typeof saveGtinDB==='function') saveGtinDB();
+  return r;
 }
 
 function bestScanLoeschen(){
   bestScanState.foto = null; bestScanState.gtin = null;
+  bestScanState.name = ''; bestScanState.ref = ''; bestScanState.hersteller = '';
   const box = $('bestFotoBox'); if(box) box.innerHTML = '';
+}
+
+/* Löst den eingetippten/gewählten Namen zu einem material_key auf (exakter
+   Treffer im Bestand). */
+function bestNameZuKey(wort){
+  const w = String(wort||'').trim().toLowerCase(); if(!w) return null;
+  if(typeof pfMaterialien!=='function') return null;
+  const t = pfMaterialien().find(m=>String(m.name||'').trim().toLowerCase()===w);
+  return t ? t.key : null;
+}
+
+/* ③ Auszahlung im Formular: sobald der Name feststeht, zeigen wir, was die
+   Datenbank schon weiß. Bestätigt → verlässliche Zeile, GTIN wandert
+   automatisch mit (kein Foto nötig). Nur Vorschlag → als solcher benannt,
+   mit einem Knopf zum Übernehmen. Leer → nichts (leer schlägt falsch). */
+function bestDatenZeigen(){
+  const slot = $('bestDaten'); if(!slot) return;
+  const wort = ($('bestWort') && $('bestWort').value) || '';
+  const key = bestNameZuKey(wort);
+  if(!key){ slot.innerHTML = ''; return; }
+  const d = bestBestelldaten(key);
+  if(d){
+    /* Verlässlich: die GTIN an die Bestellung hängen, ohne Foto. Ein frisch
+       gescanntes Foto bleibt aber erhalten, wenn eins gemacht wurde. */
+    if(!bestScanState.gtin && d.id) bestScanState.gtin = d.id;
+    const teile = [d.hersteller, d.ref?('REF '+d.ref):'', d.gtin?('GTIN '+d.gtin):''].filter(Boolean).join(' · ');
+    slot.innerHTML = `<div class="best-daten best-daten-ok">✓ Bestelldaten bekannt${teile?(' — '+esc(teile)):''}<span class="best-daten-sub">kein Foto nötig</span></div>`;
+    return;
+  }
+  const v = bestVorschlag(key);
+  if(v){
+    const prod = (typeof GTINDB!=='undefined' && GTINDB && GTINDB[v.gtin]) ? GTINDB[v.gtin] : null;
+    const wer = (prod&&prod.name)||v.name||('GTIN '+v.gtin);
+    slot.innerHTML = `<div class="best-daten best-daten-vor">📎 Vorschlag aus früherem Scan: <b>${esc(wer)}</b>
+      <button type="button" class="btn btn-sec best-daten-btn" data-k="${esc(key)}" data-g="${esc(v.gtin)}" onclick="bestVorschlagUebernehmen(this.dataset.k,this.dataset.g)">übernehmen</button>
+      <span class="best-daten-sub">wird als Bestelldatum bestätigt</span></div>`;
+    return;
+  }
+  slot.innerHTML = '';
+}
+
+/* Aus dem Formular heraus einen Vorschlag bestätigen (Reifung ②). Danach ist
+   das Material verlinkt und die Zeile zeigt die verlässlichen Daten. */
+function bestVorschlagUebernehmen(key, gtin){
+  bestLernBestaetigen(key, gtin);
+  bestScanState.gtin = gtin;
+  bestDatenZeigen();
+  if(typeof toast==='function') toast('Bestätigt — ab jetzt ohne Foto');
+}
+
+/* ── ④ Prüffläche: das Admin-Panel ──────────────────────────────────────────
+   Nur für Angemeldete. Hier reift der Vorschlag zur verlässlichen Verknüpfung.
+   Ein Widerspruch (schon verlinkt, aber ein anderes Produkt gescannt) steht
+   oben und rot — genau der Fall, den man nicht still übernehmen darf. */
+let bestZeigeLern = false;
+function bestUiLernPanel(){ bestZeigeLern = !bestZeigeLern; seiteAuffrischen(); }
+
+function bestLernPanelHTML(){
+  if(typeof ADMIN==='undefined' || !ADMIN) return '';
+  const offen = bestLernOffen();
+  if(!offen.length) return '';
+  const kopf = `<button type="button" class="add-entry-btn" onclick="bestUiLernPanel()">${bestZeigeLern?'⌄':'›'} Bestell-Stammdaten prüfen (${offen.length})</button>`;
+  if(!bestZeigeLern) return kopf;
+  const zeilen = offen.map(o=>{
+    const prod = [o.produkt, o.ref?('REF '+o.ref):'', o.hersteller].filter(Boolean).join(' · ');
+    const wid = (o.status==='widerspruch');
+    return `<div class="best-lern-zeile${wid?' best-lern-wid':''}">
+      <div class="best-lern-txt">
+        <div class="best-lern-name">${wid?'⚠ ':''}${esc(o.name)}</div>
+        <div class="best-lern-prod">${wid?'schon verlinkt — neuer Scan: ':''}${esc(prod||('GTIN '+o.gtin))}${o.n>1?` · ${o.n}×`:''}</div>
+      </div>
+      <div class="best-lern-akt">
+        <button type="button" class="btn btn-pri" data-k="${esc(o.matKey)}" data-g="${esc(o.gtin)}" onclick="bestUiLernBestaetigen(this.dataset.k,this.dataset.g)">Bestätigen</button>
+        <button type="button" class="btn btn-sec" data-k="${esc(o.matKey)}" data-g="${esc(o.gtin)}" onclick="bestUiLernVerwerfen(this.dataset.k,this.dataset.g)">Verwerfen</button>
+      </div></div>`;
+  }).join('');
+  return kopf + `<div class="best-lern-panel">
+    <p class="best-lern-hilfe">Bestätigt = das Material bekommt ab sofort seine Bestelldaten ohne Foto. Verworfen = der Scan war ein Versehen und taucht nicht wieder auf.</p>
+    ${zeilen}</div>`;
+}
+
+function bestUiLernBestaetigen(key, gtin){
+  bestLernBestaetigen(key, gtin);
+  seiteAuffrischen();
+  if(typeof toast==='function') toast('Bestätigt — dieses Material braucht ab jetzt kein Foto mehr');
+}
+function bestUiLernVerwerfen(key, gtin){
+  bestLernVerwerfen(key, gtin);
+  seiteAuffrischen();
+  if(typeof toast==='function') toast('Vorschlag verworfen');
 }
 
 /* Aus dem Material heraus melden — der kurze Weg aus der Materialzentrale

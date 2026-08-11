@@ -423,6 +423,49 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     !ausMat.kein && ausMat.nach === ausMat.vor + 1 && ausMat.wort === ausMat.name);
   r.check('… und die App springt auf die Bestell-Seite', ausMat.gesprungen);
 
+  /* ═══════════ 9b. Die mitwachsende Bestell-Datenbank (Bestätigung zuerst) ═══════════
+     Ein Scan hinterlässt einen VORSCHLAG. Erst die Bestätigung im Admin-Panel
+     macht daraus eine verlässliche Verknüpfung — und ab da zahlt das Formular
+     ohne Foto aus. Wir setzen den Vorschlag direkt (die Kamera ist headless
+     nicht ansprechbar) und prüfen den Weg dahinter. */
+  const vorschlag = await A.page.evaluate(`(function(){
+    const m=pfMaterialien()[0];
+    GTINDB['04012345']={ gtin:'04012345', name:'Launcher '+m.name, ref:'LA35', hersteller:'Medtronic', lagerort:'Schrank 2' };
+    saveGtinDB();
+    bestLernErfassen(m.key, '04012345', { name:'Launcher '+m.name, ref:'LA35' });
+    bestZeigeLern=true; seiteAuffrischen();
+    return { key:m.key, name:m.name, status:bestLernStatus(m.key),
+      panel:!!document.querySelector('#scr-standards .best-lern-panel'),
+      zeilen:document.querySelectorAll('#scr-standards .best-lern-zeile').length,
+      daten:bestBestelldaten(m.key) };
+  })()`);
+  r.check('ein Scan-Vorschlag steht als „vorschlag", noch nicht verlinkt',
+    vorschlag.status === 'vorschlag' && vorschlag.daten === null);
+  r.check('das Admin-Panel zeigt den offenen Vorschlag zum Bestätigen',
+    vorschlag.panel && vorschlag.zeilen === 1);
+
+  const bestaetigt = await A.page.evaluate(`(function(){
+    document.querySelector('#scr-standards .best-lern-zeile .btn-pri').click();
+    const d=bestBestelldaten(${JSON.stringify(vorschlag.key)});
+    return { status:bestLernStatus(${JSON.stringify(vorschlag.key)}), ref:d&&d.ref, herst:d&&d.hersteller,
+      panelWeg:!document.querySelector('#scr-standards .best-lern-panel') };
+  })()`);
+  r.check('Bestätigen verlinkt das Material und liefert die Bestelldaten',
+    bestaetigt.status === 'verlinkt' && bestaetigt.ref === 'LA35' && bestaetigt.herst === 'Medtronic');
+  r.check('… und der Vorschlag verschwindet aus der Prüfliste', bestaetigt.panelWeg);
+
+  await A.page.click('#scr-standards .add-entry-btn');
+  await A.page.waitForSelector('#bestWort', { timeout: 4000 });
+  await A.page.fill('#bestWort', vorschlag.name);
+  const ohneFoto = await A.page.evaluate(`(function(){
+    bestDatenZeigen();
+    const box=document.querySelector('#bestDaten .best-daten-ok');
+    return { sichtbar:!!box, text:box?box.textContent:'', gtin:bestScanState.gtin };
+  })()`);
+  r.check('bei erneuter Meldung stehen die Bestelldaten sofort da — ohne Foto',
+    ohneFoto.sichtbar && /kein Foto/.test(ohneFoto.text) && ohneFoto.gtin === '04012345');
+  await A.page.evaluate(`bestUiAbbrechen()`);
+
   /* ═══════════ 10. Löschen und Zurücksetzen ═══════════ */
   const weg = await A.page.evaluate(`(function(){
     const s=seitenAlle().find(x=>x.art==='bestellungen');
