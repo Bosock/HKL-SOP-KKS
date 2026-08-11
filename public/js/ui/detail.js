@@ -158,7 +158,23 @@ function entryCardHTML(e,cid,isMatGer){
      daneben: Im Saal wird die Liste gelesen, nicht betrachtet — wer ein Bild
      braucht, findet es, wer keins braucht, verliert keine Zeile Übersicht. */
   const bilder=(typeof medStreifenHTML==='function')?medStreifenHTML(e,cid):'';
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}${bilder}</div></div>${whyPanel}</div>`;
+  /* ── WARUM DIE ANGABEN UNTER DER ZEILE STEHEN UND NICHT NEBEN IHR ──
+     Gemessen auf einem Handy (360 px): Von 360 px blieben dem Namen 98 —
+     27 %. Der Rest ging an Häkchen, Menge, Symbol, Bild, Abstände und den
+     ⋯-Knopf. Die Angaben (Größe, Lagerort, Bereich, Alternativen …) standen
+     dabei INNERHALB derselben schmalen Spalte und brachen deshalb auf drei
+     und vier Zeilen um — bei 115 px Zeilenhöhe, während rechts daneben
+     nichts stand. Genau das war gemeint mit „es wird viel freier Platz
+     nicht genutzt".
+
+     Jetzt sind `.e-meta` und der Bilderstreifen GESCHWISTER der Zeile, nicht
+     Kinder ihrer Textspalte: Sie haben die volle Breite des Eintrags.
+
+     Die Kennung wandert mit — der Halte-Detektor (features/quickmenu.js)
+     hört auf `.entry-row[data-cid], .e-meta[data-cid]`. Tippen und Halten
+     wirken damit auf der Angabenzeile genau wie vorher; ohne das wäre der
+     Umbau ein stiller Verlust an Bedienbarkeit. */
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div></div></div>${meta?`<div class="e-meta" data-cid="${esc(cid)}">${meta}</div>`:''}${bilder}${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }

@@ -267,6 +267,54 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check(`im Saal steht die Sorte am Badge (${imSaal.join(' · ')})`,
     imSaal.length > 0 && imSaal.some(t => /💶/.test(t)));
 
+  /* ═══════════ ⑧/② Das Handy ═══════════
+
+     „Darstellung für Handys optimieren nicht Tablets das war eine falsche
+     Annahme!" und „es wird viel freier Platz nicht genutzt!"
+
+     Gemessen wird auf einem eigenen, schmalen Fenster (360 px) — nicht auf
+     dem Standardfenster der Suite. Was hier steht, ist die Zusage, die nicht
+     wieder verloren gehen darf. */
+
+  const H = await bootPage(browser, srv.base, { viewport: { width: 360, height: 800 } });
+  const handy = await H.page.evaluate(`(function(){
+    const s = DB.standards.find(x=>(x.rubriken||[]).some(r=>r.typ==='material'));
+    const ri = s.rubriken.findIndex(x=>x.typ==='material');
+    openStandard(s.id); openRubrik(ri);
+    document.querySelectorAll('#scr-detail .uksec.collapsed .uksec-head').forEach(h=>h.click());
+    const B = el=>el?el.getBoundingClientRect():{width:0,height:0};
+    const zeilen=[...document.querySelectorAll('#scr-detail .entry-row')].filter(x=>B(x).height>0);
+    const texte=[...document.querySelectorAll('#scr-detail .e-text')].filter(x=>B(x).height>0);
+    const meta=document.querySelector('#scr-detail .e-meta[data-cid]');
+    const hoehen=zeilen.map(x=>B(x.closest('.entry')).height);
+    return { n:zeilen.length, name:Math.round(B(texte[0]).width),
+      schnitt:Math.round(hoehen.reduce((a,b)=>a+b,0)/hoehen.length),
+      metaBreit: meta?Math.round(B(meta).width):0,
+      zeileBreit: zeilen.length?Math.round(B(zeilen[0]).width):0,
+      metaDrin: !!(meta && meta.closest('.entry-row')),
+      metaCid: meta?meta.dataset.cid:null };
+  })()`);
+  r.check(`der Name bekommt auf 360 px ${handy.name} px statt 98 (27 % → ${Math.round(handy.name / 360 * 100)} %)`,
+    handy.name >= 125);
+  r.check(`die Zeile ist im Schnitt ${handy.schnitt} px hoch statt 119`, handy.schnitt <= 105);
+  r.check('die Angabenzeile hat die volle Breite und steckt nicht in der Textspalte',
+    !handy.metaDrin && handy.metaBreit >= handy.zeileBreit - 2);
+
+  /* Und sie bleibt bedienbar — sonst wäre der gewonnene Platz teuer bezahlt. */
+  const metaBedienbar = await H.page.evaluate(`(function(){
+    const cid=${JSON.stringify(handy.metaCid)};
+    checks={}; saveChecks();
+    const m=[...document.querySelectorAll('#scr-detail .e-meta[data-cid]')].find(x=>x.dataset.cid===cid);
+    const ev=(t)=>{ const e=new MouseEvent(t,{bubbles:true,clientX:5,clientY:5}); m.dispatchEvent(e); };
+    ev('mousedown'); ev('mouseup');
+    return { abgehakt: !!checks[cid] };
+  })()`);
+  r.check('ein Tipp auf die Angabenzeile hakt den Eintrag ab wie vorher', metaBedienbar.abgehakt === true);
+
+  const errsH = H.errs.length;
+  await H.page.context().close();
+  r.check('keine Konsolenfehler auf dem Handy', errsH === 0);
+
   r.check('keine Konsolenfehler', A.errs.length === 0);
   if (A.errs.length) console.log('   ', A.errs.slice(0, 4));
 

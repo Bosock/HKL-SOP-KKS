@@ -754,7 +754,11 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
      und der Material-Schalter fehlten. Der Selektor `[data-cid]` grenzt bewusst auf
      ECHTE Eintragszeilen ein; reine Anzeige-Zeilen (Arzt-Varianten) tragen
      keine Kennung und sind damit ausdrücklich nicht bedienbar. */
-  attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
+  /* `.e-meta` steht seit der Handy-Messung NEBEN der Zeile und nicht mehr
+     darin (ui/detail.js) — damit die Angaben die volle Breite haben. Der
+     Detektor muss beide Flächen kennen, sonst wäre die Angabenzeile plötzlich
+     tot: kein Abhaken, kein Langdruck. */
+  attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid],.e-meta[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
     onTap:rw=>{ const cid=rw.dataset.cid; if(!cid) return false; toggleCheck(cid); return true; },
     onHold:rw=>{ const cid=rw.dataset.cid; if(!cid) return;
       if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } } });

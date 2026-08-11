@@ -135,7 +135,11 @@ const TIPP = `(el) => {
       }
       const btn = document.querySelector('#scr-detail .entry-canon-btn');
       if (btn) {
-        const cid = btn.closest('.entry-row').dataset.cid;
+        /* Der Material-Schalter sitzt in der Angabenzeile — und die steht
+           seit der Handy-Messung NEBEN der Eintragszeile, nicht darin
+           (ui/detail.js). Gesucht wird deshalb die nächste Fläche mit einer
+           Kennung, nicht die Eintragszeile. */
+        const cid = btn.closest('[data-cid]').dataset.cid;
         checks = {}; saveChecks();
         tipp(btn);
         link = { uebersprungen: false, abgehakt: !!checks[cid],

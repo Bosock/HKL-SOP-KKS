@@ -331,6 +331,41 @@ function meldeZeit(was, mittel, schlecht, info){
   await messe('Verwaltung zeichnen', `setMode('admin');`, 'alle Karten');
   await page.evaluate(`setMode('use')`);
 
+  /* ═══════════════════════════════════════════════════════════
+     TEIL 4 — DAS HANDY
+
+     „Darstellung für Handys optimieren nicht Tablets das war eine falsche
+     Annahme!" — also wird nachgerechnet, was auf einem Handy tatsächlich
+     ankommt. Nicht „wirkt eng", sondern: wie viele Pixel bekommt der Name?
+     ═══════════════════════════════════════════════════════════ */
+  console.log('\n══ Handy: wie viel Platz bekommt der Name? ══');
+  for(const breite of [360, 390, 430]){
+    const H = await bootPage(browser, srv.base, { viewport:{ width:breite, height:800 } });
+    const m = await H.page.evaluate(`(function(){
+      const s = DB.standards.find(x=>(x.rubriken||[]).some(r=>r.typ==='material'));
+      const ri = s.rubriken.findIndex(x=>x.typ==='material');
+      openStandard(s.id); openRubrik(ri);
+      document.querySelectorAll('#scr-detail .uksec.collapsed .uksec-head').forEach(h=>h.click());
+      const B = el=>el?el.getBoundingClientRect():{width:0,height:0};
+      const zeilen=[...document.querySelectorAll('#scr-detail .entry-row')].filter(x=>B(x).height>0);
+      if(!zeilen.length) return null;
+      const texte=[...document.querySelectorAll('#scr-detail .e-text')].filter(x=>B(x).height>0);
+      const hoehen=zeilen.map(x=>B(x.closest('.entry')).height);
+      return { n:zeilen.length,
+        name:Math.round(B(texte[0]).width),
+        zeile:Math.round(B(zeilen[0]).width),
+        schnitt:Math.round(hoehen.reduce((a,b)=>a+b,0)/hoehen.length),
+        gesamt:Math.round(document.getElementById('scr-detail').scrollHeight),
+        mehrzeilig:texte.filter(x=>B(x).height>24).length };
+    })()`);
+    await H.page.context().close();
+    if(!m){ console.log(`  ${breite} px: keine Materialzeile gefunden`); continue; }
+    const anteil = Math.round(m.name / breite * 100);
+    console.log(`  ${breite} px Fensterbreite: Name ${String(m.name).padStart(3)} px (${String(anteil).padStart(2)} % des Bildschirms) · ` +
+      `Zeile ${m.schnitt} px hoch im Schnitt · ${m.mehrzeilig} von ${m.n} Namen brechen um · Rubrik ${m.gesamt} px lang`);
+  }
+  console.log('  Ausgangspunkt vor dem Umbau (360 px, dieselbe Rubrik): Name 98 px (27 %) · Zeile 119 px · 17 von 26 · Rubrik 3644 px');
+
   console.log('\n══ Konsolenfehler während der Messung: ' + A.errs.length + ' ══');
   if(A.errs.length) console.error(A.errs.slice(0,5));
 

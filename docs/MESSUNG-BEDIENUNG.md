@@ -131,6 +131,72 @@ steigen, ist der erste Schritt, die Karten erst beim Aufklappen zu füllen.
 
 ---
 
+## Teil 4 — Das Handy (nachgetragen)
+
+> „Darstellung für Handys optimieren nicht Tablets — das war eine falsche
+> Annahme!"
+
+Der Betreiber hat recht, und der Fehler lag in diesem Dokument: Die ersten
+drei Teile sind auf einem **Tablet** gedacht. Gearbeitet wird am Handy. Also
+wurde nachgemessen — nicht „wirkt eng", sondern: **wie viele Pixel bekommt der
+Name?**
+
+**Der Befund (360 px Fensterbreite, Materialrubrik mit 26 Zeilen):**
+
+| Was | Pixel |
+|---|---|
+| Rand des Bildschirms | 13 + 13 |
+| Rahmen der Untergruppe + ihr Innenrand | 1 + 1 · 8 + 8 |
+| Rahmen des Eintrags + sein Innenrand | 1 + 1 · 12 + 12 |
+| vier Spaltenabstände | 4 × 10 |
+| Häkchen · Menge · Kategorie-Symbol · Bild | 26 · 40 · 19 · 34 |
+| ⋯-Knopf samt Abstand | 30 + 7 |
+| **für den NAMEN blieben** | **98 von 360 px — 27 %** |
+
+Schlimmer als die Breite war die Folge: Die Angaben einer Zeile (Größe,
+Lagerort, Bereich, Alternativen …) standen **in derselben 131 px schmalen
+Spalte** und brachen dort auf drei und vier Zeilen um — bei 115 px Zeilenhöhe,
+während rechts daneben nichts stand. Genau das war gemeint mit „es wird viel
+freier Platz nicht genutzt".
+
+**Was geändert wurde:**
+
+1. Die Angabenzeile (`.e-meta`) und der Bilderstreifen sind **Geschwister der
+   Eintragszeile** statt Kinder ihrer Textspalte — sie haben jetzt die volle
+   Breite. Die Kennung wandert mit, damit Tippen und Langdruck dort weiter
+   wirken; ohne das wäre der Umbau ein stiller Verlust an Bedienbarkeit.
+2. Unter 430 px werden **Innenränder und Abstände** enger (Bildschirmrand
+   13 → 9, Untergruppe 8 → 5, Eintrag 12 → 9, Spaltenabstand 10 → 7).
+   **Trefferflächen bleiben unangetastet** — enger wird Leerraum, nie ein Ziel.
+3. Eine **leere Mengenspalte** kostet auf dem Handy keine 40 px mehr. Preis:
+   Die Zahlen stehen dort nicht mehr exakt untereinander. Auf breiteren
+   Geräten bleibt die Flucht erhalten.
+
+**Das Ergebnis, gemessen mit derselben Rubrik:**
+
+| | vorher | nachher |
+|---|---|---|
+| Breite für den Namen (360 px) | 98 px · 27 % | **130 px · 36 %** |
+| Zeilenhöhe im Schnitt | 119 px | **93 px** |
+| Namen, die umbrechen | 17 von 26 | **14 von 26** |
+| Länge der ganzen Rubrik | 3.644 px | **2.962 px** |
+
+Rund **ein Bildschirm weniger Scrollen je Rubrik.** Bei 390 px (das häufigste
+Handy) sind es 160 px für den Namen (41 %), bei 430 px 200 px (47 %).
+
+`npm run messen` gibt diese Tabelle bei jedem Lauf für 360, 390 und 430 px
+neu aus — die Zahlen oben sind nicht abgeschrieben, sie sind nachfahrbar.
+
+**Was hier NICHT gemacht wurde:** Die Spalten der Zeile (Häkchen, Menge,
+Kategorie-Symbol, Bild) wurden nicht angetastet. Sie sind alle einzeln
+abschaltbar — das Kategorie-Symbol seit diesem Durchgang je Kategorie, das
+Bild und die Menge über die Einstellungen. Wer mehr Platz braucht, nimmt sich
+weitere 40 bis 90 px, ohne dass jemand programmiert. Eine feste Entscheidung
+im Quelltext wäre hier die schlechtere: Welche Spalte ein Haus wirklich liest,
+weiß nur das Haus.
+
+---
+
 ## Stand der Technik — woran ich mich halte, und wo bewusst nicht
 
 **Übernommen:**

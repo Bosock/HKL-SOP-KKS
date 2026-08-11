@@ -198,7 +198,10 @@
   .cr-count { font-size:12.5px; font-weight:600; color:var(--ok); }
   .cr-btn { flex:0 0 auto; min-height:36px; padding:7px 13px; font-size:12.5px; font-weight:600; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; cursor:pointer; }
   .cr-btn:active { background:var(--surface-3); }
-  .e-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; align-items:center; }
+  /* Die Angabenzeile hat die volle Breite des Eintrags (siehe ui/detail.js).
+     Der linke Einzug hält sie in Flucht mit dem Namen darüber, ohne dass
+     ihre Bänder in einer 131-px-Spalte umbrechen müssten. */
+  .e-meta { display:flex; flex-wrap:wrap; gap:5px; align-items:center; padding:0 12px 10px 12px; margin-top:-3px; cursor:pointer; }
   .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap; }
   .tag-spec { color:var(--accent); background:rgba(61,155,224,.13); }
   .tag-loc { color:var(--n-material); background:rgba(52,201,138,.13); }
@@ -451,6 +454,38 @@
      Breakpoints: 640px Tablet-Hochkant · 960px Tablet quer/Laptop ·
      1280px großer Desktop (Breite gedeckelt → max. 3 Karten-Spalten).
      ============================================================ */
+  /* ---- Handy zuerst, und zwar gemessen ----
+     „Darstellung für Handys optimieren nicht Tablets, das war eine falsche
+     Annahme!" — der Betreiber hat recht: Gearbeitet wird am Handy.
+
+     Gemessen bei 360 px Fensterbreite, Materialrubrik, eine Zeile:
+       Rand des Bildschirms       13 + 13
+       Rahmen der Untergruppe      1 + 1  ·  ihr Innenrand   8 + 8
+       Rahmen des Eintrags         1 + 1  ·  sein Innenrand 12 + 12
+       vier Spaltenabstände       4 × 10
+       Häkchen 26 · Menge 40 · Symbol 19 · Bild 34
+       ⋯-Knopf 30 + 7 Abstand
+       ────────────────────────────────────────────
+       für den NAMEN blieben       98 px von 360 (27 %)
+
+     Unter 430 px werden deshalb alle Innenränder und Abstände enger. Das ist
+     kein Schönheitsputz: Jeder gesparte Pixel geht eins zu eins an den Namen,
+     und ein Name, der nicht umbricht, spart eine ganze Zeilenhöhe.
+
+     Die Trefferflächen bleiben unangetastet — Häkchen, ⋯-Knopf und alle
+     Schalter behalten ihre 44 px. Enger werden LEERRÄUME, nicht Ziele. */
+  @media (max-width:430px) {
+    main { padding:9px; padding-bottom:44px; }
+    .uksec-body { padding:5px; }
+    .entry-row { padding:10px 9px; gap:7px; }
+    .e-meta { padding:0 9px 9px 9px; }
+    /* Eine leere Mengenspalte kostet 40 px in JEDER Zeile, in der gar keine
+       Menge steht. Der Preis: Die Zahlen stehen nicht mehr exakt
+       untereinander. Auf einem Handy ist der Name mehr wert als die Flucht
+       einer Spalte — auf breiteren Geräten bleibt sie erhalten. */
+    .mbox.empty { display:none; }
+  }
+
   @media (min-width:640px) {
     :root { --maxw:620px; }
     main { padding:16px; padding-bottom:44px; }
