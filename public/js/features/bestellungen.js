@@ -464,10 +464,19 @@ async function bestScanVerarbeiten(dataUrl){
 
   bestScanState.name = name; bestScanState.ref = ref; bestScanState.hersteller = hersteller;
 
+  /* Das Foto in den Medienspeicher legen (kein base64 mehr im Zustand). Die
+     Kennung/URL steht sofort fest; das Vorschaubild oben zeigt weiter das
+     eben aufgenommene Bild. Fällt der Weg aus, bleibt die data-URL stehen. */
+  let fotoUrl = dataUrl;
+  if(typeof medFotoAblegen==='function'){
+    try{ const u = await medFotoAblegen(dataUrl); if(u) fotoUrl = u; }catch(e){}
+  }
+  bestScanState.foto = fotoUrl;
+
   /* ① Einzahlung in den gemeinsamen Stamm: Stammsatz anlegen/ergänzen (nur
      leere Felder) und das Foto dort anhängen — ab jetzt für jeden nutzbar,
      nicht nur an dieser einen Bestellung. */
-  bestStammEinzahlen(gtin, { name, ref, hersteller, herkunft, foto:dataUrl });
+  bestStammEinzahlen(gtin, { name, ref, hersteller, herkunft, foto:fotoUrl });
 
   const inp = $('bestWort');
   if(inp && name && !inp.value.trim()) inp.value = name;

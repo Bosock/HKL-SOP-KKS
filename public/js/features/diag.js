@@ -301,7 +301,7 @@ function diagChecks(){
       bytes+=(k.length+(localStorage.getItem(k)||'').length)*2; } }catch(e){ return { ok:true, info:'nicht messbar' }; }
     const mb=bytes/1048576;
     return { ok:mb<4.2, info:mb.toFixed(2)+' MB belegt (Grenze der Browser meist ~5 MB)' };
-  }, 'Wird es eng, helfen weniger/kleinere Fotos oder ein Backup mit anschließendem Aufräumen.');
+  }, 'Fotos zählen hier nicht mehr mit — sie liegen einzeln auf dem Server, nicht im Gerätespeicher. Wird es dennoch eng, hilft ein Backup mit anschließendem Aufräumen.');
 
   add('Verbindung zum Server', ()=>{
     const on=(typeof navigator!=='undefined')?(navigator.onLine!==false):true;

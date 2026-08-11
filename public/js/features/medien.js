@@ -164,22 +164,33 @@ function medAnkerSchreiben(anker, paare){
    größer. */
 const MED_DB = 'hkl-medien';
 const MED_LADEN = 'warteschlange';
+/* Der SPIEGEL: die verkleinerten Bytes eines Bildes liegen lokal unter ihrer
+   Kennung, damit ein gerade aufgenommenes Foto SOFORT und OHNE Netz sichtbar
+   ist — auch bevor der Upload durchkam. Fällt `/api/media/<kennung>` beim Laden
+   aus (offline, noch nicht hochgeladen), springt der globale Fehler-Fänger auf
+   diesen Spiegel um. So gilt „ohne Foto machen sofort da" auch im Saal ohne
+   Empfang. */
+const MED_SPIEGEL = 'spiegel';
 let _medDb = null;
 function medDb(){
   if(_medDb) return _medDb;
   _medDb = new Promise((ok, nein)=>{
     if(typeof indexedDB==='undefined'){ nein(new Error('kein IndexedDB')); return; }
-    const a = indexedDB.open(MED_DB, 1);
-    a.onupgradeneeded = ()=>{ const db=a.result; if(!db.objectStoreNames.contains(MED_LADEN)) db.createObjectStore(MED_LADEN, {keyPath:'id'}); };
+    const a = indexedDB.open(MED_DB, 2);
+    a.onupgradeneeded = ()=>{ const db=a.result;
+      if(!db.objectStoreNames.contains(MED_LADEN)) db.createObjectStore(MED_LADEN, {keyPath:'id'});
+      if(!db.objectStoreNames.contains(MED_SPIEGEL)) db.createObjectStore(MED_SPIEGEL, {keyPath:'kennung'});
+    };
     a.onsuccess = ()=>ok(a.result);
     a.onerror  = ()=>nein(a.error);
   });
   return _medDb;
 }
-function medTx(modus, fn){
+function medTx(modus, fn, laden){
+  const store = laden || MED_LADEN;
   return medDb().then(db=>new Promise((ok, nein)=>{
-    const tx = db.transaction(MED_LADEN, modus);
-    const st = tx.objectStore(MED_LADEN);
+    const tx = db.transaction(store, modus);
+    const st = tx.objectStore(store);
     let erg; try{ erg = fn(st); }catch(e){ nein(e); return; }
     tx.oncomplete = ()=>ok(erg && erg.result!==undefined ? erg.result : erg);
     tx.onerror = ()=>nein(tx.error);
@@ -188,6 +199,9 @@ function medTx(modus, fn){
 function medWarteAnlegen(satz){ return medTx('readwrite', st=>st.put(satz)); }
 function medWarteAlle(){ return medTx('readonly', st=>st.getAll()); }
 function medWarteWeg(id){ return medTx('readwrite', st=>st.delete(id)); }
+/* Spiegel-Ablage (lokaler Blob je Kennung). */
+function medSpiegelPut(kennung, blob){ return medTx('readwrite', st=>st.put({kennung, blob}), MED_SPIEGEL).catch(()=>{}); }
+function medSpiegelGet(kennung){ return medTx('readonly', st=>st.get(kennung), MED_SPIEGEL).then(r=>r&&r.blob||null).catch(()=>null); }
 
 /* ═══════════ 3. Aufnehmen und Hochladen ═══════════ */
 
@@ -232,6 +246,144 @@ async function medHochladen(blob){
   return j.kennung;
 }
 
+/* ── Kennung, Spiegel, Aufnahme (auch für Produkt- und Bestellfotos) ──────────
+   Bis hierher lagen Produkt- und Bestellfotos als base64 IM geteilten Zustand
+   (GTINDB, BEST) und damit im localStorage. Ein einziges Foto wiegt dort rund
+   250 KB; der Browser gibt einer Seite meist nur ~5 MB — nach wenigen Fotos war
+   Schluss, und JEDE weitere Änderung (auch das Umbenennen eines Wortes) ging
+   still verloren. Jetzt nehmen diese Fotos denselben Weg wie die Eintrags-
+   Bilder: EINZELN auf dem Server, im Zustand steht nur die Kennung. Der
+   localStorage trägt statt 250 KB je Foto noch 40 Zeichen. */
+
+/* Client-Kennung: identisch zur Server-Formel (SHA-256, 32 Hexstellen). Weil
+   sie aus dem INHALT kommt, steht sie schon vor dem Upload fest — das Foto ist
+   sofort ablegbar und anzeigbar, ohne auf den Server zu warten. Braucht einen
+   sicheren Kontext (https); ohne crypto.subtle gibt es null (Aufrufer weicht
+   dann auf den Alt-Weg aus). */
+async function medKennungVon(blob){
+  try{
+    if(typeof crypto==='undefined' || !crypto.subtle) return null;
+    const puffer = await blob.arrayBuffer();
+    const hash = await crypto.subtle.digest('SHA-256', puffer);
+    const hex = [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    return hex.slice(0,32);
+  }catch(e){ return null; }
+}
+
+/* Eine Quelle (data-URL, Blob oder File) zu einem Blob machen. Eine data-URL
+   wird VON HAND zerlegt (atob), NICHT über fetch(): die CSP verbietet
+   `connect-src data:`, und ein Netzweg für einen bereits im Speicher liegenden
+   String wäre ohnehin Unsinn. */
+function medZuBlob(quelle){
+  if(!quelle) return null;
+  if(typeof quelle!=='string') return quelle;                 /* schon Blob/File */
+  const m = /^data:([^;,]*)(;base64)?,([\s\S]*)$/.exec(quelle);
+  if(!m) return null;
+  const art = m[1] || 'application/octet-stream';
+  const roh = m[3] || '';
+  let bytes;
+  if(m[2]){ const bin = atob(roh); bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i); }
+  else { bytes = new TextEncoder().encode(decodeURIComponent(roh)); }
+  return new Blob([bytes], { type:art });
+}
+
+/* Eine URL für die Anzeige aus einer Kennung. */
+function medIstMediaUrl(u){ return typeof u==='string' && u.indexOf('/api/media/')===0; }
+function medKennungAusUrl(u){ const m=/\/api\/media\/([0-9a-f]{32})/.exec(String(u||'')); return m?m[1]:null; }
+
+/* Ein Foto aufnehmen: verkleinern, Kennung bilden, lokal spiegeln, hochladen
+   (oder für später in die Warteschlange legen). Gibt die ANZEIGE-URL zurück
+   (`/api/media/<kennung>`) — die kommt an Stelle des früheren base64 in GTINDB
+   bzw. BEST. `roh:true` überspringt das Verkleinern (für den Altbestand, der
+   schon klein ist). Fällt crypto/IndexedDB aus, kommt die Quelle unverändert
+   zurück — dann funktioniert alles wie bisher, nur ohne die Ersparnis. */
+async function medFotoAblegen(quelle, opt){
+  opt = opt || {};
+  try{
+    const roh = await medZuBlob(quelle);
+    if(!roh) return quelle;
+    const blob = opt.roh ? roh : await medVerkleinern(roh);
+    const kennung = await medKennungVon(blob);
+    if(!kennung) return (typeof quelle==='string') ? quelle : null;
+    await medSpiegelPut(kennung, blob);                       /* sofort offline sichtbar */
+    try{ await medHochladen(blob); }
+    catch(e){ await medWarteAnlegen({ id:'los:'+kennung, blob, los:true }); }
+    return medUrl(kennung);
+  }catch(e){ return (typeof quelle==='string') ? quelle : null; }
+}
+
+/* Globaler Fehler-Fänger für Bilder: Lädt `/api/media/<kennung>` nicht (offline
+   und noch nicht hochgeladen), holen wir den Blob aus dem lokalen Spiegel und
+   zeigen ihn über eine Objekt-URL. Ein einziger Lauscher für die ganze App —
+   kein onerror an jedem <img>. */
+let _medFallbackAn = false;
+function medBildFallbackInit(){
+  if(_medFallbackAn || typeof window==='undefined') return;
+  _medFallbackAn = true;
+  window.addEventListener('error', (ev)=>{
+    const el = ev && ev.target;
+    if(!el || el.tagName!=='IMG' || el.dataset.medFb) return;
+    const k = medKennungAusUrl(el.src);
+    if(!k) return;
+    el.dataset.medFb = '1';                                   /* nur einmal versuchen */
+    medSpiegelGet(k).then(blob=>{ if(blob){ try{ el.src = URL.createObjectURL(blob); }catch(e){} } });
+  }, true);   /* Capture-Phase: error-Ereignisse von Ressourcen steigen nicht auf */
+}
+
+/* Einmalige Umstellung des Altbestands: base64-Fotos in GTINDB und BEST auf
+   Kennungen umziehen und den localStorage befreien. Idempotent (Kennungen und
+   Media-URLs werden übersprungen), schonend (wenige je Durchlauf), nur online.
+   Gibt zurück, wie viele umgezogen wurden. */
+let _medMigriereLaeuft = false;
+async function medMigriereAltbestand(grenze){
+  if(_medMigriereLaeuft) return 0;
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return 0;
+  _medMigriereLaeuft = true;
+  const max = grenze || 8;
+  let umgezogen = 0;
+  const istData = (s)=> typeof s==='string' && s.indexOf('data:image')===0;
+  try{
+    /* GTINDB: photo (Vorschau) + fotos[].src */
+    if(typeof GTINDB!=='undefined' && GTINDB){
+      for(const g of Object.keys(GTINDB)){
+        if(umgezogen>=max) break;
+        const r = GTINDB[g]; if(!r) continue;
+        let geaendert = false;
+        if(Array.isArray(r.fotos)){
+          for(let fi=0; fi<r.fotos.length; fi++){
+            if(umgezogen>=max) break;
+            const f = r.fotos[fi];
+            const src = (typeof f==='string') ? f : (f && f.src);
+            if(!istData(src)) continue;
+            const url = await medFotoAblegen(src, { roh:true });
+            if(medIstMediaUrl(url)){
+              r.fotos[fi] = (typeof f==='string') ? { src:url, titel:'' } : Object.assign({}, f, { src:url });
+              geaendert=true; umgezogen++;
+            }
+          }
+        }
+        if(istData(r.photo) && umgezogen<max){
+          const url = await medFotoAblegen(r.photo, { roh:true });
+          if(medIstMediaUrl(url)){ r.photo = url; geaendert=true; umgezogen++; }
+        }
+        if(geaendert && typeof saveGtinDB==='function') saveGtinDB();
+      }
+    }
+    /* BEST: b.foto */
+    if(typeof BEST!=='undefined' && Array.isArray(BEST)){
+      for(const b of BEST){
+        if(umgezogen>=max) break;
+        if(!istData(b.foto)) continue;
+        const url = await medFotoAblegen(b.foto, { roh:true });
+        if(medIstMediaUrl(url)){ b.foto = url; umgezogen++; if(typeof saveBest==='function') saveBest(); }
+      }
+    }
+  }catch(e){}
+  _medMigriereLaeuft = false;
+  return umgezogen;
+}
+
 /* Die Warteschlange abarbeiten. Wird beim Start, bei „wieder online" und nach
    jedem erfolgreichen Upload versucht. Gibt zurück, wie viele durchkamen. */
 let medFlushLaeuft = false;
@@ -244,7 +396,10 @@ async function medWarteschlangeAbarbeiten(){
     for(const satz of (alle||[])){
       try{
         const kennung = await medHochladen(satz.blob);
-        medEintragen(satz.cid, kennung, satz.reichweite);
+        /* „Lose" Einträge (Produkt-/Bestellfotos) tragen ihre Kennung schon in
+           GTINDB/BEST — sie müssen nur noch die Bytes zum Server bringen. Zeilen-
+           Bilder werden zusätzlich an ihren Ort gehängt. */
+        if(!satz.los) medEintragen(satz.cid, kennung, satz.reichweite);
         await medWarteWeg(satz.id);
         fertig++;
       }catch(e){
@@ -621,8 +776,16 @@ function medienPanelHTML(){
 }
 function medMB(n){ const m=(Number(n)||0)/1048576; return (m<0.1?Math.round((Number(n)||0)/1024)+' KB':m.toFixed(1)+' MB'); }
 
-/* Beim Start: wartende Bilder zählen und, wenn Netz da ist, nachreichen. */
+/* Beim Start: den Bild-Fallback scharf schalten, wartende Bilder zählen und,
+   wenn Netz da ist, nachreichen — und den Altbestand (base64-Fotos in GTINDB/
+   BEST) schonend im Hintergrund auf Kennungen umziehen, damit der localStorage
+   frei wird. Die Migration läuft in kleinen Schüben; solange etwas übrig bleibt,
+   wird nach jedem Schub erneut angestoßen. */
 if(typeof window!=='undefined'){
-  window.addEventListener('online', ()=>{ medWarteschlangeAbarbeiten(); });
-  setTimeout(()=>{ medWarteZaehlen(); medWarteschlangeAbarbeiten(); }, 1500);
+  medBildFallbackInit();
+  window.addEventListener('online', ()=>{ medWarteschlangeAbarbeiten(); medMigrationAnstossen(); });
+  setTimeout(()=>{ medWarteZaehlen(); medWarteschlangeAbarbeiten(); medMigrationAnstossen(); }, 1500);
+}
+function medMigrationAnstossen(){
+  medMigriereAltbestand().then(n=>{ if(n>0) setTimeout(medMigrationAnstossen, 1200); });
 }
