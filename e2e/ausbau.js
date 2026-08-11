@@ -23,12 +23,19 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     openStandard(s.id);
     const ri = (s.rubriken||[]).findIndex(x=>x.typ==='material');
     if(ri<0) return { kein:true };
+    setMode('admin');
     openRubrik(ri);
-    // Der Knopf steht in der Rubrik, weil dort ein Übersichtsfoto hingehört.
-    const knopf = document.querySelector('#scr-detail .med-plus');
-    const vorher = !!knopf;
-    if(knopf) knopf.click();
+    /* SOLANGE KEIN BILD DA IST, steht in der Liste auch kein Bild-Knopf —
+       „Bilder Icon muss ausgeblendet werden, wenn kein Bild vorhanden ist".
+       Der Weg zum ERSTEN Bild führt über das ⋯-Menü der Rubrik. */
+    const leerOhneKnopf = !document.querySelector('#scr-detail .med-plus');
+    openRubSheet(ri);
+    const weg = [...document.querySelectorAll('#sheet button')]
+      .find(b=>/Bilder an der Rubrik/.test(b.textContent));
+    const vorher = !!weg;
+    if(weg) weg.click();
     const sheetDa = /Bilder/.test(document.getElementById('sheet').textContent);
+    showSheet(false);
 
     // Ein echtes Bild erzeugen, hochladen und an den Anker hängen.
     const c = document.createElement('canvas'); c.width=8; c.height=8;
@@ -47,14 +54,18 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     openRubrik(ri, true);
     const nachher = document.getElementById('scr-detail').innerHTML;
 
-    return { kein:false, vorher, sheetDa, sid:s.id, ri, k,
+    return { kein:false, vorher, sheetDa, sid:s.id, ri, k, leerOhneKnopf,
+      mitBildKnopf: html.indexOf('med-plus')>=0,
       klein: html.indexOf('med-klein')>=0,
       gross: nachher.indexOf('med-gross')>=0 && nachher.indexOf('med-klein')<0,
       zoom: nachher.indexOf('data-zoom')>=0,
       det: nachher.indexOf('Manifold')>=0 };
   })()`);
-  r.check('an einer Rubrik gibt es einen Weg zum Bild', !anker.kein && anker.vorher && anker.sheetDa);
+  r.check('ohne Bild steht KEIN Bild-Knopf in der Liste', !anker.kein && anker.leerOhneKnopf);
+  r.check('… der Weg zum ersten Bild führt über das ⋯-Menü der Rubrik',
+    !anker.kein && anker.vorher && anker.sheetDa);
   r.check('ein Bild am Anker erscheint klein', anker.klein);
+  r.check('… und ERST DANN steht der Bild-Knopf in der Liste', anker.mitBildKnopf);
   r.check('… und lässt sich nachträglich auf groß umstellen', anker.gross);
   r.check('… trägt data-zoom (antippen macht groß)', anker.zoom);
   r.check('… und führt die Angaben zum Bild mit', anker.det);

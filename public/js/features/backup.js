@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_bildorte','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_bildorte','hkl_hartweg','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -291,7 +291,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const pPflege=(typeof pflegePanelHTML==='function')?pflegePanelHTML():'';
   const pSeiten=(typeof seitenPanelHTML==='function')?seitenPanelHTML():'';
   const pAkt=(typeof aktuellPanelHTML==='function')?aktuellPanelHTML():'';
-  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+pPruef+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
+  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+pPruef+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
   const pBildorte=(typeof bildortePanelHTML==='function')?bildortePanelHTML():'';
   html+=sec('Aussehen & Anzeige')+pAnzeige+pBildorte+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;

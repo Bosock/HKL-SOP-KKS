@@ -145,9 +145,9 @@ test('innerhalb einer Art gilt ODER', () => {
 
 test('zwischen den Arten gilt UND', () => {
   const F = umgebung([]);
-  const m = M('TAVI','Transfemoral','Edwards');
-  assert.equal(F.facPasst(m, { gruppe:['TAVI'], hersteller:['Edwards'] }), true);
-  assert.equal(F.facPasst(m, { gruppe:['TAVI'], hersteller:['Medtronic'] }), false);
+  const m = { gruppe:['TAVI'], zustand:['Freigegeben'] };
+  assert.equal(F.facPasst(m, { gruppe:['TAVI'], zustand:['Freigegeben'] }), true);
+  assert.equal(F.facPasst(m, { gruppe:['TAVI'], zustand:['Entwurf'] }), false);
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -159,34 +159,32 @@ function echtePosten(F){
     titel:s.titel, gruppe:s.gruppe, hersteller:HERSTELLER, zustand:'' }) }));
 }
 
-test('der echte Bestand ergibt vier unterscheidende Merkmale', () => {
+/* Der Betreiber hat „Art", „Hersteller" und „Ausprägung" aus der Leiste
+   genommen: „der Bereich reicht als Filter!" Diese Prüfung hält das fest —
+   sie schlägt an, wenn die drei über eine Hintertür zurückkommen. */
+test('die Leiste zeigt nur den Bereich — die geratenen Merkmale sind raus', () => {
   const F = umgebung(ECHT.standards);
   const f = F.facBauen(echtePosten(F), {});
   const keys = f.map(x=>x.key);
-  gleich(keys, ['gruppe','art','hersteller','auspraegung']);
-  const anz = {}; f.forEach(x=>anz[x.key]=x.werte.length);
-  assert.equal(anz.gruppe, 8, 'Bereiche: ' + anz.gruppe);
-  assert.ok(anz.hersteller >= 4, 'Hersteller: ' + anz.hersteller);
-  assert.ok(anz.art > 20, 'Arten: ' + anz.art);
+  gleich(keys, ['gruppe']);
+  assert.equal(f[0].werte.length, 8, 'acht Bereiche: ' + f[0].werte.length);
+  ['art','hersteller','auspraegung'].forEach(k=>
+    assert.equal(f.find(x=>x.key===k), undefined, k + ' gehört nicht mehr in die Leiste'));
 });
 
-test('drei Griffe führen von 47 auf einen Standard', () => {
+test('EIN Griff führt von 47 auf fünf Standards', () => {
   const F = umgebung(ECHT.standards);
   const posten = echtePosten(F);
   const uebrig = (wahl)=>posten.filter(p=>F.facPasst(p.merkmale, wahl)).length;
   assert.equal(uebrig({}), 47);
   assert.equal(uebrig({ gruppe:['TAVI'] }), 5);
-  assert.equal(uebrig({ gruppe:['TAVI'], art:['Transfemoral'] }), 3);
-  assert.equal(uebrig({ gruppe:['TAVI'], art:['Transfemoral'], hersteller:['Edwards'] }), 1);
+  /* Weiter geht es über die SUCHE oder über gepflegte Merkmale — nicht über
+     eine aus dem Titel geratene Unterteilung. */
 });
 
-test('eine Auswahl schränkt die übrigen Merkmale ein', () => {
+test('die gewählte Reihe bleibt vollständig — sonst käme man nicht zurück', () => {
   const F = umgebung(ECHT.standards);
-  const posten = echtePosten(F);
-  const f = F.facBauen(posten, { gruppe:['TAVI'] });
-  const art = f.find(x=>x.key==='art');
-  gleich(art.werte.map(x=>x.wert).sort(),
-    ['Transapikal','Transaxillär','Transfemoral']);
+  const f = F.facBauen(echtePosten(F), { gruppe:['TAVI'] });
   /* Die Zähler der GEWÄHLTEN Art rechnen ohne die eigene Auswahl — sonst
      könnte man nie zu einem anderen Bereich wechseln. */
   const grp = f.find(x=>x.key==='gruppe');
@@ -198,31 +196,27 @@ test('eine Auswahl, die auf null führt, wird nicht angeboten', () => {
   const F = umgebung(ECHT.standards);
   const f = F.facBauen(echtePosten(F), { gruppe:['TAVI'] });
   f.forEach(x=>x.werte.forEach(v=>assert.ok(v.n > 0, x.key + '/' + v.wert + ' hätte 0 Treffer')));
-  const her = f.find(x=>x.key==='hersteller');
-  gleich(her.werte.map(x=>x.wert).sort(), ['Abbott','Edwards','Medtronic']);
 });
 
-test('ein Merkmal mit nur einem Wert unterscheidet nichts und verschwindet', () => {
+test('die gewählte Art bleibt stehen — sonst käme man nicht zurück', () => {
   const F = umgebung(ECHT.standards);
   const f = F.facBauen(echtePosten(F), { gruppe:['Klappen'] });
-  assert.equal(f.find(x=>x.key==='hersteller'), undefined, 'kein Hersteller in dieser Gruppe');
-  /* Die gewählte Art bleibt aber stehen — sonst käme man nicht zurück. */
   assert.ok(f.find(x=>x.key==='gruppe'));
 });
 
 test('die Werte stehen nach Häufigkeit, dann alphabetisch', () => {
   const F = umgebung(ECHT.standards);
   const f = F.facBauen(echtePosten(F), {});
-  const art = f.find(x=>x.key==='art').werte;
-  for(let i=1;i<art.length;i++){
-    assert.ok(art[i-1].n >= art[i].n, 'Reihenfolge stimmt nicht bei ' + art[i].wert);
+  const w = f.find(x=>x.key==='gruppe').werte;
+  for(let i=1;i<w.length;i++){
+    assert.ok(w[i-1].n >= w[i].n, 'Reihenfolge stimmt nicht bei ' + w[i].wert);
   }
 });
 
 test('gezählt wird, was ausgewählt ist', () => {
   const F = umgebung([]);
   assert.equal(F.facAnzahlGewaehlt({}), 0);
-  assert.equal(F.facAnzahlGewaehlt({ gruppe:['TAVI'], hersteller:['Edwards','Abbott'] }), 3);
+  assert.equal(F.facAnzahlGewaehlt({ gruppe:['TAVI','CRM'], zustand:['Freigegeben'] }), 3);
   assert.equal(F.facAnzahlGewaehlt(null), 0);
 });
 
@@ -232,12 +226,12 @@ test('gezählt wird, was ausgewählt ist', () => {
 
 test('die Merkmalsnamen sind Vorgaben, keine festen Wörter', () => {
   const F = umgebung([]);
-  assert.equal(F.facLabel('art'), 'Art');
   assert.equal(F.facLabel('gruppe'), 'Bereich');
+  assert.equal(F.facLabel('zustand'), 'Freigabe');
   /* Mit einer eigenen Bezeichnung gewinnt diese. */
-  vm.runInContext(`function bezWert(zweig,feld,rueckfall){ return (zweig==='facetten'&&feld==='art')?'Zugang':rueckfall; }`, F);
-  assert.equal(F.facLabel('art'), 'Zugang');
-  assert.equal(F.facLabel('gruppe'), 'Bereich');
+  vm.runInContext(`function bezWert(zweig,feld,rueckfall){ return (zweig==='facetten'&&feld==='gruppe')?'Fachgebiet':rueckfall; }`, F);
+  assert.equal(F.facLabel('gruppe'), 'Fachgebiet');
+  assert.equal(F.facLabel('zustand'), 'Freigabe');
 });
 
 test('leerer Bestand, leere Eingaben: kein Absturz', () => {

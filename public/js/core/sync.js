@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand','hkl_seiten','hkl_aufgaben','hkl_aktuelles','hkl_aktuellarten','hkl_bestellungen','hkl_bildorte',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand','hkl_seiten','hkl_aufgaben','hkl_aktuelles','hkl_aktuellarten','hkl_bestellungen','hkl_bildorte','hkl_hartweg',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -66,6 +66,7 @@ function hydrateVars(){
   /* Bilder an Standardkopf, Rubrik und Abschnitt (features/medien.js). */
   if(typeof MEDANK!=='undefined'){ MEDANK=loadJSON('hkl_medienanker',{}); if(!MEDANK||typeof MEDANK!=='object') MEDANK={}; }
   if(typeof BILDORTE!=='undefined'){ BILDORTE=loadJSON('hkl_bildorte',{}); if(!BILDORTE||typeof BILDORTE!=='object') BILDORTE={}; }
+  if(typeof HARTWEG!=='undefined'){ HARTWEG=loadJSON('hkl_hartweg',[]); if(!Array.isArray(HARTWEG)) HARTWEG=[]; }
   /* Bauplan des Standardkopfes (features/stdkopf.js). */
   if(typeof KOPF!=='undefined'){ KOPF=loadJSON('hkl_stdkopf',{}); if(!KOPF||typeof KOPF!=='object') KOPF={}; }
   /* Merkmale an Standards: Definition und Vergabe (features/eigenschaften.js). */

@@ -113,7 +113,18 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 
   S.gruppe('gefahr','Gefahrenzone','Entfernen & zurücksetzen');
   if(e._added){ S.akt('loeschen','🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
-  else { S.akt('loeschen','🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
+  else {
+    S.akt('loeschen','🗑️','Ausblenden','aus der Anzeige nehmen — über die Verwaltung wiederherstellbar','sheetDelete()','danger');
+    /* DIREKT DARUNTER der harte Weg (features/endgueltig.js). Der Betreiber:
+       „das löschen mit Back Up muss weg das macht alles komplett umständlich!
+        … oder du machst einen permanent löschen Button unter den ausblenden
+        Button… das ist auch ok."
+       Wer 47 Standards durcharbeitet, räumt auf und will nicht danach noch
+       einen Papierkorb leeren. */
+    if(typeof hartUiLoeschen==='function'){
+      S.akt('endgueltig','🗑','Endgültig entfernen','weg — und NICHT unter „Ausgeblendete Einträge" wiederherstellbar','hartUiLoeschen()','danger');
+    }
+  }
   S.akt('zuruecksetzen','↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
 
   h+=S.html();
@@ -160,6 +171,13 @@ function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[
   S.gruppe('inhalt','Inhalt','Name & Symbol');
   S.akt('umbenennen','✏️','Umbenennen','nur diese Rubrik in diesem Standard','showSheet(false);renameRubrik('+idx+')');
   S.akt('symbol','🔣','Symbol ändern','gilt für ALLE Rubriken dieses Namens','showSheet(false);editRubIconFor('+idx+')');
+  /* Bilder an der Rubrik. Seit das Symbol nur noch bei VORHANDENEM Bild in der
+     Liste steht (features/medien.js), ist dieser Punkt der Weg zum ersten. */
+  if(typeof medAnkRub==='function' && (typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(medAnkRub(curStd.id, idx)))){
+    const nb=(typeof medAnkerPaare==='function')?medAnkerPaare(medAnkRub(curStd.id, idx)).length:0;
+    S.akt('bilder','🖼️','Bilder an der Rubrik', nb?(nb+' Bild'+(nb===1?'':'er')):'Foto oder Skizze hinzufügen',
+      'showSheet(false);medAnkerSheet(medAnkRub(curStd.id,'+idx+'), rubName(curStd.rubriken['+idx+'],'+idx+'))');
+  }
   S.gruppe('organisation','Organisation','Reihenfolge & Geltung');
   S.akt('hoch','⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
   S.akt('runter','⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
@@ -297,9 +315,25 @@ function sheetZusatzDel(i){ const arr=(qeGet(sheetEntry,sheetCid,'zusatz')||[]).
   sheetPending={kind:'zusatz',value:arr}; askScope(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
-  h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div>`;
+  /* Das Symbol der AKTUELLEN Kategorie schalten — hier, wo man die Kategorie
+     ohnehin ansieht, statt in einem Untermenü der Verwaltung. */
+  if(typeof fktFlaecheSheet==='function')
+    h+=`<div class="sheet-pick"><button class="sheet-pick-btn" onclick="sheetNaturSymbol()">🔣 Symbol dieser Kategorie <span class="ps-sub">· überall ein- oder ausblenden</span></button></div>`;
+  h+=`<button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetNatur(key){ sheetPending={kind:'natur',value:key}; askScope(); }
+/* Das SYMBOL dieser Kategorie an- oder ausschalten — dort, wo man die
+   Kategorie ohnehin gerade ansieht (features/funktionen.js, Bereich `natico`). */
+function sheetNaturSymbol(){
+  const e=sheetEntry, cid=sheetCid; if(!e) return;
+  const key=(typeof effNatur==='function')?effNatur(e,cid):'material';
+  const info=(typeof natOf==='function')?natOf(key):{label:key,icon:'•'};
+  if(typeof fktFlaecheSheet!=='function') return;
+  fktFlaecheSheet('natico', key, { wort:info.label, ico:info.icon||'•',
+    titel:'Symbol der Kategorie',
+    sub:'Gilt für JEDE Zeile dieser Kategorie. „Ausblenden" nimmt nur das Symbol weg — die Farbe und die Kategorie bleiben.' });
+}
 /* Eingabe-Sheet statt prompt() — gleicher Grund wie sheetNewUk (M1). */
 function sheetNewNatur(){
   const h=`<div class="sheet-grip"></div><div class="sheet-title">Neue Kategorie</div>

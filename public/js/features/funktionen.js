@@ -276,7 +276,8 @@ const FKT_SHEET_KATALOG = {
         { key:'sammeln',      ico:'＋',  label:'In Baustein übernehmen', sub:'sammeln und später zu einem Baustein machen' },
       ]},
       { key:'gefahr', titel:'Gefahrenzone', sub:'Entfernen & zurücksetzen', akt:[
-        { key:'loeschen',     ico:'🗑️',  label:'Ausblenden / Löschen',   sub:'aus der Anzeige entfernen' },
+        { key:'loeschen',     ico:'🗑️',  label:'Ausblenden',              sub:'aus der Anzeige nehmen — über die Verwaltung wiederherstellbar' },
+        { key:'endgueltig',   ico:'🗑',   label:'Endgültig entfernen',    sub:'weg — und NICHT unter „Ausgeblendete Einträge" wiederherstellbar' },
         { key:'zuruecksetzen',ico:'↺',   label:'Änderungen zurücksetzen', sub:'für diesen Eintrag' },
       ]},
     ],
@@ -308,6 +309,7 @@ const FKT_SHEET_KATALOG = {
       { key:'inhalt', titel:'Inhalt', sub:'Name & Symbol', akt:[
         { key:'umbenennen',   ico:'✏️',  label:'Umbenennen',             sub:'nur diese Rubrik in diesem Standard' },
         { key:'symbol',       ico:'🔣',  label:'Symbol ändern',          sub:'gilt für ALLE Rubriken dieses Namens' },
+        { key:'bilder',       ico:'🖼️',  label:'Bilder an der Rubrik',   sub:'Foto oder Skizze — der Weg zum ersten Bild' },
       ]},
       { key:'organisation', titel:'Organisation', sub:'Reihenfolge & Geltung', akt:[
         { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge im Standard' },

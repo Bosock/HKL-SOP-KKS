@@ -242,6 +242,19 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
      „✎ Bearbeiten" das falsche Menü). Der Griff sucht deshalb einen Punkt,
      an dem wirklich die Fläche liegt. */
   const halten = async (sel) => {
+    /* Erst warten, bis eine offene Karte WIRKLICH weg ist. `showSheet(false)`
+       setzt nur die Klasse; die Karte fährt danach noch ~250 ms nach unten und
+       liegt in dieser Zeit über allem. Ein Langdruck auf die darunterliegende
+       Fläche träfe dann die Karte — der Test schlüge fehl, obwohl die App in
+       Ordnung ist. Genau das ist hier einmal passiert, als eine kürzere
+       Merkmalsleiste die Knöpfe ein paar Pixel nach oben schob. */
+    for (let i = 0; i < 30; i++) {
+      const zu = await page.evaluate(`(function(){ const s=document.getElementById('sheet');
+        return !s || !s.classList.contains('show'); })()`);
+      if (zu) break;
+      await page.waitForTimeout(50);
+    }
+    await page.waitForTimeout(300);
     const box = await page.evaluate(`(function(){
       const el=document.querySelector(${JSON.stringify(sel)});
       if(!el) return null;

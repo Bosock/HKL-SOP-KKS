@@ -100,7 +100,17 @@ function entryCardHTML(e,cid,isMatGer){
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
-  const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
+  /* Das Kategorie-Symbol ist einzeln abschaltbar — je Kategorie über das
+     Funktionsregister (Bereich `natico`), langes Tippen auf die Zeile führt
+     über „Kategorie ändern" dorthin. Der Betreiber: „das Icon für Material
+     oder Geräte usw. muss ebenfalls individuell anzeigbar oder ausgeblendet
+     werden können".
+
+     Es geht dabei nicht um Geschmack, sondern um Platz: Auf einem Handy
+     kostet die Symbolspalte in JEDER Zeile Breite, die dem Namen fehlt. Wer
+     ohnehin nur Material in einer Rubrik hat, braucht das Symbol nicht. */
+  const icoAus = (typeof fktAus==='function') && fktAus('natico', nat);
+  const ico = (isMatGer && !icoAus)?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
   /* Schriftgröße/Gewicht dieser Zeile und Auszeichnungen im Text
      (features/textstil.js). Beides ist abschaltbar-frei: Ohne das Modul

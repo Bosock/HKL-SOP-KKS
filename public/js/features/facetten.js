@@ -102,11 +102,19 @@ function facVonStandard(std, kontext){
 
 /* Die Merkmalsarten. Reihenfolge = Reihenfolge auf dem Bildschirm.
    Die Namen sind Vorgaben; `facLabel` lässt sie überschreiben. */
+/* Nur noch ZWEI aus der Titelzerlegung. „Art", „Hersteller" und „Ausprägung"
+   sind heraus — auf Ansage des Betreibers: „der Bereich reicht als Filter!"
+
+   Der sachliche Grund dahinter: Diese drei wurden aus den Bindestrich-Titeln
+   GERATEN, nicht gepflegt. Sie füllten die Leiste mit dreißig Knöpfen, von
+   denen die meisten genau einen Standard trafen — viel Fläche für wenig
+   Auskunft, und auf einem Handy die halbe Startseite.
+
+   Wer eine weitere Unterteilung braucht, legt sie als MERKMAL an
+   (features/eigenschaften.js). Dann kommt sie aus Daten und nicht aus einer
+   Vermutung über einen Titel — und steht automatisch mit in dieser Leiste. */
 const FAC_ARTEN = [
   { key:'gruppe',      vorgabe:'Bereich' },
-  { key:'art',         vorgabe:'Art' },
-  { key:'hersteller',  vorgabe:'Hersteller' },
-  { key:'auspraegung', vorgabe:'Ausprägung' },
   { key:'zustand',     vorgabe:'Freigabe' },
 ];
 /* Die geltenden Merkmalsarten: die aus dem Titel abgeleiteten (oben) UND die

@@ -186,10 +186,12 @@ const { launchBrowser, startServer, bootPage, reporter } = require('/home/user/H
   const fac = await A.page.evaluate(`(function(){
     setMode('use'); nav=[]; renderStandards(''); show('scr-standards');
     const vorher = document.querySelectorAll('#scr-standards .fac-reihe').length;
-    fktSetzen('facette','hersteller','aus',true);
+    /* „gruppe" und nicht mehr „hersteller": Die Merkmalsleiste kennt seit dem
+       Wunsch „der Bereich reicht als Filter!" nur noch Bereich und Freigabe. */
+    fktSetzen('facette','gruppe','aus',true);
     renderStandards('');
     const nachher = document.querySelectorAll('#scr-standards .fac-reihe').length;
-    fktZuruecksetzen('facette','hersteller');
+    fktZuruecksetzen('facette','gruppe');
     renderStandards('');
     return { vorher, nachher, zurueck: document.querySelectorAll('#scr-standards .fac-reihe').length };
   })()`);
