@@ -49,6 +49,9 @@ let BEST = (typeof loadJSON==='function') ? loadJSON('hkl_bestellungen', []) : [
 if(!Array.isArray(BEST)) BEST = [];
 function saveBest(){ if(typeof saveJSON==='function') saveJSON('hkl_bestellungen', BEST); }
 
+/* Transiente Scan-Ergebnisse für das gerade offene Formular. */
+let bestScanState = { gtin: null, foto: null };
+
 function bestNeueId(){ return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function bestNach(id){ return BEST.find(b=>b.id===id) || null; }
 
@@ -68,6 +71,8 @@ function bestMelden(felder){
   if(!wort) return null;
   const b = { id:bestNeueId(), wort,
     matKey:f.matKey || null,
+    gtin:f.gtin || null,
+    foto:f.foto || null,
     menge:String(f.menge||'').trim(),
     notiz:String(f.notiz||'').trim(),
     dringend:!!f.dringend,
@@ -101,9 +106,11 @@ function bestZurueck(id){
 /* Angaben zum verknüpften Material — Hersteller, REF, Lagerort. Ohne
    Verknüpfung leer, ohne dass etwas fehlschlägt. */
 function bestMaterial(b){
-  if(!b || !b.matKey) return null;
-  if(typeof canonOf!=='function') return null;
-  return canonOf(b.matKey) || null;
+  if(!b) return null;
+  if(b.matKey && typeof canonOf==='function'){ const r=canonOf(b.matKey); if(r) return r; }
+  /* Fallback: direkte GTIN-Suche, wenn der Scan eine Nummer geliefert hat. */
+  if(b.gtin && typeof GTINDB!=='undefined' && GTINDB[b.gtin]) return GTINDB[b.gtin];
+  return null;
 }
 function bestMatZeile(b){
   const r = bestMaterial(b); if(!r) return '';
@@ -160,8 +167,10 @@ function bestKarteHTML(b, alt){
   const weiterWort = bestWort(stufe, 'tu');
   const schritt = (wo, k)=> k ? `<span class="best-schritt on">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))} · ${esc(kuerzelVermerk(k))}</span>`
                               : `<span class="best-schritt">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))}</span>`;
+  const foto = b.foto ? `<img class="best-karte-foto" src="${esc(b.foto)}" alt="Foto" data-zoom data-cap="${esc(b.wort)}">` : '';
   return `<div class="best-karte best-${esc(stufe)}${alt?' best-alt':''}${b.dringend?' best-dringend':''}" data-i="${esc(b.id)}">
     <div class="best-kopf">
+      ${foto}
       <span class="best-wort">${b.dringend?'❗ ':''}${esc(b.wort)}${b.menge?` <span class="best-menge">${esc(b.menge)}</span>`:''}</span>
     </div>
     ${matZeile?`<div class="best-mat">${esc(matZeile)}</div>`:''}
@@ -183,10 +192,20 @@ function bestFormHTML(b){
     .sort((a,x)=>(x.vorkommen||0)-(a.vorkommen||0))
     .slice(0, 400)
     .map(m=>`<option value="${esc(m.name)}" data-k="${esc(m.key)}">`).join('');
+  /* Beim Bearbeiten das gespeicherte Foto laden, beim Neuanlegen den Scan-Zustand. */
+  const fotoSrc = bestScanState.foto || (b && b.foto) || '';
+  const fotoBox = fotoSrc
+    ? `<div id="bestFotoBox"><img class="best-scan-foto" src="${esc(fotoSrc)}" alt="Foto" data-zoom data-cap="Foto">
+        <button type="button" class="btn btn-sec best-foto-clear" onclick="bestScanLoeschen()">✕</button></div>`
+    : `<div id="bestFotoBox"></div>`;
   return `<div class="auf-form">
     <div class="flabel">${b?'MELDUNG BEARBEITEN':'WAS IST LEER?'}</div>
-    <input class="loc-input" id="bestWort" list="bestMatList" placeholder="Material — tippen oder aus der Liste wählen" value="${esc(b?b.wort:'')}">
+    <div class="best-scan-reihe">
+      <input class="loc-input" id="bestWort" list="bestMatList" placeholder="Material — tippen oder aus der Liste wählen" value="${esc(b?b.wort:'')}">
+      <button type="button" class="btn btn-sec" onclick="bestScanFoto()" title="Etikett fotografieren — GTIN wird automatisch gelesen">📷</button>
+    </div>
     <datalist id="bestMatList">${liste}</datalist>
+    ${fotoBox}
     <div class="form-row" style="margin-top:8px">
       <input class="loc-input" id="bestMenge" placeholder="Menge (optional)" value="${esc(b?b.menge:'')}" style="flex:0 0 40%">
       <label class="g-check" style="margin:0"><input type="checkbox" id="bestDringend" ${b&&b.dringend?'checked':''}> dringend</label>
@@ -200,9 +219,9 @@ function bestFormHTML(b){
 }
 
 /* ── Bedienung ── */
-function bestUiNeu(){ bestForm='neu'; seiteAuffrischen(); setTimeout(()=>{ const i=$('bestWort'); if(i) i.focus(); },50); }
-function bestUiBearbeiten(id){ bestForm=id; seiteAuffrischen(); }
-function bestUiAbbrechen(){ bestForm=null; seiteAuffrischen(); }
+function bestUiNeu(){ bestScanState={gtin:null,foto:null}; bestForm='neu'; seiteAuffrischen(); setTimeout(()=>{ const i=$('bestWort'); if(i) i.focus(); },50); }
+function bestUiBearbeiten(id){ bestScanState={gtin:null,foto:null}; bestForm=id; seiteAuffrischen(); }
+function bestUiAbbrechen(){ bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen(); }
 function bestUiAlt(){ bestZeigeAlt=!bestZeigeAlt; seiteAuffrischen(); }
 function bestUiKuerzel(){ if(typeof kuerzelFragen==='function') kuerzelFragen(()=>seiteAuffrischen()); }
 function bestUiSpeichern(id){
@@ -217,16 +236,19 @@ function bestUiSpeichern(id){
   }
   const felder = { wort, menge:($('bestMenge')&&$('bestMenge').value)||'',
     notiz:($('bestNotiz')&&$('bestNotiz').value)||'',
-    dringend:!!($('bestDringend')&&$('bestDringend').checked), matKey };
+    dringend:!!($('bestDringend')&&$('bestDringend').checked),
+    matKey,
+    gtin: bestScanState.gtin || (id ? (bestNach(id)||{}).gtin : null) || null,
+    foto: bestScanState.foto || (id ? (bestNach(id)||{}).foto : null) || null };
   const tun = ()=>{
     if(id){ Object.keys(felder).forEach(k=>bestAendern(id,k,felder[k])); }
     else bestMelden(felder);
-    bestForm=null; seiteAuffrischen();
+    bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen();
     if(typeof toast==='function') toast(id?'Gespeichert':'Gemeldet — im anderen Saal sofort sichtbar');
   };
   if(typeof kuerzelDannn==='function') kuerzelDannn(tun); else tun();
 }
-function bestUiLoeschen(id){ bestLoeschen(id); bestForm=null; seiteAuffrischen(); if(typeof toast==='function') toast('Meldung entfernt'); }
+function bestUiLoeschen(id){ bestLoeschen(id); bestScanState={gtin:null,foto:null}; bestForm=null; seiteAuffrischen(); if(typeof toast==='function') toast('Meldung entfernt'); }
 function bestUiWeiter(id){
   kuerzelDannn(()=>{
     const neu = bestWeiter(id, kuerzel());
@@ -235,6 +257,60 @@ function bestUiWeiter(id){
   });
 }
 function bestUiZurueck(id){ const neu=bestZurueck(id); seiteAuffrischen(); if(typeof toast==='function') toast(neu?('Zurück auf '+bestWort(neu,'wort')):'Nicht möglich'); }
+
+/* ── Etikett fotografieren — GTIN lesen, Name übernehmen ── */
+function bestScanFoto(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.setAttribute('capture', 'environment'); inp.style.display = 'none';
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    try { document.body.removeChild(inp); } catch(e) {}
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => bestScanVerarbeiten(r.result);
+    r.readAsDataURL(f);
+  };
+  document.body.appendChild(inp); inp.click();
+}
+
+async function bestScanVerarbeiten(dataUrl){
+  bestScanState.foto = dataUrl;
+  /* Foto sofort zeigen, ohne die ganze Seite neu zu bauen. */
+  const box = $('bestFotoBox');
+  if(box) box.innerHTML = `<img class="best-scan-foto" src="${esc(dataUrl)}" alt="Foto" data-zoom data-cap="Foto">
+    <button type="button" class="btn btn-sec best-foto-clear" onclick="bestScanLoeschen()">✕</button>`;
+  if(typeof toast==='function') toast('Barcode lesen …');
+
+  let code = null;
+  if(typeof ocrBarcodeFromImage==='function'){
+    try{ code = await ocrBarcodeFromImage(dataUrl); }catch(e){}
+  }
+  if(!code || !code.gtin){
+    if(typeof toast==='function') toast('Kein Barcode gefunden — Name bitte von Hand eintragen.', true);
+    return;
+  }
+
+  const gtin = (typeof gtinKey==='function') ? gtinKey(code.gtin) : String(code.gtin);
+  bestScanState.gtin = gtin;
+
+  /* Name aus eigenem Stammsatz, dann Katalog, dann Netz. */
+  let name = '';
+  const rec = (typeof GTINDB!=='undefined') ? GTINDB[gtin] : null;
+  if(rec) name = rec.name || rec.ref || '';
+  if(!name && typeof gtinAufloesen==='function'){
+    try{ const t = await gtinAufloesen(gtin); if(t) name = t.name || t.ref || ''; }catch(e){}
+  }
+
+  const inp = $('bestWort');
+  if(inp && name && !inp.value.trim()) inp.value = name;
+  if(typeof toast==='function') toast(name ? ('Erkannt: ' + name) : ('GTIN ' + gtin + ' — Name bitte prüfen'));
+}
+
+function bestScanLoeschen(){
+  bestScanState.foto = null; bestScanState.gtin = null;
+  const box = $('bestFotoBox'); if(box) box.innerHTML = '';
+}
 
 /* Aus dem Material heraus melden — der kurze Weg aus der Materialzentrale
    und aus dem Pflege-Weg. */
