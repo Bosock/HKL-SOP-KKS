@@ -430,15 +430,19 @@ function admContAddEntry(ri){ if(!admContSid) return; openEntryForm({kind:'add',
    ohne material_key erhalten. Sie schreiben denselben Regel-Weg wie das
    Schnellmenü, also journaliert und rücknehmbar. */
 function setNatur(cid,nat){ const e=findEntry(cid); if(!e) return;
-  if(e.material_key && typeof addRule==='function'){
-    if(e.natur===nat){ revokeStelleRules(e.material_key,cid,'natur'); clearLegacyAt(e,cid,'stelle','natur'); }
-    else { addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'natur',nat); clearLegacyAt(e,cid,'stelle','natur'); }
+  /* Ziel ist das Material — und wo es keines gibt, der Text (features/rules.js).
+     Vorher lief eine Zeile ohne material_key hier am Regelweg vorbei. */
+  const ziel=(typeof ruleZiel==='function')?ruleZiel(e):(e.material_key?{art:'material',key:e.material_key}:null);
+  if(ziel && typeof addRule==='function'){
+    if(e.natur===nat){ revokeStelleRules(ziel.key,cid,'natur'); clearLegacyAt(e,cid,'stelle','natur'); }
+    else { addRule(ziel,{art:'stelle',wert:cid},'natur',nat); clearLegacyAt(e,cid,'stelle','natur'); }
     buildMaterialIndex(); renderAdmin(); return; }
   if(e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
 function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else reviewed[cid]=true; saveJSON('hkl_reviewed',reviewed); renderAdmin(); }
 function reassignEntry(cid,val){ const e=findEntry(cid);
-  if(e&&e.material_key && typeof addRule==='function'){
-    addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'uk',(val===''?'':val)); clearLegacyAt(e,cid,'stelle','uk'); computeUkList(); renderAdmin(); return; }
+  const zielU=(e&&typeof ruleZiel==='function')?ruleZiel(e):((e&&e.material_key)?{art:'material',key:e.material_key}:null);
+  if(zielU && typeof addRule==='function'){
+    addRule(zielU,{art:'stelle',wert:cid},'uk',(val===''?'':val)); clearLegacyAt(e,cid,'stelle','uk'); computeUkList(); renderAdmin(); return; }
   if(val==='') reassign[cid]=null; else reassign[cid]=val; saveJSON('hkl_reassign',reassign); computeUkList(); renderAdmin(); }
 function findEntry(cid){ if(cid&&cid.indexOf('new|')===0){ const n=NEW.find(x=>('new|'+x.id)===cid); return n?newToEntry(n):null; } const p=cid.split('|'); const s=DB.standards.find(x=>x.id===p[0]); if(!s) return null; try{ return s.rubriken[+p[1]].sub_bereiche[+p[2]].eintraege[+p[3]]; }catch(e){ return null; } }
 

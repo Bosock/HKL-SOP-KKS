@@ -267,6 +267,78 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check(`im Saal steht die Sorte am Badge (${imSaal.join(' · ')})`,
     imSaal.length > 0 && imSaal.some(t => /💶/.test(t)));
 
+  /* ═══════════ ④ Reichweite auch ohne Material ═══════════
+
+     „die Reichweiten Einstellung bei Änderungen bevor gespeichert wird können
+     nicht angepasst werden! ändern"
+
+     Ursache war nicht die Oberfläche, sondern das Regelwerk: Eine Regel konnte
+     sich nur auf ein MATERIAL beziehen. Handgriffe und Hinweise hatten kein
+     Ziel — der Knopf war für sie dauerhaft ausgegraut. */
+
+  const ohneMat = await page.evaluate(`(function(){
+    setMode('admin');
+    let z=null;
+    DB.standards.forEach(s=>(s.rubriken||[]).forEach((r,ri)=>(r.sub_bereiche||[]).forEach((sb,si)=>(sb.eintraege||[]).forEach((e,ei)=>{
+      if(z||!e||e.material_key||e.ist_fliesstext||e.natur==='ueberschrift') return;
+      const cid=cidOf(s.id,ri,si,ei);
+      if(typeof ruleTextKey==='function' && ruleTextKey(e)) z={ cid, sid:s.id, ri, tk:ruleTextKey(e), text:e.anzeige_text };
+    }))));
+    if(!z) return { kein:true };
+    const e=findEntry(z.cid);
+    const stufen=rwStufen(z.cid, ruleZielKey(e)).map(x=>x.key);
+    openStandard(z.sid); openRubrik(z.ri);
+    pbOeffnen(z.cid, [{ prop:'name', vorher:e.anzeige_text, value:'GEPRÜFT' }], 'cid', ()=>{});
+    const knopf=document.querySelector('#sheet .pb-scope');
+    return { kein:false, cid:z.cid, tk:z.tk, sid:z.sid, ri:z.ri, stufen,
+      gesperrt: knopf ? knopf.disabled : null,
+      wort: knopf ? knopf.textContent.trim() : '' };
+  })()`);
+  r.check('eine Zeile ohne Material hat jetzt die ganze Treppe (' + (ohneMat.stufen || []).join(' · ') + ')',
+    !ohneMat.kein && ohneMat.stufen.length >= 3 && ohneMat.stufen.indexOf('mat') >= 0);
+  r.check('… und der Reichweiten-Knopf im Prüfblatt ist NICHT mehr gesperrt', ohneMat.gesperrt === false);
+
+  const weit = await page.evaluate(`(function(){
+    pbScopeSetzen(0,'mat');
+    const knopf=document.querySelector('#sheet .pb-scope');
+    const warnung=/über diesen Standard hinaus/.test(document.getElementById('sheet').textContent);
+    pbSpeichern();
+    let n=0, gleich=0;
+    DB.standards.forEach(s=>(s.rubriken||[]).forEach((rb,ri)=>(rb.sub_bereiche||[]).forEach((sb,si)=>(sb.eintraege||[]).forEach((x,ei)=>{
+      if(!x||x.material_key) return;
+      if(ruleTextKey(x)!==${JSON.stringify(ohneMat.tk)}) return;
+      n++; if(qeGet(x, cidOf(s.id,ri,si,ei), 'name')==='GEPRÜFT') gleich++;
+    }))));
+    const regeln=rulesActive(RULES).filter(x=>x.ziel&&x.ziel.art==='text');
+    return { knopfWort:knopf?knopf.textContent.trim():'', warnung, n, gleich,
+      regeln:regeln.length, id:regeln.length?regeln[0].id:null };
+  })()`);
+  r.check(`„Überall" wirkt wirklich überall (${weit.gleich} von ${weit.n} gleichlautenden Zeilen)`,
+    weit.n > 1 && weit.gleich === weit.n);
+  r.check('… mit EINER Regel, nicht mit einer Kopie je Zeile', weit.regeln === 1);
+  r.check('… und die Warnung stand vorher da', weit.warnung === true);
+
+  const zurueck = await page.evaluate(`(function(){
+    revokeRule(${JSON.stringify(weit.id)});
+    let zurueck=0, n=0;
+    DB.standards.forEach(s=>(s.rubriken||[]).forEach((rb,ri)=>(rb.sub_bereiche||[]).forEach((sb,si)=>(sb.eintraege||[]).forEach((x,ei)=>{
+      if(!x||x.material_key) return;
+      if(ruleTextKey(x)!==${JSON.stringify(ohneMat.tk)}) return;
+      n++; if(qeGet(x, cidOf(s.id,ri,si,ei), 'name')!=='GEPRÜFT') zurueck++;
+    }))));
+    return { n, zurueck };
+  })()`);
+  r.check('eine Rücknahme im Journal nimmt alle Stellen zurück', zurueck.zurueck === zurueck.n);
+
+  /* Die Gegenprobe: Ein Produkt, das zufällig gleich hieße, darf davon nie
+     getroffen werden — sonst wäre die Trefferzahl im Prüfblatt eine Lüge. */
+  const getrennt = await page.evaluate(`(function(){
+    const mitMat = DB.standards.some(s=>(s.rubriken||[]).some(rb=>(rb.sub_bereiche||[]).some(sb=>(sb.eintraege||[]).some(e=>
+      e && e.material_key && typeof ruleZiel==='function' && ruleZiel(e).art!=='material'))));
+    return { sauber: !mitMat };
+  })()`);
+  r.check('Zeilen MIT Material zielen weiterhin ausschließlich aufs Material', getrennt.sauber);
+
   /* ═══════════ ⑧/② Das Handy ═══════════
 
      „Darstellung für Handys optimieren nicht Tablets das war eine falsche

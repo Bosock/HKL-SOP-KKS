@@ -267,7 +267,8 @@ function zeilAenderungen(idx, entwurf){
         name: zeilWert(e, cid, 'name'),
         vorher: zeilWert(e, cid, f.key),
         nachher: ent[f.key],
-        mk: e.material_key || null });
+        /* Material ODER Text — beides trägt eine Reichweite (features/rules.js). */
+        mk: (typeof ruleZielKey==='function') ? ruleZielKey(e) : (e.material_key||null) });
     });
   });
   return aus;

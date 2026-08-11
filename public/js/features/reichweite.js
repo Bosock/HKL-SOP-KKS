@@ -101,14 +101,20 @@ function pbOeffnen(cid, aenderungen, voreinstellung, fertig){
   const e = (typeof findEntry==='function') ? findEntry(cid) : null;
   if(!e || !aenderungen || !aenderungen.length){ if(fertig) fertig(false); return; }
   const vor = voreinstellung || 'cid';
+  /* Das Ziel einer Regel ist das Material — und wo es keines gibt, der TEXT
+     der Zeile (features/rules.js). Vorher stand hier `e.material_key`, und
+     genau deshalb war der Reichweiten-Knopf an jedem Handgriff für immer
+     ausgegraut: „die Reichweiten Einstellung … können nicht angepasst
+     werden!" */
+  const ziel = (typeof ruleZielKey==='function') ? ruleZielKey(e) : (e.material_key||null);
   PB = {
-    cid, mk: e.material_key || null,
+    cid, mk: ziel,
     zeilen: aenderungen.map(c=>({
       prop: c.prop,
       label: (typeof rulePropLabel==='function') ? rulePropLabel(c.prop) : c.prop,
       vorher: c.vorher,
       nachher: c.value,
-      scope: e.material_key ? vor : 'cid'
+      scope: ziel ? vor : 'cid'
     })),
     fertig
   };
@@ -136,7 +142,7 @@ function pbZeichnen(){
       <div class="pb-feld">${esc(z.label)}</div>
       <div class="pb-werte"><span class="pb-alt">${esc(pbWert(z.prop, z.vorher))}</span><span class="pb-pfeil">→</span><span class="pb-neu">${esc(pbWert(z.prop, z.nachher))}</span></div>
       <button type="button" class="pb-scope${(s&&s.weit)?' weit':''}" data-i="${i}" onclick="pbScopeWahl(+this.dataset.i)"
-        ${PB.mk?'':'disabled title="Diese Zeile hat kein geteiltes Material — sie kann nur hier gelten."'}>
+        ${PB.mk?'':'disabled title="Diese Zeile hat weder Material noch Text — sie kann nur hier gelten."'}>
         ${esc(s?(s.ico+' '+s.wort):'📍 Nur hier')}</button>
       ${zahl}
     </div>`;
@@ -213,14 +219,14 @@ function pbSpeichern(){
   let n = 0, weit = 0;
   PB.zeilen.forEach(z=>{
     if(!mk){
-      /* Kein geteiltes Material → es gibt kein Ziel für eine Regel. Der
+      /* Weder Material noch Text → es gibt kein Ziel für eine Regel. Der
          Alt-Pfad schreibt an die Stelle, wie eh und je. */
       if(typeof qeSet==='function') qeSet('cid', e, cid, z.prop, z.nachher);
       n++; return;
     }
     const s = rwStufe(cid, mk, z.scope);
     if(!s) return;
-    addRule({art:'material',key:mk}, s.wo, z.prop, z.nachher);
+    addRule(ruleZiel(e), s.wo, z.prop, z.nachher);
     if(s.wo.art==='stelle') clearLegacyAt(e, cid, 'stelle', z.prop);
     else if(s.wo.art==='alle') clearLegacyAt(e, cid, 'alle', z.prop);
     n++; if(s.weit) weit++;

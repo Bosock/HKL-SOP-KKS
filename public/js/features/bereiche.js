@@ -143,8 +143,9 @@ function berHakenTippen(cid){
   const neu = an ? null : b.key;
   /* Derselbe Schreibweg wie im Menü, nur ohne Rückfrage — Reichweite „nur
      diese Stelle" (features/quickmenu.js → applyPending). */
-  if(e.material_key && typeof addRule==='function'){
-    addRule({art:'material',key:e.material_key}, {art:'stelle',wert:cid}, 'bereich', neu);
+  const ziel = (typeof ruleZiel==='function') ? ruleZiel(e) : (e.material_key?{art:'material',key:e.material_key}:null);
+  if(ziel && typeof addRule==='function'){
+    addRule(ziel, {art:'stelle',wert:cid}, 'bereich', neu);
   } else if(typeof qeSet==='function'){
     qeSet('cid', e, cid, 'bereich', neu);
   }

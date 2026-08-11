@@ -301,7 +301,8 @@ function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!
       color:(qeGet(e,cid,'color')||''), why:e.why||'', synonyms:e.synonyms||[] });
     clone.groessen=((qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen)||[]).slice();
     const nk=targetSid+'|'+targetRi; (ADDITIONS.entries[nk]=ADDITIONS.entries[nk]||[]).push(clone); saveAdditions();
-    if(e.material_key&&typeof addRule==='function') addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'hidden',true);
+    const zh=(typeof ruleZiel==='function')?ruleZiel(e):(e.material_key?{art:'material',key:e.material_key}:null);
+    if(zh&&typeof addRule==='function') addRule(zh,{art:'stelle',wert:cid},'hidden',true);
     else { (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); }
   }
   rebuildDB(); buildMaterialIndex(); computeUkList(); showSheet(false);
@@ -441,11 +442,16 @@ function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
 /* Reichweiten-Wahl (Verwaltungspolitik-Kaskade): vier ehrliche Stufen mit
    TREFFERVORSCHAU direkt an jeder Option — Sammel-Änderung ist kein eigenes
    Werkzeug, sondern zwei weitere Knöpfe im vertrauten Dialog. */
-function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ applyPending('cid'); return; }
+function askScope(){ const e=sheetEntry, cid=sheetCid;
+  /* Der Gegenstand ist das Material — und wo es keines gibt, der TEXT der
+     Zeile (features/rules.js). Hier stand vorher `if(!e.material_key)` und
+     damit die zweite Tür, durch die ein Handgriff nie eine Reichweite bekam. */
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e.material_key||null);
+  if(!zk){ applyPending('cid'); return; }
   /* Die Stufen kommen aus der gemeinsamen Treppe (features/reichweite.js) —
      dieselbe Liste wie im Bearbeiten-Formular, inklusive der Merkmals-
      Reichweiten („alle mit sedierungspflichtig"). */
-  const stufen=(typeof rwStufen==='function')?rwStufen(cid,e.material_key):[];
+  const stufen=(typeof rwStufen==='function')?rwStufen(cid,zk):[];
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div>`;
   h+=`<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
   stufen.forEach(x=>{ h+=`<button class="sheet-pick-btn" data-s="${esc(x.key)}" onclick="applyPending(this.dataset.s)">${x.ico} ${esc(x.lang||x.wort)} <span class="ps-sub">· ${esc(x.langSub||x.sub||'')}</span></button>`; });
@@ -455,7 +461,9 @@ function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ appl
    confirm() erscheint in installierten PWAs auf mehreren Android-Chrome-
    Versionen gar nicht, und die Sammel-Änderung fiele lautlos aus (Grundsatz ⑧). */
 function askScopeBestaetigen(scope){
-  const e=sheetEntry, cid=sheetCid; const s=(typeof rwStufe==='function')?rwStufe(cid,e.material_key,scope):null;
+  const e=sheetEntry, cid=sheetCid;
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e.material_key||null);
+  const s=(typeof rwStufe==='function')?rwStufe(cid,zk,scope):null;
   if(!s){ applyPending(scope); return; }
   const n=s.hits?s.hits.vorkommen:0, m=s.hits?s.hits.standards.length:0;
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Sammel-Änderung bestätigen</div>`;
@@ -469,21 +477,24 @@ function askScopeBestaetigen(scope){
    🗂 Gruppe · 🌐 alle) — rückverfolgbar, rücknehmbar, im Inspektor sichtbar.
    Der abgelöste Alt-Wert wird migriert (clearLegacyAt). Weite Reichweiten
    (Gruppe/alle) werden mit Trefferzahl bestätigt (Governance-Treppe).
-   Einträge OHNE material_key haben kein Regel-Ziel → Alt-Pfad („nur hier"). */
+   Das Ziel ist das Material — und wo es keines gibt, der TEXT der Zeile
+   (features/rules.js, `ruleZiel`). Damit hat auch ein Handgriff eine
+   Reichweite; früher war der Knopf dort für immer ausgegraut. Erst eine Zeile
+   ganz ohne Material UND ohne Text fällt auf den Alt-Pfad zurück. */
 function applyPending(scope,bestaetigt){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
-  const mk=e.material_key;
-  if(mk){
-    const stufe=(typeof rwStufe==='function')?rwStufe(cid,mk,scope):null;
+  const ziel=(typeof ruleZiel==='function')?ruleZiel(e):(e.material_key?{art:'material',key:e.material_key}:null);
+  if(ziel){
+    const stufe=(typeof rwStufe==='function')?rwStufe(cid,ziel.key,scope):null;
     const wo=stufe?stufe.wo:{art:'stelle',wert:cid};
     if(stufe && stufe.weit && !bestaetigt){ askScopeBestaetigen(scope); return; }
-    addRule({art:'material',key:mk}, wo, p.kind, p.value);
+    addRule(ziel, wo, p.kind, p.value);
     if(wo.art==='stelle') clearLegacyAt(e,cid,'stelle',p.kind);
     else if(wo.art==='alle') clearLegacyAt(e,cid,'alle',p.kind);
     buildMaterialIndex(); if(p.kind==='uk') computeUkList();
     sheetPending=null; showSheet(false);
     toast((scope==='cid')?'Übernommen':'Sammel-Änderung übernommen — rücknehmbar unter 🧾 Regeln & Journal'); reRenderDetail(); return;
   }
-  /* Kein material_key → Alt-Pfad (nur „hier" möglich) */
+  /* Weder Material noch Text → Alt-Pfad (nur „hier" möglich) */
   if(p.kind==='natur'){ overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); }
   else if(p.kind==='uk'){ reassign[cid]=(p.value===''?null:p.value); saveJSON('hkl_reassign',reassign); computeUkList(); }
   else { qeSet('cid',e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
@@ -528,7 +539,10 @@ function sheetDelete(){
    sind bewusste Sammel-Entscheidungen und werden im 🧾 Journal zurückgenommen. */
 function sheetResetEntry(){ const cid=sheetCid, e=sheetEntry;
   if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]!==undefined){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); }
-  if(e&&e.material_key&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===e.material_key&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
+  /* Material ODER Text — sonst bliebe eine 📍-Regel an einem Handgriff nach
+     dem Zurücksetzen bestehen und die Zeile sähe unverändert aus. */
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e&&e.material_key);
+  if(zk&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===zk&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
   saveQE(); buildMaterialIndex(); computeUkList(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
 /* Nach einer Änderung genau den Bildschirm auffrischen, auf dem man steht.
    Das Bearbeiten-Menü ist EIN Menü in zwei Kontexten (Grundsatz ⑥) — es wird
