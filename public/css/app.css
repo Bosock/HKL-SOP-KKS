@@ -1493,6 +1493,15 @@
 .best-schritt.on { border-style:solid; border-color:var(--ok); color:var(--text); }
 .best-akt { display:flex; gap:7px; flex-wrap:wrap; margin-top:11px; }
 .best-akt .btn { flex:0 1 auto; min-height:40px; padding:8px 14px; }
+.best-kopf { display:flex; align-items:flex-start; gap:10px; }
+.best-karte-foto { width:56px; height:56px; object-fit:cover; border-radius:8px; flex:0 0 56px; cursor:zoom-in; }
+.best-scan-reihe { display:flex; gap:6px; align-items:stretch; }
+.best-scan-reihe .loc-input { flex:1; }
+.best-scan-reihe .btn { flex:0 0 44px; min-height:44px; padding:0; font-size:18px; border-radius:10px; }
+#bestFotoBox { position:relative; display:inline-flex; align-items:flex-start; margin-top:8px; }
+.best-scan-foto { width:80px; height:80px; object-fit:cover; border-radius:10px; cursor:zoom-in; }
+.best-foto-clear { position:absolute; top:-6px; right:-6px; min-height:22px; padding:0 6px; font-size:11px;
+  border-radius:9px; border-width:1px; line-height:22px; }
 
 /* ── Liste einfügen (features/einfuegen.js) ──────────────────────────────
    Der Prüfschritt ist die eigentliche Funktion: Er muss auf einem Handy mit
