@@ -170,7 +170,13 @@ function renderRuestliste(){
   if(hatBereiche && ruestSicht==='bereich'){
     const gruppen = berGruppen(ruestSid);
     gruppen.forEach(g=>{
-      const titel = g.bereich ? ((g.bereich.symbol||'📍')+' '+g.bereich.wort) : '— ohne Bereich —';
+      /* „weiteres Material" und nicht „— ohne Bereich —": Der Betreiber will
+         die zweite Sicht ausdrücklich als „Material für den sterilen Tisch"
+         und „weiteres Material" lesen. Das Wort ist über die Bezeichnungen
+         änderbar — „ohne Angabe" ist es für die Verwaltung, im Saal ist es
+         schlicht das übrige Material. */
+      const restWort = (typeof bezWert==='function') ? bezWert('bereiche','ohne','weiteres Material') : 'weiteres Material';
+      const titel = g.bereich ? ((g.bereich.symbol||'📍')+' '+g.bereich.wort) : restWort;
       const farbe = g.bereich ? g.bereich.farbe : '';
       h+=`<div class="rl-fach"${farbe?` style="--ber:${esc(farbe)}"`:''}><div class="rl-fach-t">${esc(titel)}<span class="rl-ort-n">${g.zeilen.length}</span></div>`;
       g.zeilen.forEach(x=>{

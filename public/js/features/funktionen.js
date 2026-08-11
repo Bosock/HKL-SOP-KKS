@@ -287,7 +287,7 @@ const FKT_SHEET_KATALOG = {
     gruppen: [
       { key:'inhalt', titel:'Inhalt', sub:'Titel, Gruppe & Freigabe', akt:[
         { key:'titel',        ico:'✏️',  label:'Titel & Gruppe',         sub:'Name und Zuordnung' },
-        { key:'merkmale',     ico:'🏷',  label:'Merkmale',               sub:'z. B. sedierungspflichtig' },
+        { key:'merkmale',     ico:'🏷',  label:'Merkmale im Einzelnen',  sub:'auch „ausdrücklich nein", Werte und Auswahllisten' },
         { key:'bilder',       ico:'🖼️',  label:'Bilder am Standard',     sub:'Fotos im Kopf des Standards' },
         { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
         { key:'festschreiben',ico:'📚',  label:'Stand festschreiben',    sub:'die App wird zur Grundlage' },

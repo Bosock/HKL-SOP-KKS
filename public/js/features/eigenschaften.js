@@ -214,6 +214,128 @@ function eigUiJa(sid, key, wahl){
   eigSetzen(sid, key, wahl==='ja' ? true : (wahl==='nein' ? false : undefined));
   eigSheet(sid);
 }
+
+/* ═══════════ 3b. Häkchen direkt im Menü ═══════════
+
+   „Merkmale sollen über das Menü mit einer Checkbox einem standard zugeordnet
+   werden … macht die Arbeit schneller."
+
+   Vorher waren es für EIN Merkmal vier Berührungen: ⋯ öffnen · „Merkmale" ·
+   „Ja" · „Fertig". Und jede Wahl zeichnete die ganze Karte neu. Jetzt steht
+   das Häkchen im Menü selbst: ⋯ öffnen · antippen. Beim zweiten und dritten
+   Merkmal ist es je EINE Berührung mehr statt vier.
+
+   ── Was ein Häkchen kann und was nicht ──
+   Ein „ja"-Merkmal kennt DREI Zustände: Ja, ausdrückliches Nein, und „nie
+   gefragt". Ein Häkchen kennt zwei. Das Antippen schaltet deshalb zwischen
+   „Ja" und „ohne Angabe" — die beiden, die man im Alltag braucht.
+
+   Ein ausdrückliches NEIN wird nicht heimlich verschluckt: Es steht als ✕ in
+   der Zeile, und gesetzt wird es weiterhin über „Merkmale" im selben Menü.
+   Ein Häkchen, das ein gepflegtes Nein beim Antippen still in „ohne Angabe"
+   verwandelte, würde Wissen vernichten (Grundsatz ①: leer schlägt falsch).
+
+   ── Warum nur „ja"-Merkmale ──
+   „Vorbereitungszeit: 45 min" lässt sich nicht ankreuzen. Merkmale mit Wert
+   oder Auswahl bleiben in der Karte „Merkmale" — dort gehören sie hin.
+
+   ── A7 ──
+   Langes Tippen auf eine Häkchen-Zeile öffnet die Einstellung DIESES Merkmals
+   (Wort, Symbol, ausblenden) — nicht ein Untermenü irgendwo anders. */
+
+/* Die Merkmale, die sich ankreuzen lassen. `zeigen:'still'` heißt: nicht im
+   Kopf und nicht in der Übersicht — dann auch nicht hier. */
+function eigHakenListe(){ return eigKopfListe().filter(e=>e.art==='ja'); }
+
+function eigHakenZeile(sid, e){
+  const v = eigWert(sid, e.key);
+  const an = v===true, nein = v===false;
+  const zeichen = an ? '✓' : (nein ? '✕' : '');
+  return `<button type="button" class="eig-haken${an?' on':''}${nein?' nein':''}"
+    role="checkbox" aria-checked="${an?'true':'false'}"
+    data-s="${esc(sid)}" data-k="${esc(e.key)}"
+    onclick="eigHakenTippen(this.dataset.s,this.dataset.k)">
+    <span class="eig-hk-box" aria-hidden="true">${zeichen}</span>
+    <span class="eig-hk-wort">${esc(e.symbol||'🏷️')} ${esc(e.wort)}</span>
+    ${nein?'<span class="eig-hk-sub">ausdrücklich nein</span>':''}</button>`;
+}
+function eigHakenHTML(sid){
+  const liste = eigHakenListe();
+  if(!liste.length) return '';
+  return `<div class="eig-haken-block">${liste.map(e=>eigHakenZeile(sid,e)).join('')}</div>`;
+}
+
+/* Antippen. Aufgefrischt wird NUR die eine Zeile — die Karte neu zu zeichnen
+   würde bei jedem Häkchen nach oben springen, und wer fünf Merkmale vergibt,
+   sucht danach fünfmal seine Stelle wieder. */
+function eigHakenTippen(sid, key){
+  const an = eigWert(sid, key)===true;
+  eigSetzen(sid, key, an ? undefined : true);
+  const e = eigOf(key); if(!e) return;
+  if(typeof document==='undefined') return;
+  const zeilen = document.querySelectorAll('.eig-haken');
+  for(let i=0;i<zeilen.length;i++){
+    const z = zeilen[i];
+    if(z.dataset.s!==String(sid) || z.dataset.k!==String(key)) continue;
+    const neu = document.createElement('div');
+    neu.innerHTML = eigHakenZeile(sid, e);
+    if(neu.firstElementChild) z.replaceWith(neu.firstElementChild);
+  }
+}
+
+/* Langdruck: die Einstellung DIESES Merkmals. Bewusst NICHT über
+   features/funktionen.js — ein Merkmal hat sein Wort und sein Symbol schon
+   selbst. Zwei Speicher für denselben Namen wären zwei Wahrheiten. */
+let eigFlaeche = null;
+function eigFlaecheSheet(key){
+  if(typeof ADMIN!=='undefined' && !ADMIN) return;
+  if(!eigOf(key)) return;
+  eigFlaeche = key;
+  eigFlaecheZeichnen();
+  if(typeof showSheet==='function') showSheet(true);
+}
+function eigFlaecheZeichnen(){
+  const e = eigOf(eigFlaeche); if(!e || typeof $!=='function' || !$('sheet')) return;
+  const b = eigBilanz(e.key);
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Merkmal</div>
+    <div class="sheet-name">${esc(e.symbol||'🏷️')} ${esc(e.wort)}</div>
+    <p class="why-help">Gilt überall: im Kopf jedes Standards, in der Übersicht und in dieser Liste. Vergeben ist es an ${b.ja} von ${b.gesamt} Standards.</p>
+    <div class="form-grp"><div class="flabel">Wort</div>
+      <input class="loc-input" id="eigFlWort" value="${esc(e.wort)}"></div>
+    <div class="form-grp"><div class="flabel">Symbol</div>
+      <input class="loc-input" id="eigFlIco" value="${esc(e.symbol||'')}" maxlength="4"></div>
+    <div class="p-actions"><button class="btn btn-pri" onclick="eigFlaecheSpeichern()">Übernehmen</button></div>
+    <div class="sheet-pick" style="margin-top:10px">
+      <button class="sheet-pick-btn" onclick="eigFlaecheSchalten()">🚫 Aus Kopf, Übersicht und Menü nehmen</button>
+    </div>
+    <p class="hint" style="padding:8px 4px">Die Vergaben bleiben dabei erhalten. Ganz löschen geht nur in der Verwaltung unter „💤 Merkmale an Standards" — dort steht auch, wie viele Standards es trägt.</p>
+    <button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+}
+function eigFlaecheSpeichern(){
+  const e = eigOf(eigFlaeche); if(!e) return;
+  const w = ($('eigFlWort') && $('eigFlWort').value || '').trim();
+  const i = ($('eigFlIco')  && $('eigFlIco').value  || '').trim();
+  if(w) eigAendern(e.key, 'wort', w);
+  eigAendern(e.key, 'symbol', i || '🏷️');
+  if(typeof facCacheLeeren==='function') facCacheLeeren();
+  if(typeof showSheet==='function') showSheet(false);
+  eigNachAenderung();
+  if(typeof toast==='function') toast('Übernommen');
+}
+function eigFlaecheSchalten(){
+  const e = eigOf(eigFlaeche); if(!e) return;
+  eigAendern(e.key, 'zeigen', e.zeigen==='still' ? 'kopf' : 'still');
+  if(typeof facCacheLeeren==='function') facCacheLeeren();
+  if(typeof showSheet==='function') showSheet(false);
+  eigNachAenderung();
+  if(typeof toast==='function') toast(e.zeigen==='still' ? 'Aus der Anzeige genommen — in der Verwaltung erreichbar' : 'Wieder sichtbar');
+}
+/* Nach einer Änderung am Merkmal: das Menü steht noch auf demselben Standard,
+   also dieselbe Karte neu — sonst zeigte sie das alte Wort. */
+function eigNachAenderung(){
+  if(typeof curStd!=='undefined' && curStd && typeof openStandard==='function') openStandard(curStd.id, true);
+  if(typeof renderStandards==='function' && typeof curSeg!=='undefined') renderStandards();
+}
 function eigUiWert(sid, key, wert){
   eigSetzen(sid, key, String(wert||'').trim() || undefined);
 }

@@ -138,10 +138,22 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(x=>x.id===id); if(t) curStd=t; } if(!curStd) return; const s=curStd; const hid=stdHidden(s);
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
   h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
+  /* MERKMALE ZUM ANKREUZEN, ganz oben und ohne Umweg (features/eigenschaften.js).
+     „Merkmale sollen über das Menü mit einer Checkbox einem standard zugeordnet
+     werden … macht die Arbeit schneller."
+
+     Der Block steht bewusst NICHT im Funktionsregister: Er besteht vollständig
+     aus Daten des Hauses. Gibt es kein „ja"-Merkmal, ist er einfach nicht da;
+     jede einzelne Zeile lässt sich per Langdruck umbenennen oder herausnehmen.
+     Ein Katalogeintrag daneben wäre eine zweite Wahrheit über dasselbe Ding. */
+  if(typeof eigHakenHTML==='function'){
+    const hk = eigHakenHTML(s.id);
+    if(hk) h += sGroup('Merkmale','antippen ordnet zu · lange tippen ändert das Merkmal') + hk;
+  }
   const S = sheetBauer('standard');
   S.gruppe('inhalt','Inhalt','Titel, Gruppe & Freigabe');
   S.akt('titel','✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
-  S.akt('merkmale','🏷','Merkmale', (typeof eigChips==='function'&&eigChips(s.id).length)?(eigChips(s.id).length+' vergeben'):'z. B. sedierungspflichtig', 'eigSheet(curStd.id)');
+  S.akt('merkmale','🏷','Merkmale im Einzelnen','auch „ausdrücklich nein", Werte und Auswahllisten','eigSheet(curStd.id)');
   if(typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(medAnkStd(s.id)))
     S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
@@ -558,7 +570,7 @@ function ghostMouse(){ return Date.now()-touchGuardTs<700; }
    ganzen Zeile, hakt ab und unterdrückt den nativen Klick, sodass der
    Schalter selbst nie zum Zug kommt. An EINER Stelle gepflegt, damit ein
    neuer Schalter nicht wieder vergessen wird. */
-const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn';
+const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn,.ber-haken';
 
 /* Die sichtbaren Schalter einer Eintragszeile (Delegation am Bildschirm).
    Das Tippen/Halten der ZEILE selbst behandelt der gemeinsame Halte-Detektor
@@ -708,6 +720,29 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
       fktFlaecheSheet('facette', f, { wort:String(name).trim(), ohneIco:true,
         titel:'Merkmal in der Leiste',
         sub:'Gilt für die ganze Reihe. Eine ausgeblendete Reihe mit aktiver Auswahl bleibt sichtbar — sonst wirkte ein Filter unsichtbar weiter.' });
+    } });
+
+  /* ⑤ Das Häkchen am Material (features/bereiche.js). Kurz tippen ordnet zu,
+     lange tippen öffnet den Bereich selbst — Wort, Symbol, und an welchem
+     Bereich das Häkchen überhaupt hängt. Ohne diesen Langdruck wäre die
+     Fläche unfertig (Hausregel A7). */
+  attachHoldNav($('scr-detail'), { rowSel:'.ber-haken[data-cid]', keys:['cid'],
+    onTap:()=>false,   /* das Antippen erledigt der eigene onclick der Fläche */
+    onHold:rw=>{
+      if(!ADMIN || typeof berHakenBereich!=='function' || typeof berFlaecheSheet!=='function') return;
+      const b=berHakenBereich(); if(!b) return;
+      refreshAuth(); berFlaecheSheet(b.key);
+    } });
+
+  /* ⑥ Die Häkchen IM MENÜ (features/eigenschaften.js). Kurz tippen ordnet zu,
+     lange tippen ändert das Merkmal selbst — dieselbe Geste wie überall
+     sonst, nur eben auf einer Karte statt auf einem Bildschirm. Der Detektor
+     hängt deshalb an der Karte. */
+  attachHoldNav($('sheet'), { rowSel:'.eig-haken[data-k]', keys:['k'],
+    onTap:()=>false,   /* das Antippen erledigt der eigene onclick der Zeile */
+    onHold:rw=>{
+      const k=rw.dataset.k;
+      if(k && ADMIN && typeof eigFlaecheSheet==='function'){ refreshAuth(); eigFlaecheSheet(k); }
     } });
 
   attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn', keys:['ri'],

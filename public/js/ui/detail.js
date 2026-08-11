@@ -90,6 +90,11 @@ function entryCardHTML(e,cid,isMatGer){
      Untermenü: Im Saal muss man sofort lesen können, wohin etwas gehört und
      was stattdessen geht. */
   if(typeof berBadgeHTML==='function') meta+=berBadgeHTML(e,cid);
+  /* Das Häkchen „Material für den sterilen Tisch" steht im Verwaltungsmodus
+     direkt an der Zeile — eine Berührung statt vier über das Menü. Es
+     erscheint nur bei beschaffbarem Material und nur, wenn das Haus einen
+     Bereich dafür bestimmt hat (features/bereiche.js). */
+  if(typeof berHakenHTML==='function') meta+=berHakenHTML(e,cid,isMatGer);
   if(typeof altBadgeHTML==='function') meta+=altBadgeHTML(e,cid);
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   /* Eigenschaften: ist das Material zugeordnet (canon), kommen sie vom Produkt

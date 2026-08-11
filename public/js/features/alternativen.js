@@ -58,6 +58,52 @@ function altKey(e, cid){
   return e.material_key || null;
 }
 
+/* ── Die vier Sorten von Ersatz ──
+
+   Der Betreiber hat sie wörtlich vorgegeben:
+
+     äquivalent          Material kann eins zu eins genutzt werden
+     teures Äquivalent   eins zu eins, aber deutlich teurer — bedarf der Absprache
+     Alternative         nicht gleich; nur unter bestimmten Bedingungen
+                         oder mit bestimmten Einschränkungen
+     Back-Up (Reserve)   nutzbar, aber nicht optimal
+
+   Warum das mehr ist als ein Wort im Freitextfeld: „Statt der Merit geht auch
+   die Schwartz" beantwortet im Saal nicht die eigentliche Frage. Die lautet:
+   Darf ich einfach greifen, oder muss ich vorher jemanden fragen? Vier Sorten
+   trennen genau das — und zwar so, dass die Anzeige es zeigen kann, ohne
+   einen Satz zu lesen.
+
+   Die Wörter selbst sind Vorgaben, keine Wahrheit: `bezWert` lässt sie ohne
+   Programmierung ändern (Hausregel A7). Die Schlüssel bleiben — an ihnen
+   hängen die Vergaben.
+
+   Eine fünfte Sorte gibt es bewusst nicht. Wer „geht auch, aber nur bei
+   Kindern" meint, schreibt das in den Grund daneben; dafür ist das Feld da. */
+const ALT_ARTEN = [
+  { key:'gleich', ico:'🟰', vorgabe:'äquivalent',       sub:'eins zu eins nutzbar' },
+  { key:'teuer',  ico:'💶', vorgabe:'teures Äquivalent', sub:'eins zu eins — aber deutlich teurer, bitte absprechen' },
+  { key:'bedingt',ico:'≈',  vorgabe:'Alternative',       sub:'nicht gleich — nur unter Bedingungen oder mit Einschränkungen' },
+  { key:'reserve',ico:'🧰', vorgabe:'Back-Up (Reserve)', sub:'nutzbar, aber nicht optimal' },
+];
+function altArtOf(key){ return ALT_ARTEN.find(a=>a.key===key) || null; }
+function altArtWort(key){
+  const a = altArtOf(key); if(!a) return '';
+  return (typeof bezWert==='function') ? bezWert('altarten', a.key, a.vorgabe) : a.vorgabe;
+}
+/* Die Sorte EINES Glieds. Rang 0 ist der Standard und hat keine Sorte; ein
+   noch nicht eingestuftes Glied liefert null — und wird auch so angezeigt.
+   Es als „Alternative" auszugeben wäre eine Behauptung, die niemand
+   aufgestellt hat (Grundsatz ①: leer schlägt falsch). */
+function altGliedArt(glied){ return (glied && glied.art) ? altArtOf(glied.art) : null; }
+function altArtSetzen(id, key, art){
+  const g = altGruppeOf(id); if(!g) return false;
+  const x = (g.glieder||[]).find(y=>y.key===key); if(!x) return false;
+  if(art && !altArtOf(art)) return false;
+  if(art) x.art = art; else delete x.art;
+  saveAltG(); return true;
+}
+
 function altGruppeOf(id){ return ALTG.find(g=>g.id===id) || null; }
 /* Alle Gruppen, in denen dieses Material vorkommt. Mehr als eine ist erlaubt:
    Ein Führungsdraht kann in einer Gruppe „Standarddraht" und in einer anderen
@@ -118,10 +164,20 @@ function altBadgeHTML(e, cid){
   return treffer.map(t=>{
     const erste = t.andere[0];
     if(!erste) return '';
-    const wort = (t.rang===0)
-      ? ('oder '+erste.name + (t.andere.length>1 ? (' +'+(t.andere.length-1)) : ''))
-      : ('Alternative zu '+t.gruppe.glieder[0].name);
-    return `<button type="button" class="tag tag-alt alt-chip" data-g="${esc(t.gruppe.id)}" onclick="event.stopPropagation();altSheet(this.dataset.g)">⇄ ${esc(wort)}</button>`;
+    /* Die SORTE steht im Badge, nicht nur der Name. Im Saal ist „🟰 Schwartz"
+       eine andere Auskunft als „🧰 Schwartz": das eine greift man, das andere
+       holt man nur, wenn nichts anderes da ist. */
+    let ico = '⇄', wort;
+    if(t.rang===0){
+      const a = altGliedArt(erste);
+      if(a) ico = a.ico;
+      wort = 'oder '+erste.name + (t.andere.length>1 ? (' +'+(t.andere.length-1)) : '');
+    } else {
+      const a = altGliedArt(t.ich);
+      ico = a ? a.ico : '⇄';
+      wort = (a ? altArtWort(a.key) : 'Alternative') + ' zu ' + t.gruppe.glieder[0].name;
+    }
+    return `<button type="button" class="tag tag-alt alt-chip" data-g="${esc(t.gruppe.id)}" onclick="event.stopPropagation();altSheet(this.dataset.g)">${esc(ico)} ${esc(wort)}</button>`;
   }).join('');
 }
 
@@ -132,9 +188,12 @@ function altSheet(id){
   h += `<p class="why-help">Diese Materialien sind gegeneinander austauschbar. Das <b>erste</b> ist der Standard, die übrigen sind Alternativen mit ihrem Grund.</p>`;
   h += `<div class="alt-liste">`;
   (g.glieder||[]).forEach((x,i)=>{
+    const a = altGliedArt(x);
+    const rang = (i===0) ? 'Standard' : (a ? (a.ico+' '+altArtWort(a.key)) : 'nicht eingestuft');
     h += `<div class="alt-zeile">
-      <span class="alt-rang">${i===0?'Standard':'Alternative'}</span>
+      <span class="alt-rang${(i>0&&!a)?' offen':''}">${esc(rang)}</span>
       <span class="alt-name">${esc(x.name)}</span>
+      ${(i>0&&a)?`<span class="alt-sorte">${esc(a.sub)}</span>`:''}
       ${x.hinweis?`<span class="alt-hinweis">${esc(x.hinweis)}</span>`:''}
       <button type="button" class="alt-oeffnen" data-k="${esc(x.key)}" onclick="altOeffnen(this.dataset.k)">Material öffnen</button>
     </div>`;
@@ -170,9 +229,11 @@ function renderSheetAlternative(){
       h += `<div class="alt-karte"><div class="alt-kopf">${esc(t.gruppe.wort)}</div>`;
       (t.gruppe.glieder||[]).forEach((x,i)=>{
         const ich = x.key===key;
+        const a = altGliedArt(x);
         h += `<div class="alt-zeile${ich?' ich':''}">
-          <span class="alt-rang">${i===0?'Standard':'Alternative'}</span>
+          <span class="alt-rang${(i>0&&!a)?' offen':''}">${i===0?'Standard':(a?(a.ico+' '+esc(altArtWort(a.key))):'einstufen')}</span>
           <span class="alt-name">${esc(x.name)}${ich?' · diese Zeile':''}</span>
+          ${i===0?'':altSortenWahlHTML(t.gruppe.id, x)}
           <input class="loc-input alt-grund" value="${esc(x.hinweis||'')}" placeholder="Grund, z. B. wenn nicht vorhanden"
             data-g="${esc(t.gruppe.id)}" data-k="${esc(x.key)}" onchange="altUiHinweis(this.dataset.g,this.dataset.k,this.value)">
           <div class="alt-akt">
@@ -190,6 +251,27 @@ function renderSheetAlternative(){
   h += `<button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML = h;
 }
+/* Die vier Sorten als Knopfreihe — EINE Berührung je Einstufung. Ein
+   Auswahlfeld wäre zwei (aufklappen, wählen) und zeigte die vier Möglichkeiten
+   nicht; wer sie nicht sieht, stuft nicht ein. */
+function altSortenWahlHTML(gid, glied){
+  return `<div class="alt-sorten" role="group" aria-label="Sorte des Ersatzes">${
+    ALT_ARTEN.map(a=>`<button type="button" class="alt-sorte-btn${glied.art===a.key?' on':''}"
+      data-g="${esc(gid)}" data-k="${esc(glied.key)}" data-a="${esc(a.key)}"
+      title="${esc(a.sub)}" aria-pressed="${glied.art===a.key?'true':'false'}"
+      onclick="altUiArt(this.dataset.g,this.dataset.k,this.dataset.a)">${esc(a.ico)} ${esc(altArtWort(a.key))}</button>`).join('')
+  }</div>`;
+}
+function altUiArt(gid, key, art){
+  const g = altGruppeOf(gid); if(!g) return;
+  const x = (g.glieder||[]).find(y=>y.key===key);
+  /* Nochmal auf dieselbe Sorte tippen nimmt die Einstufung zurück — sonst
+     gäbe es keinen Weg zurück auf „nicht eingestuft". */
+  altArtSetzen(gid, key, (x && x.art===art) ? null : art);
+  renderSheetAlternative();
+  if(typeof reRenderDetail==='function') reRenderDetail();
+}
+
 function altUiNeu(){
   const e = sheetEntry, cid = sheetCid; if(!e) return;
   const key = altKey(e, cid); if(!key) return;
