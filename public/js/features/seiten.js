@@ -179,8 +179,16 @@ function segBarHTML(){
       onclick="setSeg(this.dataset.seite)">${esc(s.ico)} ${esc(s.wort)}${s.aus?' (aus)':''}<span class="seg-n">${esc(String(n||''))}</span></button>`;
   };
   const plus = istAdmin ? `<button type="button" class="seg-btn seg-neu" onclick="seiteNeuSheet()" aria-label="Seite hinzufügen">＋</button>` : '';
+  /* Die Sortierungen laufen über dasselbe Register wie alles andere: Wort,
+     Symbol und an/aus liegen unter `sortierung` (features/funktionen.js),
+     eingestellt wird durch LANGES TIPPEN auf den Knopf. Der Messstand hatte
+     hier sechs Flächen ohne Langdruck gezählt. */
   const sorts = (typeof sortsFor==='function' && aktiv)
-    ? sortsFor(aktiv).map(s=>`<button class="sortchip${curSort===s.key?' on':''}" aria-pressed="${curSort===s.key?'true':'false'}" onclick="setSort('${s.key}')" title="${esc(s.label)}"><span aria-hidden="true">${s.ico}</span> ${esc(s.label)}</button>`).join('')
+    ? sortsFor(aktiv).filter(s=>!(typeof fktAus==='function' && fktAus('sortierung', s.key))).map(s=>{
+        const ico = (typeof fktWert==='function') ? fktWert('sortierung', s.key, 'ico', s.ico) : s.ico;
+        const wort = (typeof fktWert==='function') ? fktWert('sortierung', s.key, 'wort', s.label) : s.label;
+        return `<button class="sortchip${curSort===s.key?' on':''}" data-k="${esc(s.key)}" data-w="${esc(s.label)}" data-ico="${esc(s.ico)}" aria-pressed="${curSort===s.key?'true':'false'}" onclick="setSort(this.dataset.k)" title="${esc(wort)}"><span aria-hidden="true">${esc(ico)}</span> ${esc(wort)}</button>`;
+      }).join('')
     : '';
   return `<div class="segbar" role="tablist" aria-label="Bereiche der Startseite">${seiten.map(knopf).join('')}${plus}</div>`
     + (sorts ? `<div class="sortbar" role="group" aria-label="Sortierung">${sorts}</div>` : '');

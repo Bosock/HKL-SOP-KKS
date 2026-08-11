@@ -45,11 +45,64 @@ function ruleRank(wo){ return ({stelle:4,standard:3,gruppe:2,eigenschaft:2,alle:
 function ruleBeats(a,b){ const ra=ruleRank(a.wo), rb=ruleRank(b.wo);
   if(ra!==rb) return ra>rb; if(a.ts!==b.ts) return a.ts>b.ts; return a.id>b.id; }
 
+/* ===== WORAUF sich eine Regel bezieht =====
+
+   Bis hierher gab es genau EIN Ziel: ein Material. Zeilen ohne
+   `material_key` — Handgriffe, Hinweise, „Raumkontrolle", alles selbst
+   Angelegte — konnten deshalb keine Regel tragen. Die Folge war der Befund
+   des Betreibers: „die Reichweiten Einstellung bei Änderungen bevor
+   gespeichert wird können nicht angepasst werden!" Der Knopf im Prüfblatt
+   war für diese Zeilen ausgegraut, und zwar für immer.
+
+   Jetzt gibt es ein zweites Ziel: den TEXT der Zeile.
+
+     { art:'material', key:'schleusenset-6f' }   wie bisher
+     { art:'text',     key:'t:raumkontrolle' }   neu
+
+   ── Warum der Text und nicht die Stelle ──
+   Weil die Frage im Saal „gilt das überall?" lautet und „überall" für eine
+   Tätigkeit dasselbe heißt wie für ein Produkt: an jeder Zeile, die dasselbe
+   sagt. „OP-Lampengriff" steht 46× im Bestand. Genau diese Auflösung benutzt
+   die Zerlegung längst für ihre Bestätigungen (features/matkey.js,
+   `zerlTextKey`) — hier kommt kein neuer Gedanke dazu, sondern derselbe an
+   einer zweiten Stelle (Grundsatz ⑥).
+
+   ── Die Trennung ist sauber ──
+   Eine Zeile MIT Material bleibt ein Material-Ziel; sie wird nie zusätzlich
+   über ihren Text getroffen. Sonst gälte eine Textregel plötzlich auch für
+   Produkte, deren Schreibweise zufällig übereinstimmt — und die Trefferzahl
+   im Prüfblatt wäre eine Lüge. Beide Schlüsselräume können sich auch nicht
+   überschneiden: Textschlüssel tragen das Präfix `t:`, Materialschlüssel nie.
+
+   ── Für alte Journale ändert sich nichts ──
+   Bestehende Regeln haben art:'material' und werden exakt wie vorher
+   aufgelöst. Neu ist ausschließlich, dass Zeilen ohne Material überhaupt
+   eine bekommen können. */
+
+function ruleTextKey(e){
+  if(!e) return null;
+  const t = e.anzeige_text || e.roh_text || '';
+  if(!t) return null;
+  const s = (typeof zerlSlug==='function')
+    ? zerlSlug(t)
+    : String(t).toLowerCase().replace(/[^a-z0-9äöüß]+/g,'-').replace(/^-+|-+$/g,'');
+  return s ? ('t:'+s) : null;
+}
+/* Das Ziel einer neuen Regel für DIESE Zeile — oder null, wenn die Zeile
+   weder Material noch Text hat (dann bleibt nur „nur hier", ehrlich). */
+function ruleZiel(e){
+  const mk = e && e.material_key;
+  if(mk) return { art:'material', key:mk };
+  const t = ruleTextKey(e);
+  return t ? { art:'text', key:t } : null;
+}
+function ruleZielKey(e){ const z = ruleZiel(e); return z ? z.key : null; }
+
 /* ===== Zustand + Index ===== */
 let RULES=loadJSON('hkl_rules',[]);
-let RULES_IDX=null; /* Map 'materialKey|prop' → aktive Regeln */
+let RULES_IDX=null; /* Map 'zielKey|prop' → aktive Regeln (Material ODER Text) */
 function rebuildRulesIndex(){ RULES_IDX=new Map();
-  rulesActive(RULES).forEach(r=>{ if(!r.ziel||r.ziel.art!=='material'||!r.ziel.key||!r.prop) return;
+  rulesActive(RULES).forEach(r=>{ if(!r.ziel||(r.ziel.art!=='material'&&r.ziel.art!=='text')||!r.ziel.key||!r.prop) return;
     const k=r.ziel.key+'|'+r.prop; if(!RULES_IDX.has(k)) RULES_IDX.set(k,[]); RULES_IDX.get(k).push(r); }); }
 rebuildRulesIndex();
 function saveRules(){ saveJSON('hkl_rules',RULES); rebuildRulesIndex(); }
@@ -75,7 +128,9 @@ function ruleActor(){ try{ if(typeof currentGithubUser!=='undefined'&&currentGit
    sind „am ältesten" und werden von jeder echten Regel gleicher Reichweite
    überstimmt (Lazy-Migration: neue Regel schlägt Alt-Wert). */
 function ruleCandidates(e,cid,prop,legacy){
-  const mk=e&&e.material_key; const out=[];
+  /* Der Schlüssel ist der Materialschlüssel — und wo es keinen gibt, der
+     Textschlüssel. Für alle bisherigen Zeilen ändert sich damit nichts. */
+  const mk=ruleZielKey(e); const out=[];
   if(mk&&RULES_IDX){ const lst=RULES_IDX.get(mk+'|'+prop);
     if(lst){ const sid=cidStd(cid); let grp=null,gk=false;
       lst.forEach(r=>{ let rank=0,ok=false;
@@ -108,7 +163,9 @@ function hasStelleRule(cid,prop){ if(!cid) return false;
 /* Nimmt alle aktiven Regeln zurück, die genau an DIESER Stelle (cid) für dieses
    Material und diese Eigenschaft gelten (für „Zurücksetzen"/Toggle-zurück). */
 function revokeStelleRules(mk,cid,prop){ if(!mk) return;
-  rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.art==='material'&&r.ziel.key===mk&&r.prop===prop&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
+  /* Der Gegenstand (Material oder Text) steht im Schlüssel; die Art muss hier
+     nicht unterschieden werden — beide Schlüsselräume sind getrennt. */
+  rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===mk&&r.prop===prop&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
 
 /* Entfernt den Alt-Speicher-Wert, den eine neue Regel gleicher Reichweite
    ablöst (Lazy-Migration → die Alt-Speicher leeren sich mit der Zeit). Nur
@@ -135,13 +192,21 @@ function revokeRule(id){ const r=RULES.find(x=>x.id===id&&x.op==='set'); if(!r) 
   saveRules(); buildMaterialIndex(); computeUkList(); }
 
 /* ===== Treffervorschau (RSoP-Prinzip): was würde eine Regel erfassen? ===== */
-function ruleHits(materialKey,wo){ const stds=new Set(); let n=0;
+function ruleHits(zielKey,wo){ const stds=new Set(); let n=0;
+  if(!zielKey) return { vorkommen:0, standards:[] };
+  /* Ein Textschlüssel trifft NUR Zeilen ohne Material. Sonst würde eine Regel
+     für „Raumkontrolle" auch ein Produkt einfangen, das zufällig genauso
+     heißt — und die Zahl im Prüfblatt verspräche etwas anderes, als danach
+     passiert. */
+  const perText = String(zielKey).indexOf('t:')===0;
   if(DB&&DB.standards) DB.standards.forEach(s=>{
     if(wo.art==='standard'&&s.id!==wo.wert) return;
     if(wo.art==='gruppe'&&stdGruppe(s)!==wo.wert) return;
     if(wo.art==='eigenschaft'&&!(typeof eigHat==='function'&&eigHat(s.id,wo.wert))) return;
     (s.rubriken||[]).forEach(r=>(r.sub_bereiche||[]).forEach(sb=>(sb.eintraege||[]).forEach(e=>{
-      if(e.material_key===materialKey&&!e.ist_fliesstext&&e.natur!=='ueberschrift'){ n++; stds.add(s.id); } })));
+      if(!e||e.ist_fliesstext||e.natur==='ueberschrift') return;
+      const trifft = perText ? (!e.material_key && ruleTextKey(e)===zielKey) : (e.material_key===zielKey);
+      if(trifft){ n++; stds.add(s.id); } })));
   });
   return { vorkommen:n, standards:[...stds] }; }
 

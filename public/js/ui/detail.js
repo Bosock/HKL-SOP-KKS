@@ -90,6 +90,11 @@ function entryCardHTML(e,cid,isMatGer){
      Untermenü: Im Saal muss man sofort lesen können, wohin etwas gehört und
      was stattdessen geht. */
   if(typeof berBadgeHTML==='function') meta+=berBadgeHTML(e,cid);
+  /* Das Häkchen „Material für den sterilen Tisch" steht im Verwaltungsmodus
+     direkt an der Zeile — eine Berührung statt vier über das Menü. Es
+     erscheint nur bei beschaffbarem Material und nur, wenn das Haus einen
+     Bereich dafür bestimmt hat (features/bereiche.js). */
+  if(typeof berHakenHTML==='function') meta+=berHakenHTML(e,cid,isMatGer);
   if(typeof altBadgeHTML==='function') meta+=altBadgeHTML(e,cid);
   if(e.zusatz_markierung&&e.zusatz_markierung.fundstelle) meta+=`<span class="tag tag-zusatz">${esc(e.zusatz_markierung.fundstelle)}</span>`;
   /* Eigenschaften: ist das Material zugeordnet (canon), kommen sie vom Produkt
@@ -100,7 +105,17 @@ function entryCardHTML(e,cid,isMatGer){
   const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
   const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
-  const ico = isMatGer?`<div class="e-ico">${info.icon||'•'}</div>`:'';
+  /* Das Kategorie-Symbol ist einzeln abschaltbar — je Kategorie über das
+     Funktionsregister (Bereich `natico`), langes Tippen auf die Zeile führt
+     über „Kategorie ändern" dorthin. Der Betreiber: „das Icon für Material
+     oder Geräte usw. muss ebenfalls individuell anzeigbar oder ausgeblendet
+     werden können".
+
+     Es geht dabei nicht um Geschmack, sondern um Platz: Auf einem Handy
+     kostet die Symbolspalte in JEDER Zeile Breite, die dem Namen fehlt. Wer
+     ohnehin nur Material in einer Rubrik hat, braucht das Symbol nicht. */
+  const icoAus = (typeof fktAus==='function') && fktAus('natico', nat);
+  const ico = (isMatGer && !icoAus)?`<div class="e-ico">${info.icon||'•'}</div>`:'';
   const cls = (isMatGer?'':'step')+(important?' important':'');
   /* Schriftgröße/Gewicht dieser Zeile und Auszeichnungen im Text
      (features/textstil.js). Beides ist abschaltbar-frei: Ohne das Modul
@@ -143,7 +158,23 @@ function entryCardHTML(e,cid,isMatGer){
      daneben: Im Saal wird die Liste gelesen, nicht betrachtet — wer ein Bild
      braucht, findet es, wer keins braucht, verliert keine Zeile Übersicht. */
   const bilder=(typeof medStreifenHTML==='function')?medStreifenHTML(e,cid):'';
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div>${meta?`<div class="e-meta">${meta}</div>`:''}${bilder}</div></div>${whyPanel}</div>`;
+  /* ── WARUM DIE ANGABEN UNTER DER ZEILE STEHEN UND NICHT NEBEN IHR ──
+     Gemessen auf einem Handy (360 px): Von 360 px blieben dem Namen 98 —
+     27 %. Der Rest ging an Häkchen, Menge, Symbol, Bild, Abstände und den
+     ⋯-Knopf. Die Angaben (Größe, Lagerort, Bereich, Alternativen …) standen
+     dabei INNERHALB derselben schmalen Spalte und brachen deshalb auf drei
+     und vier Zeilen um — bei 115 px Zeilenhöhe, während rechts daneben
+     nichts stand. Genau das war gemeint mit „es wird viel freier Platz
+     nicht genutzt".
+
+     Jetzt sind `.e-meta` und der Bilderstreifen GESCHWISTER der Zeile, nicht
+     Kinder ihrer Textspalte: Sie haben die volle Breite des Eintrags.
+
+     Die Kennung wandert mit — der Halte-Detektor (features/quickmenu.js)
+     hört auf `.entry-row[data-cid], .e-meta[data-cid]`. Tippen und Halten
+     wirken damit auf der Angabenzeile genau wie vorher; ohne das wäre der
+     Umbau ein stiller Verlust an Bedienbarkeit. */
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div></div></div>${meta?`<div class="e-meta" data-cid="${esc(cid)}">${meta}</div>`:''}${bilder}${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -151,6 +182,10 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
      Eintragszeile ist schon dreifach belegt (tippen, halten, Schalter) — ein
      viertes Verhalten darauf wäre ein Ratespiel (features/sortieren.js). */
   if(typeof sortAktivFuer==='function' && sortAktivFuer(idx)){ sortRender(idx); return; }
+  /* Änderungsmodus: dieselbe Rubrik, aber die Zeilen sind Felder. Die Ansicht
+     wird dafür NICHT verlassen — genau das war das Holprige daran, eine
+     Liste durchzusehen (features/zeilen.js). */
+  if(typeof zeilAktivFuer==='function' && zeilAktivFuer(idx)){ zeilRender(idx); return; }
   const isMatGer=(r.typ==='material'||r.typ==='geraete'); let html='';
   /* Bilder an der Rubrik selbst (features/medien.js): ein Übersichtsfoto des
      Tisches gehört an die Rubrik, nicht an eine einzelne Zeile. */
@@ -239,35 +274,50 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
       html+=`</div>`; }
   }
   const body=html||`<div class="empty"><div class="ei">📄</div><h3>Keine Einträge</h3><p>Diese Rubrik enthält keine Positionen.</p></div>`;
+  /* DIE KNÖPFE UNTER DER LISTE — jeder mit SCHLÜSSEL.
+     Der Messstand zählte hier sechs Flächen ohne Langdruck: Sie ließen sich
+     weder umbenennen noch ausblenden, obwohl Hausregel A7 genau das verlangt.
+     Jetzt trägt jeder Knopf seinen Schlüssel (`data-k`), sein Wort und sein
+     Symbol kommen aus dem Funktionsregister (Bereich `rubknopf`), und langes
+     Tippen darauf öffnet seine Einstellung. Wer im Labor „Bausteine" nie
+     benutzt, nimmt den Knopf weg — ohne Entwickler. */
+  const rk=(key, icoVor, wortVor, aufruf, da)=>{
+    if(!da) return '';
+    if(typeof fktAus==='function' && fktAus('rubknopf', key)) return '';
+    const ico=(typeof fktWert==='function')?fktWert('rubknopf',key,'ico',icoVor):icoVor;
+    const wort=(typeof fktWert==='function')?fktWert('rubknopf',key,'wort',wortVor):wortVor;
+    return `<button class="add-entry-btn" data-k="${esc(key)}" data-r="${idx}" data-s="${esc(curStd.id)}" onclick="${aufruf}">${esc(ico)} ${esc(wort)}</button>`;
+  };
+  const neuBtn=rk('eintrag','＋','Eintrag hinzufügen','startAddEntry()', ADMIN);
   /* „Ankreuzen statt Abtippen" (features/ankreuzen.js) hat „⬇ Aus Katalog
      übernehmen" abgelöst: Der alte Weg konnte EINE Position auf einmal und
      kannte nur den Katalog — den kleinsten der vorhandenen Töpfe. Der neue
-     kreuzt mehrere an und zieht aus dem ganzen Bestand. In Ablauf-Rubriken
-     gibt es ihn ebenfalls; dort stehen die Handgriffe zur Wahl. */
-  const adoptBtn=(ADMIN&&typeof ankOeffnen==='function')
-    ?`<button class="add-entry-btn" data-r="${idx}" onclick="ankOeffnen(+this.dataset.r)">☑ Ankreuzen statt Abtippen</button>`:'';
-  /* Eigene Abschnitte in JEDER Rubrik anlegbar (Souveränität): bei Material/
-     Geräte als Unterkategorie-Sektion (UKSEC), in Ablauf-Rubriken als eigene
-     Überschrift — nur im Verwaltungsmodus. */
-  /* Der Zeitgewinn beim Anlegen eines Standards: In DIESER Rubrik stehen die
-     Bausteine dieser Rubrik — ankreuzen, einfügen, fertig
-     (features/bausteine.js). */
+     kreuzt mehrere an und zieht aus dem ganzen Bestand. */
+  const adoptBtn=rk('ankreuzen','☑','Ankreuzen statt Abtippen','ankOeffnen(+this.dataset.r)',
+    ADMIN&&typeof ankOeffnen==='function');
   /* Der größte Zeitgewinn beim SCHREIBEN eines Standards: Die fertige Liste
      liegt fast immer schon irgendwo (Word, Mail, abfotografierter Zettel).
-     „Liste einfügen" übernimmt sie in einem Zug — mit Prüfschritt dazwischen
-     (features/einfuegen.js). */
-  const listBtn=(ADMIN&&typeof einfOeffnen==='function')
-    ?`<button class="add-entry-btn" data-r="${idx}" onclick="einfOeffnen(+this.dataset.r)">📋 Liste einfügen</button>`:'';
-  const bauBtn=(ADMIN&&typeof bauEinfuegenSheet==='function')
-    ?`<button class="add-entry-btn" data-s="${esc(curStd.id)}" data-r="${idx}" onclick="bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')">🧱 Bausteine einfügen</button>`:'';
-  const sortBtn=(ADMIN&&typeof sortAn==='function')
-    ?`<button class="add-entry-btn" data-r="${idx}" onclick="sortAn(+this.dataset.r)">↕ Reihenfolge ändern</button>`:'';
-  const sectionBtn=ADMIN?(isMatGer
-    ?`<button class="add-entry-btn" onclick="addUkSectionUI(${idx})">＋ Abschnitt (Reiter)</button>`
-    :`<button class="add-entry-btn" onclick="addSegSectionUI(${idx})">＋ Abschnitt (Überschrift)</button>`):'';
+     „Liste einfügen" übernimmt sie in einem Zug (features/einfuegen.js). */
+  const listBtn=rk('liste','📋','Liste einfügen','einfOeffnen(+this.dataset.r)',
+    ADMIN&&typeof einfOeffnen==='function');
+  /* In DIESER Rubrik stehen die Bausteine dieser Rubrik — ankreuzen,
+     einfügen, fertig (features/bausteine.js). */
+  const bauBtn=rk('bausteine','🧱','Bausteine einfügen',"bauEinfuegenSheet(this.dataset.s,+this.dataset.r,'')",
+    ADMIN&&typeof bauEinfuegenSheet==='function');
+  /* Der gemessene Weg: Eine Zeile umbenennen kostete sechs Berührungen und
+     zwei Bildschirmwechsel. Hier bleibt man in der Liste (features/zeilen.js). */
+  const zeilBtn=rk('zeilen','✏️','Zeilen ändern','zeilAn(+this.dataset.r)',
+    ADMIN&&typeof zeilAn==='function');
+  const sortBtn=rk('sortieren','↕','Reihenfolge ändern','sortAn(+this.dataset.r)',
+    ADMIN&&typeof sortAn==='function');
+  /* Eigene Abschnitte in JEDER Rubrik anlegbar (Souveränität): bei Material/
+     Geräte als Unterkategorie-Sektion, in Ablauf-Rubriken als Überschrift. */
+  const sectionBtn=isMatGer
+    ? rk('abschnitt','＋','Abschnitt (Reiter)','addUkSectionUI(+this.dataset.r)', ADMIN)
+    : rk('abschnitt','＋','Abschnitt (Überschrift)','addSegSectionUI(+this.dataset.r)', ADMIN);
   const chkN=rubrikCids(idx).filter(c=>checks[c]).length;
   const resetBar=chkN?`<div class="chk-reset"><span class="cr-count">${chkN} abgehakt</span><button type="button" class="cr-btn" onclick="clearRubrikChecks(${idx})">↺ Alle zurücksetzen</button></div>`:'';
-  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+`<button class="add-entry-btn" onclick="startAddEntry()">＋ Eintrag hinzufügen</button>`+adoptBtn+listBtn+bauBtn+sortBtn+sectionBtn;
+  $('scr-detail').innerHTML=hintsBlockHTML('rub',curStd.id+'|'+idx)+resetBar+body+neuBtn+adoptBtn+listBtn+bauBtn+zeilBtn+sortBtn+sectionBtn;
   show('scr-detail'); setBar(r.name,curStd.titel+' · '+curStd.gruppe,true);
 }
 /* Sammelt alle abhakbaren cids einer Rubrik (Basis- + eigene Einträge). */
@@ -364,6 +414,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   /* Der Sortiermodus ist eine Ebene für sich: ‹ verlässt ihn, statt aus der
      Rubrik herauszuspringen — sonst stünde man plötzlich zwei Ebenen höher. */
   if(typeof sortAktiv==='function' && sortAktiv()){ sortAus(); return; }
+  if(typeof zeilAktiv==='function' && zeilAktiv()){ zeilAus(); return; }
   /* Neue Ansichten (Anleitungen, Pop-up-Verwaltung, Varianten): jeweils genau
      eine Ebene zurück, statt bis zur Übersicht durchzufallen. */
   const act=(id)=>{ const el=$(id); return el&&el.classList.contains('active'); };

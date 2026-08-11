@@ -186,6 +186,9 @@ jede neue Funktion):
 | **Arten von Aushängen** (Pinnwand) | anlegen · Wort · Symbol · Farbe · „laut" |
 | **Wo Bilder stehen** | je Stelle: Bilder an/aus · Symbol an/aus · Wort · Symbol; dazu ein Schalter für alle auf einmal |
 | **Einträge aus einer fertigen Liste** | einfügen, jede Zeile prüfen, korrigieren, abwählen — dann anlegen |
+| **Knöpfe unter der Liste** | je Knopf: Wort · Symbol · an/aus — durch langes Tippen darauf |
+| **Sortierungen der Startseite** | je Sortierung: Wort · Symbol · an/aus — durch langes Tippen darauf |
+| **Merkmals-Reihen** | je Reihe: Wort · an/aus — durch langes Tippen auf einen ihrer Knöpfe |
 
 **Die Grenze, bewusst gezogen.** Nicht einstellbar sind (a) vier Menüpunkte —
 Verwaltung, Anmelden, Abmelden, „Problem melden" — und ☰ selbst: wer sie
@@ -196,6 +199,13 @@ können wäre keine Freiheit, sondern eine Falle.
 **Verstoß erkennt man an.** Einer festen Liste im Code, die eigentlich das Haus
 pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter) —
 oder einem neuen Knopf, der in dieser Tabelle keine Zeile findet.
+
+**Gemessen statt vermutet (07.08.2026).** `node e2e/messen.js` zählt, welche
+sichtbaren Flächen KEINEN Langdruck tragen. Der erste Lauf fand 44: Kopf des
+Standards, die Knöpfe unter der Liste, die Sortier-Knöpfe, die Merkmals-Knöpfe.
+Alle sind jetzt angeschlossen, und `e2e/zeilen.js` schlägt fehl, sobald wieder
+eine Fläche der Kernbedienung ohne Langdruck dasteht. A7 ist damit nicht mehr
+nur eine Regel, sondern eine Prüfung.
 
 **Sechste Maschinenprüfung (06.08.2026, erweitert 07.08.2026): Verdrahtung.**
 `scripts/pruefungen/verdrahtung.js` fängt fünf Fehlerklassen ab, bei denen

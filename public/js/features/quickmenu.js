@@ -113,7 +113,18 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 
   S.gruppe('gefahr','Gefahrenzone','Entfernen & zurücksetzen');
   if(e._added){ S.akt('loeschen','🗑️','Endgültig löschen','eigenen Eintrag entfernen','sheetDeleteAdded()','danger'); }
-  else { S.akt('loeschen','🗑️','Ausblenden / Löschen','aus der Anzeige entfernen','sheetDelete()','danger'); }
+  else {
+    S.akt('loeschen','🗑️','Ausblenden','aus der Anzeige nehmen — über die Verwaltung wiederherstellbar','sheetDelete()','danger');
+    /* DIREKT DARUNTER der harte Weg (features/endgueltig.js). Der Betreiber:
+       „das löschen mit Back Up muss weg das macht alles komplett umständlich!
+        … oder du machst einen permanent löschen Button unter den ausblenden
+        Button… das ist auch ok."
+       Wer 47 Standards durcharbeitet, räumt auf und will nicht danach noch
+       einen Papierkorb leeren. */
+    if(typeof hartUiLoeschen==='function'){
+      S.akt('endgueltig','🗑','Endgültig entfernen','weg — und NICHT unter „Ausgeblendete Einträge" wiederherstellbar','hartUiLoeschen()','danger');
+    }
+  }
   S.akt('zuruecksetzen','↺','Änderungen zurücksetzen','für diesen Eintrag','sheetResetEntry()');
 
   h+=S.html();
@@ -127,10 +138,22 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 function openStdSheet(id){ if(!ADMIN) return; if(id){ const t=DB.standards.find(x=>x.id===id); if(t) curStd=t; } if(!curStd) return; const s=curStd; const hid=stdHidden(s);
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Standard bearbeiten${s.__new?' · App-eigen':''}</div><div class="sheet-name">${esc(stdTitel(s))}</div>`;
   h+=sChips(['📄 dieser Standard', '👥 alle Geräte']);
+  /* MERKMALE ZUM ANKREUZEN, ganz oben und ohne Umweg (features/eigenschaften.js).
+     „Merkmale sollen über das Menü mit einer Checkbox einem standard zugeordnet
+     werden … macht die Arbeit schneller."
+
+     Der Block steht bewusst NICHT im Funktionsregister: Er besteht vollständig
+     aus Daten des Hauses. Gibt es kein „ja"-Merkmal, ist er einfach nicht da;
+     jede einzelne Zeile lässt sich per Langdruck umbenennen oder herausnehmen.
+     Ein Katalogeintrag daneben wäre eine zweite Wahrheit über dasselbe Ding. */
+  if(typeof eigHakenHTML==='function'){
+    const hk = eigHakenHTML(s.id);
+    if(hk) h += sGroup('Merkmale','antippen ordnet zu · lange tippen ändert das Merkmal') + hk;
+  }
   const S = sheetBauer('standard');
   S.gruppe('inhalt','Inhalt','Titel, Gruppe & Freigabe');
   S.akt('titel','✏️','Titel & Gruppe','Name und Zuordnung','showSheet(false);openStdRenameForm()');
-  S.akt('merkmale','🏷','Merkmale', (typeof eigChips==='function'&&eigChips(s.id).length)?(eigChips(s.id).length+' vergeben'):'z. B. sedierungspflichtig', 'eigSheet(curStd.id)');
+  S.akt('merkmale','🏷','Merkmale im Einzelnen','auch „ausdrücklich nein", Werte und Auswahllisten','eigSheet(curStd.id)');
   if(typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(medAnkStd(s.id)))
     S.akt('bilder','🖼️','Bilder am Standard', (typeof medAnkerPaare==='function'&&medAnkerPaare(medAnkStd(s.id)).length)?(medAnkerPaare(medAnkStd(s.id)).length+' Bilder'):'Fotos im Kopf des Standards', 'medAnkerSheet(medAnkStd(curStd.id), stdTitel(curStd))');
   S.akt('freigabe','🏷️','Freigabe prüfen & erteilen','Siegel, Version, Gültigkeit','showSheet(false);openFreigabe(curStd.id)');
@@ -160,6 +183,13 @@ function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[
   S.gruppe('inhalt','Inhalt','Name & Symbol');
   S.akt('umbenennen','✏️','Umbenennen','nur diese Rubrik in diesem Standard','showSheet(false);renameRubrik('+idx+')');
   S.akt('symbol','🔣','Symbol ändern','gilt für ALLE Rubriken dieses Namens','showSheet(false);editRubIconFor('+idx+')');
+  /* Bilder an der Rubrik. Seit das Symbol nur noch bei VORHANDENEM Bild in der
+     Liste steht (features/medien.js), ist dieser Punkt der Weg zum ersten. */
+  if(typeof medAnkRub==='function' && (typeof bildKnopfZeigen!=='function' || bildKnopfZeigen(medAnkRub(curStd.id, idx)))){
+    const nb=(typeof medAnkerPaare==='function')?medAnkerPaare(medAnkRub(curStd.id, idx)).length:0;
+    S.akt('bilder','🖼️','Bilder an der Rubrik', nb?(nb+' Bild'+(nb===1?'':'er')):'Foto oder Skizze hinzufügen',
+      'showSheet(false);medAnkerSheet(medAnkRub(curStd.id,'+idx+'), rubName(curStd.rubriken['+idx+'],'+idx+'))');
+  }
   S.gruppe('organisation','Organisation','Reihenfolge & Geltung');
   S.akt('hoch','⬆','Nach oben','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',-1)');
   S.akt('runter','⬇','Nach unten','Reihenfolge im Standard','showSheet(false);moveRubrik('+idx+',1)');
@@ -178,8 +208,21 @@ function openRubSheet(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[
 /* Symbol (Emoji) genau DIESER Rubrik ändern (RUBICON ist nach Rubrik-Name
    indiziert – anders als editRubIcon, das den Verwaltungs-Index nutzt). */
 function editRubIconFor(idx){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return; const name=rubName(r,idx);
-  const cur=RUBICON[name]||''; const v=prompt('Symbol (Emoji) für Rubriken namens „'+name+'":',cur); if(v==null) return;
-  if(v.trim()==='') delete RUBICON[name]; else RUBICON[name]=v.trim(); saveRUBICON(); openStandard(curStd.id,true); toast('Symbol geändert'); }
+  const cur=RUBICON[name]||'';
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Symbol der Rubrik</div>
+    <div class="sheet-name">${esc(name)}</div>
+    <input type="text" id="skRubIco" class="txtinp" style="width:100%" maxlength="4" value="${esc(cur)}">
+    <p class="hint" style="padding:6px 4px">Gilt für alle Rubriken dieses Namens. Leer lassen nimmt das Symbol weg.</p>
+    <div class="p-actions" style="margin-top:10px">
+      <button class="btn btn-sec" onclick="showSheet(false)">Abbrechen</button>
+      <button class="btn btn-pri" data-n="${esc(name)}" onclick="editRubIconSpeichern(this.dataset.n)">Übernehmen</button></div>`;
+  if(typeof showSheet==='function') showSheet(true);
+  const inp=$('skRubIco'); if(inp) setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },50); }
+function editRubIconSpeichern(name){
+  const inp=$('skRubIco'); const v=(inp?inp.value:'').trim();
+  if(v==='') delete RUBICON[name]; else RUBICON[name]=v;
+  saveRUBICON(); if(typeof showSheet==='function') showSheet(false);
+  if(curStd) openStandard(curStd.id,true); toast('Symbol geändert'); }
 
 /* Öffnet das Bearbeiten-Formular direkt für eine cid (vom ✎-Button und vom
    Schnellmenü genutzt – eine gemeinsame Stelle statt doppelter Logik). */
@@ -196,8 +239,11 @@ function sheetBestellen(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
 
 function sheetPflegeWeg(){ const cid=sheetCid, e=sheetEntry; if(!e) return; showSheet(false);
   if(typeof pflegeAbZeile==='function') pflegeAbZeile(cid,e); }
-function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return; if(!confirm('Diesen eigenen Eintrag endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return;
-  const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }
+function sheetDeleteAdded(){ const cid=sheetCid, e=sheetEntry; if(!e||!e._added) return;
+  sheetFrage('Eintrag endgültig löschen?',
+    'Dieser Eintrag wurde selbst angelegt — es gibt keine Quelldatei, aus der er zurückkäme. Das lässt sich nicht rückgängig machen.',
+    'Endgültig löschen',
+    ()=>{ const p=cid.split('|'); deleteAddEntry(p[0],+p[1],e._aid); showSheet(false); toast('Gelöscht'); reRenderDetail(); }, true); }
 /* Übernimmt den aktuellen Eintrag (mit effektiven Werten) in den Katalog. */
 function sheetAddToCatalog(){ const cid=sheetCid, e=sheetEntry; if(!e) return; const f=entryToForm(e,cid);
   if(!f.name||!f.name.trim()){ toast('Kein Name vorhanden',true); return; }
@@ -255,7 +301,8 @@ function moveEntryTo(targetSid,targetRi){ const e=sheetEntry, cid=sheetCid; if(!
       color:(qeGet(e,cid,'color')||''), why:e.why||'', synonyms:e.synonyms||[] });
     clone.groessen=((qeGet(e,cid,'groessen')!==undefined?qeGet(e,cid,'groessen'):e.groessen)||[]).slice();
     const nk=targetSid+'|'+targetRi; (ADDITIONS.entries[nk]=ADDITIONS.entries[nk]||[]).push(clone); saveAdditions();
-    if(e.material_key&&typeof addRule==='function') addRule({art:'material',key:e.material_key},{art:'stelle',wert:cid},'hidden',true);
+    const zh=(typeof ruleZiel==='function')?ruleZiel(e):(e.material_key?{art:'material',key:e.material_key}:null);
+    if(zh&&typeof addRule==='function') addRule(zh,{art:'stelle',wert:cid},'hidden',true);
     else { (QE.cid[cid]=QE.cid[cid]||{}).hidden=true; saveQE(); }
   }
   rebuildDB(); buildMaterialIndex(); computeUkList(); showSheet(false);
@@ -281,9 +328,25 @@ function sheetZusatzDel(i){ const arr=(qeGet(sheetEntry,sheetCid,'zusatz')||[]).
   sheetPending={kind:'zusatz',value:arr}; askScope(); }
 function renderSheetCat(){ let h=`<div class="sheet-grip"></div><div class="sheet-title">Kategorie wählen</div><div class="sheet-pick">`;
   natList().forEach(n=>{ h+=`<button class="sheet-pick-btn" onclick="sheetSetNatur('${esc(n.key)}')"><span style="width:14px;height:14px;border-radius:4px;background:${n.color};display:inline-block"></span>${esc(n.label)}</button>`; });
-  h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
+  h+=`<button class="sheet-pick-btn" onclick="sheetNewNatur()">＋ Neue Kategorie…</button></div>`;
+  /* Das Symbol der AKTUELLEN Kategorie schalten — hier, wo man die Kategorie
+     ohnehin ansieht, statt in einem Untermenü der Verwaltung. */
+  if(typeof fktFlaecheSheet==='function')
+    h+=`<div class="sheet-pick"><button class="sheet-pick-btn" onclick="sheetNaturSymbol()">🔣 Symbol dieser Kategorie <span class="ps-sub">· überall ein- oder ausblenden</span></button></div>`;
+  h+=`<button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetNatur(key){ sheetPending={kind:'natur',value:key}; askScope(); }
+/* Das SYMBOL dieser Kategorie an- oder ausschalten — dort, wo man die
+   Kategorie ohnehin gerade ansieht (features/funktionen.js, Bereich `natico`). */
+function sheetNaturSymbol(){
+  const e=sheetEntry, cid=sheetCid; if(!e) return;
+  const key=(typeof effNatur==='function')?effNatur(e,cid):'material';
+  const info=(typeof natOf==='function')?natOf(key):{label:key,icon:'•'};
+  if(typeof fktFlaecheSheet!=='function') return;
+  fktFlaecheSheet('natico', key, { wort:info.label, ico:info.icon||'•',
+    titel:'Symbol der Kategorie',
+    sub:'Gilt für JEDE Zeile dieser Kategorie. „Ausblenden" nimmt nur das Symbol weg — die Farbe und die Kategorie bleiben.' });
+}
 /* Eingabe-Sheet statt prompt() — gleicher Grund wie sheetNewUk (M1). */
 function sheetNewNatur(){
   const h=`<div class="sheet-grip"></div><div class="sheet-title">Neue Kategorie</div>
@@ -324,7 +387,51 @@ function renderSheetColor(){ let h=`<div class="sheet-grip"></div><div class="sh
   h+=`<button class="sheet-pick-btn" onclick="sheetSetColor(null)">Farbe entfernen</button><button class="sheet-close" onclick="renderSheetMain()">Zurück</button>`;
   $('sheet').innerHTML=h; }
 function sheetSetColor(val){ sheetPending={kind:'color',value:val}; askScope(); }
-function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text); const nn=prompt('Neuer Anzeigename:',cur); if(nn==null||!nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }
+/* EIN Eingabefeld als Karte im Menü — für alle Schnellbearbeitungen.
+   Vorher stand hier viermal `prompt()`. Das ist nicht nur gegen Grundsatz ⑧:
+   In installierten PWAs erscheint auf mehreren Android-Chrome-Versionen KEIN
+   Fenster, der Aufruf liefert sofort null — „Schnell umbenennen", die
+   meistbenutzte Bearbeitung der App, schlug am Tablet im Saal LAUTLOS fehl.
+   Gemessen wurde das am Messstand (e2e/messen.js): Der Weg kam nie an. */
+let skTextTun = null;
+function sheetTextFrage(titel, wert, hinweis, tun){
+  skTextTun = (typeof tun==='function') ? tun : null;
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${esc(titel)}</div>
+    <div class="sheet-name">${esc(sheetEntry?((qeGet(sheetEntry,sheetCid,'name')!==undefined?qeGet(sheetEntry,sheetCid,'name'):sheetEntry.anzeige_text)||''):'')}</div>
+    <input type="text" id="skText" class="txtinp" style="width:100%" value="${esc(wert==null?'':wert)}">
+    ${hinweis?`<p class="hint" style="padding:6px 4px">${esc(hinweis)}</p>`:''}
+    <div class="p-actions" style="margin-top:10px">
+      <button class="btn btn-sec" onclick="renderSheetMain()">Abbrechen</button>
+      <button class="btn btn-pri" onclick="sheetTextSpeichern()">Übernehmen</button></div>`;
+  const inp = $('skText');
+  if(inp){ setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} }, 50);
+    inp.onkeydown = (ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); sheetTextSpeichern(); } }; }
+}
+/* Eine Rückfrage als Karte im Menü — statt confirm(). Derselbe Grund wie
+   oben: In installierten PWAs erscheint kein Fenster, der Aufruf liefert
+   sofort `false`. Das ist bei einer Löschung zwar die sichere Richtung, aber
+   der Knopf tut dann eben nichts — und das sieht im Saal aus wie ein
+   hakendes Tablet. Die Karte nennt außerdem, was WIRKLICH passiert; ein
+   nativer Dialog kann keine zwei Absätze. */
+let skFrageTun = null;
+function sheetFrage(titel, text, wortJa, tun, gefahr){
+  skFrageTun = (typeof tun==='function') ? tun : null;
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${esc(titel)}</div>
+    <p class="why-help">${esc(text)}</p>
+    <div class="p-actions" style="margin-top:12px">
+      <button class="btn btn-sec" onclick="renderSheetMain()">Abbrechen</button>
+      <button class="btn btn-pri"${gefahr?' style="background:#d64545;border-color:#d64545"':''} onclick="sheetFrageJa()">${esc(wortJa||'Ja')}</button></div>`;
+}
+function sheetFrageJa(){ const f = skFrageTun; skFrageTun = null; if(f) f(); }
+
+function sheetTextSpeichern(){
+  const inp = $('skText'); const v = inp ? inp.value : '';
+  const f = skTextTun; skTextTun = null;
+  if(f) f(v);
+}
+function sheetRename(){ const e=sheetEntry,cid=sheetCid; const dn=qeGet(e,cid,'name'); const cur=(dn!==undefined?dn:e.anzeige_text);
+  sheetTextFrage('Anzeigename', cur, 'Nur der angezeigte Name. Wie weit die Änderung reicht, wird gleich danach gefragt.',
+    (nn)=>{ if(!nn || !nn.trim()) return; sheetPending={kind:'name',value:nn.trim()}; askScope(); }); }
 function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
   /* mengeHi hat einen automatischen Grundzustand (≠1x); der Umschalter muss
      IMMER den gerade angezeigten (effektiven) Zustand umkehren — sonst
@@ -335,11 +442,16 @@ function sheetToggle(prop){ const e=sheetEntry,cid=sheetCid;
 /* Reichweiten-Wahl (Verwaltungspolitik-Kaskade): vier ehrliche Stufen mit
    TREFFERVORSCHAU direkt an jeder Option — Sammel-Änderung ist kein eigenes
    Werkzeug, sondern zwei weitere Knöpfe im vertrauten Dialog. */
-function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ applyPending('cid'); return; }
+function askScope(){ const e=sheetEntry, cid=sheetCid;
+  /* Der Gegenstand ist das Material — und wo es keines gibt, der TEXT der
+     Zeile (features/rules.js). Hier stand vorher `if(!e.material_key)` und
+     damit die zweite Tür, durch die ein Handgriff nie eine Reichweite bekam. */
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e.material_key||null);
+  if(!zk){ applyPending('cid'); return; }
   /* Die Stufen kommen aus der gemeinsamen Treppe (features/reichweite.js) —
      dieselbe Liste wie im Bearbeiten-Formular, inklusive der Merkmals-
      Reichweiten („alle mit sedierungspflichtig"). */
-  const stufen=(typeof rwStufen==='function')?rwStufen(cid,e.material_key):[];
+  const stufen=(typeof rwStufen==='function')?rwStufen(cid,zk):[];
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Wo soll es gelten?</div>`;
   h+=`<div class="sheet-chips"><span class="schip">👥 gilt auf allen Geräten</span></div><div class="sheet-pick">`;
   stufen.forEach(x=>{ h+=`<button class="sheet-pick-btn" data-s="${esc(x.key)}" onclick="applyPending(this.dataset.s)">${x.ico} ${esc(x.lang||x.wort)} <span class="ps-sub">· ${esc(x.langSub||x.sub||'')}</span></button>`; });
@@ -349,7 +461,9 @@ function askScope(){ const e=sheetEntry, cid=sheetCid; if(!e.material_key){ appl
    confirm() erscheint in installierten PWAs auf mehreren Android-Chrome-
    Versionen gar nicht, und die Sammel-Änderung fiele lautlos aus (Grundsatz ⑧). */
 function askScopeBestaetigen(scope){
-  const e=sheetEntry, cid=sheetCid; const s=(typeof rwStufe==='function')?rwStufe(cid,e.material_key,scope):null;
+  const e=sheetEntry, cid=sheetCid;
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e.material_key||null);
+  const s=(typeof rwStufe==='function')?rwStufe(cid,zk,scope):null;
   if(!s){ applyPending(scope); return; }
   const n=s.hits?s.hits.vorkommen:0, m=s.hits?s.hits.standards.length:0;
   let h=`<div class="sheet-grip"></div><div class="sheet-title">Sammel-Änderung bestätigen</div>`;
@@ -363,54 +477,72 @@ function askScopeBestaetigen(scope){
    🗂 Gruppe · 🌐 alle) — rückverfolgbar, rücknehmbar, im Inspektor sichtbar.
    Der abgelöste Alt-Wert wird migriert (clearLegacyAt). Weite Reichweiten
    (Gruppe/alle) werden mit Trefferzahl bestätigt (Governance-Treppe).
-   Einträge OHNE material_key haben kein Regel-Ziel → Alt-Pfad („nur hier"). */
+   Das Ziel ist das Material — und wo es keines gibt, der TEXT der Zeile
+   (features/rules.js, `ruleZiel`). Damit hat auch ein Handgriff eine
+   Reichweite; früher war der Knopf dort für immer ausgegraut. Erst eine Zeile
+   ganz ohne Material UND ohne Text fällt auf den Alt-Pfad zurück. */
 function applyPending(scope,bestaetigt){ const e=sheetEntry,cid=sheetCid,p=sheetPending; if(!e||!p){ showSheet(false); return; }
-  const mk=e.material_key;
-  if(mk){
-    const stufe=(typeof rwStufe==='function')?rwStufe(cid,mk,scope):null;
+  const ziel=(typeof ruleZiel==='function')?ruleZiel(e):(e.material_key?{art:'material',key:e.material_key}:null);
+  if(ziel){
+    const stufe=(typeof rwStufe==='function')?rwStufe(cid,ziel.key,scope):null;
     const wo=stufe?stufe.wo:{art:'stelle',wert:cid};
     if(stufe && stufe.weit && !bestaetigt){ askScopeBestaetigen(scope); return; }
-    addRule({art:'material',key:mk}, wo, p.kind, p.value);
+    addRule(ziel, wo, p.kind, p.value);
     if(wo.art==='stelle') clearLegacyAt(e,cid,'stelle',p.kind);
     else if(wo.art==='alle') clearLegacyAt(e,cid,'alle',p.kind);
     buildMaterialIndex(); if(p.kind==='uk') computeUkList();
     sheetPending=null; showSheet(false);
     toast((scope==='cid')?'Übernommen':'Sammel-Änderung übernommen — rücknehmbar unter 🧾 Regeln & Journal'); reRenderDetail(); return;
   }
-  /* Kein material_key → Alt-Pfad (nur „hier" möglich) */
+  /* Weder Material noch Text → Alt-Pfad (nur „hier" möglich) */
   if(p.kind==='natur'){ overrides[cid]=p.value; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); }
   else if(p.kind==='uk'){ reassign[cid]=(p.value===''?null:p.value); saveJSON('hkl_reassign',reassign); computeUkList(); }
   else { qeSet('cid',e,cid,p.kind,p.value); if(p.kind==='name'||p.kind==='color'||p.kind==='hidden'){ buildMaterialIndex(); } }
   sheetPending=null; showSheet(false); toast('Übernommen'); reRenderDetail(); }
-function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||''; const nn=prompt('Neue Menge (z. B. 2x — leer lassen = keine Menge):',cur); if(nn==null) return; const val=nn.trim()===''?null:nn.trim(); sheetPending={kind:'mengeVal',value:val}; askScope(); }
+function sheetEditMenge(){ const e=sheetEntry,cid=sheetCid; const mv=qeGet(e,cid,'mengeVal'); const cur=(mv!==undefined?mv:e.menge)||'';
+  sheetTextFrage('Menge', cur, 'z. B. „2x". Leer lassen heißt: keine Menge.',
+    (nn)=>{ sheetPending={kind:'mengeVal',value:(nn.trim()===''?null:nn.trim())}; askScope(); }); }
 function guessSizeTyp(t){ const s=t.toLowerCase(); if(/f(r|rench)?$/.test(s)&&/\d/.test(s)) return 'french'; if(/cm$/.test(s)) return 'laenge'; if(/mm$/.test(s)) return 'durchmesser'; if(/(ml|l)$/.test(s)&&/\d/.test(s)) return 'volumen'; if(/\dx\d/.test(s)) return 'dimension'; if(/er$/.test(s)) return 'naht'; return 'typcode'; }
 function parseSizesInput(text){ return (text||'').split(/[,;]+/).map(t=>t.trim()).filter(Boolean).map(t=>({typ:guessSizeTyp(t),wert:t,roh:t})); }
 function sheetEditSizes(){ const e=sheetEntry,cid=sheetCid; const gv=qeGet(e,cid,'groessen'); const cur=((gv!==undefined?gv:e.groessen)||[]).map(g=>g.wert).join(', ');
-  const nn=prompt('Größen, durch Komma getrennt (z. B. 6F, 260cm — leer = keine):',cur); if(nn==null) return;
-  sheetPending={kind:'groessen',value:parseSizesInput(nn)}; askScope(); }
+  sheetTextFrage('Größen', cur, 'Durch Komma getrennt, z. B. „6F, 260cm". Leer lassen heißt: keine Größe.',
+    (nn)=>{ sheetPending={kind:'groessen',value:parseSizesInput(nn)}; askScope(); }); }
 function sheetEditSpez(){ const e=sheetEntry,cid=sheetCid; const sv=qeGet(e,cid,'spez');
   const cur=(sv!==undefined)?(sv||''):((Array.isArray(e.spezifikation)?e.spezifikation.join(' | '):e.spezifikation)||'');
-  const nn=prompt('Spezifikation (Klammerzusatz/Standort — leer = keine):',cur); if(nn==null) return;
-  sheetPending={kind:'spez',value:(nn.trim()===''?null:nn.trim())}; askScope(); }
+  sheetTextFrage('Spezifikation', cur, 'Klammerzusatz oder Standort, z. B. „femoral". Leer lassen heißt: keine.',
+    (nn)=>{ sheetPending={kind:'spez',value:(nn.trim()===''?null:nn.trim())}; askScope(); }); }
 function sheetDelete(){
-  if(sheetCid&&sheetCid.indexOf('new|')===0){ if(!confirm('Diesen selbst angelegten Eintrag endgültig löschen?')) return;
-    const id=sheetCid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
-    if(QE.cid[sheetCid]) delete QE.cid[sheetCid]; if(overrides[sheetCid]){ delete overrides[sheetCid]; saveJSON('hkl_overrides',overrides); }
-    saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); return; }
+  const cid=sheetCid;
+  if(cid&&cid.indexOf('new|')===0){
+    sheetFrage('Eintrag endgültig löschen?',
+      'Dieser Eintrag wurde selbst angelegt. Es gibt keine Quelldatei, aus der er zurückkäme.',
+      'Endgültig löschen',
+      ()=>{ const id=cid.slice(4); const i=NEW.findIndex(x=>x.id===id); if(i>=0){ NEW.splice(i,1); saveNEW(); }
+        if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); }
+        saveQE(); showSheet(false); toast('Gelöscht'); reRenderDetail(); }, true);
+    return; }
   /* In einem EIGENEN Standard (Kopie/Neuanlage mit eigener Struktur) gibt es
      keine Quelldatei, die man schonen müsste — dort ist Löschen echtes
      Löschen. Genau das braucht man beim Aufbau eines neuen Standards. */
-  if(typeof ownHatStruktur==='function' && sheetCid && ownHatStruktur(sheetCid.split('|')[0])){
-    if(!confirm('Diesen Eintrag endgültig löschen? In einem eigenen Standard ist das nicht wiederherstellbar.')) return;
-    if(ownDeleteEntry(sheetCid)){ showSheet(false); toast('Eintrag gelöscht'); reRenderDetail(); }
+  if(typeof ownHatStruktur==='function' && cid && ownHatStruktur(cid.split('|')[0])){
+    sheetFrage('Eintrag endgültig löschen?',
+      'Dieser Standard hat eine eigene Struktur — hier ist Löschen echtes Löschen und nicht wiederherstellbar.',
+      'Endgültig löschen',
+      ()=>{ if(ownDeleteEntry(cid)){ showSheet(false); toast('Eintrag gelöscht'); reRenderDetail(); } }, true);
     return; }
-  if(!confirm('Diesen Eintrag ausblenden? Er verschwindet aus der Anzeige und der Materialpflege, bleibt aber über „Verwaltung → Ausgeblendete Einträge" wiederherstellbar. Die Quelldatei wird nicht verändert.')) return; sheetPending={kind:'hidden',value:true}; askScope(); }
+  sheetFrage('Eintrag ausblenden?',
+    'Er verschwindet aus der Anzeige und aus der Materialpflege — gelöscht wird nichts. Über „Verwaltung → Ausgeblendete Einträge" kommt er jederzeit zurück, und die Quelldatei bleibt unangetastet.',
+    'Ausblenden',
+    ()=>{ sheetPending={kind:'hidden',value:true}; askScope(); }); }
 /* Setzt NUR die Änderungen an dieser Stelle zurück: 📍-Regeln (revoke) + die
    Alt-Speicher an diesem cid. Standard-/Gruppen-/Überall-Regeln bleiben — die
    sind bewusste Sammel-Entscheidungen und werden im 🧾 Journal zurückgenommen. */
 function sheetResetEntry(){ const cid=sheetCid, e=sheetEntry;
   if(QE.cid[cid]) delete QE.cid[cid]; if(overrides[cid]!==undefined){ delete overrides[cid]; saveJSON('hkl_overrides',overrides); } if(cid in reassign){ delete reassign[cid]; saveJSON('hkl_reassign',reassign); }
-  if(e&&e.material_key&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===e.material_key&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
+  /* Material ODER Text — sonst bliebe eine 📍-Regel an einem Handgriff nach
+     dem Zurücksetzen bestehen und die Zeile sähe unverändert aus. */
+  const zk=(typeof ruleZielKey==='function')?ruleZielKey(e):(e&&e.material_key);
+  if(zk&&typeof rulesActive==='function'){ rulesActive(RULES).forEach(r=>{ if(r.ziel&&r.ziel.key===zk&&r.wo&&r.wo.art==='stelle'&&r.wo.wert===cid) revokeRule(r.id); }); }
   saveQE(); buildMaterialIndex(); computeUkList(); showSheet(false); toast('Zurückgesetzt'); reRenderDetail(); }
 /* Nach einer Änderung genau den Bildschirm auffrischen, auf dem man steht.
    Das Bearbeiten-Menü ist EIN Menü in zwei Kontexten (Grundsatz ⑥) — es wird
@@ -452,7 +584,7 @@ function ghostMouse(){ return Date.now()-touchGuardTs<700; }
    ganzen Zeile, hakt ab und unterdrückt den nativen Klick, sodass der
    Schalter selbst nie zum Zug kommt. An EINER Stelle gepflegt, damit ein
    neuer Schalter nicht wieder vergessen wird. */
-const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn';
+const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn,.ber-haken';
 
 /* Die sichtbaren Schalter einer Eintragszeile (Delegation am Bildschirm).
    Das Tippen/Halten der ZEILE selbst behandelt der gemeinsame Halte-Detektor
@@ -551,6 +683,82 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
       else if(rw.classList.contains('akt-karte') && typeof aktUiBearbeiten==='function') aktUiBearbeiten(id);
       else if(rw.classList.contains('best-karte') && typeof bestUiBearbeiten==='function') bestUiBearbeiten(id);
     } });
+  /* DIE VIER FLÄCHEN, DIE DER MESSSTAND ALS OFFEN GEMELDET HAT.
+     Hausregel A7 verlangt den Langdruck DORT, wo das Ding steht. Gemessen
+     (e2e/messen.js) fehlte er noch an 44 Flächen: Kopf des Standards (2),
+     Knöpfe unter der Liste (6), Sortier-Knöpfe (6), Merkmals-Knöpfe (30).
+     Alle vier führen auf dasselbe Sheet (features/funktionen.js), weil alle
+     vier dieselbe Sorte Einstellung tragen: Wort, Symbol, an/aus. */
+
+  /* ① Die Knöpfe unter der Liste. Kurz tippen tut, was draufsteht (der
+     native Klick geht durch — deshalb onTap:false), lang halten stellt ein. */
+  attachHoldNav($('scr-detail'), { rowSel:'.add-entry-btn[data-k]', keys:['k'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const k=rw.dataset.k; if(!k || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      fktFlaecheSheet('rubknopf', k, { wort:rw.textContent.replace(/^\s*\S+\s*/,'').trim(),
+        ico:(rw.textContent.trim().split(/\s+/)[0]||''),
+        titel:'Knopf der Rubrik', sub:'Gilt in JEDER Rubrik — der Knopf ist derselbe.' });
+    } });
+
+  /* ② Der Kopf des Standards. Er ist die Fläche, auf der man steht, wenn man
+     „an diesem Standard" etwas ändern will — also führt der Langdruck genau
+     dorthin, wo das schon geht: in sein ⋯-Menü. */
+  attachHoldNav($('scr-rubriken'), { rowSel:'.std-kopf[data-sid]', ignoreSel:'button,a,input,select,textarea,label,.med-anker', keys:['sid'],
+    onTap:()=>false,
+    onHold:rw=>{ const sid=rw.dataset.sid;
+      if(sid && ADMIN && typeof openStdSheet==='function'){ refreshAuth(); openStdSheet(sid); } } });
+
+  /* ③ Die Sortier-Knöpfe der Startseite. */
+  attachHoldNav($('scr-standards'), { rowSel:'.sortchip[data-k]', keys:['k'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const k=rw.dataset.k; if(!k || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      fktFlaecheSheet('sortierung', k, { wort:(rw.dataset.w||rw.textContent.trim()),
+        ico:(rw.dataset.ico||''), titel:'Sortierung',
+        sub:'Welche Sortierungen oben zur Wahl stehen.' });
+    } });
+
+  /* ④ Die Merkmals-Knöpfe. Eingestellt wird die ART (alle Knöpfe einer
+     Reihe), nicht der einzelne Wert: Die Werte kommen aus den Daten und
+     wechseln mit ihnen — eine Einstellung daran wäre morgen verwaist. */
+  attachHoldNav($('scr-standards'), { rowSel:'.facchip[data-f]', keys:['f'],
+    onTap:()=>false,
+    onHold:rw=>{
+      const f=rw.dataset.f; if(!f || !ADMIN || typeof fktFlaecheSheet!=='function') return;
+      refreshAuth();
+      const reihe=rw.closest('.fac-reihe');
+      const name=reihe?(reihe.querySelector('.fac-name')||{}).textContent||f:f;
+      fktFlaecheSheet('facette', f, { wort:String(name).trim(), ohneIco:true,
+        titel:'Merkmal in der Leiste',
+        sub:'Gilt für die ganze Reihe. Eine ausgeblendete Reihe mit aktiver Auswahl bleibt sichtbar — sonst wirkte ein Filter unsichtbar weiter.' });
+    } });
+
+  /* ⑤ Das Häkchen am Material (features/bereiche.js). Kurz tippen ordnet zu,
+     lange tippen öffnet den Bereich selbst — Wort, Symbol, und an welchem
+     Bereich das Häkchen überhaupt hängt. Ohne diesen Langdruck wäre die
+     Fläche unfertig (Hausregel A7). */
+  attachHoldNav($('scr-detail'), { rowSel:'.ber-haken[data-cid]', keys:['cid'],
+    onTap:()=>false,   /* das Antippen erledigt der eigene onclick der Fläche */
+    onHold:rw=>{
+      if(!ADMIN || typeof berHakenBereich!=='function' || typeof berFlaecheSheet!=='function') return;
+      const b=berHakenBereich(); if(!b) return;
+      refreshAuth(); berFlaecheSheet(b.key);
+    } });
+
+  /* ⑥ Die Häkchen IM MENÜ (features/eigenschaften.js). Kurz tippen ordnet zu,
+     lange tippen ändert das Merkmal selbst — dieselbe Geste wie überall
+     sonst, nur eben auf einer Karte statt auf einem Bildschirm. Der Detektor
+     hängt deshalb an der Karte. */
+  attachHoldNav($('sheet'), { rowSel:'.eig-haken[data-k]', keys:['k'],
+    onTap:()=>false,   /* das Antippen erledigt der eigene onclick der Zeile */
+    onHold:rw=>{
+      const k=rw.dataset.k;
+      if(k && ADMIN && typeof eigFlaecheSheet==='function'){ refreshAuth(); eigFlaecheSheet(k); }
+    } });
+
   attachHoldNav($('scr-rubriken'), { rowSel:'.rub', ignoreSel:'.rub-menu-btn', keys:['ri'],
     onTap:rw=>{ const i=rw.dataset.ri; if(i==null) return false; openRubrik(+i); return true; },
     onHold:rw=>{ const i=rw.dataset.ri; if(i!=null&&ADMIN){ refreshAuth(); openRubSheet(+i); } } });
@@ -560,7 +768,11 @@ function attachHoldNav(el, opts){ if(!el) return; let timer=null,sx=0,sy=0,fired
      und der Material-Schalter fehlten. Der Selektor `[data-cid]` grenzt bewusst auf
      ECHTE Eintragszeilen ein; reine Anzeige-Zeilen (Arzt-Varianten) tragen
      keine Kennung und sind damit ausdrücklich nicht bedienbar. */
-  attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
+  /* `.e-meta` steht seit der Handy-Messung NEBEN der Zeile und nicht mehr
+     darin (ui/detail.js) — damit die Angaben die volle Breite haben. Der
+     Detektor muss beide Flächen kennen, sonst wäre die Angabenzeile plötzlich
+     tot: kein Abhaken, kein Langdruck. */
+  attachHoldNav($('scr-detail'), { rowSel:'.entry-row[data-cid],.e-meta[data-cid]', ignoreSel:ENTRY_BTNS, keys:['cid'],
     onTap:rw=>{ const cid=rw.dataset.cid; if(!cid) return false; toggleCheck(cid); return true; },
     onHold:rw=>{ const cid=rw.dataset.cid; if(!cid) return;
       if(ADMIN){ refreshAuth(); openSheet(cid); } else { openProposeForm(cid); } } });

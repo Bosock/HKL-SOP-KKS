@@ -8,7 +8,8 @@
     "dev": "node --watch server.js",
     "check": "node scripts/check.js",
     "test": "node --test",
-    "e2e": "node e2e/run.js"
+    "e2e": "node e2e/run.js",
+    "messen": "node e2e/messen.js"
   },
   "engines": {
     "node": ">=18"

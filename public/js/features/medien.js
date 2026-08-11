@@ -387,12 +387,19 @@ function medStreifenHTML(e, cid){
 function medAnkerHTML(anker, titel){
   if(!medZeigen(anker)) return '';
   const paare = medAnkerPaare(anker);
-  const knopfDa = medKnopf(anker);
-  if(!paare.length && !knopfDa) return '';
+  /* OHNE BILD KEIN SYMBOL — auch nicht im Verwaltungsmodus:
+     „Bilder Icon muss ausgeblendet werden, wenn kein Bild vorhanden ist!
+      grundsätzlich immer."
+
+     Der Grund ist Platz: Ein „🖼 Bild hinzufügen" an jeder Rubrik, jeder
+     Unterkategorie und jedem Abschnitt sind auf einem Handy schnell zehn
+     Zeilen Aufforderung für null Inhalt. Angelegt werden Bilder über das
+     ⋯-Menü der jeweiligen Ebene — dort sucht man, wenn man eines will. */
+  if(!paare.length) return '';
   const wort = (typeof bildOrtIco==='function') ? bildOrtIco(anker) : '🖼';
-  const knopf = knopfDa
+  const knopf = medKnopf(anker)
     ? `<button type="button" class="med-plus" data-a="${esc(anker)}" data-t="${esc(titel||'')}"
-         onclick="medAnkerSheet(this.dataset.a,this.dataset.t)">${esc(wort)} ${paare.length?('Bilder ('+paare.length+')'):'Bild hinzufügen'}</button>`
+         onclick="medAnkerSheet(this.dataset.a,this.dataset.t)">${esc(wort)} Bilder (${paare.length})</button>`
     : '';
   return `<div class="med-anker">${medPaareHTML(paare)}${knopf}</div>`;
 }

@@ -37,7 +37,8 @@ function umgebung(vorgabe, standards) {
       verschieben:eigVerschieben, liste:eigListe, of:eigOf,
       kopfListe:eigKopfListe, reichweiten:eigReichweiten,
       wert:eigWert, setzen:eigSetzen, standards:eigStandards, hat:eigHat,
-      bilanz:eigBilanz, chips:eigChips, kopfHTML:eigKopfHTML, arten:EIG_ARTEN
+      bilanz:eigBilanz, chips:eigChips, kopfHTML:eigKopfHTML, arten:EIG_ARTEN,
+      hakenListe:eigHakenListe, hakenZeile:eigHakenZeile, hakenHTML:eigHakenHTML
     };
     ;globalThis.__store = () => ({ eig: EIG, std: EIGSTD });
   `, ctx);
@@ -198,4 +199,58 @@ test('ein ausdrückliches Nein erzeugt keinen Chip', () => {
   const a = f.anlegen('sedierungspflichtig', 'ja');
   f.setzen('s1', a.key, false);
   assert.equal(f.chips('s1').length, 0);
+});
+
+
+/* ═══ Häkchen direkt im Menü ═══
+   „Merkmale sollen über das Menü mit einer Checkbox einem standard zugeordnet
+   werden … macht die Arbeit schneller." Der Gewinn ist gezählt: eine
+   Berührung statt vier. Geprüft wird deshalb vor allem, dass das Häkchen
+   nichts VERSPRICHT, was es nicht halten kann. */
+
+test('ankreuzen kann man nur Ja/Nein-Merkmale', () => {
+  const { f } = umgebung(null, STDS);
+  f.anlegen('sedierungspflichtig', 'ja');
+  f.anlegen('Vorbereitungszeit', 'wert');
+  f.anlegen('Zugang', 'auswahl');
+  assert.deepEqual(f.hakenListe().map(x => x.key), ['sedierungspflichtig']);
+});
+
+test('ein stilles Merkmal steht auch nicht im Menü', () => {
+  const { f } = umgebung(null, STDS);
+  const a = f.anlegen('sedierungspflichtig', 'ja');
+  f.aendern(a.key, 'zeigen', 'still');
+  assert.equal(f.hakenListe().length, 0);
+  assert.equal(f.hakenHTML('s1'), '', 'ohne ankreuzbare Merkmale gar kein Block');
+});
+
+test('die Zeile zeigt drei Zustände — und behauptet nie einen vierten', () => {
+  const { f } = umgebung(null, STDS);
+  const a = f.anlegen('sedierungspflichtig', 'ja');
+
+  const ohne = f.hakenZeile('s1', f.of(a.key));
+  assert.match(ohne, /aria-checked="false"/);
+  assert.ok(!/ausdrücklich nein/.test(ohne), 'ohne Angabe ist kein Nein');
+
+  f.setzen('s1', a.key, true);
+  const ja = f.hakenZeile('s1', f.of(a.key));
+  assert.match(ja, /aria-checked="true"/);
+  assert.match(ja, /eig-haken on/);
+
+  /* Ein gepflegtes NEIN muss man SEHEN — sonst kreuzt jemand an, was jemand
+     anderes ausdrücklich verneint hat, und merkt es nicht. */
+  f.setzen('s1', a.key, false);
+  const nein = f.hakenZeile('s1', f.of(a.key));
+  assert.match(nein, /eig-haken nein/);
+  assert.match(nein, /ausdrücklich nein/);
+  assert.match(nein, /aria-checked="false"/);
+});
+
+test('jede Zeile trägt die Kennung, an der der Langdruck hängt (A7)', () => {
+  const { f } = umgebung(null, STDS);
+  const a = f.anlegen('sedierungspflichtig', 'ja');
+  const html = f.hakenHTML('s2');
+  assert.match(html, new RegExp('data-k="' + a.key + '"'));
+  assert.match(html, /data-s="s2"/);
+  assert.match(html, /onclick="eigHakenTippen\(/);
 });

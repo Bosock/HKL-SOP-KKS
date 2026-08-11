@@ -2,6 +2,7 @@
 function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id); if(!s){ toast('Standard nicht gefunden',true); return; }
   curStd=s;
   if(typeof sortBeenden==='function') sortBeenden();   /* Sortiermodus gilt nur, solange man in der Rubrik steht */
+  if(typeof zeilBeenden==='function') zeilBeenden();   /* dito der Änderungsmodus */
   if(!silent){ if(!replace){ nav.push({lvl:'std',id}); try{ history.pushState({d:1,id},'','#/std/'+id); }catch(e){} } else { try{ history.replaceState({d:1,id},'','#/std/'+id); }catch(e){} }
     if(typeof noteUsage==='function') noteUsage(id);
     if(typeof popupFire==='function') popupFire({ ereignis:'standard-oeffnen', titel:stdTitel(s), sid:id }); }
@@ -14,10 +15,14 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
   else {
     if(typeof varBarHTML==='function') html+=varBarHTML(s.id);
     if(typeof frgKopfHTML==='function') html+=frgKopfHTML(s);
-    if(ADMIN) html+=`<div class="banner" style="padding:12px 14px"><div style="display:flex;gap:7px;align-items:center">
+    /* Der Kopf trägt die Kennung des Standards: Daran erkennt der
+       Halte-Detektor, dass diese Fläche bedienbar ist (langes Tippen öffnet
+       das ⋯-Menü des Standards). Ohne Kennung meldet der Selbsttest zu Recht
+       „Zeile ohne Handler" — eine Fläche, die auf nichts zeigt. */
+    if(ADMIN) html+=`<div class="std-kopf" data-sid="${esc(s.id)}"><div class="banner" style="padding:12px 14px"><div style="display:flex;gap:7px;align-items:center">
       <span style="flex:1"></span>
       <button class="btn btn-sec" onclick="openStdSheet()">✎ Bearbeiten</button>
-      <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div>`;
+      <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div></div>`;
   }
   const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   let listHtml='';

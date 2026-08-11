@@ -588,6 +588,85 @@ Zugriff (Mitbestimmung).
 
 Tests: `test/seiten.test.js` (42), End-to-End: `e2e/seiten.js` (59).
 
+## Zeilen ändern, ohne die Ansicht zu verlassen (`features/zeilen.js`)
+
+Gemessen (`node e2e/messen.js`, echter Bestand, echte Klicks), nicht geschätzt:
+
+| Weg | vorher | nachher |
+|---|---|---|
+| Eine Zeile umbenennen | 5 Berührungen, 2 Bildschirmwechsel — **und über `prompt()`, das in installierten PWAs nicht erscheint** | 5 Berührungen, kein Systemfenster |
+| Fünf Zeilen ändern | 25 Berührungen | **8 Berührungen, Ansicht nie verlassen** |
+| „Details bearbeiten" | 7 Eingabefelder in 10 Gruppen über 1,8 Bildschirmhöhen, verlässt die Rubrik | unverändert — für Entscheidungen, nicht für Korrekturen |
+
+**„✏️ Zeilen ändern"** schaltet die Rubrik in eine zweite, ruhige Ansicht, in
+der jede Zeile drei Felder trägt: Name, Menge, Spezifikation. Dieselbe Bauart
+wie `sortieren.js` — und aus demselben Grund: Die Eintragszeile ist bereits
+dreifach belegt (tippen hakt ab, halten öffnet das ⋯-Menü, die Schalter darin
+tun ihr Eigenes); ein viertes Verhalten darauf wäre mit Handschuhen ein
+Ratespiel.
+
+**Warum nur drei Felder.** Name, Menge und Spezifikation korrigiert man beim
+*Lesen* einer Liste. Kategorie, Größen, Farbe, Warum und Synonyme sind
+Entscheidungen — die bleiben im vollen Formular. Ein Inline-Formular mit allem
+wäre wieder das Formular, nur an anderer Stelle.
+
+**Der Entwurf.** Getippt wird in `ZEIL` (cid → {feld: Wert}); darin steht nur,
+was sich wirklich unterscheidet. Wer ein Feld antippt und unverändert lässt,
+hat nichts geändert — sonst zeigte das Prüfblatt Änderungen, die keine sind,
+und die Reichweitenfrage würde bedeutungslos. `zeilAnzahl()` zählt **Felder**,
+nicht Zeilen: Eine Zeile mit drei Änderungen sind drei Entscheidungen.
+
+**Das Sammel-Prüfblatt.** „✓ Fertig" zeigt alle Änderungen auf einmal, je mit
+vorher → nachher, jede einzeln herausnehmbar, dazu **eine** Reichweite für den
+ganzen Stapel (voreingestellt „📍 nur hier"). Zeilen ohne geteiltes Material
+bekommen immer `cid` — dort gibt es kein weiteres Ziel. Geschrieben wird über
+`applyPending()`, denselben Weg wie jede andere Änderung: alles landet im
+Regel-Journal und bleibt rücknehmbar (Grundsatz ⑥).
+
+Der ↺-Knopf je Zeile steht **immer** im Markup und wird nur per CSS sichtbar.
+Grund: Beim Tippen wird die Liste bewusst nicht neu gebaut (das nähme dem Feld
+den Fokus) — ein erst beim Zeichnen entstehender Knopf erschiene also nie. Die
+E2E-Prüfung hat genau das gefangen.
+
+Tests: `test/zeilen.test.js` (18), End-to-End: `e2e/zeilen.js` (47).
+
+## Kein natives Eingabefenster mehr im Bearbeiten-Menü
+
+`quickmenu.js` hatte **neun** `prompt()`/`confirm()` — darunter die vier
+meistbenutzten Bearbeitungen der App (Umbenennen, Menge, Größen,
+Spezifikation). In installierten PWAs erscheint dort auf mehreren
+Android-Chrome-Versionen kein Fenster; der Aufruf liefert sofort `null`. Am
+Tablet im Saal schlug „Schnell umbenennen" also **lautlos** fehl. Der Messstand
+hat es gefunden: Der Weg kam nie an.
+
+Zwei Muster ersetzen alle neun, und beide sagen mehr als ein nativer Dialog
+könnte:
+
+```js
+sheetTextFrage(titel, wert, hinweis, tun)          // Eingabe als Karte
+sheetFrage(titel, text, wortJa, tun, gefahr)       // Rückfrage als Karte
+```
+
+Die Ratsche in `scripts/pruefungen/altlasten.json` steht für diese Datei jetzt
+auf **0** und lässt sie nicht mehr steigen.
+
+## Langdruck auf jede Fläche (Hausregel A7)
+
+Der Messstand zählte die Flächen ohne Langdruck: Kopf des Standards (2),
+Knöpfe unter der Liste (6), Sortier-Knöpfe (6), Merkmals-Knöpfe (30) —
+zusammen **44**. Alle vier führen jetzt auf **ein** Sheet
+(`fktFlaecheSheet(bereich, key, vorgabe)` in `features/funktionen.js`), weil
+alle vier dieselbe Sorte Einstellung tragen: Wort, Symbol, an/aus.
+
+Dafür bekamen die Rubrik-Knöpfe Schlüssel (Bereich `rubknopf`: `eintrag` ·
+`ankreuzen` · `liste` · `bausteine` · `zeilen` · `sortieren` · `abschnitt`) und
+die Sortierungen ebenfalls (Bereich `sortierung`). Wer „Bausteine einfügen" im
+Labor nie benutzt, nimmt den Knopf weg — ohne Entwickler.
+
+`e2e/zeilen.js` schließt mit einer Zählung über alle Kernflächen ab und
+scheitert, sobald eine davon ohne Langdruck dasteht. Eine neue Fläche ohne
+Langdruck ist damit nicht mehr nur unschön, sondern rot.
+
 ## Eine ganze Liste auf einmal (`features/einfuegen.js`)
 
 Nach dem ersten selbst geschriebenen Standard: *„Es ist sehr holprig."* Der

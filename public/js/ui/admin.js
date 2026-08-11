@@ -23,7 +23,14 @@ function collectHidden(){ const byCid=[]; const byMat=[]; const byStd=[]; const 
   /* Regel-Ausblendungen (EIN Schreibweg): 📍 Stelle → byCid, 🌐 alle → byMat.
      📄 Standard / 🗂 Gruppe sind bewusste Sammel-Regeln → nur im 🧾 Journal. */
   if(typeof rulesActive==='function') rulesActive(RULES).forEach(r=>{
-    if(!r.ziel||r.ziel.art!=='material'||r.prop!=='hidden'||r.wert!==true||!r.wo) return;
+    /* „text" gilt hier gleichberechtigt: Seit Zeilen ohne Material eine
+       Reichweite haben (features/rules.js), kann auch ein Handgriff per Regel
+       ausgeblendet sein — und muss dann hier zum Wiederherstellen stehen.
+       Für die Reichweite „überall" bleibt es beim Material: Die Liste darunter
+       zeigt MATERIALIEN. Weiter reichende Textregeln nimmt man wie
+       Standard-/Gruppenregeln im 🧾 Journal zurück. */
+    if(!r.ziel||(r.ziel.art!=='material'&&r.ziel.art!=='text')||r.prop!=='hidden'||r.wert!==true||!r.wo) return;
+    if(r.wo.art==='alle'&&r.ziel.art!=='material') return;
     if(r.wo.art==='stelle'){ const cid=r.wo.wert; if(seenCid.has(cid)) return; const loc=locateCid(cid); if(loc){ byCid.push({cid,e:loc.e,std:loc.std,rubrik:loc.rubrik}); seenCid.add(cid); } }
     else if(r.wo.art==='alle'){ const mk=r.ziel.key; if(!seenMat.has(mk)){ byMat.push(mk); seenMat.add(mk); } }
   });

@@ -50,7 +50,12 @@ function berAnlegen(wort){
   const w = String(wort||'').trim(); if(!w) return null;
   let key = berSlug(w); let n = 2;
   while(berOf(key)) key = berSlug(w)+'-'+(n++);
-  const b = { key, wort:w, symbol:'📍', farbe:BER_PALETTE[BEREICHE.length % BER_PALETTE.length], ord:BEREICHE.length };
+  const b = { key, wort:w, symbol:'📍', farbe:BER_PALETTE[BEREICHE.length % BER_PALETTE.length], ord:BEREICHE.length,
+    /* Der ERSTE angelegte Bereich wird automatisch der mit dem Häkchen am
+       Material. Sonst müsste man nach dem Anlegen noch einen Schalter suchen,
+       von dem man nichts weiß — und der häufigste Fall ist genau dieser eine
+       („Material für den sterilen Tisch"). Umhängen geht jederzeit. */
+    haken: !BEREICHE.some(x=>x.haken===true) };
   BEREICHE.push(b); saveBereiche(); return b;
 }
 function berAendern(key, feld, wert){ const b=berOf(key); if(!b) return false; b[feld]=wert; saveBereiche(); return true; }
@@ -77,7 +82,125 @@ function berVon(e, cid){
 function berBadgeHTML(e, cid){
   const b = berVon(e, cid);
   if(!b) return '';
+  /* Im Verwaltungsmodus zeigt das Häkchen selbst schon Symbol und Wort dieses
+     einen Bereichs — dann stünde der Chip zweimal nebeneinander. */
+  if(b.haken===true && (typeof ADMIN!=='undefined') && ADMIN) return '';
   return `<span class="ber-chip" style="--ber:${esc(b.farbe||'#5fb0e0')}">${esc(b.symbol||'📍')} ${esc(b.wort)}</span>`;
+}
+
+/* ═══════════ 2b. Das Häkchen am Material ═══════════
+
+   „dazu soll nur eine kleine Checkbox beim Material vorhanden sein welche
+   genau das aussagt. wichtig das kann von Standard zu Standard und von
+   Material zu Material variieren daher eine Einstellung die spezifisch ist."
+
+   Über „⋯ → Bereich" waren das vier Berührungen je Zeile: Menü öffnen,
+   „Bereich", den Bereich wählen, die Reichweite bestätigen. Bei 40 Materialien
+   in einem Standard sind das 160. Mit dem Häkchen ist es EINE.
+
+   ── Warum ohne Reichweiten-Frage ──
+   Weil der Betreiber genau das gesagt hat: Die Zuordnung variiert von Standard
+   zu Standard und von Material zu Material. Das Häkchen schreibt deshalb immer
+   nur DIESE Stelle. Wer „Kompressen gehören überall auf den sterilen Tisch"
+   meint, nimmt weiterhin „⋯ → Bereich" — dort steht die ganze Treppe.
+
+   ── Warum nur EIN Bereich am Häkchen hängt ──
+   Ein Häkchen ist ja/nein. Drei Bereiche bräuchten drei Häkchen und wären
+   wieder eine Liste. Der Bereich mit dem Häkchen ist der, den man hundertmal
+   am Tag vergibt; alle anderen bleiben im Menü. */
+
+function berHakenBereich(){ return BEREICHE.find(b=>b.haken===true) || null; }
+function berHakenSetzen(key){
+  BEREICHE.forEach(b=>{ b.haken = (b.key===key); });
+  saveBereiche();
+}
+
+/* Trägt DIESE Zeile den Häkchen-Bereich? */
+function berHatHaken(e, cid){
+  const b = berHakenBereich(); if(!b) return false;
+  const jetzt = berVon(e, cid);
+  return !!(jetzt && jetzt.key===b.key);
+}
+
+function berHakenHTML(e, cid, beschaffbar){
+  if(typeof ADMIN==='undefined' || !ADMIN) return '';
+  if(!beschaffbar) return '';                 /* ein Handgriff kommt nicht auf den Tisch */
+  const b = berHakenBereich(); if(!b) return '';
+  const an = berHatHaken(e, cid);
+  return `<button type="button" class="ber-haken${an?' on':''}" role="checkbox" aria-checked="${an?'true':'false'}"
+    style="--ber:${esc(b.farbe||'#5fb0e0')}" data-cid="${esc(cid)}"
+    onclick="berHakenTippen(this.dataset.cid)"
+    ><span class="bh-box" aria-hidden="true">${an?'✓':''}</span>${esc(b.symbol||'📍')} ${esc(b.wort)}</button>`;
+}
+
+/* Antippen. Aufgefrischt wird NUR diese eine Zeile: Die Rubrik neu zu zeichnen
+   kostet bei 58 Einträgen spürbar Zeit und springt an den Anfang zurück —
+   wer eine Liste durchhakt, verliert dann bei jedem Häkchen seine Stelle. */
+function berHakenTippen(cid){
+  const b = berHakenBereich(); if(!b) return;
+  const e = (typeof findEntry==='function') ? findEntry(cid) : null; if(!e) return;
+  const an = berHatHaken(e, cid);
+  const neu = an ? null : b.key;
+  /* Derselbe Schreibweg wie im Menü, nur ohne Rückfrage — Reichweite „nur
+     diese Stelle" (features/quickmenu.js → applyPending). */
+  const ziel = (typeof ruleZiel==='function') ? ruleZiel(e) : (e.material_key?{art:'material',key:e.material_key}:null);
+  if(ziel && typeof addRule==='function'){
+    addRule(ziel, {art:'stelle',wert:cid}, 'bereich', neu);
+  } else if(typeof qeSet==='function'){
+    qeSet('cid', e, cid, 'bereich', neu);
+  }
+  if(typeof document==='undefined') return;
+  const zeilen = document.querySelectorAll('.ber-haken');
+  for(let i=0;i<zeilen.length;i++){
+    const z = zeilen[i];
+    if(z.dataset.cid!==String(cid)) continue;
+    const box = document.createElement('div');
+    box.innerHTML = berHakenHTML(e, cid, true);
+    if(box.firstElementChild) z.replaceWith(box.firstElementChild);
+  }
+}
+
+/* A7: Langdruck auf das Häkchen öffnet den Bereich selbst. */
+let berFlaeche = null;
+function berFlaecheSheet(key){
+  if(typeof ADMIN!=='undefined' && !ADMIN) return;
+  if(!berOf(key)) return;
+  berFlaeche = key; berFlaecheZeichnen();
+  if(typeof showSheet==='function') showSheet(true);
+}
+function berFlaecheZeichnen(){
+  const b = berOf(berFlaeche); if(!b || typeof $!=='function' || !$('sheet')) return;
+  const andere = berListe().filter(x=>x.key!==b.key);
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Bereich</div>
+    <div class="sheet-name">${esc(b.symbol||'📍')} ${esc(b.wort)}</div>
+    <p class="why-help">Das Häkchen am Material setzt genau diesen Bereich — und nur an der einen Stelle, an der es steht. Alle anderen Bereiche stehen weiter unter „⋯ → Bereich", dort mit der ganzen Reichweiten-Treppe.</p>
+    <div class="form-grp"><div class="flabel">Wort</div>
+      <input class="loc-input" id="berFlWort" value="${esc(b.wort)}"></div>
+    <div class="form-grp"><div class="flabel">Symbol</div>
+      <input class="loc-input" id="berFlIco" value="${esc(b.symbol||'')}" maxlength="4"></div>
+    <div class="p-actions"><button class="btn btn-pri" onclick="berFlaecheSpeichern()">Übernehmen</button></div>
+    ${andere.length?`<div class="sheet-pick" style="margin-top:10px">
+      <div class="flabel" style="padding:0 4px 4px">Häkchen stattdessen auf</div>
+      ${andere.map(x=>`<button class="sheet-pick-btn" data-k="${esc(x.key)}" onclick="berFlaecheUmhaengen(this.dataset.k)">${esc(x.symbol||'📍')} ${esc(x.wort)}</button>`).join('')}
+    </div>`:''}
+    <p class="hint" style="padding:8px 4px">Weitere Bereiche anlegen, umsortieren oder löschen: Verwaltung → „📍 Bereiche".</p>
+    <button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+}
+function berFlaecheSpeichern(){
+  const b = berOf(berFlaeche); if(!b) return;
+  const w = ($('berFlWort') && $('berFlWort').value || '').trim();
+  const i = ($('berFlIco')  && $('berFlIco').value  || '').trim();
+  if(w) berAendern(b.key, 'wort', w);
+  berAendern(b.key, 'symbol', i || '📍');
+  if(typeof showSheet==='function') showSheet(false);
+  if(typeof reRenderDetail==='function') reRenderDetail();
+  if(typeof toast==='function') toast('Übernommen');
+}
+function berFlaecheUmhaengen(key){
+  berHakenSetzen(key);
+  if(typeof showSheet==='function') showSheet(false);
+  if(typeof reRenderDetail==='function') reRenderDetail();
+  if(typeof toast==='function') toast('Häkchen hängt jetzt an „'+((berOf(key)||{}).wort||'')+'"');
 }
 
 /* Alle Zeilen eines Standards nach Bereich gruppiert — die Grundlage für die
@@ -150,6 +273,7 @@ function bereichePanelHTML(){
       <input class="loc-input" value="${esc(b.wort)}" data-k="${esc(b.key)}" onchange="berUiFeld(this.dataset.k,'wort',this.value)" aria-label="Bezeichnung">
       <input type="color" class="ber-farbe" value="${esc(b.farbe||'#5fb0e0')}" data-k="${esc(b.key)}" oninput="berUiFeld(this.dataset.k,'farbe',this.value)" aria-label="Farbe">
       <div class="ber-akt">
+        <button class="${b.haken===true?'on':''}" data-k="${esc(b.key)}" onclick="berUiHaken(this.dataset.k)">${b.haken===true?'☑ Häkchen am Material':'☐ Häkchen am Material'}</button>
         <button data-k="${esc(b.key)}" onclick="berUiVerschieben(this.dataset.k,-1)" aria-label="nach oben">⬆</button>
         <button data-k="${esc(b.key)}" onclick="berUiVerschieben(this.dataset.k,1)" aria-label="nach unten">⬇</button>
         <button class="dgr" data-k="${esc(b.key)}" onclick="berUiLoeschen(this.dataset.k)">Löschen</button>
@@ -173,6 +297,16 @@ function berUiAnlegenSpeichern(){
   if(typeof toast==='function') toast('Bereich „'+w+'" angelegt');
 }
 function berUiFeld(key,feld,wert){ berAendern(key,feld,wert); if(typeof toast==='function') toast('Übernommen'); }
+/* Genau EIN Bereich trägt das Häkchen am Material. Nochmal auf denselben zu
+   tippen nimmt es weg — dann ist die Zuordnung wieder nur über „⋯ → Bereich"
+   zu haben, und die Zeilen bleiben frei von Kästchen. */
+function berUiHaken(key){
+  const b = berOf(key); if(!b) return;
+  if(b.haken===true){ b.haken=false; saveBereiche(); }
+  else berHakenSetzen(key);
+  if(typeof renderAdmin==='function') renderAdmin();
+  if(typeof toast==='function') toast(b.haken===true ? 'Häkchen an „'+b.wort+'"' : 'Kein Häkchen mehr am Material');
+}
 function berUiVerschieben(key,richtung){ if(berVerschieben(key,richtung) && typeof renderAdmin==='function') renderAdmin(); }
 function berUiLoeschen(key){
   berLoeschen(key);

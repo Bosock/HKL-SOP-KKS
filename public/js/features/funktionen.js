@@ -276,7 +276,8 @@ const FKT_SHEET_KATALOG = {
         { key:'sammeln',      ico:'＋',  label:'In Baustein übernehmen', sub:'sammeln und später zu einem Baustein machen' },
       ]},
       { key:'gefahr', titel:'Gefahrenzone', sub:'Entfernen & zurücksetzen', akt:[
-        { key:'loeschen',     ico:'🗑️',  label:'Ausblenden / Löschen',   sub:'aus der Anzeige entfernen' },
+        { key:'loeschen',     ico:'🗑️',  label:'Ausblenden',              sub:'aus der Anzeige nehmen — über die Verwaltung wiederherstellbar' },
+        { key:'endgueltig',   ico:'🗑',   label:'Endgültig entfernen',    sub:'weg — und NICHT unter „Ausgeblendete Einträge" wiederherstellbar' },
         { key:'zuruecksetzen',ico:'↺',   label:'Änderungen zurücksetzen', sub:'für diesen Eintrag' },
       ]},
     ],
@@ -286,7 +287,7 @@ const FKT_SHEET_KATALOG = {
     gruppen: [
       { key:'inhalt', titel:'Inhalt', sub:'Titel, Gruppe & Freigabe', akt:[
         { key:'titel',        ico:'✏️',  label:'Titel & Gruppe',         sub:'Name und Zuordnung' },
-        { key:'merkmale',     ico:'🏷',  label:'Merkmale',               sub:'z. B. sedierungspflichtig' },
+        { key:'merkmale',     ico:'🏷',  label:'Merkmale im Einzelnen',  sub:'auch „ausdrücklich nein", Werte und Auswahllisten' },
         { key:'bilder',       ico:'🖼️',  label:'Bilder am Standard',     sub:'Fotos im Kopf des Standards' },
         { key:'freigabe',     ico:'🏷️',  label:'Freigabe prüfen & erteilen', sub:'Siegel, Version, Gültigkeit' },
         { key:'festschreiben',ico:'📚',  label:'Stand festschreiben',    sub:'die App wird zur Grundlage' },
@@ -308,6 +309,7 @@ const FKT_SHEET_KATALOG = {
       { key:'inhalt', titel:'Inhalt', sub:'Name & Symbol', akt:[
         { key:'umbenennen',   ico:'✏️',  label:'Umbenennen',             sub:'nur diese Rubrik in diesem Standard' },
         { key:'symbol',       ico:'🔣',  label:'Symbol ändern',          sub:'gilt für ALLE Rubriken dieses Namens' },
+        { key:'bilder',       ico:'🖼️',  label:'Bilder an der Rubrik',   sub:'Foto oder Skizze — der Weg zum ersten Bild' },
       ]},
       { key:'organisation', titel:'Organisation', sub:'Reihenfolge & Geltung', akt:[
         { key:'hoch',         ico:'⬆',   label:'Nach oben',              sub:'Reihenfolge im Standard' },
@@ -808,4 +810,80 @@ function funktionenPanelHTML(){
     <p class="hint">Die App gehört Dir: Was Du nicht brauchst, blendest Du aus; was anders heißen soll, benennst Du um; was fehlt, legst Du als eigenen Menüpunkt an. Alles ohne Programmierung und jederzeit rücknehmbar.</p>
     <div class="p-actions"><button class="btn btn-pri" onclick="openFunktionen()">Menü &amp; Funktionen öffnen</button></div>
     </div></details>`;
+}
+
+/* ═══════════ 9. Langdruck auf eine beliebige Fläche ═══════════
+
+   Hausregel A7 sagt: Jede Fläche muss ohne Code änderbar sein, und zwar
+   DORT, wo sie steht — nicht über ein Untermenü. Der Messstand
+   (e2e/messen.js) hat gezählt, wo das noch nicht galt:
+
+     Kopf des Standards      2 Flächen ohne Langdruck
+     Knöpfe unter der Liste  6
+     Sortier-Knöpfe          6
+     Merkmals-Knöpfe        30
+
+   Für alle vier gilt dasselbe: umbenennen, Symbol ändern, ausblenden. Also
+   braucht es dafür EIN Sheet und nicht vier. Die Bereiche liegen im selben
+   Speicher wie das übrige Register (`hkl_funktionen`), damit es keinen
+   zweiten Ort für dieselbe Sorte Einstellung gibt. */
+
+let fktFlaeche = null;    /* { bereich, key, wort, ico, titel, sub, ohneIco } */
+
+function fktFlaecheSheet(bereich, key, vorgabe){
+  if(typeof ADMIN!=='undefined' && !ADMIN) return;
+  const v = vorgabe || {};
+  fktFlaeche = { bereich, key,
+    wort:String(v.wort||''), ico:String(v.ico||''),
+    titel:String(v.titel||'Fläche bearbeiten'), sub:String(v.sub||''),
+    ohneIco:!!v.ohneIco };
+  fktFlaecheZeichnen();
+  if(typeof showSheet==='function') showSheet(true);
+}
+function fktFlaecheZeichnen(){
+  const f = fktFlaeche; if(!f) return;
+  const aus = fktAus(f.bereich, f.key);
+  const wort = fktWert(f.bereich, f.key, 'wort', f.wort);
+  const ico  = fktWert(f.bereich, f.key, 'ico',  f.ico);
+  $('sheet').innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${esc(f.titel)}</div>
+    <div class="sheet-name">${esc(ico)} ${esc(wort)}</div>
+    ${f.sub?`<p class="why-help">${esc(f.sub)}</p>`:''}
+    <div class="form-grp"><div class="flabel">Wort</div>
+      <input class="loc-input" id="fkFlWort" value="${esc(wort)}" placeholder="${esc(f.wort)}"></div>
+    ${f.ohneIco?'':`<div class="form-grp"><div class="flabel">Symbol</div>
+      <input class="loc-input" id="fkFlIco" value="${esc(ico)}" maxlength="4" placeholder="${esc(f.ico)}"></div>`}
+    <div class="p-actions"><button class="btn btn-pri" onclick="fktFlaecheSpeichern()">Übernehmen</button></div>
+    <div class="sheet-pick" style="margin-top:10px">
+      <button class="sheet-pick-btn" onclick="fktFlaecheSchalten()">${aus?'👁 Wieder einblenden':'🚫 Ausblenden'}</button>
+      ${fktGeaendert(f.bereich,f.key)?`<button class="sheet-pick-btn" onclick="fktFlaecheZurueck()">↺ Auf Auslieferung zurücksetzen</button>`:''}
+    </div>
+    <p class="hint" style="padding:8px 4px">Leeres Feld heißt: wieder wie ausgeliefert. Ausgeblendetes bleibt in der Verwaltung unter „🎛 Menü &amp; Funktionen" erreichbar — es geht nichts verloren.</p>
+    <button class="sheet-close" onclick="showSheet(false)">Schließen</button>`;
+}
+function fktFlaecheAuffrischen(){
+  if(typeof reRenderDetail==='function') reRenderDetail();
+  if(typeof renderStandards==='function' && typeof curSeg!=='undefined') renderStandards();
+}
+function fktFlaecheSpeichern(){
+  const f = fktFlaeche; if(!f) return;
+  const w = ($('fkFlWort') && $('fkFlWort').value || '').trim();
+  const i = ($('fkFlIco')  && $('fkFlIco').value  || '').trim();
+  fktSetzen(f.bereich, f.key, 'wort', (w===f.wort) ? '' : w);
+  if(!f.ohneIco) fktSetzen(f.bereich, f.key, 'ico', (i===f.ico) ? '' : i);
+  if(typeof showSheet==='function') showSheet(false);
+  fktFlaecheAuffrischen();
+  if(typeof toast==='function') toast('Übernommen');
+}
+function fktFlaecheSchalten(){
+  const f = fktFlaeche; if(!f) return;
+  const aus = fktAus(f.bereich, f.key);
+  fktSetzen(f.bereich, f.key, 'aus', aus ? '' : true);
+  fktFlaecheZeichnen(); fktFlaecheAuffrischen();
+  if(typeof toast==='function') toast(aus ? 'Wieder sichtbar' : 'Ausgeblendet — in der Verwaltung erreichbar');
+}
+function fktFlaecheZurueck(){
+  const f = fktFlaeche; if(!f) return;
+  fktZuruecksetzen(f.bereich, f.key);
+  fktFlaecheZeichnen(); fktFlaecheAuffrischen();
+  if(typeof toast==='function') toast('Auf Auslieferung zurückgesetzt');
 }
