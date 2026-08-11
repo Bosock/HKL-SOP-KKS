@@ -20,7 +20,7 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reviewed','hkl
   /* Produktdatenbank aus dem Etikett-Scanner (GTIN-Schlüssel) + Aufräum-Fortschritt */
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
-  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand','hkl_seiten','hkl_aufgaben','hkl_aktuelles','hkl_aktuellarten','hkl_bestellungen','hkl_bildorte','hkl_hartweg',
+  'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand','hkl_seiten','hkl_aufgaben','hkl_aktuelles','hkl_aktuellarten','hkl_bestellungen','hkl_bestlern','hkl_bildorte','hkl_hartweg',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -96,6 +96,7 @@ function hydrateVars(){
   if(typeof AKTU!=='undefined'){ AKTU=loadJSON('hkl_aktuelles',[]); if(!Array.isArray(AKTU)) AKTU=[]; }
   if(typeof AKTARTEN!=='undefined'){ AKTARTEN=loadJSON('hkl_aktuellarten',[]); if(!Array.isArray(AKTARTEN)) AKTARTEN=[]; }
   if(typeof BEST!=='undefined'){ BEST=loadJSON('hkl_bestellungen',[]); if(!Array.isArray(BEST)) BEST=[]; }
+  if(typeof BESTLERN!=='undefined'){ BESTLERN=loadJSON('hkl_bestlern',{}); if(!BESTLERN||typeof BESTLERN!=='object'||Array.isArray(BESTLERN)) BESTLERN={}; }
   /* Die Symbole der Kopfleiste hängen an denselben Einstellungen — schaltet
      sie jemand am anderen Gerät ab, muss das hier ankommen. */
   if(typeof fktKopfAnwenden==='function') try{ fktKopfAnwenden(); }catch(e){}
