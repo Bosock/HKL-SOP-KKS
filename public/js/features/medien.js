@@ -313,6 +313,17 @@ async function medFotoAblegen(quelle, opt){
   }catch(e){ return (typeof quelle==='string') ? quelle : null; }
 }
 
+/* Ein Foto VOR dem Speichern sichern: ist es noch eine data-URL (base64), in den
+   Medienspeicher legen und die Kennung/URL zurückgeben — sonst unverändert. So
+   landet base64 nie in GTINDB/BEST und damit nie im localStorage; ein voller
+   Gerätespeicher kann eine Neuaufnahme dann nicht mehr verschlucken. */
+async function medFotoSichern(src){
+  if(!src || typeof src!=='string') return src;
+  if(medIstMediaUrl(src)) return src;                 /* schon Kennung */
+  if(src.indexOf('data:')!==0) return src;            /* fremde URL — unangetastet */
+  try{ const u = await medFotoAblegen(src); return u || src; }catch(e){ return src; }
+}
+
 /* Globaler Fehler-Fänger für Bilder: Lädt `/api/media/<kennung>` nicht (offline
    und noch nicht hochgeladen), holen wir den Blob aus dem lokalen Spiegel und
    zeigen ihn über eine Objekt-URL. Ein einziger Lauscher für die ganze App —

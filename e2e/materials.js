@@ -148,7 +148,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
   // 10) openMaterial: bereitet Stammsatz aus Alt-Pflegedaten VOR (Editor zeigt
   //     die Werte), legt ihn aber erst BEIM SPEICHERN an und verknüpft dann.
-  const r10 = await A.page.evaluate(() => {
+  const r10 = await A.page.evaluate(async () => {
     const key = matDistinctList().find(x => !canonId(x.key)).key;
     careMem[key] = { photo: 'data:image/png;base64,AAAA', loc: 'Regal Z' };
     PROD[key] = { hersteller: 'SeedCorp', ref: 'SEED-1', verwendung: null, preis: 9.5 };
@@ -162,7 +162,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
       && document.getElementById('scLoc').value === 'Regal Z';
     // Jetzt speichern → Stammsatz wird angelegt und verknüpft
     const g = document.querySelector('#scr-scan-item .btn-pri[data-g]').dataset.g;
-    saveScanItem(g);
+    await saveScanItem(g);
     const id = canonId(key);
     const c = id ? GTINDB[id] : null;
     return {

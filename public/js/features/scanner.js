@@ -663,11 +663,9 @@ function scanOnPhoto(ev){
     r.readAsDataURL(files[i]);
   })();
 }
-/* Vorschaubild = erstes Bild der Galerie (Kompatibilität zu `photo`). */
-function scanCurrentPhoto(){ return (scanGalerie[0]&&scanGalerie[0].src)||null; }
 /* Von der OCR/vom Assistenten aufgerufen, wenn dort ein Foto entstanden ist. */
 function scanSetPhoto(photo){ scanGalerieAdd(photo); }
-function saveScanItem(gArg){
+async function saveScanItem(gArg){
   if(!ADMIN){ promptLoginThen(()=>saveScanItem(gArg)); return; }
   let g=gArg?gtinKey(gArg):'';
   if(!g){ const gi=$('scGtin'); g=gi?gtinKey(gi.value.trim()):''; }
@@ -680,13 +678,24 @@ function saveScanItem(gArg){
   if(manual){ if(!val('scName') && !hersteller && !ref){ toast('Bitte mindestens einen Produktnamen (oder Hersteller/REF) angeben.',true); return; } }
   else if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
   const preis=parsePreis(val('scPreis'));
+  /* Fotos sichern, BEVOR gespeichert wird: eine noch nicht hochgeladene
+     Neuaufnahme ist eine data-URL. Käme sie so in GTINDB, läge base64 im
+     localStorage — bei vollem Speicher schlägt der Schreibvorgang fehl und das
+     Foto ist nach dem Neuladen weg (genau der gemeldete Fehler). Wir machen sie
+     erst zur Medien-Kennung; dann ist der Eintrag klein und wird gespeichert. */
+  let fotosSicher=[];
+  for(const f of (scanGalerie||[])){
+    const src=(typeof f==='string')?f:(f&&f.src); if(!src) continue;
+    const url=(typeof medFotoSichern==='function')?await medFotoSichern(src):src;
+    fotosSicher.push({ src:url, titel:(f&&f.titel)||'' });
+  }
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
     kategorie:val('scKat')||null,
     groessen:scanReadSizes(),
     /* Alt-Einzelfelder auf null: sie sind jetzt in der Maßliste (matSizeList) aufgegangen. */
     french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis),
-    fotos:scanGalerie.slice(), photo:scanCurrentPhoto(), props:scanReadProps() };
+    fotos:fotosSicher, photo:(fotosSicher[0]&&fotosSicher[0].src)||null, props:scanReadProps() };
   /* Merkmale (typisiert, je Materialklasse). Unplausible Werte werden gemeldet,
      aber NICHT abgelehnt: Das Etikett ist die Wirklichkeit, der Katalog nur
      unsere Erwartung. Wer eine 300-cm-Schleuse hat, soll sie eintragen können. */

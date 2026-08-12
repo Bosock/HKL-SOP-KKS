@@ -55,11 +55,13 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     scanSetPhoto(c.toDataURL('image/jpeg'));
     document.getElementById('scHersteller').value = 'Terumo';
     document.getElementById('scRef').value = 'RG5J40';
-    saveScanItem('04012345678901');
+    await saveScanItem('04012345678901');
     const rec = GTINDB['04012345678901'];
-    return { hasPhoto: !!(rec && rec.photo && rec.photo.indexOf('data:image') === 0), rowHasImg: /<img/.test(scanRowHTML(rec)) };
+    /* Das Foto liegt jetzt im Medienspeicher (Kennung), nicht mehr als base64 —
+       genau so bleibt der localStorage klein und ein Speicher-voll-Fehler aus. */
+    return { hasPhoto: !!(rec && rec.photo && rec.photo.indexOf('/api/media/') === 0), rowHasImg: /<img/.test(scanRowHTML(rec)) };
   });
-  r.check('Scanner-Produkt speichert Foto (GTINDB.photo)', scan.hasPhoto);
+  r.check('Scanner-Produkt speichert Foto als Medien-Kennung (kein base64 im Zustand)', scan.hasPhoto);
   r.check('Produktliste zeigt Foto-Thumbnail', scan.rowHasImg);
 
   // 5) Scanner-Formular hat die FOTOGALERIE (mehrere Bilder je Material) mit
@@ -83,7 +85,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('Galerie: Bilder sind vergrößerbar (Lightbox)', form.zoombar);
 
   // 5b) Mehrere Fotos je Material: hinzufügen, umsortieren, speichern.
-  const multi = await A.page.evaluate(() => {
+  const multi = await A.page.evaluate(async () => {
     const mk = (farbe) => { const c = document.createElement('canvas'); c.width = 12; c.height = 12;
       const g = c.getContext('2d'); g.fillStyle = farbe; g.fillRect(0, 0, 12, 12); return c.toDataURL('image/jpeg'); };
     openScanItem('04012345678901', true);
@@ -95,7 +97,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     // zweites Bild zum Vorschaubild machen
     scanGalerieMain(1);
     const neuesHaupt = scanGalerie[0].titel;
-    saveScanItem('04012345678901');
+    await saveScanItem('04012345678901');
     const rec = GTINDB['04012345678901'];
     return { vorher, kacheln, neuesHaupt,
       gespeichert: (rec.fotos || []).length,
