@@ -232,3 +232,81 @@ test('ohne Bild und ohne Verwaltung entsteht kein Markup', () => {
   assert.equal(f.paareHTML([]), '');
   assert.equal(f.ankerHTML('rub:s1|0', 'Material'), '', 'keine leere Fläche, die wie ein Fehler aussieht');
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Fotos aus dem localStorage heraus (das „5 MB Limit muss beseitigt werden")
+
+   Produkt- und Bestellfotos lagen als base64 im geteilten Zustand und damit im
+   localStorage, den der Browser bei ~5 MB deckelt. Jetzt gehen sie denselben
+   Weg wie die Eintrags-Bilder: einzeln auf den Server, im Zustand nur die
+   Kennung. Damit `/api/media/<kennung>` genau das eben hochgeladene Bild zeigt
+   (und dieselben Bytes nie zweimal Platz belegen), MUSS die im Browser
+   gebildete Kennung Zeichen für Zeichen der Server-Kennung entsprechen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const crypto5 = require('node:crypto');
+
+function umgebung5mb() {
+  const ctx = vm.createContext({
+    console, Blob, atob, btoa, TextEncoder, TextDecoder, Uint8Array,
+    crypto: crypto5.webcrypto,
+    loadJSON: () => ({}), saveJSON: () => {},
+    esc: (s) => String(s == null ? '' : s),
+    window: undefined, indexedDB: undefined, setTimeout: () => {},
+  });
+  vm.runInContext(SRC + `
+    ;globalThis.__m = { url:medUrl, istMedia:medIstMediaUrl,
+      kennungAusUrl:medKennungAusUrl, zuBlob:medZuBlob, kennungVon:medKennungVon };
+  `, ctx);
+  return ctx.__m;
+}
+
+/* Die Server-Formel wortgleich aus server/media.js — der Beweis-Gegenpart. */
+function serverKennung(buffer) {
+  return crypto5.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
+}
+
+test('die Client-Kennung ist Zeichen für Zeichen die Server-Kennung', async () => {
+  const m = umgebung5mb();
+  const bytes = Buffer.from('irgendein Bild-Inhalt äöü  ÿ', 'binary');
+  const client = await m.kennungVon(new Blob([bytes]));
+  assert.match(client, /^[0-9a-f]{32}$/);
+  assert.equal(client, serverKennung(bytes), 'nur bei Gleichheit zeigt /api/media dasselbe Bild');
+});
+
+test('gleicher Inhalt ⇒ gleiche Kennung (kein doppelter Platz)', async () => {
+  const m = umgebung5mb();
+  const a = await m.kennungVon(new Blob([Buffer.from('foto')]));
+  const b = await m.kennungVon(new Blob([Buffer.from('foto')]));
+  const c = await m.kennungVon(new Blob([Buffer.from('anderes')]));
+  assert.equal(a, b);
+  assert.notEqual(a, c);
+});
+
+test('eine base64-data-URL wird ohne Netz zu den richtigen Bytes', async () => {
+  const m = umgebung5mb();
+  const roh = Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x10, 0x20]);
+  const dataUrl = 'data:image/jpeg;base64,' + roh.toString('base64');
+  const blob = m.zuBlob(dataUrl);
+  assert.equal(blob.type, 'image/jpeg');
+  assert.equal(blob.size, roh.length);
+  assert.equal(await m.kennungVon(blob), serverKennung(roh), 'als hätte der Server die Bytes bekommen');
+});
+
+test('ein Blob wird unverändert durchgereicht, Unsinn ergibt null', () => {
+  const m = umgebung5mb();
+  const b = new Blob([Buffer.from('x')], { type: 'image/png' });
+  assert.equal(m.zuBlob(b), b);
+  assert.equal(m.zuBlob('https://example/x.jpg'), null);
+  assert.equal(m.zuBlob(''), null);
+});
+
+test('Media-URLs werden erkannt und ihre Kennung herausgelesen (Offline-Fallback)', () => {
+  const m = umgebung5mb();
+  const k = 'a'.repeat(32);
+  assert.equal(m.url(k), '/api/media/' + k);
+  assert.ok(m.istMedia('/api/media/' + k));
+  assert.equal(m.istMedia('data:image/png;base64,AAAA'), false);
+  assert.equal(m.kennungAusUrl('/api/media/' + k), k);
+  assert.equal(m.kennungAusUrl('data:image/png;base64,AAAA'), null);
+});

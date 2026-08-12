@@ -85,12 +85,19 @@ function wizClose(){
   WIZ=null;
 }
 
-/* Startet den geführten Dialog. Wird aus dem Material-Editor aufgerufen. */
-function ocrWizStart(){
-  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>ocrWizStart()); return; } }
+/* Startet den geführten Dialog. Aus dem Material-Editor OHNE Argumente — dann
+   schreibt „Übernehmen" ins Produktformular wie bisher. Mit `opt.fertig` wird
+   derselbe Dialog woanders wiederverwendet (z. B. bei den Bestellungen): das
+   Ergebnis { gtin, fotoEtikett, fotoBarcode, fields } geht an den Rückruf, und
+   das Produktformular wird NICHT angefasst. `opt.adminfrei` überspringt die
+   Anmeldeschranke — Bestellungen darf jede Person melden. */
+function ocrWizStart(opt){
+  opt = opt || {};
+  if(!opt.adminfrei && typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>ocrWizStart(opt)); return; } }
   let fokus=null; try{ fokus=document.activeElement; }catch(e){}
   WIZ={ schritt:0, gtin:'', gtinTreffer:null, barcodeRef:'', fields:{}, refInfo:null,
-        kandidaten:[], fotoBarcode:null, fotoEtikett:null, meldung:'', busy:false, lastFocus:fokus };
+        kandidaten:[], fotoBarcode:null, fotoEtikett:null, meldung:'', busy:false, lastFocus:fokus,
+        fertig:(typeof opt.fertig==='function')?opt.fertig:null };
   const el=wizEnsure();
   el.classList.add('show'); el.setAttribute('aria-hidden','false');
   wizRender();
@@ -341,6 +348,16 @@ function wizPickRef(ref){
    Aufnahmen optional an die Fotogalerie des Materials. */
 function wizApply(){
   if(!WIZ) return;
+  /* Wiederverwendung (Bestellungen): Ergebnis an den Rückruf, Produktformular
+     bleibt unberührt. */
+  if(WIZ.fertig){
+    const erg={ gtin:WIZ.gtin||'', fotoEtikett:WIZ.fotoEtikett||null, fotoBarcode:WIZ.fotoBarcode||null,
+      fields:Object.assign({}, WIZ.fields||{}), treffer:WIZ.gtinTreffer||null };
+    const cb=WIZ.fertig;
+    wizClose();
+    try{ cb(erg); }catch(e){}
+    return;
+  }
   const fotosAn=(()=>{ const c=document.getElementById('wizFotoAdd'); return c?c.checked:false; })();
   const gi=(typeof $==='function')?$('scGtin'):document.getElementById('scGtin');
   if(gi && WIZ.gtin && !gi.value.trim()) gi.value=WIZ.gtin;

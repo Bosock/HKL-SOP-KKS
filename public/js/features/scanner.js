@@ -619,8 +619,17 @@ function scanGalerieAdd(src, titel){
   if(scanGalerie.length===vorher) return;              /* Dublette – nichts zu tun */
   const i=scanGalerie.length-1;
   scanGalerieRender();
-  _scanShrink(src,(klein)=>{ const f=scanGalerie[i];
-    if(f && f.src===src && klein && klein!==src){ f.src=klein; scanGalerieRender(); } });
+  /* Statt base64 in den Zustand zu legen: verkleinern, in den Medienspeicher
+     legen (server/media.js) und nur die Kennung behalten. Das Bild bleibt
+     sofort sichtbar (lokaler Spiegel), der localStorage bleibt klein. Fällt der
+     Weg aus, bleibt die Quelle stehen — dann wie bisher. */
+  if(typeof medFotoAblegen==='function'){
+    medFotoAblegen(src).then(url=>{ const f=scanGalerie[i];
+      if(f && f.src===src && url && url!==src){ f.src=url; scanGalerieRender(); } });
+  } else {
+    _scanShrink(src,(klein)=>{ const f=scanGalerie[i];
+      if(f && f.src===src && klein && klein!==src){ f.src=klein; scanGalerieRender(); } });
+  }
 }
 /* Mehrere Bilder anhängen (z. B. die Aufnahmen des geführten Dialogs). */
 function scanGalerieAddMany(list, titel){ (list||[]).filter(Boolean).forEach(src=>scanGalerieAdd(src, titel)); }
@@ -628,7 +637,13 @@ function scanGalerieDel(i){ scanGalerie=matPhotoDel(scanGalerie,i); scanGalerieR
 function scanGalerieMain(i){ scanGalerie=matPhotoMain(scanGalerie,i); scanGalerieRender(); }
 function scanGalerieCap(i, v){ if(scanGalerie[i]) scanGalerie[i].titel=(v||'').trim(); }
 function scanGalerieEdit(i){ const f=scanGalerie[i]; if(!f) return;
-  openPhotoEditor(f.src,(edited)=>{ if(edited==null) return; _scanShrink(edited,(klein)=>{ scanGalerie[i]={src:klein,titel:f.titel||''}; scanGalerieRender(); }); }); }
+  openPhotoEditor(f.src,(edited)=>{ if(edited==null) return;
+    if(typeof medFotoAblegen==='function'){
+      medFotoAblegen(edited).then(url=>{ scanGalerie[i]={src:url||edited,titel:f.titel||''}; scanGalerieRender(); });
+    } else {
+      _scanShrink(edited,(klein)=>{ scanGalerie[i]={src:klein,titel:f.titel||''}; scanGalerieRender(); });
+    }
+  }); }
 /* Mehrfachauswahl aus der Dateiauswahl: jedes Bild einzeln durch den
    Foto-Editor zu schicken wäre eine Zumutung — nur bei EINEM Bild wird der
    Editor geöffnet, mehrere wandern direkt in die Galerie (dort einzeln
