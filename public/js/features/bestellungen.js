@@ -316,13 +316,20 @@ function bestKarteHTML(b, alt){
   const weiterWort = bestWort(stufe, 'tu');
   const schritt = (wo, k)=> k ? `<span class="best-schritt on">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))} · ${esc(kuerzelVermerk(k))}</span>`
                               : `<span class="best-schritt">${esc(bestWort(wo,'symbol'))} ${esc(bestWort(wo,'wort'))}</span>`;
+  /* Das Foto bleibt sichtbar — größer als ein Symbol, damit man beim Bestellen
+     wirklich daraufschauen kann; Antippen öffnet es groß (data-zoom). */
   const foto = b.foto ? `<img class="best-karte-foto" src="${esc(b.foto)}" alt="Foto" data-zoom data-cap="${esc(b.wort)}">` : '';
+  /* Die extrahierte GTIN wird angezeigt, nicht nur gespeichert. */
+  const gtinZeile = (b.gtin && /^\d{8,}$/.test(String(b.gtin))) ? `<div class="best-gtin">🏷️ GTIN ${esc(b.gtin)}</div>` : '';
   return `<div class="best-karte best-${esc(stufe)}${alt?' best-alt':''}${b.dringend?' best-dringend':''}" data-i="${esc(b.id)}">
     <div class="best-kopf">
       ${foto}
-      <span class="best-wort">${b.dringend?'❗ ':''}${esc(b.wort)}${b.menge?` <span class="best-menge">${esc(b.menge)}</span>`:''}</span>
+      <div class="best-kopf-txt">
+        <span class="best-wort">${b.dringend?'❗ ':''}${esc(b.wort)}${b.menge?` <span class="best-menge">${esc(b.menge)}</span>`:''}</span>
+        ${gtinZeile}
+        ${matZeile?`<div class="best-mat">${esc(matZeile)}</div>`:''}
+      </div>
     </div>
-    ${matZeile?`<div class="best-mat">${esc(matZeile)}</div>`:''}
     ${b.notiz?`<div class="best-notiz">${esc(b.notiz)}</div>`:''}
     <div class="best-spur">${schritt('gemeldet',b.gemeldet)}${schritt('bestellt',b.bestellt)}${schritt('geliefert',b.geliefert)}</div>
     <div class="best-akt">
@@ -347,13 +354,19 @@ function bestFormHTML(b){
     ? `<div id="bestFotoBox"><img class="best-scan-foto" src="${esc(fotoSrc)}" alt="Foto" data-zoom data-cap="Foto">
         <button type="button" class="btn btn-sec best-foto-clear" onclick="bestScanLoeschen()">✕</button></div>`
     : `<div id="bestFotoBox"></div>`;
+  /* Erkannte GTIN vorbelegen: aus dem laufenden Scan oder aus der gespeicherten
+     Meldung (dann evtl. mit REF/Hersteller aus dem Stammsatz). */
+  const eg = bestScanState.gtin || (b && b.gtin) || '';
+  const erec = (eg && typeof GTINDB!=='undefined' && GTINDB) ? GTINDB[eg] : null;
+  const erkannt = bestErkanntInner(eg, bestScanState.ref || (erec&&erec.ref) || '', bestScanState.hersteller || (erec&&erec.hersteller) || '');
   return `<div class="auf-form">
     <div class="flabel">${b?'MELDUNG BEARBEITEN':'WAS IST LEER?'}</div>
     <div class="best-scan-reihe">
       <input class="loc-input" id="bestWort" list="bestMatList" placeholder="Material — tippen oder aus der Liste wählen" value="${esc(b?b.wort:'')}" onchange="bestDatenZeigen()" oninput="bestDatenZeigen()">
-      <button type="button" class="btn btn-sec" onclick="bestScanFoto()" title="Etikett fotografieren — GTIN wird automatisch gelesen">📷</button>
+      <button type="button" class="btn btn-sec best-scan-btn" onclick="bestScanFoto()" title="Geführte Erfassung — Etikett fotografieren, GTIN wird gelesen">📸</button>
     </div>
     <datalist id="bestMatList">${liste}</datalist>
+    <div id="bestErkannt">${erkannt}</div>
     <div id="bestDaten"></div>
     ${fotoBox}
     <div class="form-row" style="margin-top:8px">
@@ -414,8 +427,23 @@ function bestUiWeiter(id){
 }
 function bestUiZurueck(id){ const neu=bestZurueck(id); seiteAuffrischen(); if(typeof toast==='function') toast(neu?('Zurück auf '+bestWort(neu,'wort')):'Nicht möglich'); }
 
-/* ── Etikett fotografieren — GTIN lesen, Name übernehmen ── */
+/* ── Etikett erfassen ──────────────────────────────────────────────────────
+   Der Hauptweg ist jetzt die GEFÜHRTE Erfassung — derselbe Dialog wie in der
+   Materialwirtschaft (features/ocrwizard.js): Barcode aufnehmen → GTIN steht
+   fest und wird angezeigt → Etikett aufnehmen → prüfen → übernehmen. Das Foto
+   bleibt dabei die ganze Zeit sichtbar, und die GTIN wird gelesen und gezeigt,
+   nicht still im Hintergrund verarbeitet.
+
+   Gibt es den Dialog nicht (sehr alte Umgebung), bleibt der einfache
+   Ein-Foto-Weg als Rückfall. */
 function bestScanFoto(){
+  if(typeof ocrWizStart==='function'){
+    ocrWizStart({ adminfrei:true, fertig:bestAusWizard });
+    return;
+  }
+  bestScanEinfach();
+}
+function bestScanEinfach(){
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*';
   inp.setAttribute('capture', 'environment'); inp.style.display = 'none';
@@ -428,6 +456,66 @@ function bestScanFoto(){
     r.readAsDataURL(f);
   };
   document.body.appendChild(inp); inp.click();
+}
+
+/* Ergebnis der geführten Erfassung übernehmen: Foto in den Medienspeicher,
+   GTIN und Produktangaben in den Bestell-Zustand, alles sichtbar machen. */
+async function bestAusWizard(erg){
+  if(!erg) return;
+  const f = erg.fields || {};
+  const gtin = erg.gtin ? ((typeof gtinKey==='function') ? gtinKey(erg.gtin) : String(erg.gtin)) : '';
+  if(gtin) bestScanState.gtin = gtin;
+  bestScanState.name = f.name || bestScanState.name || '';
+  bestScanState.ref = f.ref || bestScanState.ref || '';
+  bestScanState.hersteller = f.hersteller || bestScanState.hersteller || '';
+
+  /* Das Etikettfoto bevorzugt (mehr zu sehen), sonst das Barcode-Foto. */
+  const quelle = erg.fotoEtikett || erg.fotoBarcode || null;
+  let fotoUrl = bestScanState.foto || null;
+  if(quelle){
+    fotoUrl = quelle;
+    if(typeof medFotoAblegen==='function'){ try{ const u = await medFotoAblegen(quelle); if(u) fotoUrl = u; }catch(e){} }
+    bestScanState.foto = fotoUrl;
+  }
+
+  /* Stammsatz mitwachsen lassen (wie beim Einzel-Scan). */
+  if(gtin && typeof bestStammEinzahlen==='function'){
+    const herkunft = (erg.treffer && erg.treffer.herkunft) || 'stammsatz';
+    bestStammEinzahlen(gtin, { name:bestScanState.name, ref:bestScanState.ref, hersteller:bestScanState.hersteller, herkunft, foto:fotoUrl });
+  }
+
+  /* Sichtbar machen, ohne die schon getippten Felder (Menge/Notiz) zu verlieren:
+     gezielt Namensfeld, Fotobox und die Erkannt-Zeile aktualisieren. */
+  const inp = $('bestWort');
+  if(inp && bestScanState.name && !inp.value.trim()) inp.value = bestScanState.name;
+  bestFotoBoxZeichnen();
+  bestErkanntZeigen();
+  if(typeof bestDatenZeigen==='function') bestDatenZeigen();
+  if(typeof toast==='function'){
+    toast(gtin ? ('GTIN ' + gtin + (bestScanState.name?(' · '+bestScanState.name):'') + ' übernommen') : 'Foto übernommen — Name bitte eintragen');
+  }
+}
+
+/* Die Fotobox im Formular neu zeichnen (aus dem aktuellen Scan-Zustand). */
+function bestFotoBoxZeichnen(){
+  const box = $('bestFotoBox'); if(!box) return;
+  const src = bestScanState.foto || '';
+  box.innerHTML = src
+    ? `<img class="best-scan-foto" src="${esc(src)}" alt="Foto" data-zoom data-cap="Foto">
+       <button type="button" class="btn btn-sec best-foto-clear" onclick="bestScanLoeschen()">✕</button>`
+    : '';
+}
+
+/* Die „erkannt"-Zeile: zeigt die extrahierte GTIN klar an — nicht nur still
+   speichern, sondern sichtbar bestätigen. */
+function bestErkanntInner(gtin, ref, hersteller){
+  if(!gtin) return '';
+  const teile = [ref?('REF '+ref):'', hersteller].filter(Boolean).join(' · ');
+  return `<div class="best-erkannt">🏷️ GTIN <b>${esc(gtin)}</b>${teile?(' · '+esc(teile)):''}</div>`;
+}
+function bestErkanntZeigen(){
+  const slot = $('bestErkannt'); if(!slot) return;
+  slot.innerHTML = bestErkanntInner(bestScanState.gtin, bestScanState.ref, bestScanState.hersteller);
 }
 
 async function bestScanVerarbeiten(dataUrl){
@@ -480,8 +568,10 @@ async function bestScanVerarbeiten(dataUrl){
 
   const inp = $('bestWort');
   if(inp && name && !inp.value.trim()) inp.value = name;
-  /* Der Name steht jetzt vielleicht fest → prüfen, ob es schon verlässliche
+  /* GTIN und Foto sichtbar machen; dann prüfen, ob es schon verlässliche
      Bestelldaten oder einen früheren Vorschlag gibt. */
+  bestFotoBoxZeichnen();
+  bestErkanntZeigen();
   if(typeof bestDatenZeigen==='function') bestDatenZeigen();
   if(typeof toast==='function') toast(name ? ('Erkannt: ' + name + (ref?(' · REF '+ref):'')) : ('GTIN ' + gtin + ' — Name bitte prüfen'));
 }

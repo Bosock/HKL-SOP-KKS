@@ -106,3 +106,28 @@ Status eines Materials (`bestLernStatus`):
   Überschreiben, Zähler, Namen, Persistenz.
 - `e2e/seiten.js` (Abschnitt 9b) — der Weg in der echten App: Vorschlag →
   Admin-Panel → Bestätigen → Formular zeigt Bestelldaten ohne Foto.
+
+## Die Erfassung: geführt, sichtbar, persistent
+
+Der Befund des Betreibers: „Die Bilder verschwinden — sie sollen sichtbar
+bleiben, damit man beim Bestellen gucken kann. Und die GTIN soll extrahiert und
+angezeigt werden. Lass uns da auch eine geführte Erfassung machen wie bei der
+Materialwirtschaft."
+
+- **Geführte Erfassung (📸):** Der Foto-Knopf im Meldeformular startet jetzt
+  denselben Dialog wie die Materialwirtschaft (`features/ocrwizard.js`) —
+  Barcode aufnehmen → GTIN steht fest → Etikett aufnehmen → prüfen → übernehmen.
+  Der Dialog ist über einen Rückruf wiederverwendet (`ocrWizStart({ fertig })`);
+  der Material-Weg bleibt unverändert. `adminfrei:true`, weil eine Bestellung
+  jede Person melden darf.
+- **GTIN sichtbar:** Die gelesene Nummer erscheint als „🏷️ GTIN …"-Zeile im
+  Formular (`#bestErkannt`) und auf der Bestellkarte — nicht mehr nur still in
+  `b.gtin` gespeichert.
+- **Foto bleibt:** Das Bild wird über den Medienspeicher abgelegt (Kennung, kein
+  base64) und auf der Karte als größeres, antippbares Bild gezeigt (76 px,
+  data-zoom öffnet es formatfüllend) — sichtbar beim Bestellen, nicht ein
+  verschwindendes Vorschaubild.
+
+Getestet in `e2e/seiten.js` (Abschnitt 9c): geführtes Ergebnis einspeisen →
+GTIN im Formular, Name gefüllt, Foto als Medien-Kennung, nach dem Speichern GTIN
+und Foto auf der Karte.

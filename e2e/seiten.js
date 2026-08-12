@@ -466,6 +466,39 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     ohneFoto.sichtbar && /kein Foto/.test(ohneFoto.text) && ohneFoto.gtin === '04012345');
   await A.page.evaluate(`bestUiAbbrechen()`);
 
+  /* ═══════════ 9c. Geführte Erfassung: GTIN wird gezeigt, Foto bleibt sichtbar ═══════════
+     Die Kamera ist headless nicht ansprechbar — wir speisen das Ergebnis des
+     geführten Dialogs direkt ein (wie es der Wizard-Rückruf täte) und prüfen,
+     dass GTIN und Foto danach im Formular UND auf der Karte sichtbar sind. */
+  const gefuehrt = await A.page.evaluate(`(async function(){
+    bestUiNeu();
+    await new Promise(r=>setTimeout(r,60));
+    const px='data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
+    await bestAusWizard({ gtin:'07612345678900', fotoEtikett:px, fields:{ name:'Schleusenset 6F', ref:'SS6' } });
+    await new Promise(r=>setTimeout(r,80));
+    const erk=document.querySelector('#bestErkannt .best-erkannt');
+    const box=document.querySelector('#bestFotoBox img');
+    return { erkTxt:erk?erk.textContent:'', name:(document.getElementById('bestWort')||{}).value,
+      fotoImForm:!!box, stateGtin:bestScanState.gtin, stateFoto:bestScanState.foto||'' };
+  })()`);
+  r.check('die geführte Erfassung zeigt die extrahierte GTIN im Formular',
+    /07612345678900/.test(gefuehrt.erkTxt) && gefuehrt.stateGtin === '07612345678900');
+  r.check('… füllt den Namen und hält das Foto sichtbar', gefuehrt.name === 'Schleusenset 6F' && gefuehrt.fotoImForm);
+  r.check('… und das Foto liegt als Medien-Kennung vor, nicht als base64',
+    /^\/api\/media\//.test(gefuehrt.stateFoto) || /^data:/.test(gefuehrt.stateFoto));
+
+  const karte = await A.page.evaluate(`(function(){
+    bestUiSpeichern('');
+    const b=bestOffen().find(x=>x.gtin==='07612345678900');
+    const el=b?document.querySelector('.best-karte[data-i="'+b.id+'"]'):null;
+    return { gespeichert:!!b, foto:b&&b.foto||'',
+      gtinAufKarte:el?/GTIN 07612345678900/.test(el.textContent):false,
+      fotoAufKarte:el?!!el.querySelector('.best-karte-foto'):false };
+  })()`);
+  r.check('gespeichert bleibt die GTIN an der Meldung', karte.gespeichert && /07612345678900/.test(karte.foto)===false);
+  r.check('… und die Karte zeigt GTIN und Foto (beim Bestellen sichtbar)',
+    karte.gtinAufKarte && karte.fotoAufKarte);
+
   /* ═══════════ 10. Löschen und Zurücksetzen ═══════════ */
   const weg = await A.page.evaluate(`(function(){
     const s=seitenAlle().find(x=>x.art==='bestellungen');
