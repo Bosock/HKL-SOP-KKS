@@ -192,9 +192,19 @@ function mcMaterialListHTML(){
     const gaps=miss.length?`<span class="mc-gap">${miss.length} offen</span>`:'';
     const cnt=m.vorkommen?`<span class="mat-count">${m.vorkommen}×</span>`:'';
     const onclick=m.kind==='stamm'?`openScanItem(this.dataset.k,true)`:`openMaterial(this.dataset.k)`;
+    /* Der Griff, der hier gefehlt hat: Ein Tipp auf die Zeile ÖFFNET das
+       Material (und legt notfalls ein neues an) — verbinden mit einem BEREITS
+       VORHANDENEN Produkt konnte man von hier aus gar nicht. Dafür gibt es
+       jetzt einen eigenen Knopf; er hält den Tipp auf, damit er nicht zugleich
+       die Zeile öffnet (features/zuordnen.js). */
+    const link=(m.kind!=='stamm' && typeof zuOeffnen==='function')
+      ? `<button type="button" class="mc-link-btn" data-k="${esc(m.key)}" data-n="${esc(m.name)}"
+           title="Produkt zuordnen" aria-label="Produkt zuordnen für ${esc(m.name)}"
+           onclick="event.stopPropagation();zuOeffnen(this.dataset.k,{name:this.dataset.n,nachher:renderMatCenter})">🧬</button>`
+      : '';
     return `<div class="mat-row" style="border-left-color:var(--n-${esc(m.typ)})" data-k="${esc(m.key)}" onclick="${onclick}">
       ${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div>
-      <div class="mat-sub">${(typeof matHubStatusTag==='function')?matHubStatusTag(m.status):''} · <span class="vw-ctx" style="display:inline">${where}</span></div></div>${gaps}${cnt}</div>`;
+      <div class="mat-sub">${(typeof matHubStatusTag==='function')?matHubStatusTag(m.status):''} · <span class="vw-ctx" style="display:inline">${where}</span></div></div>${link}${gaps}${cnt}</div>`;
   }).join('');
 }
 

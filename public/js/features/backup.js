@@ -325,14 +325,21 @@ function matMergePanelHTML(){
   }
   p+=`<div class="flabel" style="margin-top:14px">Alle Materialien (${list.length})</div>`;
   if(!list.length) p+=`<p class="hint">Keine Materialien in den Standards gefunden.</p>`;
-  const optsFor=(sel)=>['<option value="">— nicht verknüpft —</option>']
-     .concat(prods.map(r=>`<option value="${esc(r.gtin)}" ${sel===r.gtin?'selected':''}>${esc(r.name||r.ref||r.gtin)}</option>`))
-     .concat([`<option value="__neu__">＋ Neuer Stammsatz aus diesem Material</option>`]).join('');
-  list.slice(0,300).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
+  /* FRÜHER stand hier ein Klappmenü je Material über ALLE Stammsätze: ohne
+     Suche, ohne Foto, ohne REF, gedeckelt auf 300 Zeilen — und es schrieb beim
+     Loslassen sofort, ohne zu sagen, wie viele Stellen das trifft. Jetzt führt
+     derselbe Knopf wie überall sonst ins Zuordnen-Blatt
+     (features/zuordnen.js): mit Suche, Vorschlägen, Wirkung und Bestätigung.
+     `matAdminLink` bleibt als programmatischer Weg bestehen (E2E). */
+  list.slice(0,600).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
+    const knopf=(typeof zuOeffnen==='function')
+      ? `<button class="vlink" data-k="${esc(x.key)}" data-n="${esc(x.name)}"
+           onclick="zuOeffnen(this.dataset.k,{name:this.dataset.n,nachher:renderAdmin})">${id?'Zuordnung ändern':'Produkt zuordnen'}</button>`
+      : '';
     p+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${c&&c.photo?'🖼 ':''}${esc(x.name)}</span><span class="uk-count">${x.count}×</span></div>
-      ${id?`<div class="vw-ctx">🧬 ${esc(c?(c.name||c.ref||c.gtin):id)}</div>`:''}
-      <select class="vw-sel" data-k="${esc(x.key)}" onchange="matAdminLink(this.dataset.k,this.value)">${optsFor(id)}</select></div>`; });
-  if(list.length>300) p+=`<div class="foot">Zeige erste 300 von ${list.length}. Für weitere zuerst zusammenführen.</div>`;
+      <div class="vw-ctx">${id?('🧬 '+esc(c?(c.name||c.ref||c.gtin):id)):'noch kein Produkt zugeordnet'}</div>
+      <div class="uk-actions">${knopf}</div></div>`; });
+  if(list.length>600) p+=`<div class="foot">Zeige erste 600 von ${list.length}. Der vollständige Bestand mit Suche und Filtern steht unter „Material &amp; Einträge".</div>`;
   p+=`<p class="hint">„Zusammenführen" legt bei Bedarf einen Stammsatz an und verknüpft alle gleichen Vorkommen damit. Über den Etiketten-Scanner reicherst du den Stammsatz danach mit Foto, REF, Maßen und eigenen Eigenschaften an.</p></div></details>`;
   return p;
 }

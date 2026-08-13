@@ -73,6 +73,13 @@ function entryCardHTML(e,cid,isMatGer){
   if(canon){ const cn=canon.name||canon.ref||canon.gtin;
     const anders=String(cn||'').trim().toLowerCase()!==String(name||'').trim().toLowerCase();
     if(anders) meta+=`<button type="button" class="tag tag-canon entry-canon-btn" data-g="${esc(canon.gtin)}" style="color:var(--accent);background:rgba(61,155,224,.13);border:0;cursor:pointer">🧬 ${esc(cn)}</button>`; }
+  /* Fehlt das Produkt, steht das NUR im Verwaltungsmodus da. Im Saal wäre es
+     Lärm — dort zählt, was auf dem Tisch liegt, nicht wie die App ihre Daten
+     verbindet (siehe den Absatz oben). Für die Pflege ist es dagegen genau die
+     Auskunft, die bisher fehlte: An welcher Zeile hängt noch kein Produkt? */
+  if(!canon && showThumb && typeof ADMIN!=='undefined' && ADMIN && typeof zuOeffnen==='function')
+    meta+=`<button type="button" class="tag tag-loc missing entry-zuordnen-btn" data-cid="${esc(cid)}"
+      style="border:0;cursor:pointer" title="Produkt zuordnen">🧬 kein Produkt</button>`;
   /* Verwendung und Position aus der bestätigten Zerlegung — jede Angabe an
      ihrem eigenen Platz, statt zusammengeschoben im Namen. */
   if(zerlAn){
