@@ -1,6 +1,12 @@
 /* 413-Kette Server→Client: Bei Überschreiten von MAX_BODY antwortet der
-   Server sauber 413 (kein Socket-Abriss), der Client meldet „zu groß" statt
-   „Server nicht erreichbar", behält die Daten lokal und hämmert nicht. */
+   Server sauber 413 (kein Socket-Abriss), der Client meldet eine ABLEHNUNG
+   statt „Server nicht erreichbar", behält die Daten lokal und hämmert nicht.
+
+   Der Wortlaut hat sich nach einem Vorfall im Labor geschärft: Früher stand da
+   „Daten zu groß – bitte Fotos verkleinern". Das war ein Rat ins Blaue (Fotos
+   werden längst beim Aufnehmen verkleinert) und nannte den Posten nicht. Jetzt
+   wird gemessen und benannt. Geprüft wird deshalb die AUSSAGE, nicht die
+   frühere Formulierung. */
 'use strict';
 const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
@@ -15,10 +21,12 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   let dot = null;
   for (let i = 0; i < 40; i++) {
     dot = await page.evaluate(() => { const d = document.getElementById('syncDot'); return { cls: d.className, title: d.title, label: d.textContent }; });
-    if (/zu groß/i.test(dot.title)) break;
+    if (/abgelehnt/i.test(dot.title)) break;
     await page.waitForTimeout(200);
   }
-  r.check('Client meldet „zu groß" (nicht „nicht erreichbar")', /zu groß/i.test(dot.title) && !/nicht erreichbar/i.test(dot.title));
+  r.check('Client meldet eine Ablehnung (nicht „nicht erreichbar")',
+    /abgelehnt/i.test(dot.title) && !/nicht erreichbar/i.test(dot.title));
+  r.check('… mit Umfang und größtem Posten', /\d+\s*KB/.test(dot.title) && /hkl_txt/.test(dot.title));
   r.check('Status-Pill zeigt „lokal"', dot.label === 'lokal');
   r.check('Daten lokal erhalten', await page.evaluate(() => (loadJSON('hkl_txt', {}).appTitle || '').length === 5000));
   r.check('Server hat nichts übernommen (rev=0)', (await page.evaluate(async () => (await fetch('/api/state', { cache: 'no-store' })).json())).rev === 0);

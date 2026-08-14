@@ -166,6 +166,27 @@ const sync=(()=>{
   function noteOffline(){ if(offline) return; offline=true;
     try{ if(typeof toast==='function') toast('Keine Verbindung – Änderungen werden lokal gesichert und später übertragen',true); }catch(e){} }
   function payloadFor(keys){ const s={}; keys.forEach(k=>{ const v=store.get(k); if(v!=null){ try{ s[k]=JSON.parse(v); }catch(e){} } }); return s; }
+
+  /* ── Wenn der Server ablehnt, muss die App sagen KÖNNEN, was zu groß ist ──
+     Vorher lautete die Meldung „Bitte Fotos verkleinern". Das war ein Rat ins
+     Blaue und im Zweifel schlicht falsch: Fotos werden beim Aufnehmen bereits
+     auf 1280 px verkleinert (features/care.js), ein Handyfoto schrumpft dabei
+     von 8,8 MB auf 327 KB. Wer daraufhin „noch kleiner" macht, sucht an der
+     falschen Stelle — und der wirkliche Grund (ein Schlüssel, der zu viele
+     Bilder trägt) bleibt unsichtbar.
+     Deshalb wird ab jetzt GEMESSEN und BENANNT. */
+  function kb(n){ return Math.round(n/1024); }
+  function groesseJeSchluessel(keys){
+    return keys.map(k=>{ const v=store.get(k); return { k, b:(v==null?0:v.length) }; })
+      .sort((a,b)=>b.b-a.b);
+  }
+  /* Ein Satz, der zum Handeln taugt: Gesamtumfang und der dickste Schlüssel. */
+  function zuGrossText(keys, gesamt){
+    const gr=groesseJeSchluessel(keys)[0];
+    const wo=gr&&gr.b?(' Größter Posten: '+gr.k+' mit '+kb(gr.b)+' KB.'):'';
+    return 'Der Server hat '+kb(gesamt)+' KB abgelehnt — lokal gesichert.'+wo
+      +' Bilder gehören in den Medienspeicher, nicht in den geteilten Zustand.';
+  }
   /* Übernimmt eingehende Server-Werte in den Store. Nur WIRKLICH abweichende
      Werte werden geschrieben und als Änderung gemeldet – so löst das Zurück-
      spiegeln der gerade selbst gespeicherten Schlüssel kein überflüssiges
@@ -197,25 +218,34 @@ const sync=(()=>{
     if(!keys.length) return false;
     const body=JSON.stringify({baseRev:rev, state:payloadFor(keys)});
     const r=await fetch(URL,{method:'PUT',headers:{'Content-Type':'application/json'},body});
-    if(!r.ok){ const err=new Error('HTTP '+r.status); err.status=r.status; throw err; } const j=await r.json();
+    if(!r.ok){ const err=new Error('HTTP '+r.status); err.status=r.status; err.bytes=body.length; err.keys=keys.slice(); throw err; } const j=await r.json();
     rev=j.rev||rev; return adopt(j.state,true); /* fremde Schlüssel übernehmen (eigene dirty nicht) */
   }
   async function flush(){
     if(!enabled) return;
     if(inflight){ pending=true; return; }
     const keys=[...dirty]; if(!keys.length) return;
-    dirty.clear(); inflight=true; setDot('saving','Speichere…');
+    /* Steht eine Ablehnung im Raum, bleibt sie stehen. Ein „Speichere…" darüber
+       würde den einzigen Hinweis verdecken, der zur Lösung führt — und genau
+       das ist passiert: Die Diagnose stand da, wurde aber vom nächsten
+       Schreibvorgang binnen einer Sekunde überschrieben. */
+    dirty.clear(); inflight=true; if(!oversize) setDot('saving','Speichere…');
     try{
       const changed=await putKeys(keys); offline=false; fails=0; oversize=false; setDot('ok','Auf dem Server gespeichert');
       if(changed && dirty.size===0){ hydrateVars(); refreshView(); }
     }catch(e){
       keys.forEach(k=>dirty.add(k));
       if(e && e.status===413){
-        // Zustand größer als das Server-Limit (MAX_BODY) – typischerweise zu
-        // viele/große Material-Fotos. KEIN Netzfehler: der Server ist erreichbar
-        // und lehnt ab. Daher klare, handlungsleitende Meldung und langsamer
-        // Wiederholtakt statt endlosem 1,5-s-Hämmern mit demselben Payload.
-        oversize=true; setDot('local','Daten zu groß für den Server – lokal gesichert. Bitte Fotos verkleinern.');
+        // Der Server ist erreichbar und lehnt ab — KEIN Netzfehler. Daher ein
+        // langsamer Wiederholtakt statt endlosem 1,5-s-Hämmern mit demselben
+        // Payload, und vor allem: eine Meldung, die den Posten BENENNT statt
+        // pauschal „Fotos verkleinern" zu raten (siehe zuGrossText).
+        oversize=true;
+        const text=zuGrossText(e.keys||keys, e.bytes||0);
+        setDot('local', text);
+        /* Ins Protokoll, damit der Fall nachher auffindbar ist statt nur als
+           Meldung vorbeizuziehen (features/diag.js). */
+        try{ if(typeof diagLog==='function') diagLog('fehler', text); }catch(x){}
       } else {
         oversize=false; noteOffline(); fails++; setDot('local','Nur lokal – Server nicht erreichbar');
       }
@@ -225,7 +255,10 @@ const sync=(()=>{
         const delay=oversize?60000:(fails>0?Math.min(30000,2000*Math.pow(2,fails-1)):1500); timer=setTimeout(flush,delay); }
     }
   }
-  function mark(k){ if(!enabled||!SHARED_KEYS.includes(k)) return; dirty.add(k); if(!offline) setDot('saving','Speichere…'); clearTimeout(timer); timer=setTimeout(flush,800); }
+  function mark(k){ if(!enabled||!SHARED_KEYS.includes(k)) return; dirty.add(k); if(!offline&&!oversize) setDot('saving','Speichere…'); clearTimeout(timer);
+    /* Bei einer Ablehnung nicht im 800-ms-Takt denselben zu großen Umfang
+       nachschieben — das erzeugt nur Last und dieselbe Antwort. */
+    timer=setTimeout(flush, oversize?60000:800); }
   async function poll(){
     if(!enabled||inflight||dirty.size) return;
     try{
@@ -237,11 +270,45 @@ const sync=(()=>{
       setDot('ok','Auf dem Server gespeichert');
     }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
   }
+  /* ── Erstbefüllung in Häppchen statt in einem Bissen ──────────────────
+     Vorher ging der gesamte lokale Bestand in EINER Anfrage hoch. Auf einem
+     Gerät, das schon Material- und Anleitungsfotos trug, konnte allein diese
+     eine Anfrage das Limit reißen — und dann kam der zweite Fehler zum Tragen:
+     Die Schlüssel standen nie in `dirty`, ein Fehlschlag verlor sie also
+     ersatzlos. Das Gerät blieb dauerhaft auf „lokal", ohne dass je wieder ein
+     Versuch gestartet wurde. Jetzt wandern sie in kleinen Bündeln, und was
+     scheitert, kommt in `dirty` und wird vom normalen Takt erneut versucht. */
+  const SEED_BUENDEL = 512*1024;
+  async function seedHochladen(keys){
+    let buendel=[], summe=0, fehler=0;
+    const senden=async()=>{
+      if(!buendel.length) return;
+      const teil=buendel; buendel=[]; summe=0;
+      try{ await putKeys(teil); }
+      catch(e){
+        fehler++;
+        teil.forEach(k=>dirty.add(k));         /* nie verlieren */
+        if(e && e.status===413){
+          oversize=true;
+          const t=zuGrossText(teil, e.bytes||0);
+          setDot('local', t);
+          try{ if(typeof diagLog==='function') diagLog('fehler', t); }catch(x){}
+        }
+      }
+    };
+    for(const g of groesseJeSchluessel(keys)){
+      buendel.push(g.k); summe+=g.b;
+      if(summe>=SEED_BUENDEL) await senden();
+    }
+    await senden();
+    if(fehler && dirty.size){ clearTimeout(timer); timer=setTimeout(flush, 3000); }
+  }
+
   async function init(){
     setDot('saving','Verbinde…');
     try{
       const seed=await pull(); hydrateVars(); offline=false; setDot('ok','Auf dem Server gespeichert');
-      if(seed.length) await putKeys(seed);
+      if(seed.length) await seedHochladen(seed);
     }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
   }
   function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);

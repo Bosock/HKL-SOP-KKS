@@ -11,7 +11,10 @@ $('backBtn').onclick=goBack; $('themeBtn').onclick=toggleTheme; $('menuBtn').onc
 $('searchBtn').onclick=()=>openGlobalSearch();
 /* Sync-Status antippbar (UX-Audit K4): erklärt den Zustand in einem Satz —
    Tooltips gibt es auf Touch nicht. */
-$('syncDot').onclick=()=>{ const d=$('syncDot'); if(d&&d.title) toast(d.title); };
+/* Der Zustand wird in der FARBE der Meldung wiederholt: Wer den Punkt antippt,
+   weil etwas nicht stimmt, bekam die schlechte Nachricht bisher in Grün — der
+   Farbe, die überall sonst „hat geklappt" heißt. */
+$('syncDot').onclick=()=>{ const d=$('syncDot'); if(d&&d.title) toast(d.title, /\blocal\b/.test(d.className)); };
 document.addEventListener('click',()=>{ if(ADMIN) refreshAuth(); });
 window.addEventListener('hashchange',()=>{ checkAdminHash(); });
 window.addEventListener('popstate',(e)=>{ gotoState(e.state); });
