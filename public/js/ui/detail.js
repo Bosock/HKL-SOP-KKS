@@ -64,7 +64,19 @@ function entryCardHTML(e,cid,isMatGer){
   /* Ort aus der Zerlegung geht dem Alt-Lagerort vor — er steht am Text, nicht
      am Stammsatz, und ist damit die genauere Angabe für DIESE Stelle. */
   const ortEff=(zerlAn && zerl.ort)?zerl.ort:locEff;
-  if(settings.lagerort&&showThumb&&!istTaetigkeit) meta+= ortEff?`<span class="tag tag-loc">📍 ${esc(ortEff)}</span>`:`<span class="tag tag-loc missing">📍 kein Lagerort</span>`;
+  /* ── DER LAGERORT STEHT RECHTS, UND NUR WENN ES IHN GIBT ──────────────
+     Vorher stand er als Band in der Angabenzeile UNTER dem Text — und wenn
+     keiner hinterlegt war, stand dort „📍 kein Lagerort". Ein Platzhalter für
+     etwas Fehlendes an jeder zweiten Zeile ist aber kein Inhalt, sondern Lärm:
+     Er kostet in jeder Karte eine zweite Reihe, ohne etwas zu sagen.
+
+     Jetzt: ein einteiliger Banner am rechten Rand der Zeile, ausschließlich
+     bei hinterlegtem Ort. Rechts, weil die Frage „woher hole ich das?" beim
+     Überfliegen einer Liste in einer eigenen Spalte gelesen wird, nicht im
+     Fließtext. Fehlt der Ort, bleibt die Stelle leer — die Zeile wird dadurch
+     kürzer statt ärmer. */
+  const locBanner=(settings.lagerort&&showThumb&&!istTaetigkeit&&ortEff)
+    ? `<span class="e-loc" title="Lagerort: ${esc(ortEff)}">📍 ${esc(ortEff)}</span>` : '';
   /* Das Material als antippbarer Badge — OHNE Kettensymbol. Dass „Vorkommen im
      Standard" und „Material" intern zwei Dinge sind, ist eine
      Implementierungsfrage; sie gehört nicht in den Saal. Angezeigt wird der
@@ -78,7 +90,7 @@ function entryCardHTML(e,cid,isMatGer){
      verbindet (siehe den Absatz oben). Für die Pflege ist es dagegen genau die
      Auskunft, die bisher fehlte: An welcher Zeile hängt noch kein Produkt? */
   if(!canon && showThumb && typeof ADMIN!=='undefined' && ADMIN && typeof zuOeffnen==='function')
-    meta+=`<button type="button" class="tag tag-loc missing entry-zuordnen-btn" data-cid="${esc(cid)}"
+    meta+=`<button type="button" class="tag tag-ohne entry-zuordnen-btn" data-cid="${esc(cid)}"
       style="border:0;cursor:pointer" title="Produkt zuordnen">🧬 kein Produkt</button>`;
   /* Verwendung und Position aus der bestätigten Zerlegung — jede Angabe an
      ihrem eigenen Platz, statt zusammengeschoben im Namen. */
@@ -109,20 +121,19 @@ function entryCardHTML(e,cid,isMatGer){
   if(canon){ (typeof MATPROPS!=='undefined'?MATPROPS:[]).forEach(p=>{ const v=canon.props&&canon.props[p.key]; if(v) meta+=`<span class="tag tag-zusatz">${esc(p.label)}: ${esc(v)}</span>`; }); }
   else { const zvv=qeGet(e,cid,'zusatz'); const zus=(zvv!==undefined&&zvv!==null)?zvv:e.zusatz;
     if(Array.isArray(zus)) zus.forEach(f=>{ if(f&&f.n) meta+=`<span class="tag tag-zusatz">${esc(f.n)}${f.w?': '+esc(f.w):''}</span>`; }); }
-  const uncertain=(e.natur_konfidenz==='mittel'||e.natur_konfidenz==='niedrig');
-  const conf=(settings.konfidenz&&uncertain&&!isHandled(cid))?`<span class="conf" title="Automatik unsicher (${esc(e.natur_konfidenz)}) – in Verwaltung prüfbar">⚠</span>`:'';
+  /* Das Konfidenz-Warnzeichen ⚠ ist ERSATZLOS entfallen. Es stammte aus der
+     Anfangszeit, als die Kategorie einer Zeile automatisch geraten wurde und
+     jemand das Ergebnis nachprüfen musste. Inzwischen wird die Kategorie über
+     das Bearbeiten-Menü gesetzt, die Zerlegung liefert die Identität und der
+     Pflege-Weg führt systematisch durch den Bestand — die Vorprüfung hatte
+     keinen Adressaten mehr, blieb aber an jeder unsicheren Zeile stehen und
+     behauptete ein Problem, das niemand mehr bearbeitete. */
   const mbox = settings.menge ? (mengeEff?`<div class="mbox${mHi?' hi':''}">${esc(mengeEff)}</div>`:`<div class="mbox empty"></div>`) : '';
-  /* Das Kategorie-Symbol ist einzeln abschaltbar — je Kategorie über das
-     Funktionsregister (Bereich `natico`), langes Tippen auf die Zeile führt
-     über „Kategorie ändern" dorthin. Der Betreiber: „das Icon für Material
-     oder Geräte usw. muss ebenfalls individuell anzeigbar oder ausgeblendet
-     werden können".
-
-     Es geht dabei nicht um Geschmack, sondern um Platz: Auf einem Handy
-     kostet die Symbolspalte in JEDER Zeile Breite, die dem Namen fehlt. Wer
-     ohnehin nur Material in einer Rubrik hat, braucht das Symbol nicht. */
-  const icoAus = (typeof fktAus==='function') && fktAus('natico', nat);
-  const ico = (isMatGer && !icoAus)?`<div class="e-ico">${info.icon||'•'}</div>`:'';
+  /* Das Kategorie-Symbol in der Zeile ist entfallen. Die Kategorie steht schon
+     im farbigen Rahmen der Karte — das Symbol daneben sagte dasselbe ein
+     zweites Mal und kostete in JEDER Zeile Breite, die dem Namen fehlt. Die
+     Einstellung dafür (Funktionsregister, Bereich `natico`) bleibt bestehen:
+     Sie wirkt weiterhin dort, wo Kategorien aufgezählt werden. */
   const cls = (isMatGer?'':'step')+(important?' important':'');
   /* Schriftgröße/Gewicht dieser Zeile und Auszeichnungen im Text
      (features/textstil.js). Beides ist abschaltbar-frei: Ohne das Modul
@@ -181,7 +192,7 @@ function entryCardHTML(e,cid,isMatGer){
      hört auf `.entry-row[data-cid], .e-meta[data-cid]`. Tippen und Halten
      wirken damit auf der Angabenzeile genau wie vorher; ohne das wäre der
      Umbau ein stiller Verlust an Bedienbarkeit. */
-  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${ico}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${conf}${whyBtn}${editBtn}${menuBtn}</div></div></div>${meta?`<div class="e-meta" data-cid="${esc(cid)}">${meta}</div>`:''}${bilder}${whyPanel}</div>`;
+  return `<div class="entry ${cls}${filledCls}${varCls} ${done}${istTun?' tun':''}" id="e-${esc(cid)}" style="${style}"><div class="entry-row" data-cid="${esc(cid)}"${rohTitel}><div class="chk">✓</div>${mbox}${showThumb?thumb:''}<div class="e-main"><div class="e-top"><div class="e-text${stilCls?' '+stilCls:''}">${star}${tunIco}${nameHTML}${varBadge}${addedTag}</div>${locBanner}${whyBtn}${editBtn}${menuBtn}</div></div></div>${meta?`<div class="e-meta" data-cid="${esc(cid)}">${meta}</div>`:''}${bilder}${whyPanel}</div>`;
 }
 
 function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.push({lvl:'rub',idx}); try{ history.pushState({d:2,id:curStd.id,idx},''); }catch(e){} }
@@ -205,8 +216,7 @@ function openRubrik(idx,silent){ const r=curStd.rubriken[idx]; if(!silent){ nav.
     let lg=''; natList().forEach(n=>{ lg+=`<div class="lg-row"><span class="lg-swatch" style="background:${n.color}"></span>${esc(n.label)}</div>`; });
     html+=`<details class="legend"><summary>◐ Farb-Legende</summary><div class="legend-body">
       <div class="lg-row"><span class="lg-mbox">2×</span>Menge (Stückzahl, links)</div>${lg}
-      <div class="lg-row"><span class="lg-size">6F</span>Größe (French, Länge, Ø, Volumen …)</div>
-      <div class="lg-row"><span style="color:var(--warn)">⚠</span>Automatik unsicher – in Verwaltung prüfbar</div></div></details>`;
+      <div class="lg-row"><span class="lg-size">6F</span>Größe (French, Länge, Ø, Volumen …)</div></div></details>`;
   }
   if(isMatGer){
     const groupsMap=new Map(); let appear=0;

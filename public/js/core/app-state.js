@@ -4,9 +4,8 @@ let DB=null, DB_BASE=null, MAT_INDEX=[], nav=[], mode='use', curStd=null, careFi
 let formCtx=null; /* aktuell offenes Hinzufügen-/Bearbeiten-Formular (Rücksprung) */
 let ADDITIONS=loadAdditions();
 let CATALOG=loadCatalog();
-let admNat='alle', admState='offen';
+let admNat='alle';
 let admNewNatOpen=false; /* Eingabezeile „＋ Neue Kategorie" im Verwaltungs-Panel auf/zu */
-let admNewUkFor=null;    /* cid, für den in „Einstufung prüfen" gerade eine neue Unterkategorie getippt wird */
 let admContSid=null;     /* Inhalte-&-Aufbau-Panel: aufgeklappter Standard (null = Übersicht) */
 let careMem=loadJSON('hkl_care',{});
 let checks=loadChecks();
@@ -68,7 +67,7 @@ let STDE=loadJSON('hkl_stdedits',{});   function saveSTDE(){ saveJSON('hkl_stded
 let RUBE=loadJSON('hkl_rubedits',{});   function saveRUBE(){ saveJSON('hkl_rubedits',RUBE); }
 let ENTORD=loadJSON('hkl_entryorder',{}); function saveENTORD(){ saveJSON('hkl_entryorder',ENTORD); }
 /* ===== Paket 4: App-Gestalt ===== */
-const TXT_DEF={ appTitle:'HKL Standards', careTitle:'Materialwirtschaft', careIntro:'Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.', pruefTitle:'Einstufung prüfen' };
+const TXT_DEF={ appTitle:'HKL Standards', careTitle:'Materialwirtschaft', careIntro:'Jedes Produkt einmal pflegen: Foto und Lagerort. Deine Angaben gelten überall, wo dieses Material vorkommt.' };
 let TXT=loadJSON('hkl_txt',{}); function saveTXT(){ saveJSON('hkl_txt',TXT); }
 function txt(k){ return (TXT[k]!==undefined && TXT[k]!=='')?TXT[k]:(TXT_DEF[k]||''); }
 let DESIGN=loadJSON('hkl_design',{}); function saveDESIGN(){ saveJSON('hkl_design',DESIGN); }
@@ -194,7 +193,7 @@ function moveRubrik(idx,dir){ if(!ADMIN) return; const vis=curStd.rubriken.map((
   const pos=vis.findIndex(x=>x.i===idx); const j=pos+dir; if(j<0||j>=vis.length) return;
   vis.forEach((x,k)=>{ const key=rubKey(x.r,x.i); RUBE[key]=Object.assign({},RUBE[key],{ord:k}); });
   const a=vis[pos], b=vis[j]; const ka=rubKey(a.r,a.i), kb=rubKey(b.r,b.i); const t=RUBE[ka].ord; RUBE[ka].ord=RUBE[kb].ord; RUBE[kb].ord=t; saveRUBE(); openStandard(curStd.id,true); }
-function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.menge||null, menge_zahl:null, natur:n.natur||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:n.uk||null, spalte:null, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false, __new:true }; }
+function newToEntry(n){ return { roh_text:n.name, anzeige_text:n.name, menge:n.menge||null, menge_zahl:null, natur:n.natur||'material', natur_merkmale:[], natur_manuell:null, unterkategorie:n.uk||null, spalte:null, groessen:[], spezifikation:null, zusatz_markierung:null, material_key:null, ist_fliesstext:false, __new:true }; }
 /* Einträge werden ausschließlich über das Formular-System (startAddEntry →
    ADDITIONS) angelegt; das frühere prompt-basierte addNewEntry() wurde bei der
    Konsolidierung entfernt. Bestehende Alt-Einträge (NEW) werden weiterhin
@@ -255,12 +254,11 @@ function moveEntry(dir){ const cid=sheetCid, e=sheetEntry; if(!cid||!e) return; 
   else { const seg=ablaufSegments(idx); const segId=seg.segOf[cid]; if(!segId){ showSheet(false); return; } const b=seg.blocks.find(x=>x.segId===segId); list=b.items.map(x=>x.cid); okey=orderKeyFor(idx,segId); }
   const pos=list.indexOf(cid); const j=pos+dir; if(pos<0||j<0||j>=list.length){ toast(dir<0?'Schon ganz oben':'Schon ganz unten'); return; }
   const t=list[pos]; list[pos]=list[j]; list[j]=t; ENTORD[okey]=list; saveENTORD(); showSheet(false); reRenderDetail(); }
-let reviewed=loadJSON('hkl_reviewed',{});
 let reassign=loadJSON('hkl_reassign',{});
 let ukMap=loadJSON('hkl_ukmap',{});
 let ukMeta=loadJSON('hkl_ukmeta',{});
 let UKSEC=loadJSON('hkl_uksections',{});
-let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,konfidenz:true,fliesstext:true,zerlegung:true}, loadJSON('hkl_settings',{}));
+let settings=Object.assign({menge:true,groessen:true,spez:true,lagerort:true,fliesstext:true,zerlegung:true}, loadJSON('hkl_settings',{}));
 let collapsed={};
 let UK_LIST=[];
 
@@ -285,8 +283,6 @@ const effNatur=(e,cid)=>{ if(typeof ruleResolve!=='function') return overrides[c
 /* „Erledigt" im Prüf-Workflow: geprüft-markiert ODER Kategorie korrigiert —
    Korrektur liegt für Material-Einträge jetzt als Stelle-Regel vor (EIN
    Schreibweg), für Alt-Einträge weiterhin in overrides. */
-const naturKorrigiert=(cid)=>overrides[cid]!==undefined||(typeof hasStelleRule==='function'&&hasStelleRule(cid,'natur'));
-const isHandled=(cid)=>!!reviewed[cid]||naturKorrigiert(cid);
 function rawUk(e,cid){ if(typeof ruleResolve!=='function'){ if(cid in reassign) return reassign[cid]; if(e.material_key&&QE.mat[e.material_key]&&('uk' in QE.mat[e.material_key])) return QE.mat[e.material_key].uk; return e.unterkategorie; }
   const lg={}; if(cid in reassign) lg.stelle=reassign[cid]; const mk=e.material_key; if(mk&&QE.mat[mk]&&('uk' in QE.mat[mk])) lg.alle=QE.mat[mk].uk;
   const v=ruleResolve(e,cid,'uk',lg); return (v!==undefined)?v:e.unterkategorie; }

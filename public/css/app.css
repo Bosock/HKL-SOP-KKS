@@ -159,33 +159,33 @@
   .entry { background:var(--surface); border:1.5px solid var(--e-col,var(--line-soft)); border-radius:11px; margin-bottom:7px; }
   /* Frei gewählte Füllfarbe: ganzer Eintrag eingefärbt, Text/Icons per Kontrast lesbar. */
   .entry.filled { background:var(--e-fill); border-color:var(--e-fill-bd); }
-  .entry.filled .e-text, .entry.filled .e-ico, .entry.filled .imp-star, .entry.filled .entry-edit-btn { color:var(--e-fill-text); }
+  .entry.filled .e-text, .entry.filled .imp-star, .entry.filled .entry-edit-btn { color:var(--e-fill-text); }
   .entry.filled .chk { border-color:var(--e-fill-text); color:var(--e-fill-text); }
   .entry.filled .entry-edit-btn { background:transparent; border-color:var(--e-fill-text); }
-  .entry-row { display:flex; align-items:flex-start; gap:10px; padding:11px 12px; cursor:pointer; min-height:var(--tap); }
+  /* Senkrecht MITTIG (Anmerkung des Betreibers): Bei einer Karte mit zwei
+     Textzeilen saßen Kästchen, Bild und Knöpfe sonst schief am oberen Rand. */
+  .entry-row { display:flex; align-items:center; gap:10px; padding:11px 12px; cursor:pointer; min-height:var(--tap); }
   .entry-row:active { background:var(--surface-2); }
-  .chk { width:26px; height:26px; flex:0 0 26px; border-radius:8px; margin-top:2px; border:2px solid var(--line); background:transparent; display:flex; align-items:center; justify-content:center; font-size:16px; color:transparent; transition:all .12s; }
+  .chk { width:26px; height:26px; flex:0 0 26px; border-radius:8px; border:2px solid var(--line); background:transparent; display:flex; align-items:center; justify-content:center; font-size:16px; color:transparent; transition:all .12s; }
   .entry.done .chk { background:var(--ok); border-color:var(--ok); color:#06210f; }
   .entry.done .e-text { color:var(--text-faint); text-decoration:line-through; }
 
-  .mbox { min-width:40px; height:33px; flex:0 0 40px; border-radius:9px; margin-top:1px; background:var(--surface-3); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:800; font-size:15.5px; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .mbox { min-width:40px; height:33px; flex:0 0 40px; border-radius:9px; background:var(--surface-3); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:800; font-size:15.5px; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
   .mbox.empty { background:transparent; border-color:transparent; }
 
-  .e-ico { flex:0 0 19px; font-size:14px; margin-top:3px; opacity:.85; text-align:center; }
   .e-main { flex:1; min-width:0; }
-  .e-top { display:flex; align-items:baseline; gap:7px; }
-  .e-text { font-size:15px; font-weight:500; line-height:1.34; flex:1; }
-  .conf { flex:0 0 auto; font-size:13px; color:var(--warn); cursor:help; }
+  .e-top { display:flex; align-items:center; gap:7px; }
+  .e-text { font-size:15px; font-weight:500; line-height:1.34; flex:1 1 auto; min-width:0; }
   .edited-mark { flex:0 0 auto; font-size:12px; color:var(--accent); cursor:help; }
-  .entry-edit-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px -4px -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:flex-start; transition:background .15s,color .15s; }
+  .entry-edit-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px -4px -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; transition:background .15s,color .15s; }
   .entry-edit-btn:active { background:var(--surface-3); }
   /* Sichtbarer Aktions-Einstieg für ALLE (Admin: Schnellmenü, sonst Vorschlag).
      Der Long-Press bleibt als Abkürzung — Gesten ergänzen, ersetzen nie (HIG). */
-  .entry-menu-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px -4px -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:flex-start; transition:background .15s,color .15s; }
+  .entry-menu-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px -4px -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text-dim); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; transition:background .15s,color .15s; }
   .entry-menu-btn:active { background:var(--surface-3); }
   .entry.filled .entry-menu-btn { background:transparent; border-color:var(--e-fill-text); color:var(--e-fill-text); }
   .entry-edit-btn.edited { color:var(--accent); border-color:var(--accent); }
-  .entry-why-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px 0 -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:flex-start; transition:background .15s,transform .15s; }
+  .entry-why-btn { flex:0 0 auto; width:30px; height:30px; margin:-4px 0 -4px 0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; align-self:center; transition:background .15s,transform .15s; }
   .entry-why-btn:active { background:var(--surface-3); }
   .entry.show-why .entry-why-btn { background:var(--size-bg,rgba(232,179,74,.16)); transform:scale(1.05); }
   .entry.filled .entry-why-btn { border-color:var(--e-fill-text); }
@@ -205,11 +205,30 @@
   .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap; }
   .tag-spec { color:var(--accent); background:rgba(61,155,224,.13); }
   .tag-loc { color:var(--n-material); background:rgba(52,201,138,.13); }
-  .tag-loc.missing { color:var(--text-faint); background:var(--surface-2); }
+  .tag-ohne { color:var(--text-faint); background:var(--surface-2); }
+  /* ── Lagerort als einteiliger Banner rechts in der Zeile ──────────────
+     Er erscheint NUR bei hinterlegtem Ort (siehe ui/detail.js). Eine feste
+     Höchstbreite hält ihn in einer Zeile: Ein umbrechender Ortsname würde
+     die Karte wieder auseinanderziehen — genau das sollte weg. */
+  /* `0 1 auto` statt `0 0 auto`: Der Banner MUSS schrumpfen dürfen. Starr
+     gesetzt drückte er lange Titel auf vier Zeilen und schob den ⋯-Knopf aus
+     dem rechten Rand — der Name der Zeile hat Vorrang, der Ort kürzt sich. */
+  /* Die Mindestbreite ist GEMESSEN, nicht geschätzt: „📍 Lager 3" misst bei
+     11,5 px fett 67 px, mit Polsterung und Rahmen 87 px. Darunter kürzt der
+     Banner auf „Lage…" — und ein gekürzter Lagerort hilft im Saal niemandem.
+     92 px tragen die üblichen Ortsnamen; längere kürzen sichtbar, der volle
+     Text steht im title. Der Preis dafür sind schmalere Titel in genau den
+     Zeilen, die einen Ort tragen — der Rest behält die volle Breite. */
+  .e-loc { flex:0 1 auto; min-width:92px; max-width:46%; font-size:11.5px; font-weight:600; line-height:1.25;
+    color:var(--n-material); background:rgba(52,201,138,.13); border:1px solid rgba(52,201,138,.28);
+    padding:3px 9px; border-radius:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .entry.filled .e-loc { color:var(--e-fill-text); background:transparent; border-color:var(--e-fill-text); }
   .tag-zusatz { color:var(--warn); background:rgba(239,143,66,.13); }
   .size-badge { font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--size); background:var(--size-bg); border:1px solid var(--size-bd); padding:1px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; }
   .size-badge .st { font-family:"Segoe UI",sans-serif; font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; opacity:.68; }
-  .e-thumb { width:34px; height:34px; flex:0 0 34px; border-radius:8px; margin-top:1px; background:var(--surface-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden; }
+  /* Größer und mittig (Anmerkung des Betreibers): 34 px war mit Handschuhen
+     kaum zu treffen und zeigte vom Foto zu wenig, um es wiederzuerkennen. */
+  .e-thumb { width:48px; height:48px; flex:0 0 48px; border-radius:10px; background:var(--surface-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:21px; overflow:hidden; }
   .e-thumb img { width:100%; height:100%; object-fit:cover; }
   .entry.step .e-text { font-weight:500; }
 
