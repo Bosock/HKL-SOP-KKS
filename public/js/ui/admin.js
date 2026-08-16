@@ -10,7 +10,6 @@ function computeUkList(){ const cnt=new Map(); const first=new Map(); let i=0;
   if(typeof UKSEC==='object'&&UKSEC) Object.keys(UKSEC).forEach(k=>{ (UKSEC[k]||[]).forEach(nm=>{ nm=(ukMap[nm]||nm); if(nm&&!cnt.has(nm)){ cnt.set(nm,0); first.set(nm,i++); } }); });
   let names=[...cnt.keys()]; names.sort((a,b)=>{ const oa=ukMetaOf(a).order!=null?ukMetaOf(a).order:first.get(a); const ob=ukMetaOf(b).order!=null?ukMetaOf(b).order:first.get(b); return oa-ob; });
   UK_LIST=names; return {names,cnt}; }
-function collectUncertain(){ const out=[]; allMatGerEntries().forEach(x=>{ if(qeGet(x.e,x.cid,'hidden')===true) return; const unc=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig'); if(unc||naturKorrigiert(x.cid)) out.push(x); }); return out; }
 /* cid → {e,std,rubrik} für die Anzeige regel-ausgeblendeter Einträge. */
 function locateCid(cid){ try{ const e=findEntry(cid); if(!e) return null;
   if(cid.indexOf('new|')===0){ const std=DB.standards.find(x=>x.id===cidStd(cid)); return std?{e,std,rubrik:'Eigene Einträge'}:null; }

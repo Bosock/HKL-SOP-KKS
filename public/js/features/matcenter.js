@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    BAUSTEIN — MATERIAL-ZENTRALE (ein Ort für alles)
    Vorher war die Materialpflege über die halbe App verteilt: „Material
-   pflegen", „Etikett-Scanner", „Materialzusammenführung", „Einstufung prüfen",
+   pflegen", „Etikett-Scanner", „Materialzusammenführung",
    „Unterkategorien", „Kategorien", „Ausgeblendete Einträge", „Katalog" und der
    Aufräum-Assistent — neun Einstiege für zwei Sachverhalte.
 
@@ -17,7 +17,7 @@
      📦 Material · 📄 Einträge · 🗂 Ordnung · ✅ Prüfen
 
    „Prüfen" ist der eigentliche Gewinn: eine Arbeitsliste statt Suchen — sie
-   sagt, was noch fehlt (Foto, Preis, Lagerort, Verknüpfung, Einstufung) und
+   sagt, was noch fehlt (Foto, Preis, Lagerort, Zuordnung) und
    führt mit einem Tipp genau dorthin.
    ───────────────────────────────────────────────────────────── */
 
@@ -82,12 +82,10 @@ function mcEntryRows(){
     const cid=x.cid;
     const linkedId=(typeof canonId==='function'&&x.e.material_key)?canonId(x.e.material_key):null;
     const hidden=(typeof qeGet==='function')?(qeGet(x.e,cid,'hidden')===true):false;
-    const unsicher=(x.e.natur_konfidenz==='mittel'||x.e.natur_konfidenz==='niedrig')
-      && (typeof isHandled==='function' ? !isHandled(cid) : true);
     const dn=(typeof qeGet==='function')?qeGet(x.e,cid,'name'):undefined;
     return { cid, name:(dn!==undefined?dn:x.e.anzeige_text)||'', std:(typeof stdTitel==='function')?stdTitel(x.std):x.std.titel,
       stdId:x.std.id, rubrik:x.rubrik||'', mk:x.e.material_key||'', verknuepft:!!linkedId,
-      hidden, unsicher, eigen:!!x.e._added };
+      hidden, eigen:!!x.e._added };
   }));
 }
 
@@ -192,9 +190,19 @@ function mcMaterialListHTML(){
     const gaps=miss.length?`<span class="mc-gap">${miss.length} offen</span>`:'';
     const cnt=m.vorkommen?`<span class="mat-count">${m.vorkommen}×</span>`:'';
     const onclick=m.kind==='stamm'?`openScanItem(this.dataset.k,true)`:`openMaterial(this.dataset.k)`;
+    /* Der Griff, der hier gefehlt hat: Ein Tipp auf die Zeile ÖFFNET das
+       Material (und legt notfalls ein neues an) — verbinden mit einem BEREITS
+       VORHANDENEN Produkt konnte man von hier aus gar nicht. Dafür gibt es
+       jetzt einen eigenen Knopf; er hält den Tipp auf, damit er nicht zugleich
+       die Zeile öffnet (features/zuordnen.js). */
+    const link=(m.kind!=='stamm' && typeof zuOeffnen==='function')
+      ? `<button type="button" class="mc-link-btn" data-k="${esc(m.key)}" data-n="${esc(m.name)}"
+           title="Produkt zuordnen" aria-label="Produkt zuordnen für ${esc(m.name)}"
+           onclick="event.stopPropagation();zuOeffnen(this.dataset.k,{name:this.dataset.n,nachher:renderMatCenter})">🧬</button>`
+      : '';
     return `<div class="mat-row" style="border-left-color:var(--n-${esc(m.typ)})" data-k="${esc(m.key)}" onclick="${onclick}">
       ${thumb}<div class="mat-main"><div class="mat-name">${esc(m.name)}</div>
-      <div class="mat-sub">${(typeof matHubStatusTag==='function')?matHubStatusTag(m.status):''} · <span class="vw-ctx" style="display:inline">${where}</span></div></div>${gaps}${cnt}</div>`;
+      <div class="mat-sub">${(typeof matHubStatusTag==='function')?matHubStatusTag(m.status):''} · <span class="vw-ctx" style="display:inline">${where}</span></div></div>${link}${gaps}${cnt}</div>`;
   }).join('');
 }
 
@@ -202,18 +210,16 @@ function mcMaterialListHTML(){
 function mcEntriesHTML(){
   const rows=mcEntryRows();
   const nv=rows.filter(r=>!r.verknuepft&&!r.hidden).length;
-  const un=rows.filter(r=>r.unsicher&&!r.hidden).length;
   const hi=rows.filter(r=>r.hidden).length;
   const fb=(k,l)=>`<button class="${mcFilter===k?'on':''}" aria-pressed="${mcFilter===k?'true':'false'}" onclick="mcSetFilter('${k}')">${esc(l)}</button>`;
   return `<div class="mc-hint">Hier stehen die <b>Vorkommen</b> in den Standards – also wie ein Material an einer bestimmten Stelle benutzt wird. Ein Tipp öffnet die Eintrags-Maske; dort legst du auch fest, <b>wo</b> die Änderung gelten soll.</div>
     <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Eintrag, Standard, Rubrik …" value="${esc(mcQ)}" oninput="mcSearchDebounced(this.value)" autocomplete="off"></div>
-    <div class="filter-row">${fb('alle','Alle')}${fb('nichtverknuepft','ohne Material ('+nv+')')}${fb('unsicher','Einstufung unsicher ('+un+')')}${fb('ausgeblendet','Ausgeblendet ('+hi+')')}${fb('eigen','Eigene')}</div>
+    <div class="filter-row">${fb('alle','Alle')}${fb('nichtverknuepft','ohne Material ('+nv+')')}${fb('ausgeblendet','Ausgeblendet ('+hi+')')}${fb('eigen','Eigene')}</div>
     <div id="mcList">${mcEntryListHTML()}</div>`;
 }
 function mcEntryListHTML(){
   let rows=mcEntryRows();
   if(mcFilter==='nichtverknuepft') rows=rows.filter(r=>!r.verknuepft&&!r.hidden);
-  else if(mcFilter==='unsicher') rows=rows.filter(r=>r.unsicher&&!r.hidden);
   else if(mcFilter==='ausgeblendet') rows=rows.filter(r=>r.hidden);
   else if(mcFilter==='eigen') rows=rows.filter(r=>r.eigen);
   else rows=rows.filter(r=>!r.hidden);
@@ -223,7 +229,6 @@ function mcEntryListHTML(){
   return rows.slice(0,400).map(r=>{
     const tags=[
       r.verknuepft?'<span class="mc-tag ok">🧬 Material</span>':'<span class="mc-tag warn">kein Material</span>',
-      r.unsicher?'<span class="mc-tag warn">⚠ Einstufung</span>':'',
       r.hidden?'<span class="mc-tag">ausgeblendet</span>':'',
       r.eigen?'<span class="mc-tag">eigen</span>':'',
     ].filter(Boolean).join('');
@@ -293,7 +298,6 @@ function mcPropDelete(i){ if(typeof MATPROPS==='undefined'||!MATPROPS[i]) return
 function mcPruefenHTML(gaps,legacy){
   const rows=mcEntryRows();
   const nichtVerknuepft=rows.filter(r=>!r.verknuepft&&!r.hidden).length;
-  const unsicher=rows.filter(r=>r.unsicher&&!r.hidden).length;
   const groups=(typeof matSuggestGroups==='function'&&typeof matDistinctList==='function')
     ? matSuggestGroups(matDistinctList()) : [];
   const cleanupOffen=(typeof cleanupStats==='function')?cleanupStats().offen:0;
@@ -320,7 +324,6 @@ function mcPruefenHTML(gaps,legacy){
 
   let todo='';
   todo+=row('🧬','Einträge ohne Material',nichtVerknuepft,'Material öffnen und ausfüllen – dann gelten Foto, Maße und Preis überall',"mcJump('eintraege','nichtverknuepft')");
-  todo+=row('⚠','Einstufung unsicher',unsicher,'die Automatik war sich bei der Kategorie nicht sicher',"mcJump('eintraege','unsicher')");
   MC_LUECKEN.forEach(l=>{ const n=gaps[l.key]||0;
     const filt=(l.key==='foto'||l.key==='preis'||l.key==='lagerort')?l.key:'alle';
     todo+=row(l.ico,'Material '+l.label,n,'am Material ergänzen',"mcJump('material','"+filt+"')"); });

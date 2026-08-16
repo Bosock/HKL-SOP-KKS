@@ -390,6 +390,25 @@ async function medMigriereAltbestand(grenze){
         if(medIstMediaUrl(url)){ b.foto = url; umgezogen++; if(typeof saveBest==='function') saveBest(); }
       }
     }
+    /* GUIDES: schritte[].bild — der Altbestand aus der Zeit, als Anleitungs-
+       Fotos noch als base64 in `hkl_guides` lagen. Genau dieser Bestand hat im
+       Labor das Speichern gesprengt: Der Schlüssel wandert bei JEDER Änderung
+       vollständig zum Server, ein Foto wiegt darin rund 327 KB. Nach dem Umzug
+       steht dort eine 40 Zeichen kurze Adresse. */
+    if(typeof GUIDES!=='undefined' && Array.isArray(GUIDES)){
+      for(const g of GUIDES){
+        if(umgezogen>=max) break;
+        if(!g || !Array.isArray(g.schritte)) continue;
+        let geaendert = false;
+        for(const s of g.schritte){
+          if(umgezogen>=max) break;
+          if(!s || !istData(s.bild)) continue;
+          const url = await medFotoAblegen(s.bild, { roh:true });
+          if(medIstMediaUrl(url)){ s.bild = url; geaendert = true; umgezogen++; }
+        }
+        if(geaendert && typeof saveGuides==='function') saveGuides();
+      }
+    }
   }catch(e){}
   _medMigriereLaeuft = false;
   return umgezogen;

@@ -242,7 +242,22 @@ function guideStepPhoto(i){ const g=guideReadForm(); if(!g||!g.schritte[i]) retu
   if(!inp){ inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.id='gPhotoInp'; inp.style.display='none'; document.body.appendChild(inp); }
   inp.onchange=(ev)=>{ const f=ev.target.files&&ev.target.files[0]; if(!f) return;
     const rd=new FileReader();
-    rd.onload=()=>{ const apply=(src)=>{ const gg=guideById(guideEditId); if(gg&&gg.schritte[i]){ gg.schritte[i].bild=src; saveGuides(); renderGuideEdit(); } };
+    rd.onload=()=>{ const apply=(src)=>{
+        const setze=(wert)=>{ const gg=guideById(guideEditId); if(gg&&gg.schritte[i]){ gg.schritte[i].bild=wert; saveGuides(); renderGuideEdit(); } };
+        /* Das Foto geht in den MEDIENSPEICHER, nicht in den geteilten Zustand.
+           Vorher stand es als base64 in `hkl_guides` — und weil beim Speichern
+           IMMER der ganze Schlüssel wandert, wuchs mit jedem Schritt-Foto der
+           Umfang JEDER weiteren Speicherung. Gemessen: ein verkleinertes
+           Handyfoto wiegt 327 KB base64; drei davon reißen ein 1-MB-Limit, wie
+           es Umkehr-Proxys voreingestellt haben. Genau daran ist das Speichern
+           im Labor gescheitert („Daten zu groß für den Server").
+           Material- und Bestellfotos gehen diesen Weg längst (features/
+           medien.js) — die Anleitungen sind bei der Umstellung übersehen
+           worden. Im Zustand steht jetzt nur noch die Adresse. */
+        if(typeof medFotoSichern==='function'){
+          medFotoSichern(src).then(u=>setze(u||src)).catch(()=>setze(src));
+        } else setze(src);
+      };
       if(typeof openPhotoEditor==='function'){ openPhotoEditor(rd.result,(edited)=>{ if(edited==null) return;
         if(typeof shrinkPhoto==='function') shrinkPhoto(edited,apply); else apply(edited); }); }
       else if(typeof shrinkPhoto==='function') shrinkPhoto(rd.result,apply);

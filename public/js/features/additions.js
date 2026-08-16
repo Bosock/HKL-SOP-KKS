@@ -34,7 +34,7 @@ function makeAddEntry(f){ const name=(f.name||'').trim(); const menge=(f.menge||
   const uk=(f.uk||'').trim()||null; const spez=(f.spez||'').trim()||null;
   const syn=parseSyn(f.synonyms);
   return { roh_text:name, anzeige_text:name, menge:menge||null, menge_zahl:Number.isFinite(mz)?mz:null,
-    natur:f.nat||'material', natur_konfidenz:'hoch', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
+    natur:f.nat||'material', natur_merkmale:[], natur_manuell:null, unterkategorie:uk,
     /* Überschriften sind Gliederung, kein Material — kein material_key,
        sonst griffen Material-Regeln auf Abschnittstitel. */
     spalte:0, groessen, spezifikation:spez, zusatz_markierung:null, material_key:(f.nat==='ueberschrift')?null:(name?name.toLowerCase():null),

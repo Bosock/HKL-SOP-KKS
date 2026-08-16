@@ -1,5 +1,5 @@
 /* ============ Datensicherung: Export/Import aller Anpassungen ============ */
-const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reviewed','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_bildorte','hkl_hartweg','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme','hkl_bestellungen','hkl_bestlern'];
+const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reassign','hkl_ukmap','hkl_ukmeta','hkl_settings','hkl_qedits','hkl_care','hkl_prod','hkl_hints','hkl_glossary','hkl_suggestions','hkl_additions','hkl_catalog','hkl_newentries','hkl_newstd','hkl_newrub','hkl_rubtpl','hkl_stdedits','hkl_rubedits','hkl_entryorder','hkl_txt','hkl_design','hkl_grpord','hkl_rubicon','hkl_authpw','hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_bildorte','hkl_hartweg','hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_rules','hkl_theme','hkl_bestellungen','hkl_bestlern'];
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
@@ -86,9 +86,9 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
 
   /* ── Panel: Anzeige-Einstellungen ── */
   const tgl=(k,l)=>`<label class="tgl"><span>${l}</span><input type="checkbox" ${settings[k]?'checked':''} onchange="setSetting('${k}',this.checked)"></label>`;
-  const anzKeys=['menge','groessen','spez','lagerort','konfidenz','fliesstext','zerlegung']; const anzOn=anzKeys.filter(k=>settings[k]).length;
-  const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort konfidenz fließtext fliesstext badges">${vsum('👁','Anzeige-Einstellungen','Blendet Zusatzangaben an jedem Eintrag ein/aus (Menge, Größen, Lagerort, Warnung …)',anzOn+'/'+anzKeys.length+' an')}<div class="vpanel-body">
-    ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('konfidenz','Konfidenz-Warnung ⚠')}${tgl('fliesstext','Fließtext-Einträge')}${tgl('zerlegung','Aufgeräumte Anzeige (Produkt · Verwendung getrennt)')}
+  const anzKeys=['menge','groessen','spez','lagerort','fliesstext','zerlegung']; const anzOn=anzKeys.filter(k=>settings[k]).length;
+  const pAnzeige=`<details class="vpanel" data-keys="anzeige einstellungen sichtbar menge größen groessen spezifikation lagerort fließtext fliesstext badges">${vsum('👁','Anzeige-Einstellungen','Blendet Zusatzangaben an jedem Eintrag ein/aus (Menge, Größen, Lagerort, Warnung …)',anzOn+'/'+anzKeys.length+' an')}<div class="vpanel-body">
+    ${tgl('menge','Menge (Kästchen links)')}${tgl('groessen','Größen-Badges')}${tgl('spez','Spezifikation')}${tgl('lagerort','Lagerort')}${tgl('fliesstext','Fließtext-Einträge')}${tgl('zerlegung','Aufgeräumte Anzeige (Produkt · Verwendung getrennt)')}
     <p class="hint">Die aufgeräumte Anzeige greift <b>nur bei Zeilen, die im Aufräum-Assistenten bestätigt wurden</b>. Alles andere bleibt Wort für Wort so stehen, wie es im Standard steht.</p>
   </div></details>`;
 
@@ -181,7 +181,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   /* ── Panel: Texte ── */
   const ti=(k,l)=>`<div class="flabel" style="margin-top:8px">${l}</div><input class="txtinp" style="width:100%" value="${esc(txt(k))}" onchange="setTxt('${k}',this.value)">`;
   const pTexte=`<details class="vpanel" data-keys="texte text titel banner beschriftung benennung wörter überschrift">${vsum('🔤','Texte','Ändert App-Titel und die Einleitungstexte der Pflege-Ansichten')}<div class="vpanel-body">
-    ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}${ti('pruefTitle','Titel „Einstufung prüfen"')}
+    ${ti('appTitle','App-Titel (Startseite)')}${ti('careTitle','Titel „Material pflegen"')}${ti('careIntro','Einleitung „Material pflegen"')}
     <button class="reset-btn" style="margin-top:12px;width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim);font-weight:650;cursor:pointer" onclick="resetTxt()">Texte zurücksetzen</button>
   </div></details>`;
 
@@ -218,7 +218,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
     pUk+=`<div class="ukrow" style="--uk:${col}"><div class="ukrow-head"><span class="uk-ico">${ico}</span><span class="uk-name">${esc(name)}</span><span class="uk-count">${cnt.get(name)||0}×</span></div>
       <div class="uk-swatches">${sw}</div>
       <div class="uk-actions"><button onclick="renameUk(${i})">Umbenennen / Zusammenführen</button><button class="icon" onclick="moveUk(${i},-1)">▲</button><button class="icon" onclick="moveUk(${i},1)">▼</button></div></div>`; });
-  pUk+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: unten in „Einstufung prüfen".</p></div></details>`;
+  pUk+=`<p class="hint">Tipp: Beim Umbenennen einen bereits vorhandenen Namen eingeben = zwei Gruppen zusammenführen. Einzelne Einträge umhängen: über das ⋯-Menü an der Zeile.</p></div></details>`;
 
   /* ── Panel: Ausgeblendete Einträge (Wiederherstellung) ── */
   const hid=collectHidden(); const hidTotal=hid.byCid.length+hid.byMat.length+hid.byStd.length+hid.byRub.length;
@@ -232,33 +232,14 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   hid.byCid.forEach(x=>{ pHidden+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${esc(x.e.anzeige_text||x.e.roh_text)}</span></div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)}</div><div class="uk-actions"><button onclick="restoreCid('${esc(x.cid)}')">Wiederherstellen</button></div></div>`; });
   pHidden+=`</div></details>`;
 
-  /* ── Panel: Einstufung prüfen (Prüf-Workflow, jetzt einklappbar) ── */
-  const all=collectUncertain(); const done=all.filter(x=>isHandled(x.cid)).length; const pct=all.length?Math.round(done/all.length*100):0;
-  const openCount=all.filter(x=>!isHandled(x.cid)).length;
-  let list=all;
-  if(admState==='offen') list=all.filter(x=>!isHandled(x.cid));
-  if(admState==='erledigt') list=all.filter(x=>isHandled(x.cid));
-  if(admNat!=='alle') list=list.filter(x=>effNatur(x.e,x.cid)===admNat);
-  let pPruef=`<details class="vpanel" data-keys="einstufung prüfen pruefen kategorie konfidenz zuordnung unsicher korrigieren"${openCount?' open':''}>${vsum('🔎',txt('pruefTitle'),'Prüft und korrigiert die automatisch vergebene Kategorie unsicherer Einträge',openCount?openCount+' offen':(all.length?'geprüft ✓':''))}<div class="vpanel-body">`;
-  pPruef+=`<p class="panel-help">Unsichere Einträge (mittlere/niedrige Konfidenz). „⋯ Bearbeiten" öffnet dasselbe Menü wie im Saal — mit derselben Frage, wo die Änderung gelten soll. „✓ geprüft" nimmt die Zeile aus „Offen", ohne etwas zu ändern. Korrekturen werden zentral gespeichert und auf allen Geräten geteilt.</p><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div><div class="prog-txt">${done} von ${all.length} erledigt (${pct} %)</div></div>
-  <div class="filter-row"><button class="${admState==='offen'?'on':''}" onclick="setAdmState('offen')">Offen</button><button class="${admState==='erledigt'?'on':''}" onclick="setAdmState('erledigt')">Erledigt</button><button class="${admState==='alle'?'on':''}" onclick="setAdmState('alle')">Alle</button></div>`;
-  const natFilters=['alle'].concat(natList().filter(n=>n.key!=='ueberschrift').map(n=>n.key));
-  pPruef+=`<div class="filter-row">`+natFilters.map(k=>`<button class="${admNat===k?'on':''}" onclick="setAdmNat('${esc(k)}')">${k==='alle'?'Alle':esc(natOf(k).label)}</button>`).join('')+`</div>`;
-  if(list.length===0) pPruef+=`<div class="empty"><div class="ei">✓</div><h3>Nichts zu prüfen</h3><p>In diesem Filter gibt es keine Einträge.</p></div>`;
-  /* EIN Bearbeiten-Menü, zwei Kontexte (Grundsatz ⑥): Diese Zeilen hatten
-     früher eigene Kategorie-Knöpfe und eine eigene Unterkategorie-Auswahl.
-     Sie schrieben sofort auf 📍 Stelle — ohne die Reichweiten-Frage, die
-     dieselbe Handlung im Saal (⋯ an der Zeile) stellt. Dieselbe Handlung
-     wirkte hier also anders als dort, und niemand sagte es. Jetzt öffnet die
-     Zeile dasselbe Menü wie im Saal; hier bleiben nur die Dinge, die es dort
-     nicht gibt: der Prüf-Vermerk „geprüft". */
-  list.slice(0,300).forEach(x=>{ const nat=effNatur(x.e,x.cid); const isOv=naturKorrigiert(x.cid); const isRev=!!reviewed[x.cid]; const uk=canonUk(x.e,x.cid); const cur=natOf(nat);
-    pPruef+=`<div class="vwrow ${isHandled(x.cid)?'done':''}"><div class="vw-txt">${esc(x.e.anzeige_text||x.e.roh_text)}</div><div class="vw-ctx">${esc(x.std.titel)} · ${esc(x.rubrik)} · Konfidenz ${esc(x.e.natur_konfidenz)}${isOv?'<span class="vw-badge override">korrigiert</span>':''}${isRev?'<span class="vw-badge reviewed">geprüft</span>':''}</div>
-      ${sizeBadges(x.e.groessen)?`<div class="e-meta" style="margin-top:8px">${sizeBadges(x.e.groessen)}</div>`:''}
-      <div class="vw-lbl">Kategorie: <span class="nat-chip" style="color:${cur.color};background:${cur.color}22">${esc(cur.label)}</span>${uk?` · Unterkategorie: <b>${esc(uk)}</b>`:''}</div>
-      <div class="vw-foot"><button class="add-btn" data-c="${esc(x.cid)}" onclick="admPruefMenue(this.dataset.c)">⋯ Bearbeiten</button><button class="${isRev?'':'done-btn'}" onclick="toggleReviewed('${esc(x.cid)}')">${isRev?'↺ wieder öffnen':'✓ geprüft'}</button></div></div>`; });
-  if(list.length>300) pPruef+=`<div class="foot">Zeige erste 300 von ${list.length}. Filter nutzen.</div>`;
-  pPruef+=`</div></details>`;
+  /* Die Karte fuer die Einstufungspruefung ist ERSATZLOS entfallen. Sie war der
+     Arbeitsplatz eines Konzepts aus der Anfangszeit: Der Import riet die
+     Kategorie jeder Zeile und notierte eine Konfidenz; Unsicheres landete hier
+     zum Nachpruefen. Inzwischen setzt das Bearbeiten-Menue die Kategorie mit
+     Reichweiten-Frage, die Zerlegung liefert die Identitaet und der Pflege-Weg
+     fuehrt systematisch durch den Bestand — die Vorpruefung war zur
+     Karteileiche geworden, die eine Arbeit behauptete, die niemand mehr tat.
+     Der Betreiber: das komplette Einstufungs-Konzept muss weg, restlos. */
 
   /* ── Panel: Inhalte & Aufbau (Souveränität: der ganze Baum zentral) ── */
   let pInhalt=`<details class="vpanel" data-keys="inhalte aufbau struktur baum standards rubriken einträge eintraege anlegen verschieben hinzufügen hinzufuegen"${admContSid?' open':''}>${vsum('🧱','Inhalte & Aufbau','Alle Standards und Rubriken zentral durchgehen — überall anlegen, öffnen, ergänzen',DB.standards.filter(s=>!stdHidden(s)).length+' Standards')}<div class="vpanel-body">`;
@@ -291,7 +272,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const pPflege=(typeof pflegePanelHTML==='function')?pflegePanelHTML():'';
   const pSeiten=(typeof seitenPanelHTML==='function')?seitenPanelHTML():'';
   const pAkt=(typeof aktuellPanelHTML==='function')?aktuellPanelHTML():'';
-  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+pPruef+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
+  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
   const pBildorte=(typeof bildortePanelHTML==='function')?bildortePanelHTML():'';
   html+=sec('Aussehen & Anzeige')+pAnzeige+pBildorte+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
@@ -325,14 +306,21 @@ function matMergePanelHTML(){
   }
   p+=`<div class="flabel" style="margin-top:14px">Alle Materialien (${list.length})</div>`;
   if(!list.length) p+=`<p class="hint">Keine Materialien in den Standards gefunden.</p>`;
-  const optsFor=(sel)=>['<option value="">— nicht verknüpft —</option>']
-     .concat(prods.map(r=>`<option value="${esc(r.gtin)}" ${sel===r.gtin?'selected':''}>${esc(r.name||r.ref||r.gtin)}</option>`))
-     .concat([`<option value="__neu__">＋ Neuer Stammsatz aus diesem Material</option>`]).join('');
-  list.slice(0,300).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
+  /* FRÜHER stand hier ein Klappmenü je Material über ALLE Stammsätze: ohne
+     Suche, ohne Foto, ohne REF, gedeckelt auf 300 Zeilen — und es schrieb beim
+     Loslassen sofort, ohne zu sagen, wie viele Stellen das trifft. Jetzt führt
+     derselbe Knopf wie überall sonst ins Zuordnen-Blatt
+     (features/zuordnen.js): mit Suche, Vorschlägen, Wirkung und Bestätigung.
+     `matAdminLink` bleibt als programmatischer Weg bestehen (E2E). */
+  list.slice(0,600).forEach(x=>{ const id=cId(x.key); const c=cOf(x.key);
+    const knopf=(typeof zuOeffnen==='function')
+      ? `<button class="vlink" data-k="${esc(x.key)}" data-n="${esc(x.name)}"
+           onclick="zuOeffnen(this.dataset.k,{name:this.dataset.n,nachher:renderAdmin})">${id?'Zuordnung ändern':'Produkt zuordnen'}</button>`
+      : '';
     p+=`<div class="ukrow"><div class="ukrow-head"><span class="uk-name">${c&&c.photo?'🖼 ':''}${esc(x.name)}</span><span class="uk-count">${x.count}×</span></div>
-      ${id?`<div class="vw-ctx">🧬 ${esc(c?(c.name||c.ref||c.gtin):id)}</div>`:''}
-      <select class="vw-sel" data-k="${esc(x.key)}" onchange="matAdminLink(this.dataset.k,this.value)">${optsFor(id)}</select></div>`; });
-  if(list.length>300) p+=`<div class="foot">Zeige erste 300 von ${list.length}. Für weitere zuerst zusammenführen.</div>`;
+      <div class="vw-ctx">${id?('🧬 '+esc(c?(c.name||c.ref||c.gtin):id)):'noch kein Produkt zugeordnet'}</div>
+      <div class="uk-actions">${knopf}</div></div>`; });
+  if(list.length>600) p+=`<div class="foot">Zeige erste 600 von ${list.length}. Der vollständige Bestand mit Suche und Filtern steht unter „Material &amp; Einträge".</div>`;
   p+=`<p class="hint">„Zusammenführen" legt bei Bedarf einen Stammsatz an und verknüpft alle gleichen Vorkommen damit. Über den Etiketten-Scanner reicherst du den Stammsatz danach mit Foto, REF, Maßen und eigenen Eigenschaften an.</p></div></details>`;
   return p;
 }
@@ -410,21 +398,12 @@ function bezSetFacette(k,v){
 /* Der eine Weg ins Bearbeiten-Menü aus der Verwaltung heraus. Nach dem
    Anwenden frischt applyPending() über reRenderDetail() genau den Bildschirm
    auf, auf dem man steht — also diesen hier. */
-function admPruefMenue(cid){
-  if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function') promptLoginThen(()=>admPruefMenue(cid)); return; }
-  if(typeof openSheet==='function') openSheet(cid);
-}
-function setAdmState(s){ admState=s; renderAdmin(); }
 function setAdmNat(n){ admNat=n; renderAdmin(); }
-/* UK-Auswahl in „Einstufung prüfen": „＋ Neue Unterkategorie…" öffnet eine
-   Eingabezeile direkt unter dem Select (statt prompt(), s. addNat). */
-function admUkChange(cid,sel){ if(sel.value==='__neu__'){ admNewUkFor=cid; renderAdmin(); const i=$('admUkNewInp'); if(i){ i.focus(); i.onkeydown=(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); admUkNewSave(cid); } }; } return; } reassignEntry(cid,sel.value); }
-function admUkNewSave(cid){ const inp=$('admUkNewInp'); const v=(inp&&inp.value||'').trim(); if(!v){ if(inp) inp.focus(); return; } admNewUkFor=null; reassignEntry(cid,v); toast('Unterkategorie „'+v+'" angelegt'); }
 /* Inhalte-&-Aufbau-Panel: in die Rubrik springen bzw. direkt anlegen. */
 function admContOpenRub(ri){ if(!admContSid) return; const sid=admContSid; openStandardById(sid); openRubrik(ri); }
 function admContAddEntry(ri){ if(!admContSid) return; openEntryForm({kind:'add', sid:admContSid, ri}); }
 /* Programmatischer Schreibweg für Kategorie und Unterkategorie an EINER Stelle
-   (📍). Seit „Einstufung prüfen" dasselbe Bearbeiten-Menü benutzt wie der Saal,
+   (📍). Seit die Oberfläche überall dasselbe Bearbeiten-Menü benutzt,
    ruft die Oberfläche das nicht mehr direkt auf — die Funktionen bleiben als
    geprüfter Kern (Tests, Skripte, Migrationen) und als Alt-Pfad für Einträge
    ohne material_key erhalten. Sie schreiben denselben Regel-Weg wie das
@@ -438,7 +417,6 @@ function setNatur(cid,nat){ const e=findEntry(cid); if(!e) return;
     else { addRule(ziel,{art:'stelle',wert:cid},'natur',nat); clearLegacyAt(e,cid,'stelle','natur'); }
     buildMaterialIndex(); renderAdmin(); return; }
   if(e.natur===nat) delete overrides[cid]; else overrides[cid]=nat; saveJSON('hkl_overrides',overrides); buildMaterialIndex(); renderAdmin(); }
-function toggleReviewed(cid){ if(reviewed[cid]) delete reviewed[cid]; else reviewed[cid]=true; saveJSON('hkl_reviewed',reviewed); renderAdmin(); }
 function reassignEntry(cid,val){ const e=findEntry(cid);
   const zielU=(e&&typeof ruleZiel==='function')?ruleZiel(e):((e&&e.material_key)?{art:'material',key:e.material_key}:null);
   if(zielU && typeof addRule==='function'){

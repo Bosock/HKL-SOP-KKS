@@ -92,7 +92,17 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
     const fehlt=cn?[(cn.photo?null:'Foto'),(cn.lagerort?null:'Lagerort')].filter(Boolean):null;
     S.akt('material','🧬','Material öffnen',
       cn ? (fehlt.length?('es fehlt: '+fehlt.join(' und ')):'vollständig gepflegt') : 'Angaben, Etikett scannen, Foto',
-      'matManage()'); }
+      'matManage()');
+    /* Der Nachtrag zum Absatz darüber: „ein Material ist ein Material" stimmt
+       für das ÖFFNEN — nicht fürs Zuordnen. Wer diese Zeile mit einem BEREITS
+       VORHANDENEN Produkt verbinden will (etwa einem, der auf Vorrat gescannt
+       wurde), konnte das von hier aus gar nicht; openMaterial() legt immer neu
+       an. Deshalb hier ein eigener Punkt — und er benennt den Zustand in
+       Klartext statt in Datenmodell-Wörtern. */
+    if(typeof zuOeffnen==='function'){
+      S.akt('zuordnen','🧬','Produkt zuordnen',
+        cn ? ('zugeordnet: '+((cn.name||cn.ref||cn.gtin)||'')) : 'noch kein Produkt hinterlegt',
+        'zuAusEintrag()'); } }
   /* Der geschlossene Weg: nicht ein Werkzeug öffnen, sondern von hier an
      Material für Material durchgehen (features/pflege.js). */
   if(isMat&&typeof pflegeAbZeile==='function'){
@@ -584,7 +594,7 @@ function ghostMouse(){ return Date.now()-touchGuardTs<700; }
    ganzen Zeile, hakt ab und unterdrückt den nativen Klick, sodass der
    Schalter selbst nie zum Zug kommt. An EINER Stelle gepflegt, damit ein
    neuer Schalter nicht wieder vergessen wird. */
-const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn,.ber-haken';
+const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-btn,.entry-zuordnen-btn,.ber-haken';
 
 /* Die sichtbaren Schalter einer Eintragszeile (Delegation am Bildschirm).
    Das Tippen/Halten der ZEILE selbst behandelt der gemeinsame Halte-Detektor
@@ -599,6 +609,9 @@ const ENTRY_BTNS='.entry-edit-btn,.entry-why-btn,.entry-menu-btn,.entry-canon-bt
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-why-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const entry=b.closest('.entry'); if(!entry) return; const open=entry.classList.toggle('show-why'); b.setAttribute('aria-expanded',open?'true':'false'); });
   /* Material-Badge: öffnet das Material (kein Abhaken). */
   el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-canon-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const g=b.dataset.g; if(g&&typeof openScanItem==='function') openScanItem(g,false); });
+  /* „🧬 kein Produkt" am Eintrag führt direkt ins Zuordnen — der kürzeste Weg
+     von der Lücke zur Behebung (features/zuordnen.js). */
+  el.addEventListener('click',e=>{ const b=(e.target&&e.target.closest)?e.target.closest('.entry-zuordnen-btn'):null; if(!b) return; e.preventDefault(); e.stopPropagation(); const cid=b.dataset.cid; if(cid&&typeof zuAusCid==='function'){ if(typeof refreshAuth==='function') refreshAuth(); zuAusCid(cid); } });
 })();
 
 /* Generischer Halte-Detektor für Listen mit eigener Navigation: kurzes Tippen

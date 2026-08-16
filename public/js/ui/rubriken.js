@@ -66,7 +66,7 @@ function stdSearch(q){ const results=$('stdSearchResults'), list=$('stdRubList')
   if(!(q||'').trim()){ results.innerHTML=''; results.style.display='none'; list.style.display=''; return; }
   const res=searchStandard(q); list.style.display='none'; results.style.display='';
   if(!res.length){ results.innerHTML=`<div class="empty"><div class="ei">🔍</div><h3>Kein Treffer</h3><p>„${esc(q)}" ist in diesem Standard nicht hinterlegt.</p></div>`; return; }
-  results.innerHTML=`<div class="srch-count">${res.length} Treffer</div>`+res.map(x=>`<div class="srch-hit" onclick="jumpToHit('${esc(x.cid)}',${x.ri})"><div class="sh-name">${esc(x.name)}</div><div class="sh-ctx">${esc(x.rubrik)}${x.uk?' · '+esc(x.uk):''} · ${x.loc?'📍 '+esc(x.loc):'📍 kein Lagerort'}</div></div>`).join(''); }
+  results.innerHTML=`<div class="srch-count">${res.length} Treffer</div>`+res.map(x=>`<div class="srch-hit" onclick="jumpToHit('${esc(x.cid)}',${x.ri})"><div class="sh-name">${esc(x.name)}</div><div class="sh-ctx">${esc(x.rubrik)}${x.uk?' · '+esc(x.uk):''}${x.loc?' · 📍 '+esc(x.loc):''}</div></div>`).join(''); }
 /* Öffnet die Rubrik, klappt die passende Untergruppe auf, springt zum Eintrag und hebt ihn hervor. */
 function jumpToHit(cid,ri){ openRubrik(ri);
   const e=findEntry(cid); const uk=e?(canonUk(e,cid)||''):''; if(uk){ collapsed[ri+':'+uk]=false; const top=nav[nav.length-1]; if(top&&top.lvl==='rub') openRubrik(top.idx,true); }
