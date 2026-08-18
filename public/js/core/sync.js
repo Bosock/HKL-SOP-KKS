@@ -157,10 +157,15 @@ function refreshView(){
 const sync=(()=>{
   const URL='/api/state';
   let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0, oversize=false;
-  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
+  function setDot(cls,title,wort){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
     /* Im „nur lokal"-Zustand Text zeigen: Status muss ohne Hover erkennbar
-       sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4). */
-    d.textContent=(cls==='local')?'lokal':''; } }
+       sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4).
+       Das Wort ist übersteuerbar, weil hinter demselben Pill ZWEI verschiedene
+       Lagen stecken: „kein Netz" geht von selbst vorbei, „zu groß" nie. Wer
+       das nicht unterscheiden kann, wartet auf eine Verbindung, die längst da
+       ist. Der ganze Satz steht weiterhin im Tooltip bzw. im Toast beim
+       Antippen (ui/chrome.js). */
+    d.textContent=(cls==='local')?(wort||'lokal'):''; } }
   /* Einmaliger Hinweis beim Übergang online→offline; danach spricht das
      „lokal"-Pill. Beim Wiederverbinden zeigt der grüne Punkt den Erfolg. */
   function noteOffline(){ if(offline) return; offline=true;
@@ -215,7 +220,7 @@ const sync=(()=>{
         // viele/große Material-Fotos. KEIN Netzfehler: der Server ist erreichbar
         // und lehnt ab. Daher klare, handlungsleitende Meldung und langsamer
         // Wiederholtakt statt endlosem 1,5-s-Hämmern mit demselben Payload.
-        oversize=true; setDot('local','Daten zu groß für den Server – lokal gesichert. Bitte Fotos verkleinern.');
+        oversize=true; setDot('local','Daten zu groß für den Server – lokal gesichert. Bitte Fotos verkleinern.','zu groß');
       } else {
         oversize=false; noteOffline(); fails++; setDot('local','Nur lokal – Server nicht erreichbar');
       }

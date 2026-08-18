@@ -26,6 +26,10 @@ Datensatz:
 ```js
 { id, titel, bereich, kurz, intervall, notfall,
   schritte: [ { id, text, bild, warn, tipp } ], createdAt, updatedAt }
+  /* `bild` ist eine ADRESSE (`/api/media/<Kennung>`), kein Bild: die Bytes
+     liegen einzeln auf dem Server (features/medien.js). Anders wandert bei
+     jeder Textänderung der ganze Bildbestand mit — und der Gerätespeicher
+     ist nach wenigen Fotos voll. */
 ```
 
 * `bereich` gruppiert wie die `gruppe` eines Standards

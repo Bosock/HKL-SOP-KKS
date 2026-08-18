@@ -204,8 +204,11 @@ CSP change, works offline.
 
 > **Note:** last-write-wins is per top-level key, not per field. Two people editing the
 > *same* key at the same second can still overwrite one another — fine for this small tool.
-> Care photos are stored as base64 in the state blob; the request body limit is 32 MiB
-> (`MAX_BODY`).
+> Photos are **not** part of the state blob: they are uploaded individually to
+> `/api/media` (content hash = identity) and the state only carries the 32-char id —
+> entry images, product/order photos and guide step photos alike. Legacy base64 photos
+> (older care entries) still migrate in the background. The request body limit is
+> 32 MiB (`MAX_BODY`), a single image 8 MiB (`MAX_MEDIA`).
 
 ## Local development / preview
 

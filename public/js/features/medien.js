@@ -342,9 +342,10 @@ function medBildFallbackInit(){
   }, true);   /* Capture-Phase: error-Ereignisse von Ressourcen steigen nicht auf */
 }
 
-/* Einmalige Umstellung des Altbestands: base64-Fotos in GTINDB und BEST auf
-   Kennungen umziehen und den localStorage befreien. Idempotent (Kennungen und
-   Media-URLs werden übersprungen), schonend (wenige je Durchlauf), nur online.
+/* Einmalige Umstellung des Altbestands: base64-Fotos in GTINDB, BEST und den
+   Anleitungen (GUIDES) auf Kennungen umziehen und den localStorage befreien.
+   Idempotent (Kennungen und Media-URLs werden übersprungen), schonend
+   (wenige je Durchlauf), nur online.
    Gibt zurück, wie viele umgezogen wurden. */
 let _medMigriereLaeuft = false;
 async function medMigriereAltbestand(grenze){
@@ -388,6 +389,24 @@ async function medMigriereAltbestand(grenze){
         if(!istData(b.foto)) continue;
         const url = await medFotoAblegen(b.foto, { roh:true });
         if(medIstMediaUrl(url)){ b.foto = url; umgezogen++; if(typeof saveBest==='function') saveBest(); }
+      }
+    }
+    /* GUIDES: schritt.bild — die Anleitungen waren der letzte Weg, auf dem
+       base64 in den geteilten Zustand kam (features/guides.js). Neue Fotos
+       gehen dort jetzt direkt in den Medienspeicher; der Bestand zieht hier
+       nach. `roh:true`, weil diese Bilder beim Aufnehmen schon verkleinert
+       wurden — ein zweites Mal durch die Leinwand kostet nur Schärfe. */
+    if(typeof GUIDES!=='undefined' && Array.isArray(GUIDES)){
+      for(const g of GUIDES){
+        if(umgezogen>=max) break;
+        let geaendert = false;
+        for(const s of ((g && g.schritte) || [])){
+          if(umgezogen>=max) break;
+          if(!s || !istData(s.bild)) continue;
+          const url = await medFotoAblegen(s.bild, { roh:true });
+          if(medIstMediaUrl(url)){ s.bild = url; geaendert=true; umgezogen++; }
+        }
+        if(geaendert && typeof saveGuides==='function') saveGuides();
       }
     }
   }catch(e){}
@@ -788,10 +807,10 @@ function medienPanelHTML(){
 function medMB(n){ const m=(Number(n)||0)/1048576; return (m<0.1?Math.round((Number(n)||0)/1024)+' KB':m.toFixed(1)+' MB'); }
 
 /* Beim Start: den Bild-Fallback scharf schalten, wartende Bilder zählen und,
-   wenn Netz da ist, nachreichen — und den Altbestand (base64-Fotos in GTINDB/
-   BEST) schonend im Hintergrund auf Kennungen umziehen, damit der localStorage
-   frei wird. Die Migration läuft in kleinen Schüben; solange etwas übrig bleibt,
-   wird nach jedem Schub erneut angestoßen. */
+   wenn Netz da ist, nachreichen — und den Altbestand (base64-Fotos in GTINDB,
+   BEST und den Anleitungen) schonend im Hintergrund auf Kennungen umziehen,
+   damit der localStorage frei wird. Die Migration läuft in kleinen Schüben;
+   solange etwas übrig bleibt, wird nach jedem Schub erneut angestoßen. */
 if(typeof window!=='undefined'){
   medBildFallbackInit();
   window.addEventListener('online', ()=>{ medWarteschlangeAbarbeiten(); medMigrationAnstossen(); });
