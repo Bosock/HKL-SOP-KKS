@@ -12,6 +12,9 @@
    Ein Schritt: { id, text, bild, warn, tipp } — Foto optional und über die
    Lightbox vergrößerbar; „warn"/„tipp" sind abgesetzte Kästen, damit der
    Handlungsfluss knapp bleibt und Hintergrund nicht dazwischenfunkt.
+   `bild` ist eine ADRESSE (`/api/media/<Kennung>`), kein Bild: die Bytes
+   liegen einzeln auf dem Server (features/medien.js), nicht im geteilten
+   Zustand — siehe guideStepBildSetzen weiter unten.
 
    Häkchen: Anleitungen sind auch als Live-Checkliste benutzbar; die Häkchen
    laufen über denselben (gerätelokalen, täglich zurückgesetzten) Speicher wie
@@ -237,15 +240,43 @@ function guideMoveStep(i,dir){ const g=guideReadForm(); if(!g) return;
   const j=i+dir; if(j<0||j>=g.schritte.length) return;
   const t=g.schritte[i]; g.schritte[i]=g.schritte[j]; g.schritte[j]=t;
   saveGuides(); renderGuideEdit(); }
+/* Ein Schritt-Foto ablegen. Es geht denselben Weg wie Produkt- und Bestell-
+   fotos: EINZELN in den Medienspeicher (/api/media), und am Schritt steht nur
+   die Adresse `/api/media/<Kennung>` — rund 40 Zeichen statt 250 KB base64.
+
+   Warum das kein Feinschliff ist: `hkl_guides` ist ein GETEILTER Schlüssel
+   (core/sync.js). Lag das Bild als base64 darin, wanderte bei JEDER Änderung
+   — auch beim Korrigieren eines Wortes — der gesamte Bildbestand zum Server,
+   und im Gerätespeicher waren nach wenigen Fotos die ~5 MB des Browsers voll.
+   Sichtbar wurde beides als oranges „lokal"-Pill: nichts kam mehr an.
+
+   Rückfall: Liefert der Medienspeicher keine Kennung (kein sicherer Kontext,
+   kein IndexedDB, altes Gerät), bleibt der bisherige Weg — verkleinertes
+   base64 am Schritt. Lieber ein großes Foto als gar keins; nur das
+   UNverkleinerte Original darf nie in den Zustand.
+
+   Gibt ein Versprechen zurück, das hält, sobald das Bild am Schritt steht —
+   die Oberfläche braucht es nicht (sie rendert im `fertig`), der Test schon. */
+function guideStepBildSetzen(i, quelle){
+  const fertig=(wert)=>{ const gg=guideById(guideEditId);
+    if(gg&&gg.schritte[i]){ gg.schritte[i].bild=wert; saveGuides(); renderGuideEdit(); } };
+  const rueckfall=(src)=>new Promise(ok=>{
+    if(typeof shrinkPhoto==='function') shrinkPhoto(src,(klein)=>{ fertig(klein); ok(); });
+    else { fertig(src); ok(); } });
+  if(typeof medFotoSichern==='function'){
+    return medFotoSichern(quelle)
+      .then(u=>{ if(typeof medIstMediaUrl==='function' && medIstMediaUrl(u)){ fertig(u); return; } return rueckfall(quelle); })
+      .catch(()=>rueckfall(quelle));
+  }
+  return rueckfall(quelle);
+}
 function guideStepPhoto(i){ const g=guideReadForm(); if(!g||!g.schritte[i]) return;
   let inp=$('gPhotoInp');
   if(!inp){ inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.id='gPhotoInp'; inp.style.display='none'; document.body.appendChild(inp); }
   inp.onchange=(ev)=>{ const f=ev.target.files&&ev.target.files[0]; if(!f) return;
     const rd=new FileReader();
-    rd.onload=()=>{ const apply=(src)=>{ const gg=guideById(guideEditId); if(gg&&gg.schritte[i]){ gg.schritte[i].bild=src; saveGuides(); renderGuideEdit(); } };
-      if(typeof openPhotoEditor==='function'){ openPhotoEditor(rd.result,(edited)=>{ if(edited==null) return;
-        if(typeof shrinkPhoto==='function') shrinkPhoto(edited,apply); else apply(edited); }); }
-      else if(typeof shrinkPhoto==='function') shrinkPhoto(rd.result,apply);
+    rd.onload=()=>{ const apply=(src)=>guideStepBildSetzen(i,src);
+      if(typeof openPhotoEditor==='function'){ openPhotoEditor(rd.result,(edited)=>{ if(edited==null) return; apply(edited); }); }
       else apply(rd.result); };
     rd.readAsDataURL(f); try{ ev.target.value=''; }catch(e){} };
   inp.click(); }

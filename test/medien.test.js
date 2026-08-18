@@ -310,3 +310,87 @@ test('Media-URLs werden erkannt und ihre Kennung herausgelesen (Offline-Fallback
   assert.equal(m.kennungAusUrl('/api/media/' + k), k);
   assert.equal(m.kennungAusUrl('data:image/png;base64,AAAA'), null);
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Der Altbestand zieht nach (medMigriereAltbestand)
+
+   Neue Fotos gehen den richtigen Weg — der Bestand aber liegt weiter als
+   base64 im geteilten Zustand und hält den Gerätespeicher besetzt. Für
+   Etikett-Scans (GTINDB) und Bestellungen (BEST) gab es den Umzug schon;
+   die ANLEITUNGEN fehlten. Genau sie waren der Fall aus dem Saal: eine
+   Notfall-Anleitung mit Fotos an jedem Schritt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Umgebung mit Netz: der Upload gelingt, IndexedDB gibt es nicht (der Spiegel
+   ist bewusst best-effort). GUIDES/saveGuides wie in der App. */
+function umgebungUmzug(guides) {
+  const gespeichert = { n: 0 };
+  const ctx = vm.createContext({
+    console, Blob, atob, btoa, TextEncoder, TextDecoder, Uint8Array,
+    crypto: crypto5.webcrypto,
+    fetch: async () => ({ ok: true, json: async () => ({ kennung: 'egal' }) }),
+    navigator: { onLine: true },
+    loadJSON: () => ({}), saveJSON: () => {},
+    esc: (s) => String(s == null ? '' : s),
+    GUIDES: guides,
+    saveGuides: () => { gespeichert.n++; },
+    window: undefined, indexedDB: undefined, setTimeout: () => {},
+  });
+  vm.runInContext(SRC + `
+    ;globalThis.__u = { migriere:medMigriereAltbestand, istMedia:medIstMediaUrl };
+  `, ctx);
+  return { u: ctx.__u, guides, gespeichert };
+}
+
+const FOTO = 'data:image/jpeg;base64,' + Buffer.from('ein Bild').toString('base64');
+
+test('Anleitungsfotos ziehen aus dem Gerätespeicher auf den Server um', async () => {
+  const { u, guides, gespeichert } = umgebungUmzug([
+    { id: 'g1', titel: 'Einsatzbereitschaft', schritte: [
+      { id: 's1', bild: FOTO }, { id: 's2', bild: FOTO }, { id: 's3', text: 'ohne Foto' }] },
+  ]);
+  const n = await u.migriere();
+  assert.equal(n, 2, 'beide Fotos umgezogen');
+  assert.ok(u.istMedia(guides[0].schritte[0].bild));
+  assert.ok(u.istMedia(guides[0].schritte[1].bild));
+  assert.equal(guides[0].schritte[2].bild, undefined, 'ein Schritt ohne Foto bleibt unangetastet');
+  assert.ok(gespeichert.n > 0, 'der neue Stand wird gespeichert — sonst war der Umzug umsonst');
+  assert.ok(JSON.stringify(guides).indexOf('data:image') < 0);
+});
+
+test('der Umzug ist wiederholbar, ohne etwas zweites Mal zu tun', async () => {
+  const { u, guides } = umgebungUmzug([
+    { id: 'g1', schritte: [{ id: 's1', bild: FOTO }] },
+  ]);
+  assert.equal(await u.migriere(), 1);
+  const nachher = guides[0].schritte[0].bild;
+  assert.equal(await u.migriere(), 0, 'nichts mehr zu tun');
+  assert.equal(guides[0].schritte[0].bild, nachher, 'die Adresse bleibt dieselbe');
+});
+
+test('gleiche Bytes ⇒ gleiche Adresse (ein Foto belegt nicht zweimal Platz)', async () => {
+  const { u, guides } = umgebungUmzug([
+    { id: 'g1', schritte: [{ id: 's1', bild: FOTO }] },
+    { id: 'g2', schritte: [{ id: 's1', bild: FOTO }] },
+  ]);
+  await u.migriere();
+  assert.equal(guides[0].schritte[0].bild, guides[1].schritte[0].bild);
+});
+
+test('ohne Netz wird gar nicht erst angefangen', async () => {
+  const ctx = vm.createContext({
+    console, Blob, atob, btoa, TextEncoder, TextDecoder, Uint8Array,
+    crypto: crypto5.webcrypto, navigator: { onLine: false },
+    loadJSON: () => ({}), saveJSON: () => {}, esc: (s) => String(s == null ? '' : s),
+    GUIDES: [{ id: 'g1', schritte: [{ id: 's1', bild: FOTO }] }],
+    saveGuides: () => {}, window: undefined, indexedDB: undefined, setTimeout: () => {},
+  });
+  vm.runInContext(SRC + ';globalThis.__m = medMigriereAltbestand;', ctx);
+  assert.equal(await ctx.__m(), 0);
+});
+
+test('kaputte Anleitungen bringen den Umzug nicht zum Absturz', async () => {
+  const { u } = umgebungUmzug([null, { id: 'g1' }, { id: 'g2', schritte: null },
+    { id: 'g3', schritte: [null, { id: 's1', bild: 123 }, { id: 's2', bild: FOTO }] }]);
+  assert.equal(await u.migriere(), 1);
+});
