@@ -1637,8 +1637,15 @@
 .raum-leiste .rl-btn:active{background:rgba(255,255,255,.28)}
 @media (max-width:560px){ .raum-leiste .rl-sub{display:none} }
 @media (max-width:360px){ .raum-leiste .rl-btn{padding:6px 8px} }
+/* Der alte Bestand, wenn der Neuaufbau live ist: eigenes Band in Braun —
+   nicht verwechselbar mit dem Violett des Neuaufbaus. */
+.raum-leiste.rl-alt{background:repeating-linear-gradient(135deg,#6b4f12 0 14px,#7d5d18 14px 28px);border-bottom-color:#d9a441}
 .raum-aendern{margin-top:12px}
 .raum-aendern summary{cursor:pointer;color:var(--text-dim);font-size:13px}
+/* Der Live-Schalter — ein Knopf, der für ALLE etwas ändert, sieht anders aus
+   als die übrigen. */
+.btn-live{background:#7a2e8e;color:#fff}
+.btn-live:active{filter:brightness(.92)}
 
 /* ── Produkt erfassen im Neuaufbau (features/produkt.js) ── */
 .pd-warn:not(:empty){margin:6px 0 8px;padding:9px 11px;border-radius:10px;font-size:13px;line-height:1.45;

@@ -139,8 +139,8 @@ function notizPanelHTML(){
   }).join('');
   return `<details class="vpanel" id="notizKarte" data-keys="notizen notiz wunsch fehler frage idee neuaufbau">${vsum('📝','Notizen','Was beim Neuaufbau auffällt — mit Ort, abhakbar, als Datei',notizOffen()?(notizOffen()+' offen'):'')}<div class="vpanel-body">
     <div class="filter-row">${fb('offen','Offen')}${fb('erledigt','Erledigt')}${fb('alle','Alle')}</div>
-    ${zeilen || '<p class="hint">Keine Notizen in diesem Filter. Der Knopf „📝 Notiz" in der violetten Leiste ist auf jedem Bildschirm da.</p>'}
-    <div class="p-actions"><button class="btn btn-sec" onclick="notizExport()">Als Datei sichern</button></div>
+    ${zeilen || '<p class="hint">Keine Notizen in diesem Filter. Solange der Neuaufbau nicht live ist, steht der Knopf „📝 Notiz" in der violetten Leiste auf jedem Bildschirm.</p>'}
+    <div class="p-actions"><button class="btn btn-pri" onclick="notizOeffnen()">📝 Neue Notiz</button><button class="btn btn-sec" onclick="notizExport()">Als Datei sichern</button></div>
   </div></details>`;
 }
 

@@ -738,5 +738,51 @@ test('Räume: /api/raeume nennt beide Räume und den Live-Zeiger', async () => {
   fs.writeFileSync(zeiger, JSON.stringify({ live: 'erfunden' }));
   assert.equal(json(await request('GET', '/api/raeume')).live, 'bestand', 'unbekannter Raum → Bestand');
   fs.unlinkSync(zeiger);
-  assert.equal((await request('PUT', '/api/raeume')).status, 405, 'nur lesend');
+  assert.equal((await request('DELETE', '/api/raeume')).status, 405);
+});
+
+test('Live-Schalter: nur mit dem Passwort des Neuaufbaus, mit Verlauf, rücknehmbar', async () => {
+  const zeiger = srv.raeume.ZEIGER_DATEI;
+  try { fs.unlinkSync(zeiger); } catch (e) {}
+  const fp = (pw) => srv.raeume.pwHash(pw);
+  const schalten = (live, pw) => request('PUT', '/api/raeume', { body: JSON.stringify({ live, pw }) });
+
+  // Falsches Passwort → 403, nichts geschaltet.
+  assert.equal((await schalten('neuaufbau', fp('falsch'))).status, 403);
+  assert.equal(json(await request('GET', '/api/raeume')).live, 'bestand');
+  // Ohne Passwort, unbekannter Raum, kaputter Rumpf → abgewiesen.
+  assert.equal((await schalten('neuaufbau', undefined)).status, 403);
+  assert.equal((await schalten('irgendwas', fp('abcdefg'))).status, 400);
+  assert.equal((await request('PUT', '/api/raeume', { body: '{kaputt' })).status, 400);
+
+  // Vorgabe-Passwort „abcdefg" schaltet, solange im Bestand keins hinterlegt ist.
+  const r = await schalten('neuaufbau', fp('abcdefg'));
+  assert.equal(r.status, 200);
+  assert.equal(json(r).live, 'neuaufbau');
+  const g = json(await request('GET', '/api/raeume'));
+  assert.equal(g.live, 'neuaufbau');
+  assert.ok(g.geaendert, 'Zeitpunkt des Umschaltens wird genannt');
+  const datei = JSON.parse(fs.readFileSync(zeiger, 'utf8'));
+  assert.deepEqual(datei.verlauf.map(v => v.vorher + '→' + v.live), ['bestand→neuaufbau']);
+
+  // Der Zeiger lenkt nichts um: ohne Raumangabe bleibt es der Bestand.
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { nachSchalten: 1 } }) });
+  assert.equal(srv.getState().state.nachSchalten, 1);
+
+  // Ein im Bestand hinterlegtes Passwort ersetzt die Vorgabe.
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { hkl_raumpw: fp('geheim7') } }) });
+  assert.equal((await schalten('bestand', fp('abcdefg'))).status, 403, 'Vorgabe gilt nicht mehr');
+  assert.equal((await schalten('bestand', fp('geheim7'))).status, 200, 'zurückschalten mit dem hinterlegten Passwort');
+  assert.equal(json(await request('GET', '/api/raeume')).live, 'bestand');
+  assert.deepEqual(JSON.parse(fs.readFileSync(zeiger, 'utf8')).verlauf.map(v => v.live), ['neuaufbau', 'bestand']);
+  fs.unlinkSync(zeiger);
+});
+
+test('Fingerabdruck auf dem Server = Fingerabdruck in der App (pwHash)', () => {
+  // Wortgleich zu public/js/core/config.js — sonst passte kein Passwort.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public/js/core/config.js'), 'utf8');
+  const m = /function pwHash\(s\)\{[^\n]*\}/.exec(src);
+  assert.ok(m, 'pwHash in config.js gefunden');
+  const appHash = new Function(m[0] + '; return pwHash;')();
+  for (const w of ['abcdefg', '1234567', 'Ä ö ü ß', '']) assert.equal(srv.raeume.pwHash(w), appHash(w), w);
 });

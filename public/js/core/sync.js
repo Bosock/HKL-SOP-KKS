@@ -191,8 +191,11 @@ const sync=(()=>{
   }
   /* Bestätigt den eigenen Raum und folgt — nur auf Geräten ohne eigene Wahl —
      dem Live-Zeiger des Servers. Gibt false zurück, wenn die Seite gleich
-     neu lädt (dann soll nichts mehr getauscht werden). */
-  async function raumAbgleich(){
+     neu lädt (dann soll nichts mehr getauscht werden).
+     `neuLaden` false: nur merken und das Band zeigen, nicht neu laden — für
+     Blicke im laufenden Betrieb, die niemanden mitten im Tippen aus der
+     Arbeit reißen dürfen. */
+  async function raumAbgleich(neuLaden){
     let j=null;
     try{ j=await raeumeAbfragen(); }
     catch(e){
@@ -207,11 +210,19 @@ const sync=(()=>{
       if(!liste.some(x=>x&&x.id===RAUM.id)){ raumGesperrt=true; raumOk=false; throw raumFehler('Server kennt den Raum nicht'); }
       raumOk=true; raumGesperrt=false;
     }
-    if(!RAUM.gewaehlt && j && typeof j.live==='string' && j.live!==RAUM.id && Object.prototype.hasOwnProperty.call(RAEUME_DEF,j.live)){
+    if(j && raumBekannt(j.live)){
       raumLiveMerken(j.live);
-      try{ if(typeof diagLog==='function') diagLog('system','Live-Raum gewechselt: '+RAUM.id+' → '+j.live); }catch(x){}
-      try{ location.reload(); }catch(x){}
-      return false;
+      /* Die eigene Wahl IST jetzt der Live-Raum (er wurde umgeschaltet):
+         Wahl aufgeben — das Gerät folgt ab dem nächsten Laden wieder dem
+         Zeiger und damit auch einem späteren Zurückschalten. */
+      if(RAUM.wahl && RAUM.wahl===j.live) raumWaehlen(null);
+      if(!RAUM.gewaehlt && j.live!==RAUM.id && neuLaden!==false){
+        try{ if(typeof diagLog==='function') diagLog('system','Live-Raum gewechselt: '+RAUM.id+' → '+j.live); }catch(x){}
+        try{ location.reload(); }catch(x){}
+        return false;
+      }
+      /* Das Band („nicht im Live-Raum") hängt am Live-Raum — neu bewerten. */
+      try{ if(typeof raumLeisteZeigen==='function') raumLeisteZeigen(); }catch(x){}
     }
     return true;
   }
@@ -294,7 +305,8 @@ const sync=(()=>{
        `dirty`, der nächste Takt versucht es wieder). */
     if(!raumOk){
       if(raumGesperrt){ setDot('local','Server kennt den Raum „'+RAUM.titel+'“ nicht – nur lokal gesichert'); return; }
-      try{ if(!(await raumAbgleich())) return; }
+      /* Hier nie neu laden: Was gerade geändert wurde, gehört in DIESEN Raum. */
+      try{ if(!(await raumAbgleich(false))) return; }
       catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); clearTimeout(timer); timer=setTimeout(flush, 15000); return; }
     }
     /* Steht eine Ablehnung im Raum, bleibt sie stehen. Ein „Speichere…" darüber
@@ -335,7 +347,7 @@ const sync=(()=>{
     if(!enabled||inflight||dirty.size) return;
     if(raumGesperrt) return;
     try{
-      if(!raumOk && !(await raumAbgleich())) return;
+      if(!raumOk && !(await raumAbgleich(false))) return;
       const r=await fetch(URL+(URL.indexOf('?')<0?'?':'&')+'since='+rev,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
       antwortRaumPruefen(j);
       offline=false;
@@ -400,14 +412,31 @@ const sync=(()=>{
     const lauf=(async()=>{ while(inflight) await new Promise(r=>setTimeout(r,50)); await flush(); })();
     await Promise.race([lauf, new Promise(r=>setTimeout(r, ms||3000))]);
   }
+  /* Wie lange niemand das Gerät bedient haben darf, bevor es von selbst in
+     einen neu live geschalteten Raum wechselt. */
+  const LIVE_RUHE=120000;
+  let bedient=Date.now();
   function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
     if(dirty.size) setTimeout(flush,500); /* z. B. Journal-Vereinigung aus init() nachspielen */
     window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });
     /* Beim Aufwachen des Tablets auch den Live-Zeiger nachsehen — nur Geräte
-       ohne eigene Raumwahl folgen ihm (siehe raumAbgleich). */
+       ohne eigene Raumwahl folgen ihm (siehe raumAbgleich); bei allen
+       anderen kommt das Band auf den Stand. */
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) return;
-      if(!RAUM.gewaehlt) raumAbgleich().catch(()=>{});
+      raumAbgleich().catch(()=>{});
       poll(); });
+    /* Auch im laufenden Betrieb jede Minute nach dem Live-Zeiger sehen — ein
+       Rechner, auf dem die App den ganzen Tag offen steht, wacht nie auf.
+       Wer gerade bedient, wird dabei NICHT neu geladen: Er sieht das Band
+       „nicht live" mit dem Knopf zum Wechseln (features/raum.js). Von selbst
+       gewechselt wird erst nach zwei Minuten Ruhe und ohne Offenes. */
+    ['pointerdown','keydown','input','wheel'].forEach(ev=>{
+      try{ window.addEventListener(ev,()=>{ bedient=Date.now(); },{capture:true,passive:true}); }catch(e){} });
+    setInterval(()=>{
+      if(document.hidden||raumGesperrt) return;
+      const ruhig=(Date.now()-bedient>=LIVE_RUHE) && !dirty.size && !inflight;
+      raumAbgleich(ruhig).catch(()=>{});
+    }, 60000);
   }
   return {init,start,leeren};
 })();

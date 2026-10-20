@@ -1,12 +1,13 @@
 # Der Neuaufbau — ein zweiter, leerer Raum in derselben App
 
-**Stand:** Oktober 2026 · Cache-Version `v75`
+**Stand:** Oktober 2026 · Cache-Version `v76`
 
 **Kurz:** Neben dem **Bestand** (der App, mit der im Herzkatheterlabor jeden Tag
 gearbeitet wird) gibt es jetzt einen zweiten Raum, den **Neuaufbau**. Er beginnt
 vollständig leer — keine Standards, kein Material, keine Bilder — und ist nur
 über ein zweites Passwort in der Verwaltung zu betreten. Was dort geschieht,
-erreicht den Bestand nicht. Ziel: die App von Grund auf neu einrichten, wie es ein
+erreicht den Bestand nicht. Ist er so weit, lässt er sich mit einem Knopf für
+alle **live schalten** — und ebenso zurück (Abschnitt 5). Ziel: die App von Grund auf neu einrichten, wie es ein
 Haus täte, das sie zum ersten Mal benutzt — und dabei die Standards im Format der
 App aufbauen statt im alten Word-Format.
 
@@ -50,20 +51,35 @@ eine Neuerung dort ausdrücklich freigegeben wird.
 ## 2. Hinein und hinaus
 
 1. **Verwaltung → Daten & Sicherung → 🧪 Neuaufbau.**
-2. Beim ersten Mal: Passwort für den Neuaufbau **festlegen** (zweimal, mindestens
-   vier Zeichen, anders als das Verwaltungspasswort). Es gilt danach auf jedem
-   Gerät (gespeichert wird nur der Fingerabdruck).
-3. Danach: Passwort eingeben → **Neuaufbau betreten**. Die Seite lädt neu, man
-   ist dort gleich angemeldet.
-4. Im Neuaufbau steht über allem ein **violettes, gestreiftes Band**
-   („NEUAUFBAU · getrennter Raum"), auf jedem Bildschirm. Der Fenstertitel
-   beginnt mit „Neuaufbau".
-5. **Verlassen** im Band → zurück in den Bestand. Hinaus geht es immer ohne
-   Passwort.
+2. Passwort des Neuaufbaus eingeben → **Neuaufbau betreten**. Die Seite lädt
+   neu, man ist dort gleich angemeldet.
+3. Solange der Neuaufbau **nicht** live ist, steht über allem ein **violettes,
+   gestreiftes Band** („NEUAUFBAU · getrennter Raum"), auf jedem Bildschirm. Der
+   Fenstertitel beginnt mit „Neuaufbau".
+4. **Verlassen** im Band → in den Raum, der gerade live ist. Hinaus geht es
+   immer ohne Passwort.
 
-Das Zweitpasswort ist — wie das Verwaltungspasswort — **Komfort, keine
-Sicherheit** (Grundsatz A9): Es verhindert, dass jemand versehentlich im Testraum
-landet. Gegen Absicht schützt es nicht.
+### Die Passwörter
+
+| | Bestand | Neuaufbau |
+|---|---|---|
+| Verwaltung | wie bisher (Vorgabe `1234567`, falls nie geändert) | eigenes, Vorgabe `abcdefg` |
+| Betreten des Neuaufbaus, Freigaben, Live-Schalter | — | Vorgabe `abcdefg` |
+
+- Das **Passwort des Neuaufbaus** (Zweitpasswort) lässt sich im Bestand unter
+  „Passwort des Neuaufbaus ändern" ändern (mindestens vier Zeichen, anders als
+  das Verwaltungspasswort). Es liegt als Fingerabdruck im geteilten Zustand des
+  Bestands (`hkl_raumpw`) und gilt damit auf jedem Gerät — und auf dem Server,
+  der beim Live-Schalter dagegen prüft.
+- Das **Verwaltungspasswort** gilt seit `v76` auf **allen Geräten** eines Raums.
+  Vorher lag es als roher Text im Speicher; der Abgleich hat es übergangen, eine
+  Änderung galt nur auf dem einen Gerät. Ein solcher alter Wert gilt weiter, aber
+  nur auf seinem Gerät — niemand verliert seinen Zugang. Wer das Passwort neu
+  setzt, setzt es für alle.
+
+Beide Passwörter sind — wie bisher — **Komfort, keine Sicherheit** (Grundsatz
+A9): Sie verhindern, dass jemand versehentlich im Testraum landet oder
+versehentlich umschaltet. Gegen Absicht schützen sie nicht.
 
 ## 3. Was im Neuaufbau neu ist
 
@@ -153,7 +169,8 @@ Materialzentrale → **⬇ Export für Excel/SAP**:
 
 ### 3.5 Notizen
 
-Im violetten Band steht **📝 Notiz** — auf jedem Bildschirm. Eine Notiz (💡
+Im violetten Band steht **📝 Notiz** — auf jedem Bildschirm (ist der Neuaufbau
+live, gibt es kein Band mehr; dann über Verwaltung → 📝 Notizen → „Neue Notiz"). Eine Notiz (💡
 Wunsch · 🐞 Fehler · ❓ Frage · 📝 Inhalt) merkt sich automatisch, **wo** sie
 entstand (Standard, Rubrik, Produkt, Bildschirm). Durchsehen, abhaken und als
 Datei sichern: Verwaltung → **📝 Notizen**. Die Datei ist die Grundlage für das,
@@ -182,24 +199,55 @@ Notizen bleiben dem Neuaufbau vorbehalten.
 (`features/raum.js`). Neues gehört in diese Liste — nie stillschweigend in den
 Bestand.
 
-## 5. Später: den Neuaufbau als Ganzes live schalten
+## 5. Live schalten — und zurück
 
-Vorbereitet, aber **nicht** geschaltet. Der Zeiger liegt in
-`STATE_DIR/raeume.json`:
+„Live" ist der Raum, mit dem jedes Gerät **ohne eigene Raumwahl** arbeitet —
+also das Labor. Zu Beginn ist das der Bestand.
 
-```json
-{ "live": "neuaufbau" }
-```
+**Der Knopf:** Verwaltung → 🧪 Neuaufbau → **„Live schalten"** (in beiden Räumen
+erreichbar). Passwort des Neuaufbaus eingeben, Häkchen „Ja — ab jetzt soll der
+Neuaufbau für alle live sein" setzen → **Neuaufbau live schalten**. Der Knopf
+bietet immer den Raum an, der gerade **nicht** live ist; zurück heißt er
+**„Bestand wieder live schalten"**.
 
-- Der Zeiger lenkt **keine** Anfrage um. Er ist eine Auskunft
-  (`GET /api/raeume`). Ein Gerät ohne eigene Raumwahl folgt ihm beim nächsten
-  Start bzw. beim Aufwachen und wechselt dabei seinen **lokalen** Speicherbereich
-  mit — es trägt also keine Bestandsdaten in den Neuaufbau („Erstbefüllung").
-  Das prüft `e2e/neuaufbau.js`.
-- **Zurückschalten** ist dieselbe Handbewegung: `"live": "bestand"` (oder Datei
-  löschen). Jedes Gerät findet seinen alten Bestand unverändert vor.
-- Wirksam ohne Neustart des Servers.
-- Der Bestand bleibt dabei auf dem Server erhalten — nichts wird gelöscht.
+Was dann geschieht:
+
+- Der Server setzt den Zeiger in `STATE_DIR/raeume.json` (mit Zeitpunkt und
+  Verlauf der letzten 20 Umschaltungen). Er prüft das Passwort selbst — falsches
+  Passwort: `403`, nichts geschaltet. Wirksam ohne Neustart.
+- **Wer umschaltet, geht mit:** Das Gerät lädt im neuen Live-Raum neu (und ist
+  dort angemeldet). Steht es schon darin, verschwindet nur das Band.
+- **Die anderen Geräte folgen** beim nächsten Start oder Aufwecken (Tablet aus
+  dem Ruhezustand, Tab wieder im Vordergrund). Ein Rechner, an dem die App den
+  ganzen Tag offen steht, sieht jede Minute nach. **Wer gerade arbeitet, wird
+  nicht herausgerissen:** Er sieht das Band „nicht live" mit **Verlassen** und
+  wechselt von selbst erst nach zwei Minuten ohne Bedienung (und ohne offene,
+  noch nicht übertragene Änderungen).
+- Beim Folgen wechselt jedes Gerät seinen **lokalen** Speicherbereich mit — es
+  trägt also keine Bestandsdaten in den Neuaufbau („Erstbefüllung"). Das prüfen
+  `e2e/neuaufbau.js` und `e2e/liveschalter.js`.
+- Der Zeiger lenkt **keine** Anfrage um: Ohne Raumangabe bleibt jede Anfrage
+  beim Bestand. Daten werden beim Umschalten nicht bewegt, nichts wird gelöscht.
+
+**Das Band folgt dem Live-Raum:** Im Live-Raum gibt es keins — das ist die App,
+wie alle sie benutzen. Ist der Neuaufbau live, verschwindet sein violettes Band.
+Wer dann den **alten Bestand ansieht** (Karte im Neuaufbau → „Alten Bestand
+ansehen", ohne Passwort), bekommt ein braunes Band „BESTAND · nicht live";
+**Verlassen** führt zurück in den Live-Raum.
+
+**Eigene Wahl:** Nur wer einen Raum betritt, der gerade **nicht** live ist,
+behält eine eigene Wahl (das Gerät bleibt dort, egal was live ist). Wer in den
+Live-Raum geht — auch über Verlassen —, folgt wieder dem Zeiger. Wird der Raum,
+den ein Gerät gewählt hat, selbst live geschaltet, gibt es seine Wahl auf und
+folgt fortan dem Zeiger (also auch einem späteren Zurückschalten).
+
+**Zurückschalten** ist dieselbe Handbewegung mit demselben Knopf. Jedes Gerät
+findet seinen alten Bestand so vor, wie er beim Umschalten war; was im
+Neuaufbau entstanden ist, bleibt dort.
+
+**Für den Betrieb:** Der Zeiger lässt sich weiterhin auch direkt in
+`STATE_DIR/raeume.json` setzen (`{ "live": "neuaufbau" }` bzw. `"bestand"` oder
+Datei löschen).
 
 Stückweises Übernehmen von **Inhalten** (einzelne Standards, Produkte) aus dem
 Neuaufbau in den Bestand ist der nächste Schritt und noch nicht gebaut.
@@ -209,7 +257,12 @@ Neuaufbau in den Bestand ist der nächste Schritt und noch nicht gebaut.
 - `GET/PUT /api/state?raum=neuaufbau` — wie `/api/state`, Antwort trägt `raum`.
 - `GET/POST /api/media[/<kennung>]?raum=neuaufbau` — eigener Bilderordner;
   Bilder des einen Raums sind im anderen nicht abrufbar.
-- `GET /api/raeume` → `{ live, raeume:[{id,titel,basis,rev,updatedAt,schluessel}] }`
+- `GET /api/raeume` → `{ live, geaendert, raeume:[{id,titel,basis,rev,updatedAt,schluessel}] }`
+- `PUT /api/raeume` `{ live:'neuaufbau'|'bestand', pw:'<Fingerabdruck>' }` →
+  `200 { live, geaendert }` · `403` falsches Passwort · `400` unbekannter Raum.
+  Erwartet wird `hkl_raumpw` aus dem Bestand, sonst der Fingerabdruck der
+  Vorgabe (`server/raeume.js`, `RAUM_PW_VORGABE` — wortgleich mit
+  `features/raum.js`).
 - Unbekannte Raumangabe → `400` (nie still der Bestand).
 - Die Raumliste ist fest (`server/raeume.js`); über eine Anfrage entsteht kein
   neuer Ordner.
