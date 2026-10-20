@@ -8,9 +8,16 @@
 
    Die Kennung ist der Inhalts-Fingerabdruck; dieselbe Kennung liefert für
    immer denselben Inhalt. Deshalb `immutable` im Cache-Control — im Labor
-   heißt das: ein einmal geladenes Bild kostet nie wieder Netz. */
+   heißt das: ein einmal geladenes Bild kostet nie wieder Netz.
+
+   ?raum=<id> wählt den Medienspeicher des Raums (server/raeume.js). Ohne
+   Angabe ist es der Bestand. Gesucht wird NUR im gewählten Raum — ein Bild
+   des Neuaufbaus ist im Bestand nicht zu finden und umgekehrt. Nur so bleibt
+   jeder Raum für sich vollständig: Er kann eines Tages allein weiterlaufen,
+   ohne dass ihm Bilder aus dem anderen fehlen. */
 'use strict';
 const media = require('../media');
+const raeume = require('../raeume');
 const { sendJSON, readBody, maybeGzip } = require('../http-util');
 const { SECURITY_HEADERS } = require('../config');
 
@@ -19,17 +26,27 @@ function kennungAus(pathname) {
   return rest || null;
 }
 
+/* Ein Speicher je Raum, einmal angelegt und dann wiederverwendet. */
+const SPEICHER = {};
+function speicherFuer(raum) {
+  if (raum.id === raeume.STANDARD) return media;
+  return SPEICHER[raum.id] || (SPEICHER[raum.id] = media.medienspeicher(raum.mediaDir));
+}
+
 async function handle(req, res, url) {
+  const raum = raeume.ausAnfrage(url);
+  if (!raum) { sendJSON(req, res, 400, { error: 'unknown room' }); return; }
+  const speicher = speicherFuer(raum);
   const kennung = kennungAus(url.pathname);
 
   if (req.method === 'GET' || req.method === 'HEAD') {
     if (!kennung) {
-      const b = media.bestand();
+      const b = speicher.bestand();
       sendJSON(req, res, 200, { anzahl: b.length, bytes: b.reduce((n, x) => n + x.groesse, 0), bilder: b });
       return;
     }
     if (!media.istKennung(kennung)) { sendJSON(req, res, 400, { error: 'bad id' }); return; }
-    const t = media.lesen(kennung);
+    const t = speicher.lesen(kennung);
     if (!t) { sendJSON(req, res, 404, { error: 'not found' }); return; }
     const headers = Object.assign({
       'Content-Type': t.art,
@@ -50,7 +67,7 @@ async function handle(req, res, url) {
       sendJSON(req, res, 400, { error: 'read error' }); return;
     }
     try {
-      const erg = media.ablegen(body, art);
+      const erg = speicher.ablegen(body, art);
       sendJSON(req, res, erg.neu ? 201 : 200, erg);
     } catch (e) {
       if (e.code === 'ART')   { sendJSON(req, res, 415, { error: 'unsupported media type', erlaubt: Object.keys(media.ARTEN) }); return; }
@@ -63,7 +80,7 @@ async function handle(req, res, url) {
 
   if (req.method === 'DELETE') {
     if (!media.istKennung(kennung)) { sendJSON(req, res, 400, { error: 'bad id' }); return; }
-    sendJSON(req, res, 200, { geloescht: media.loeschen(kennung) });
+    sendJSON(req, res, 200, { geloescht: speicher.loeschen(kennung) });
     return;
   }
 

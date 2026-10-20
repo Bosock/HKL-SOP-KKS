@@ -161,6 +161,7 @@ function mcMaterialHTML(offen){
     <div class="mc-actions">
       <button class="add-entry-btn" onclick="matHubNew()">＋ Material anlegen</button>
       ${(typeof openPflege==='function')?`<button class="add-entry-btn" onclick="openPflege({umfang:{art:'alle'}})">🧹 Pflege-Weg</button>`:''}
+      ${(typeof neuFrei==='function' && neuFrei('materialexport'))?`<button class="add-entry-btn" onclick="produktExportBlatt()">⬇ Export für Excel/SAP</button>`:''}
     </div>
     ${dup}
     <div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" placeholder="Material, Standard, REF, Hersteller …" value="${esc(mcQ)}" oninput="mcSearchDebounced(this.value)" autocomplete="off"></div>

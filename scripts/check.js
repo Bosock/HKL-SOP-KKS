@@ -29,6 +29,9 @@
         Vier Fehlerklassen, bei denen NICHTS kaputtgeht: Es passiert einfach
         nichts. Genau deshalb braucht es eine Maschine dafür.
 
+     8. GERÄTESPEICHER NUR ÜBER store — sonst ginge ein Schreibvorgang am
+        Präfix vorbei, das Bestand und Neuaufbau trennt (features/raum.js).
+
      5. KETTENSYMBOL IN DER BEDIENUNG — die Verknüpfung Zeile↔Material war
         eine Datenmodell-Entscheidung, die in die Oberfläche durchgeschlagen
         ist. Sie ist abgeräumt; diese Prüfung verhindert, dass sie
@@ -51,6 +54,7 @@ const fachwort = require('./pruefungen/fachwort');
 const kettensymbol = require('./pruefungen/kettensymbol');
 const verdrahtung = require('./pruefungen/verdrahtung');
 const pipeline = require('./pruefungen/pipeline');
+const speicherzugriff = require('./pruefungen/speicherzugriff');
 
 const ROOT = path.join(__dirname, '..');
 const ALTLASTEN = path.join(__dirname, 'pruefungen', 'altlasten.json');
@@ -124,7 +128,8 @@ function grundsatzProblems() {
     fachwort.pruefe(ROOT, 'public/js', alt.fachwort || {}),
     kettensymbol.pruefe(ROOT, 'public/js', alt.kettensymbol || {}),
     verdrahtung.pruefe(ROOT, alt),
-    pipeline.pruefe(ROOT, alt.pipeline || {}));
+    pipeline.pruefe(ROOT, alt.pipeline || {}),
+    speicherzugriff.pruefe(ROOT, 'public/js'));
 }
 
 function collectProblems() {
@@ -134,7 +139,7 @@ function collectProblems() {
 function main() {
   const problems = collectProblems();
   if (problems.length === 0) {
-    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich · kein Kettensymbol in der Bedienung · Verdrahtung vollständig · Auslieferung beweist sich.');
+    console.log('✓ check: Syntax OK · sw.js SHELL ⇄ index.html synchron · keine neuen Eingabefenster · kein Fachwort in einem Vergleich · kein Kettensymbol in der Bedienung · Gerätespeicher nur über store · Verdrahtung vollständig · Auslieferung beweist sich.');
     return 0;
   }
   console.error(`✗ check: ${problems.length} Problem(e) gefunden:\n`);

@@ -43,7 +43,9 @@ public/
 
 server/
   config.js           liest die Umgebung EINMAL beim Start (PORT, PUBLIC_DIR, …)
-  state.js            Zustand: Laden, atomisches Persistieren, Top-Level-Merge
+  raeume.js           Räume Bestand/Neuaufbau: feste Liste, Ordner je Raum, Live-Zeiger
+  state.js            Zustand JE RAUM: Laden, atomisches Persistieren, Top-Level-Merge
+  media.js            Bilder je Raum (Inhalts-Fingerabdruck als Kennung)
   http-util.js        sendJSON, gzip, Body-Limit
   static.js           statische Dateien: MIME, Cache-Header, ETag/304, SPA-Fallback
   routes/             API-Endpunkte (Registry in routes/index.js)
@@ -106,6 +108,12 @@ server.js             dünner Einstiegspunkt (node server.js)
 3. Integrationstest in `test/server.test.js` ergänzen.
 
 ## Persistenz & Sync (Überblick)
+
+- **Zwei Räume** (`server/raeume.js`, `core/store.js`, Konzept in
+  [docs/NEUAUFBAU.md](docs/NEUAUFBAU.md)): Bestand und Neuaufbau haben je eigene
+  `state.json`, Sicherungen und Bilder. Ohne `?raum=` ist immer der Bestand
+  gemeint; auf dem Gerät trennt ein Schlüssel-Präfix (`raum:neuaufbau:`), das
+  ausschließlich `store` setzt (Prüfung in `npm run check`).
 
 - Der Client schreibt alles über `store.set()` nach `localStorage`; der
   Sync-Baustein (`core/sync.js`) schickt geänderte `SHARED_KEYS` gebündelt

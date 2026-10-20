@@ -1618,3 +1618,110 @@
    sichtbar gemacht, sobald die Zeile eine Änderung trägt. */
 .zl-zeile .zl-zurueck{visibility:hidden}
 .zl-zeile-dran .zl-zurueck{visibility:visible}
+
+/* ── Neuaufbau (features/raum.js) ─────────────────────────────────────
+   Das Band sitzt IN der Kopfzeile und bleibt beim Blättern stehen. Farbe
+   und Streifen sind bewusst laut: Im Neuaufbau soll niemand einen Moment
+   glauben, er arbeite im Bestand. Gleich in hell und dunkel (weiße Schrift
+   auf kräftigem Violett), damit die Ansicht nichts daran ändert. */
+.raum-leiste{display:flex;align-items:center;gap:10px;padding:7px 13px;
+  color:#fff;font-size:13px;line-height:1.3;
+  background:repeating-linear-gradient(135deg,#7a2e8e 0 14px,#8e3aa4 14px 28px);
+  border-bottom:2px solid #c46be0}
+.raum-leiste .rl-ico{font-size:18px;flex:0 0 auto}
+.raum-leiste .rl-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.raum-leiste b{letter-spacing:.08em}
+.raum-leiste .rl-btn{flex:0 0 auto;min-height:36px;padding:6px 12px;border-radius:9px;
+  border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.14);color:#fff;
+  font-weight:650;font-size:13px;cursor:pointer}
+.raum-leiste .rl-btn:active{background:rgba(255,255,255,.28)}
+@media (max-width:560px){ .raum-leiste .rl-sub{display:none} }
+@media (max-width:360px){ .raum-leiste .rl-btn{padding:6px 8px} }
+.raum-aendern{margin-top:12px}
+.raum-aendern summary{cursor:pointer;color:var(--text-dim);font-size:13px}
+
+/* ── Produkt erfassen im Neuaufbau (features/produkt.js) ── */
+.pd-warn:not(:empty){margin:6px 0 8px;padding:9px 11px;border-radius:10px;font-size:13px;line-height:1.45;
+  border:1px solid var(--warn);background:rgba(239,143,66,.10);color:var(--text)}
+.pd-ok{display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:600}
+.pd-gudid-box{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface-2);font-size:13px;line-height:1.45}
+.pd-pack{align-items:center}
+.pd-pack-b{flex:0 0 auto;font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.gal-schnell{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.gal-schnell .btn{flex:1 1 160px}
+.gal-rolle{width:100%;margin-top:4px;min-height:36px;font-size:13px}
+/* ── Beziehungen (features/beziehungen.js) ── */
+.bzh-zeile{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line)}
+.bzh-zeile:last-child{border-bottom:0}
+.bzh-l{flex:0 0 150px;font-size:12px;color:var(--text-dim);padding-top:5px}
+.bzh-v{flex:1 1 auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bzh-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;
+  background:var(--surface-2);border:1px solid var(--line);font-size:13px}
+.bzh-chip button{border:0;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;min-width:28px;min-height:28px}
+
+/* ── Editor am PC (features/editor.js) ─────────────────────────────────
+   Nur hier darf die App die volle Breite nehmen: Bibliothek links, Standard
+   rechts, jede Spalte scrollt für sich. */
+.app:has(#scr-editor.active){max-width:none}
+.ed-wrap{display:grid;grid-template-columns:minmax(300px,36%) 1fr;gap:16px;align-items:start}
+.ed-links,.ed-rechts{max-height:calc(100dvh - 160px);overflow-y:auto;overscroll-behavior:contain;
+  border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px}
+.ed-bib-kopf{position:sticky;top:-12px;background:var(--surface);padding-bottom:8px;z-index:2}
+.ed-ziel{font-size:13px;margin-bottom:8px}
+.ed-tabs{flex-wrap:wrap}
+.ed-suche{margin:8px 0 0}
+.ed-bib-item{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line)}
+.ed-bib-item.drin{background:rgba(52,201,138,.08)}
+.ed-kreuz input{width:20px;height:20px;cursor:pointer}
+.ed-thumb{flex:0 0 36px;width:36px;height:36px;border-radius:8px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:18px}
+.ed-thumb img{width:100%;height:100%;object-fit:cover}
+.ed-bib-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.ed-bib-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed-bib-sub{font-size:12px;color:var(--text-dim)}
+.ed-plus{flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-size:18px;cursor:pointer}
+.ed-griff{flex:0 0 auto;width:30px;height:34px;border:0;background:transparent;color:var(--text-dim);font-size:18px;cursor:grab;touch-action:none;border-radius:8px}
+.ed-griff:hover{background:var(--surface-2);color:var(--text)}
+.ed-frei{display:flex;flex-direction:column;gap:8px}
+.ed-vorlage{margin-bottom:10px}
+.ed-leerhinweis{margin:10px 4px}
+.ed-std-kopf{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.ed-rub{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--bg)}
+.ed-rub.ziel{border-color:#9b4dba;box-shadow:0 0 0 1px #9b4dba}
+.ed-rub-kopf{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.ed-rub-ico{font-size:18px}
+.ed-rub-name{flex:1 1 auto;min-width:0;font-weight:650;font-size:15px;border:1px solid transparent;background:transparent;color:var(--text);border-radius:8px;padding:4px 6px}
+.ed-rub-name:hover,.ed-rub-name:focus{border-color:var(--line);background:var(--surface)}
+.ed-n{font-size:12px;color:var(--text-dim);background:var(--surface-2);border-radius:999px;padding:1px 8px}
+.ed-mini{flex:0 0 auto;min-width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px;cursor:pointer}
+.ed-gruppe{padding:4px 8px 8px;border-radius:10px;margin:4px 6px}
+.ed-gruppe.ziel{background:rgba(155,77,186,.10)}
+.ed-gruppe.ed-drop{outline:2px dashed #9b4dba;outline-offset:2px}
+.ed-gruppe-kopf{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;padding:6px 2px;cursor:pointer}
+.ed-g-titel{flex:1 1 auto}
+.ed-zeile{display:flex;align-items:center;gap:6px;padding:4px 6px;margin:3px 0;background:var(--surface);border:1px solid var(--line);border-left:4px solid #888;border-radius:9px}
+.ed-zeile.verborgen{opacity:.5}
+.ed-menge{flex:0 0 64px;width:64px;min-height:30px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);color:var(--text);padding:3px 6px;font-size:13px}
+.ed-name{flex:1 1 auto;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default}
+.ed-prod{font-size:12px}
+.ed-zub{flex:0 1 auto;border:1px dashed var(--warn);background:rgba(239,143,66,.10);color:var(--text);border-radius:999px;font-size:12px;padding:3px 9px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+.ed-weg{color:var(--danger)}
+.ed-leer{font-size:12.5px;color:var(--text-dim);border:1px dashed var(--line);border-radius:9px;padding:10px;text-align:center;cursor:pointer}
+.ed-abs-neu,.ed-rub-neu{display:flex;gap:8px;align-items:center;padding:8px 10px;flex-wrap:wrap}
+.ed-abs-neu .loc-input,.ed-rub-neu .loc-input{flex:1 1 200px}
+.ed-rub-neu{border:1px dashed var(--line);border-radius:12px}
+.ed-einstieg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid #9b4dba;border-radius:12px;background:rgba(155,77,186,.08)}
+.ed-geist{position:fixed;z-index:400;pointer-events:none;max-width:320px;padding:7px 12px;border-radius:10px;
+  background:#7a2e8e;color:#fff;font-size:13px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-marker{position:fixed;z-index:399;height:4px;border-radius:2px;background:#c46be0;pointer-events:none;display:none}
+body.ed-zieht,body.ed-zieht *{cursor:grabbing !important;user-select:none}
+@media (max-width:899px){ .ed-wrap{grid-template-columns:1fr} .ed-links,.ed-rechts{max-height:none} }
+.ed-std-kopf .btn,.ed-abs-neu .btn,.ed-rub-neu .btn{flex:0 0 auto;width:auto;min-height:40px;padding:8px 14px}
+.ed-tabs button{white-space:nowrap}
+.ed-rub-neu .form-sel{flex:0 0 150px}
+.pd-stufen{display:block}
+.pd-stufe{display:block;padding:4px 0;border-bottom:1px dashed var(--line)}
+.pd-stufe:last-child{border-bottom:0}
+.pd-stufe .gtin-mono{font-size:12px;color:var(--text-dim)}
+.pd-best{display:inline-block;margin-left:6px;font-size:11px;font-weight:650;color:var(--n-material);
+  border:1px solid var(--n-material);border-radius:6px;padding:0 6px;vertical-align:middle}

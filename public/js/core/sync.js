@@ -21,6 +21,11 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reassign','hkl
   'hkl_gtin','hkl_matlink','hkl_matprops','hkl_cleanup_done',
   /* Anleitungen, konfigurierbare Pop-ups und Arzt-Varianten (Inhalte – geteilt) */
   'hkl_guides','hkl_popups','hkl_variants','hkl_ocrlearn','hkl_diag','hkl_zerlegung','hkl_dubl_ok','hkl_geraete','hkl_bezeichnungen','hkl_bausteine','hkl_funktionen','hkl_medientexte','hkl_medienanker','hkl_stdkopf','hkl_eigenschaften','hkl_stdeigen','hkl_bereiche','hkl_altgruppen','hkl_zweige','hkl_bausammlung','hkl_bausteinkats','hkl_fassungen','hkl_pflegeschritte','hkl_pflegeeigen','hkl_pflegestand','hkl_seiten','hkl_aufgaben','hkl_aktuelles','hkl_aktuellarten','hkl_bestellungen','hkl_bestlern','hkl_bildorte','hkl_hartweg',
+  /* Zweitpasswort für den Neuaufbau (features/raum.js) — nur der Fingerabdruck —
+     und welche Neuerungen des Neuaufbaus auch im Bestand gelten */
+  'hkl_raumpw','hkl_neufrei',
+  /* Notizen, die beim Neuaufbau anfallen (features/notizen.js) */
+  'hkl_notizen',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
   'hkl_rules'];
 
@@ -106,6 +111,11 @@ function hydrateVars(){
   if(typeof VARIANTS!=='undefined'){ VARIANTS=loadJSON('hkl_variants',{aerzte:[],data:{}});
     if(!VARIANTS||typeof VARIANTS!=='object') VARIANTS={aerzte:[],data:{}};
     if(!Array.isArray(VARIANTS.aerzte)) VARIANTS.aerzte=[]; if(!VARIANTS.data) VARIANTS.data={}; }
+  /* Freigegebene Neuerungen (features/raum.js) — schaltet sie jemand frei,
+     erscheinen sie auf jedem Gerät des Bestands beim nächsten Zeichnen. */
+  if(typeof NEUFREI!=='undefined'){ NEUFREI=loadJSON('hkl_neufrei',{}); if(typeof neuFreiNormal==='function') neuFreiNormal(); }
+  if(typeof NOTIZEN!=='undefined'){ NOTIZEN=loadJSON('hkl_notizen',[]); if(typeof notizNormal==='function') notizNormal();
+    if(typeof notizZaehlerZeigen==='function') notizZaehlerZeigen(); }
   RULES=loadJSON('hkl_rules',[]); rebuildRulesIndex();
   HINTS=loadHints();
   GLOSSARY=loadGlossary();
@@ -140,6 +150,9 @@ function refreshView(){
     if($('scr-scan').classList.contains('active')||$('scr-scan-item').classList.contains('active')) return;
     /* Neue Ansichten mit offenen Eingaben ebenso in Ruhe lassen: Anleitungs-
        Editor, Pop-up-Konfiguration, Varianten-Editor, Aufräum-Assistent. */
+    /* Der Editor zeichnet sich selbst neu — außer mitten in einem Zug oder
+       während getippt wird (features/editor.js). */
+    if($('scr-editor')&&$('scr-editor').classList.contains('active')){ if(typeof edAuffrischen==='function') edAuffrischen(); return; }
     const busy=['scr-guide','scr-guide-edit','scr-popups','scr-variants','scr-variant-edit','scr-cleanup','scr-form','scr-diag'];
     if(busy.some(id=>{ const el=$(id); return el&&el.classList.contains('active'); })) return;
     buildMaterialIndex();
@@ -154,8 +167,54 @@ function refreshView(){
 }
 
 const sync=(()=>{
-  const URL='/api/state';
+  /* Raum (core/store.js): Für den Bestand ist die Adresse dieselbe wie immer;
+     der Neuaufbau nennt sich ausdrücklich (…?raum=neuaufbau). */
+  const URL='/api/state'+raumParam();
   let rev=0, dirty=new Set(), timer=null, inflight=false, pending=false, enabled=false, offline=false, fails=0, oversize=false;
+  /* ── Raum-Wache ─────────────────────────────────────────────────────────
+     Ein Gerät im Neuaufbau darf erst dann mit dem Server tauschen, wenn der
+     Server den Raum KENNT. Ein Server ohne Räume (etwa nach dem Zurückspielen
+     einer alten Fassung) überginge die Raumangabe und antwortete mit dem
+     Bestand — und schlimmer: Er nähme Neuaufbau-Daten als Bestandsdaten an.
+     Deshalb: erst bestätigen (GET /api/raeume), dann tauschen; und jede
+     Antwort muss den Raum nennen, den das Gerät gemeint hat. Für den Bestand
+     gilt die Wache als erfüllt — dort ändert sich nichts. */
+  let raumOk=(RAUM.id==='bestand'), raumGesperrt=false;
+  function raumFehler(text){ const e=new Error(text); e.raum=true; return e; }
+  function antwortRaumPruefen(j){
+    if(RAUM.id!=='bestand' && (!j || j.raum!==RAUM.id)){ raumOk=false; throw raumFehler('Antwort ohne Bestätigung des Raums „'+RAUM.titel+'"'); }
+  }
+  async function raeumeAbfragen(){
+    const r=await fetch('/api/raeume',{cache:'no-store'});
+    if(!r.ok){ const e=new Error('HTTP '+r.status); e.status=r.status; throw e; }
+    return r.json();
+  }
+  /* Bestätigt den eigenen Raum und folgt — nur auf Geräten ohne eigene Wahl —
+     dem Live-Zeiger des Servers. Gibt false zurück, wenn die Seite gleich
+     neu lädt (dann soll nichts mehr getauscht werden). */
+  async function raumAbgleich(){
+    let j=null;
+    try{ j=await raeumeAbfragen(); }
+    catch(e){
+      /* Server ohne Räume: Für den Bestand egal (er spricht ihn wie immer an),
+         für den Neuaufbau ein Halt — siehe Raum-Wache. */
+      if(RAUM.id!=='bestand' && e && e.status===404){ raumGesperrt=true; raumOk=false; }
+      if(RAUM.id!=='bestand') throw e;
+      return true;
+    }
+    const liste=(j&&Array.isArray(j.raeume))?j.raeume:[];
+    if(RAUM.id!=='bestand'){
+      if(!liste.some(x=>x&&x.id===RAUM.id)){ raumGesperrt=true; raumOk=false; throw raumFehler('Server kennt den Raum nicht'); }
+      raumOk=true; raumGesperrt=false;
+    }
+    if(!RAUM.gewaehlt && j && typeof j.live==='string' && j.live!==RAUM.id && Object.prototype.hasOwnProperty.call(RAEUME_DEF,j.live)){
+      raumLiveMerken(j.live);
+      try{ if(typeof diagLog==='function') diagLog('system','Live-Raum gewechselt: '+RAUM.id+' → '+j.live); }catch(x){}
+      try{ location.reload(); }catch(x){}
+      return false;
+    }
+    return true;
+  }
   function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
     /* Im „nur lokal"-Zustand Text zeigen: Status muss ohne Hover erkennbar
        sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4). */
@@ -208,6 +267,7 @@ const sync=(()=>{
 
   async function pull(){
     const r=await fetch(URL,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+    antwortRaumPruefen(j);
     rev=j.rev||0; const st=j.state||{}; adopt(st,false);
     // rein lokale Schlüssel, die der Server noch nicht kennt → Erstbefüllung
     const seed=SHARED_KEYS.filter(k=>store.get(k)!=null && !(k in st));
@@ -218,12 +278,20 @@ const sync=(()=>{
     const body=JSON.stringify({baseRev:rev, state:payloadFor(keys)});
     const r=await fetch(URL,{method:'PUT',headers:{'Content-Type':'application/json'},body});
     if(!r.ok){ const err=new Error('HTTP '+r.status); err.status=r.status; err.bytes=body.length; err.keys=keys.slice(); throw err; } const j=await r.json();
+    antwortRaumPruefen(j);
     rev=j.rev||rev; return adopt(j.state,true); /* fremde Schlüssel übernehmen (eigene dirty nicht) */
   }
   async function flush(){
     if(!enabled) return;
     if(inflight){ pending=true; return; }
     const keys=[...dirty]; if(!keys.length) return;
+    /* Raum-Wache: ohne Bestätigung kein Schreiben (Daten bleiben lokal und in
+       `dirty`, der nächste Takt versucht es wieder). */
+    if(!raumOk){
+      if(raumGesperrt){ setDot('local','Server kennt den Raum „'+RAUM.titel+'“ nicht – nur lokal gesichert'); return; }
+      try{ if(!(await raumAbgleich())) return; }
+      catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); clearTimeout(timer); timer=setTimeout(flush, 15000); return; }
+    }
     /* Steht eine Ablehnung im Raum, bleibt sie stehen. Ein „Speichere…" darüber
        würde den einzigen Hinweis verdecken, der zur Lösung führt — und genau
        das ist passiert: Die Diagnose stand da, wurde aber vom nächsten
@@ -260,8 +328,11 @@ const sync=(()=>{
     timer=setTimeout(flush, oversize?60000:800); }
   async function poll(){
     if(!enabled||inflight||dirty.size) return;
+    if(raumGesperrt) return;
     try{
-      const r=await fetch(URL+'?since='+rev,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+      if(!raumOk && !(await raumAbgleich())) return;
+      const r=await fetch(URL+(URL.indexOf('?')<0?'?':'&')+'since='+rev,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json();
+      antwortRaumPruefen(j);
       offline=false;
       if(j.unchanged){ setDot('ok','Auf dem Server gespeichert'); return; }
       rev=j.rev||rev; const changed=adopt(j.state,true);
@@ -306,15 +377,33 @@ const sync=(()=>{
   async function init(){
     setDot('saving','Verbinde…');
     try{
+      if(!(await raumAbgleich())) return;     /* lädt gleich neu (Live-Raum gewechselt) */
       const seed=await pull(); hydrateVars(); offline=false; setDot('ok','Auf dem Server gespeichert');
       if(seed.length) await seedHochladen(seed);
-    }catch(e){ noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
+    }catch(e){
+      if(raumGesperrt){ setDot('local','Server kennt den Raum „'+RAUM.titel+'“ nicht – nur lokal gesichert');
+        try{ if(typeof diagLog==='function') diagLog('fehler','Raum „'+RAUM.titel+'“ vom Server nicht bestätigt – Abgleich angehalten'); }catch(x){}
+        return; }
+      noteOffline(); setDot('local','Nur lokal – Server nicht erreichbar'); }
+  }
+  /* Sofort alles Offene an den Server geben (vor einem Raumwechsel). Wartet
+     höchstens `ms` Millisekunden — ein Wechsel darf nie am Netz hängen
+     bleiben; was nicht ankam, bleibt lokal im Raum und geht beim nächsten
+     Betreten hoch. */
+  async function leeren(ms){
+    clearTimeout(timer);
+    const lauf=(async()=>{ while(inflight) await new Promise(r=>setTimeout(r,50)); await flush(); })();
+    await Promise.race([lauf, new Promise(r=>setTimeout(r, ms||3000))]);
   }
   function start(){ enabled=true; onStoreSet=mark; setInterval(poll,15000);
     if(dirty.size) setTimeout(flush,500); /* z. B. Journal-Vereinigung aus init() nachspielen */
     window.addEventListener('online',()=>{ poll(); if(dirty.size) flush(); });
-    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
+    /* Beim Aufwachen des Tablets auch den Live-Zeiger nachsehen — nur Geräte
+       ohne eigene Raumwahl folgen ihm (siehe raumAbgleich). */
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden) return;
+      if(!RAUM.gewaehlt) raumAbgleich().catch(()=>{});
+      poll(); });
   }
-  return {init,start};
+  return {init,start,leeren};
 })();
 

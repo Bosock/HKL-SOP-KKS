@@ -368,7 +368,10 @@ function wizApply(){
   const merkVor=WIZ.merk;
   wizClose();
   if(typeof catCheckForm==='function') catCheckForm();
-  if(fotosAn && bilder.length && typeof scanGalerieAddMany==='function') scanGalerieAddMany(bilder);
+  /* Beide Aufnahmen zeigen das Etikett — im Neuaufbau tragen sie diese Rolle
+     gleich mit (features/produkt.js). */
+  const rolle=(typeof neuFrei==='function' && neuFrei('fotorollen'))?'etikett':'';
+  if(fotosAn && bilder.length && typeof scanGalerieAddMany==='function') scanGalerieAddMany(bilder, '', rolle);
   /* Merkmale zuletzt: Der Klassenwechsel baut die Felder neu auf, deshalb
      erst nach ocrFillForm. */
   let merkInfo={ gefuellt:[], abweichend:[] };

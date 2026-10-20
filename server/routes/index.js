@@ -9,4 +9,5 @@ module.exports = [
   require('./auth'),
   require('./state'),
   require('./media'),
+  require('./raeume'),
 ];

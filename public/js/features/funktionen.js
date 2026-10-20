@@ -267,6 +267,8 @@ const FKT_SHEET_KATALOG = {
         { key:'alternativen', ico:'⇄',   label:'Alternativen',           sub:'Material, das stattdessen geht' },
         { key:'material',     ico:'🧬',  label:'Material öffnen',        sub:'Angaben, Etikett scannen, Foto' },
         { key:'zuordnen',     ico:'🧬',  label:'Produkt zuordnen',       sub:'diese Zeile mit einem vorhandenen Produkt verbinden' },
+        { key:'zubehoer',     ico:'🧩',  label:'Braucht dazu …',         sub:'Zubehör des Produkts festhalten (Neuaufbau)' },
+        { key:'aufbereitung', ico:'♻️',  label:'Aufbereitete Fassung von …', sub:'aufbereitete Ware mit dem Original verbinden (Neuaufbau)' },
         { key:'pflege',       ico:'🧹',  label:'Pflege-Weg ab hier',     sub:'dieses Material fertig pflegen, dann das nächste' },
         { key:'bestellen',    ico:'🛒',  label:'„ist leer" melden',      sub:'landet auf der Bestell-Seite — mit Kürzel und Uhrzeit' },
         { key:'eigenefelder', ico:'＋',  label:'Eigene Felder',          sub:'Zusatz-Infos als Badges am Eintrag' },

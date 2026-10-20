@@ -275,7 +275,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
   const pBildorte=(typeof bildortePanelHTML==='function')?bildortePanelHTML():'';
   html+=sec('Aussehen & Anzeige')+pAnzeige+pBildorte+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
-  html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten;
+  html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten+((typeof raumPanelHTML==='function')?raumPanelHTML():'')+((typeof notizPanelHTML==='function')?notizPanelHTML():'');
   box.innerHTML=html;
   /* Zum Schluss die eigenen Einstellungen auf die Karten legen: ausblenden,
      umbenennen, umsortieren (features/funktionen.js). Bewusst NACH dem Aufbau

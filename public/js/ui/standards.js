@@ -38,6 +38,14 @@ function renderStandards(query){ const box=$('scr-standards'); const q=(query||'
     if(facIds && !facIds[s.id]) return;
     if(q && !(t||'').toLowerCase().includes(q) && !(g||'').toLowerCase().includes(q)) return;
     list.push({ id:s.id, titel:t, gruppe:g, std:s, hidden:hid }); });
+  /* Noch GAR KEIN Standard (ein Raum, der leer beginnt — siehe
+     features/raum.js): kein „nicht gefunden", sondern der erste Schritt. */
+  if(!DB.standards.length){
+    box.innerHTML=html+`<div class="empty"><div class="ei">🌱</div><h3>Noch kein Standard</h3>
+      <p>${RAUM.basis?'Es sind keine Standards geladen.':'Der '+esc(RAUM.titel)+' beginnt leer — ohne Standards, ohne Material, ohne Bilder. Alles entsteht hier neu.'}</p>
+      ${ADMIN?'<p>Oben „＋ Neuer Standard" — oder zuerst das Material erfassen, aus dem die Standards später bestehen.</p>':''}
+      ${ADMIN&&typeof openScanHub==='function'?`<button type="button" class="sheet-pick-btn" style="margin-top:12px" onclick="openScanHub()">📷 Material erfassen</button>`:''}</div>`;
+    return; }
   if(!list.length){
     /* Die Startsuche findet nur Titel/Gruppen. Bei 0 Treffern die globale
        Inhaltssuche anbieten, sonst lernt man fälschlich „gibt es nicht"

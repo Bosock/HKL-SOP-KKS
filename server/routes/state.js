@@ -1,21 +1,33 @@
 /* /api/state — die Persistenz-API der App.
 
    GET  ?since=<rev>  → { rev, unchanged:true } wenn nichts Neues, sonst voller Stand
-   PUT/POST { state } → Top-Level-Key-Merge, antwortet mit dem autoritativen Stand */
+   PUT/POST { state } → Top-Level-Key-Merge, antwortet mit dem autoritativen Stand
+
+   ?raum=<id> wählt den Raum (server/raeume.js). OHNE Angabe ist es der
+   Bestand — Anfrage und Antwort sind dann exakt wie vor der Einführung der
+   Räume. Mit Angabe trägt die Antwort zusätzlich `raum`, damit das Gerät
+   prüfen kann, dass es wirklich den Raum bekommen hat, den es meinte. */
 'use strict';
 const state = require('../state');
+const raeume = require('../raeume');
 const { sendJSON, readBody } = require('../http-util');
 const { SECURITY_HEADERS } = require('../config');
 
 async function handle(req, res, url) {
+  const raum = raeume.ausAnfrage(url);
+  if (!raum) { sendJSON(req, res, 400, { error: 'unknown room' }); return; }
+  const z = state.raum(raum.id);
+  const mitRaum = url.searchParams.has('raum');
+  const antwort = obj => (mitRaum ? Object.assign(obj, { raum: raum.id }) : obj);
+
   if (req.method === 'GET' || req.method === 'HEAD') {
-    const STATE = state.getState();
+    const STATE = z.getState();
     const since = parseInt(url.searchParams.get('since') || '', 10);
     if (Number.isFinite(since) && since === STATE.rev) {
-      sendJSON(req, res, 200, { rev: STATE.rev, unchanged: true });
+      sendJSON(req, res, 200, antwort({ rev: STATE.rev, unchanged: true }));
       return;
     }
-    sendJSON(req, res, 200, { rev: STATE.rev, updatedAt: STATE.updatedAt, state: STATE.state });
+    sendJSON(req, res, 200, antwort({ rev: STATE.rev, updatedAt: STATE.updatedAt, state: STATE.state }));
     return;
   }
   if (req.method === 'PUT' || req.method === 'POST') {
@@ -30,10 +42,10 @@ async function handle(req, res, url) {
     catch (e) { sendJSON(req, res, 400, { error: 'invalid JSON' }); return; }
     const incoming = payload && typeof payload.state === 'object' && payload.state ? payload.state : null;
     if (!incoming) { sendJSON(req, res, 400, { error: 'missing state object' }); return; }
-    const STATE = state.update(incoming);
+    const STATE = z.update(incoming);
     // Return the full authoritative state so the client converges on any
     // keys other editors changed in the meantime.
-    sendJSON(req, res, 200, { rev: STATE.rev, updatedAt: STATE.updatedAt, state: STATE.state });
+    sendJSON(req, res, 200, antwort({ rev: STATE.rev, updatedAt: STATE.updatedAt, state: STATE.state }));
     return;
   }
   res.writeHead(405, Object.assign({ 'Allow': 'GET, PUT, POST' }, SECURITY_HEADERS));

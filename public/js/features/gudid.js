@@ -52,7 +52,12 @@ function gudidExtract(json){
   const name = s(d.brandName) || s(d.deviceDescription);
   const hersteller = s(d.companyName);
   if(!ref && !name && !hersteller) return null;
-  return { ref, name, hersteller, beschreibung:s(d.deviceDescription), quelle:'AccessGUDID (NLM)' };
+  const t = { ref, name, hersteller, beschreibung:s(d.deviceDescription), quelle:'AccessGUDID (NLM)' };
+  /* Verpackungsstufen (Einheit, Karton, Kasten) — für den Neuaufbau, der die
+     GTIN der EINHEIT zum Schlüssel macht (features/produkt.js). */
+  const st = (typeof gudidStufen==='function') ? gudidStufen(json) : null;
+  if(st) t.stufen = st;
+  return t;
 }
 
 /* ===== Gerätelokaler Zwischenspeicher ===== */

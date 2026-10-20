@@ -32,7 +32,11 @@ function entryCardHTML(e,cid,isMatGer){
   const zerlAn=!!(zerl && zerl.quelle==='mensch');
   const zProd=(zerlAn && zerl.art==='produkt' && zerl.produkt)?zerl.produkt.name:null;
   const dn=qeGet(e,cid,'name');
-  let name=(dn!==undefined?dn:(zProd||e.anzeige_text));
+  /* Eine Zeile, die auf ein PRODUKT zeigt (Neuaufbau, features/produkt.js),
+     trägt dessen aktuellen Namen — benennt man das Produkt um, folgt die
+     Zeile. Zeilen ohne Produkt bleiben, wie sie sind. */
+  const pName=(typeof produktNameFuer==='function')?produktNameFuer(e):null;
+  let name=(dn!==undefined?dn:(zProd||pName||e.anzeige_text));
   const mv=qeGet(e,cid,'mengeVal'); let mengeEff=(mv!==undefined?mv:e.menge);
   /* Arztspezifische Variante liegt GANZ OBEN auf der Kaskade: Wer eine Variante
      angewählt hat, sieht deren Werte — der Standard darunter bleibt unberührt. */
@@ -441,6 +445,7 @@ function goBack(){ if(formCtx){ closeForm(); return; }
   if(act('scr-variants')){ setMode('use'); return; }
   if(act('scr-diag')){ setMode('use'); return; }
   if(act('scr-bausteine')){ setMode('admin'); return; }
+  if(act('scr-editor')){ if(typeof edSchliessen==='function') edSchliessen(); else setMode('use'); return; }
   if(act('scr-funktionen')){ setMode('admin'); return; }
   if(act('scr-freigabe')){ if(typeof frgSid!=='undefined' && frgSid) openStandard(frgSid); else setMode('admin'); return; }
   if(act('scr-ruest')){ if(typeof ruestSid!=='undefined' && ruestSid) openStandard(ruestSid); else setMode('use'); return; }

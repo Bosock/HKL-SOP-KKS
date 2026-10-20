@@ -337,6 +337,11 @@ anders als im Saal — ohne dass es jemandem gesagt wurde.
 in Überlagerungen. Deshalb ist jede Änderung rücknehmbar und die Word-Vorlage bleibt
 die Vorlage.
 
+Im **Neuaufbau** gibt es keine Word-Vorlage: Die Standards entstehen dort als
+eigene Daten der App („App-Format"). Der Editor schreibt die Reihenfolge deshalb
+direkt in den Datensatz statt in eine Überlagerung — und zieht beim Verschieben
+alles mit, was an der Position einer Zeile hängt (`features/editor.js`).
+
 ### ⑧ Keine nativen Eingabefenster
 
 `prompt()` und `confirm()` sind in installierten PWAs (`display: standalone`) auf
@@ -352,11 +357,36 @@ kleiner werden.
 Reine Logik gehört in reine Funktionen mit `node:test`-Tests; Bedienwege in die
 E2E-Läufe unter `e2e/`. Vor jedem Zusammenführen: `npm run check && npm test`.
 
+### ⑩ Neues entsteht im Neuaufbau
+
+Der Bestand läuft im Labor jeden Tag; er wird durch nichts berührt, was daneben
+ausprobiert wird (siehe [NEUAUFBAU.md](NEUAUFBAU.md)). Eine neue Funktion
+erscheint deshalb zuerst **nur im Neuaufbau**: Sie fragt `neuFrei('<schlüssel>')`
+und steht in der Liste `NEU_FUNKTIONEN` (`features/raum.js`). In den Bestand
+kommt sie erst, wenn sie dort in der Verwaltung ausdrücklich freigegeben wird —
+einzeln, rücknehmbar, ohne Programmierung.
+
+**Verstoß erkennt man an.** Einer neuen Schaltfläche, einem neuen Feld oder einem
+geänderten Ablauf, der im Bestand sichtbar wird, ohne dass dort etwas
+freigegeben wurde.
+
+### ⑪ Der Gerätespeicher hat genau eine Tür
+
+Alle Zugriffe auf den Gerätespeicher laufen über `store` (`core/store.js`). Dort
+sitzt das Präfix, das Bestand und Neuaufbau trennt. Ein direkter Zugriff auf
+`localStorage` irgendwo sonst ginge daran vorbei — er schriebe aus dem
+Neuaufbau in den Bestand, ohne Fehlermeldung. `npm run check` verbietet ihn;
+eine reine Messung ohne Schreiben trägt die Marke `speicher:ok` mit Begründung.
+
+Dazu gehört: Ein geteilter Schlüssel wird als **JSON** gespeichert
+(`saveJSON`). Der Abgleich schickt nur, was sich als JSON lesen lässt — ein roher
+Text bliebe still auf dem einen Gerät liegen.
+
 ---
 
 ## Teil C — Was die Maschine prüft
 
-`npm run check` prüft fünf Dinge und bricht bei jedem Problem ab:
+`npm run check` prüft diese Dinge und bricht bei jedem Problem ab:
 
 | # | Prüfung | dahinterliegender Grundsatz |
 |---|---|---|
@@ -365,6 +395,9 @@ E2E-Läufe unter `e2e/`. Vor jedem Zusammenführen: `npm run check && npm test`.
 | 3 | **Kein neues `prompt()` / `confirm()`** | ⑧ |
 | 4 | **Kein Fachwort in einem Vergleich** | ④ |
 | 5 | **Kein Kettensymbol in der Bedienung** | ⑥ · Naht des Datenmodells |
+| 6 | **Verdrahtung vollständig** (doppelte Namen, Knöpfe ins Leere, tote Funktionen, ungeteilte Schlüssel) | ⑨ |
+| 7 | **Auslieferung beweist sich** (Zeitlimits, Nachweis nach dem Deploy) | ⑨ |
+| 8 | **Gerätespeicher nur über `store`** | ⑪ · Trennung Bestand/Neuaufbau |
 
 Prüfung 5 hält einen erreichten Zustand fest: Die Verknüpfung Zeile↔Material war
 eine Datenmodell-Entscheidung, die in die Oberfläche durchgeschlagen ist — ein

@@ -24,6 +24,8 @@ function openStandard(id,replace,silent){ const s=DB.standards.find(x=>x.id===id
       <button class="btn btn-sec" onclick="openStdSheet()">✎ Bearbeiten</button>
       <button class="btn btn-sec" onclick="addRubrik()">＋ Rubrik</button></div></div></div>`;
   }
+  /* Am breiten Bildschirm: der Editor (Neuaufbau, features/editor.js). */
+  if(typeof edKnopfHTML==='function') html+=edKnopfHTML(s);
   const vis=(s.rubriken||[]).map((r,i)=>({r,i})).sort((a,b)=>rubOrd(a.r,a.i)-rubOrd(b.r,b.i));
   let listHtml='';
   vis.forEach(({r,i})=>{

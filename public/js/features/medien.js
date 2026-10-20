@@ -37,8 +37,13 @@ const MED_MAX_KANTE = 1280;    /* Fotos werden vorher verkleinert */
 const MED_QUALITAET = 0.72;
 const MED_MAX_PRO_ZEILE = 12;
 
-/* Kennung → Adresse. Eine Kennung bezeichnet für immer denselben Inhalt. */
-function medUrl(kennung){ return '/api/media/' + encodeURIComponent(String(kennung||'')); }
+/* Kennung → Adresse. Eine Kennung bezeichnet für immer denselben Inhalt.
+   Im Neuaufbau trägt die Adresse den Raum (…?raum=neuaufbau): Seine Bilder
+   liegen in einem eigenen Ordner auf dem Server und sind aus dem Bestand
+   heraus nicht zu finden (server/raeume.js). Für den Bestand bleibt die
+   Adresse, wie sie immer war. */
+function medRaumParam(){ return (typeof raumParam==='function') ? raumParam() : ''; }
+function medUrl(kennung){ return '/api/media/' + encodeURIComponent(String(kennung||'')) + medRaumParam(); }
 
 /* Ist das eine gültige Kennung (32 Hexstellen)? */
 function medIstKennung(k){ return /^[0-9a-f]{32}$/.test(String(k||'')); }
@@ -162,7 +167,11 @@ function medAnkerSchreiben(anker, paare){
    einziges Bild könnte den Speicher sprengen und dabei ECHTE Daten
    verdrängen. IndexedDB ist der dafür vorgesehene Ort und um Größenordnungen
    größer. */
-const MED_DB = 'hkl-medien';
+/* Je Raum eine eigene Datenbank: Ein im Neuaufbau aufgenommenes Foto, das
+   offline in der Warteschlange liegt, darf beim nächsten Start im Bestand
+   nicht in DESSEN Bilderordner hochgeladen werden. Der Bestand behält den
+   alten Namen. */
+const MED_DB = 'hkl-medien' + ((typeof RAUM==='undefined' || RAUM.id==='bestand') ? '' : '-' + RAUM.id);
 const MED_LADEN = 'warteschlange';
 /* Der SPIEGEL: die verkleinerten Bytes eines Bildes liegen lokal unter ihrer
    Kennung, damit ein gerade aufgenommenes Foto SOFORT und OHNE Netz sichtbar
@@ -237,7 +246,7 @@ function medVerkleinern(datei){
 /* Hochladen. Gibt die Kennung zurück — oder wirft, damit der Aufrufer das
    Bild in die Warteschlange legen kann. */
 async function medHochladen(blob){
-  const antwort = await fetch('/api/media', { method:'POST', headers:{'Content-Type':blob.type||'image/jpeg'}, body:blob });
+  const antwort = await fetch('/api/media' + medRaumParam(), { method:'POST', headers:{'Content-Type':blob.type||'image/jpeg'}, body:blob });
   if(!antwort.ok){
     let t=''; try{ t=(await antwort.json()).error||''; }catch(e){}
     const f = new Error(t || ('HTTP '+antwort.status)); f.status = antwort.status; throw f;
@@ -781,7 +790,7 @@ function medUiDetail(kennung, text){
 let MEDBESTAND = null;
 async function medBestandLaden(){
   try{
-    const a = await fetch('/api/media');
+    const a = await fetch('/api/media' + medRaumParam());
     if(!a.ok) throw new Error('HTTP '+a.status);
     MEDBESTAND = await a.json();
   }catch(e){ MEDBESTAND = { fehler:true }; }

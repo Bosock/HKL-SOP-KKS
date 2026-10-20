@@ -102,7 +102,15 @@ function renderSheetMain(){ const e=sheetEntry, cid=sheetCid; if(!e) return;
     if(typeof zuOeffnen==='function'){
       S.akt('zuordnen','🧬','Produkt zuordnen',
         cn ? ('zugeordnet: '+((cn.name||cn.ref||cn.gtin)||'')) : 'noch kein Produkt hinterlegt',
-        'zuAusEintrag()'); } }
+        'zuAusEintrag()'); }
+    /* Beziehungen beim Schreiben eines Standards festhalten (Neuaufbau,
+       features/beziehungen.js) — sie gehören ans Produkt dieser Zeile. */
+    if(cn && typeof neuFrei==='function' && neuFrei('beziehungen') && typeof bzhVon==='function'){
+      const v=bzhVon(GTINDB, cn.gtin);
+      const zub=v.raus.filter(b=>b.art==='zubehoer').map(b=>bzhName(b.ziel));
+      const auf=v.raus.filter(b=>b.art==='aufbereitung').map(b=>bzhName(b.ziel));
+      S.akt('zubehoer','🧩','Braucht dazu …', zub.length?zub.join(', '):'Zubehör festlegen', "bzhAusEintrag('zubehoer')");
+      S.akt('aufbereitung','♻️','Aufbereitete Fassung von …', auf.length?auf.join(', '):'nur bei aufbereiteter Ware', "bzhAusEintrag('aufbereitung')"); } }
   /* Der geschlossene Weg: nicht ein Werkzeug öffnen, sondern von hier an
      Material für Material durchgehen (features/pflege.js). */
   if(isMat&&typeof pflegeAbZeile==='function'){
