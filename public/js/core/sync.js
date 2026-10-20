@@ -215,10 +215,15 @@ const sync=(()=>{
     }
     return true;
   }
-  function setDot(cls,title){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
+  function setDot(cls,title,wort){ const d=$('syncDot'); if(d){ d.className='sync-dot '+cls; d.title=title||'Server-Status';
     /* Im „nur lokal"-Zustand Text zeigen: Status muss ohne Hover erkennbar
-       sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4). */
-    d.textContent=(cls==='local')?'lokal':''; } }
+       sein (Touch) und darf nicht allein an der Farbe hängen (UX-Audit K4).
+       Das Wort ist übersteuerbar, weil hinter demselben Pill ZWEI verschiedene
+       Lagen stecken: „kein Netz" geht von selbst vorbei, „zu groß" nie. Wer
+       das nicht unterscheiden kann, wartet auf eine Verbindung, die längst da
+       ist. Der ganze Satz steht weiterhin im Tooltip bzw. im Toast beim
+       Antippen (ui/chrome.js). */
+    d.textContent=(cls==='local')?(wort||'lokal'):''; } }
   /* Einmaliger Hinweis beim Übergang online→offline; danach spricht das
      „lokal"-Pill. Beim Wiederverbinden zeigt der grüne Punkt den Erfolg. */
   function noteOffline(){ if(offline) return; offline=true;
@@ -309,7 +314,7 @@ const sync=(()=>{
         // pauschal „Fotos verkleinern" zu raten (siehe zuGrossText).
         oversize=true;
         const text=zuGrossText(e.keys||keys, e.bytes||0);
-        setDot('local', text);
+        setDot('local', text, 'zu groß');
         /* Ins Protokoll, damit der Fall nachher auffindbar ist statt nur als
            Meldung vorbeizuziehen (features/diag.js). */
         try{ if(typeof diagLog==='function') diagLog('fehler', text); }catch(x){}
@@ -361,7 +366,7 @@ const sync=(()=>{
         if(e && e.status===413){
           oversize=true;
           const t=zuGrossText(teil, e.bytes||0);
-          setDot('local', t);
+          setDot('local', t, 'zu groß');
           try{ if(typeof diagLog==='function') diagLog('fehler', t); }catch(x){}
         }
       }

@@ -27,7 +27,10 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('Client meldet eine Ablehnung (nicht „nicht erreichbar")',
     /abgelehnt/i.test(dot.title) && !/nicht erreichbar/i.test(dot.title));
   r.check('… mit Umfang und größtem Posten', /\d+\s*KB/.test(dot.title) && /hkl_txt/.test(dot.title));
-  r.check('Status-Pill zeigt „lokal"', dot.label === 'lokal');
+  /* Das Pill muss die Lage BENENNEN: „zu groß" geht — anders als „lokal" —
+     nicht von selbst vorbei. Wer beides gleich sieht, wartet auf eine
+     Verbindung, die längst da ist. */
+  r.check('Status-Pill zeigt „zu groß" (nicht „lokal")', dot.label === 'zu groß');
   r.check('Daten lokal erhalten', await page.evaluate(() => (loadJSON('hkl_txt', {}).appTitle || '').length === 5000));
   r.check('Server hat nichts übernommen (rev=0)', (await page.evaluate(async () => (await fetch('/api/state', { cache: 'no-store' })).json())).rev === 0);
 

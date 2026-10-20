@@ -1,0 +1,576 @@
+<title>Befundbericht HKL-Standards</title>
+<style>
+/* ── Token-Ebene: vollständige helle Palette auf blankem :root ───────── */
+:root{
+  --paper:#eef2f5;
+  --surface:#ffffff;
+  --surface-2:#f6f8fa;
+  --ink:#141d26;
+  --ink-2:#3d4b59;
+  --ink-3:#6a7885;
+  --line:#d3dce4;
+  --line-2:#e4ebf1;
+  --accent:#175f93;
+  --accent-soft:#e3eef6;
+  --schwer:#a6382a;
+  --schwer-soft:#f8e7e4;
+  --mittel:#8f6208;
+  --mittel-soft:#faf0da;
+  --gut:#256a4e;
+  --gut-soft:#e2f1ea;
+  --mono-bg:#131c25;
+  --mono-ink:#c9d6e0;
+  --mono-dim:#7b8b99;
+
+  --ff-display:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,"Source Serif 4",Georgia,"Times New Roman",serif;
+  --ff-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --ff-mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --step--1:clamp(.78rem,.76rem + .1vw,.83rem);
+  --step-0:clamp(1rem,.97rem + .15vw,1.06rem);
+  --step-1:clamp(1.2rem,1.13rem + .3vw,1.35rem);
+  --step-2:clamp(1.45rem,1.32rem + .6vw,1.8rem);
+  --step-3:clamp(1.85rem,1.6rem + 1.1vw,2.6rem);
+  --step-4:clamp(2.3rem,1.85rem + 2vw,3.6rem);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d151c;
+    --surface:#131e28;
+    --surface-2:#18242f;
+    --ink:#dfe8ef;
+    --ink-2:#adbcc9;
+    --ink-3:#7e8e9c;
+    --line:#283846;
+    --line-2:#1e2c38;
+    --accent:#63aade;
+    --accent-soft:#16303f;
+    --schwer:#e58374;
+    --schwer-soft:#2f1d1b;
+    --mittel:#dcae52;
+    --mittel-soft:#2b2314;
+    --gut:#67c19b;
+    --gut-soft:#12281f;
+    --mono-bg:#081016;
+    --mono-ink:#c0cfdb;
+    --mono-dim:#6b7c8a;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d151c;
+  --surface:#131e28;
+  --surface-2:#18242f;
+  --ink:#dfe8ef;
+  --ink-2:#adbcc9;
+  --ink-3:#7e8e9c;
+  --line:#283846;
+  --line-2:#1e2c38;
+  --accent:#63aade;
+  --accent-soft:#16303f;
+  --schwer:#e58374;
+  --schwer-soft:#2f1d1b;
+  --mittel:#dcae52;
+  --mittel-soft:#2b2314;
+  --gut:#67c19b;
+  --gut-soft:#12281f;
+  --mono-bg:#081016;
+  --mono-ink:#c0cfdb;
+  --mono-dim:#6b7c8a;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--ff-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+/* ── Seitengerüst ───────────────────────────────────────────────────── */
+.wrap{max-width:78rem;margin:0 auto;padding:0 clamp(1rem,4vw,2.5rem)}
+.spalten{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(2rem,5vw,4rem)}
+@media (min-width:64rem){
+  .spalten{grid-template-columns:14rem minmax(0,1fr);align-items:start}
+}
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem);padding-bottom:5rem}
+section{display:flex;flex-direction:column;gap:1.15rem;scroll-margin-top:1.5rem}
+
+/* ── Kopf ───────────────────────────────────────────────────────────── */
+.kopf{
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+  padding:clamp(2.5rem,7vw,5rem) 0 clamp(1.75rem,4vw,2.75rem);
+}
+.eyebrow{
+  font-family:var(--ff-mono);font-size:var(--step--1);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin:0 0 1.1rem;
+}
+h1{
+  font-family:var(--ff-display);font-weight:600;
+  font-size:var(--step-4);line-height:1.04;letter-spacing:-.015em;
+  text-wrap:balance;margin:0;max-width:20ch;
+}
+.dachzeile{
+  font-family:var(--ff-display);font-style:italic;font-size:var(--step-1);
+  color:var(--ink-2);margin:.9rem 0 0;max-width:52ch;text-wrap:balance;
+}
+.stempel{
+  display:grid;gap:.1rem 2rem;margin:2.25rem 0 0;
+  grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+  border-top:1px solid var(--line-2);padding-top:1.25rem;
+}
+.stempel div{display:flex;flex-direction:column;gap:.15rem}
+.stempel dt{font-family:var(--ff-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.stempel dd{margin:0;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ── Inhaltsverzeichnis ─────────────────────────────────────────────── */
+.toc{font-size:var(--step--1);line-height:1.5}
+@media (min-width:64rem){.toc{position:sticky;top:1.5rem;max-height:calc(100vh - 3rem);overflow-y:auto}}
+.toc h2{
+  font-family:var(--ff-mono);font-size:var(--step--1);font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 .7rem;padding-bottom:.55rem;border-bottom:1px solid var(--line);
+}
+.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.42rem}
+.toc a{display:flex;gap:.6rem;color:var(--ink-2);text-decoration:none}
+.toc a:hover{color:var(--accent)}
+.toc .n{font-family:var(--ff-mono);color:var(--ink-3);font-variant-numeric:tabular-nums;flex:0 0 1.1rem}
+
+/* ── Überschriften ──────────────────────────────────────────────────── */
+h2.sec{
+  font-family:var(--ff-display);font-weight:600;font-size:var(--step-3);
+  line-height:1.12;letter-spacing:-.01em;margin:0;text-wrap:balance;
+  display:flex;gap:.75rem;align-items:baseline;
+}
+h2.sec .n{
+  font-family:var(--ff-mono);font-size:var(--step-0);color:var(--accent);
+  font-weight:500;flex:0 0 auto;font-variant-numeric:tabular-nums;
+}
+h3{font-family:var(--ff-display);font-weight:600;font-size:var(--step-1);line-height:1.25;margin:0;text-wrap:balance}
+p{margin:0;max-width:68ch}
+.lead{font-size:var(--step-1);line-height:1.5;color:var(--ink-2);max-width:60ch}
+strong{font-weight:660;color:var(--ink)}
+
+/* ── Befundkarten ───────────────────────────────────────────────────── */
+.befunde{display:flex;flex-direction:column;gap:1.1rem}
+.befund{
+  background:var(--surface);border:1px solid var(--line);
+  border-left:4px solid var(--grad,var(--ink-3));
+  border-radius:3px;padding:1.3rem 1.4rem;
+  display:flex;flex-direction:column;gap:.8rem;
+}
+.befund[data-grad="schwer"]{--grad:var(--schwer)}
+.befund[data-grad="mittel"]{--grad:var(--mittel)}
+.befund[data-grad="gering"]{--grad:var(--ink-3)}
+.befund-kopf{display:flex;flex-wrap:wrap;gap:.55rem .85rem;align-items:baseline}
+.befund-kopf h3{flex:1 1 22ch;min-width:0}
+.befund-nr{
+  font-family:var(--ff-mono);font-size:var(--step--1);color:var(--ink-3);
+  font-variant-numeric:tabular-nums;flex:0 0 auto;padding-top:.2em;
+}
+.marken{display:flex;flex-wrap:wrap;gap:.4rem}
+.marke{
+  font-family:var(--ff-mono);font-size:.72rem;letter-spacing:.07em;
+  text-transform:uppercase;padding:.22em .55em;border-radius:2px;
+  border:1px solid transparent;white-space:nowrap;font-weight:600;
+}
+.marke.schwer{background:var(--schwer-soft);color:var(--schwer);border-color:var(--schwer)}
+.marke.mittel{background:var(--mittel-soft);color:var(--mittel);border-color:var(--mittel)}
+.marke.gering{background:var(--surface-2);color:var(--ink-3);border-color:var(--line)}
+.marke.regel{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.marke.nachweis{background:var(--gut-soft);color:var(--gut);border-color:var(--gut)}
+
+/* ── Messausgabe ────────────────────────────────────────────────────── */
+.mess{
+  background:var(--mono-bg);color:var(--mono-ink);
+  font-family:var(--ff-mono);font-size:var(--step--1);line-height:1.65;
+  padding:.9rem 1.05rem;border-radius:3px;overflow-x:auto;margin:0;
+  border:1px solid var(--line);
+}
+.mess b{color:#f0b8ad;font-weight:600}
+.mess i{color:var(--mono-dim);font-style:normal}
+.mess .ok{color:#7fd2ac}
+code{
+  font-family:var(--ff-mono);font-size:.88em;
+  background:var(--surface-2);border:1px solid var(--line-2);
+  padding:.08em .34em;border-radius:2px;
+}
+.befund code{background:var(--surface-2)}
+
+/* ── Grundsätze-Raster ──────────────────────────────────────────────── */
+.raster{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr))}
+.regel{
+  background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--st);
+  border-radius:3px;padding:.6rem .7rem;display:flex;flex-direction:column;gap:.12rem;
+}
+.regel[data-st="ok"]{--st:var(--gut)}
+.regel[data-st="warn"]{--st:var(--mittel)}
+.regel[data-st="fail"]{--st:var(--schwer)}
+.regel .k{display:flex;align-items:baseline;gap:.4rem}
+.regel .id{font-family:var(--ff-mono);font-weight:700;font-size:var(--step--1);color:var(--ink-3)}
+.regel .z{margin-left:auto;font-weight:700;font-size:var(--step-0);line-height:1}
+.regel[data-st="ok"] .z{color:var(--gut)}
+.regel[data-st="warn"] .z{color:var(--mittel)}
+.regel[data-st="fail"] .z{color:var(--schwer)}
+.regel .t{font-size:var(--step--1);line-height:1.35;color:var(--ink-2)}
+.legende{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem;font-size:var(--step--1);color:var(--ink-3);font-family:var(--ff-mono)}
+
+/* ── Tabellen ───────────────────────────────────────────────────────── */
+.tabbox{overflow-x:auto;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:34rem}
+th,td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--line-2);vertical-align:top}
+thead th{
+  font-family:var(--ff-mono);font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);background:var(--surface-2);border-bottom:1px solid var(--line);font-weight:600;
+}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--ff-mono);font-variant-numeric:tabular-nums;color:var(--ink-3);width:2.5rem}
+td.ja{color:var(--gut);font-weight:600}
+td.nein{color:var(--schwer);font-weight:600}
+.aufwand{font-family:var(--ff-mono);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+
+/* ── Merksatz / Zitat ───────────────────────────────────────────────── */
+.zitat{
+  border-left:3px solid var(--accent);padding:.15rem 0 .15rem 1.15rem;margin:0;
+  font-family:var(--ff-display);font-style:italic;font-size:var(--step-1);
+  line-height:1.45;color:var(--ink-2);max-width:56ch;
+}
+.zitat cite{display:block;font-style:normal;font-family:var(--ff-mono);font-size:var(--step--1);color:var(--ink-3);margin-top:.5rem;letter-spacing:.05em}
+
+/* ── Guteliste ──────────────────────────────────────────────────────── */
+.gut-liste{display:grid;gap:.7rem;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));list-style:none;margin:0;padding:0}
+.gut-liste li{background:var(--gut-soft);border:1px solid var(--line);border-radius:3px;padding:.85rem 1rem;font-size:var(--step--1);line-height:1.5}
+.gut-liste b{display:block;font-size:var(--step-0);font-family:var(--ff-display);font-weight:600;color:var(--ink);margin-bottom:.25rem}
+
+footer{border-top:1px solid var(--line);padding:1.75rem 0 3rem;color:var(--ink-3);font-size:var(--step--1);max-width:70ch}
+</style>
+
+<header class="kopf">
+  <div class="wrap">
+    <p class="eyebrow"><span>Durchsicht</span><span>14.08.2026</span><span>Stand edd879f</span><span>78 Module · 21 582 Zeilen</span></p>
+    <h1>Doppelte Menüs, tote Wege, stumme Knöpfe</h1>
+    <p class="dachzeile">Wo die App sich selbst widerspricht — und wo sie ihren eigenen Grundsätzen nicht folgt. Im Browser vermessen, nicht nur gelesen.</p>
+    <dl class="stempel">
+      <div><dt>Bestand</dt><dd>47 Standards</dd></div>
+      <div><dt>Zeilen im Bestand</dt><dd>4 475</dd></div>
+      <div><dt>Verwaltungs-Karten</dt><dd>30</dd></div>
+      <div><dt>⋯-Aktionen</dt><dd>46</dd></div>
+      <div><dt>Tests grün</dt><dd>1 004 / 1 004</dd></div>
+      <div><dt>Konsolenfehler</dt><dd>0</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="wrap spalten">
+  <nav class="toc" aria-label="Inhalt">
+    <h2>Inhalt</h2>
+    <ol>
+      <li><a href="#kurz"><span class="n">1</span><span>Kurzfassung</span></a></li>
+      <li><a href="#karte"><span class="n">2</span><span>Die Menü-Landschaft</span></a></li>
+      <li><a href="#doppel"><span class="n">3</span><span>Doppelte Wege</span></a></li>
+      <li><a href="#stumm"><span class="n">4</span><span>Stumme Knöpfe</span></a></li>
+      <li><a href="#grundsaetze"><span class="n">5</span><span>Die Grundsätze</span></a></li>
+      <li><a href="#bedienung"><span class="n">6</span><span>Was Kraft kostet</span></a></li>
+      <li><a href="#gut"><span class="n">7</span><span>Was gut ist</span></a></li>
+      <li><a href="#reihenfolge"><span class="n">8</span><span>Reihenfolge</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- 1 ─────────────────────────────────────────────────────── -->
+    <section id="kurz">
+      <h2 class="sec"><span class="n">1</span>Kurzfassung</h2>
+      <p class="lead">Die App ist handwerklich weit über dem Durchschnitt: Die Grundsätze sind niedergeschrieben, sieben von ihnen werden maschinell überwacht, die Altlasten sind gezählt statt verschwiegen. Der Kernweg im Saal — Standard, Rubrik, abhaken — ist schnell und ruhig.</p>
+      <p>Die Befunde liegen fast alle <strong>nicht im Kern, sondern an den Nähten</strong>: dort, wo ein neuer, besserer Ort für eine Funktion gebaut wurde und der alte stehen blieb. Das erzeugt die Doppelungen — und in drei Fällen Knöpfe, die lautlos nichts tun.</p>
+
+      <div class="befunde">
+        <article class="befund" data-grad="schwer">
+          <div class="befund-kopf">
+            <span class="befund-nr">01</span>
+            <h3>Auf dem installierten Tablet lässt sich die Verwaltung nicht öffnen</h3>
+          </div>
+          <div class="marken"><span class="marke schwer">schwer</span><span class="marke regel">Grundsatz ⑧</span><span class="marke nachweis">gemessen</span></div>
+          <p>Die Anmeldung läuft ausschließlich über <code>prompt()</code> — genau die Funktion, die Grundsatz ⑧ als „in installierten PWAs lautlos wirkungslos“ beschreibt. Gemessen mit einem Browser, der <code>prompt()</code> verwirft:</p>
+          <pre class="mess">„Anmelden" im Menü vorhanden: <span class="ok">true</span>
+ADMIN nach Anmeldeversuch:  <b>false</b>
+sichtbare Alternativen:     <i>[ 🔒 Anmelden · Verwaltung freischalten ]</i>
+<b>⇒ KEINE ANMELDUNG MÖGLICH — Verwaltung vollständig gesperrt</b></pre>
+          <p><code>promptLoginThen</code> ist an <strong>38 weiteren Stellen</strong> die Türsteherin. Und zwei der drei Aufgaben, die der Anhang der Grundsätze dem Auftraggeber persönlich zuweist — <em>Kennwort ändern</em> und <em>Glossar füllen</em> — laufen ebenfalls nur über <code>prompt()</code>.</p>
+        </article>
+
+        <article class="befund" data-grad="schwer">
+          <div class="befund-kopf">
+            <span class="befund-nr">02</span>
+            <h3>Kategorien gibt es an zwei Orten mit ungleichem Umfang</h3>
+          </div>
+          <div class="marken"><span class="marke schwer">schwer</span><span class="marke regel">Grundsatz ⑥</span><span class="marke nachweis">gemessen</span></div>
+          <p>Verwaltung und Materialzentrale pflegen dieselben Daten — vier Handgriffe fehlen an der zweiten Stelle, ohne dass es dort steht. Genau die Konstellation, die ⑥ verbietet, und mit der Begründung, die dort steht.</p>
+        </article>
+
+        <article class="befund" data-grad="schwer">
+          <div class="befund-kopf">
+            <span class="befund-nr">03</span>
+            <h3>Drei Knöpfe tun nicht, was sie sagen</h3>
+          </div>
+          <div class="marken"><span class="marke schwer">schwer</span><span class="marke nachweis">gemessen</span></div>
+          <p>„＋ Kategorie“ in der Materialzentrale wirkt nicht und meldet nichts. Kategorie-Symbol und Unterkategorie-Umbenennen ändern die Daten, zeichnen aber den unsichtbaren Bildschirm neu. Vier Schwesterfunktionen machen es richtig — drei wurden beim Umbau übersehen.</p>
+        </article>
+
+        <article class="befund" data-grad="schwer">
+          <div class="befund-kopf">
+            <span class="befund-nr">04</span>
+            <h3>Der Katalog-Bildschirm ist aus keinem Modus erreichbar</h3>
+          </div>
+          <div class="marken"><span class="marke schwer">schwer</span><span class="marke regel">Grundsatz ②</span><span class="marke nachweis">gemessen</span></div>
+          <p>Null Knöpfe in <code>use</code>, <code>care</code> und <code>admin</code>. Das ⋯-Menü bietet trotzdem weiterhin „📥 In Katalog aufnehmen“ an — die Daten landen an einem Ort, den niemand ansehen, korrigieren oder leeren kann.</p>
+        </article>
+
+        <article class="befund" data-grad="schwer">
+          <div class="befund-kopf">
+            <span class="befund-nr">05</span>
+            <h3>A2 verbietet wörtlich „keine Bestellungen“</h3>
+          </div>
+          <div class="marken"><span class="marke schwer">schwer</span><span class="marke regel">Grundsatz A2</span><span class="marke gering">Dokument</span></div>
+          <p>Dem steht ein Bestellmodul mit 717 Zeilen, Mengenfeld und eigenem Konzeptdokument gegenüber. Fachlich gut verteidigbar — aber die Grundsätze regeln diesen Fall selbst.</p>
+          <blockquote class="zitat">Wer eine Regel für falsch hält, ändert <em>dieses Dokument</em> — und zwar bevor der Code ihr widerspricht.<cite>docs/GRUNDSAETZE.md, Kopf</cite></blockquote>
+          <p>Nur der Auftraggeber darf Teil A ändern. Solange das nicht geschehen ist, steht der Code gegen die Regel.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 2 ─────────────────────────────────────────────────────── -->
+    <section id="karte">
+      <h2 class="sec"><span class="n">2</span>Die Menü-Landschaft, wie sie tatsächlich ist</h2>
+      <p>Im Browser gemessen, nicht aus dem Quelltext abgeschrieben.</p>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>Fläche</th><th>Umfang</th><th>Bemerkung</th></tr></thead>
+          <tbody>
+            <tr><td>☰ Menü</td><td>10 Punkte (Gast) · 15 (Verwaltung)</td><td>plus „🎛 Menü &amp; Funktionen“, hart angehängt</td></tr>
+            <tr><td>Verwaltung</td><td>30 Karten in 3 Blöcken</td><td>Inhalte (19) · Aussehen (8) · Daten (3)</td></tr>
+            <tr><td>Bearbeiten-Menüs ⋯</td><td>3 Menüs · 46 Aktionen</td><td>Eintrag (28) · Standard (10) · Rubrik (8)</td></tr>
+            <tr><td>Materialzentrale</td><td>5 Reiter + 1 verdeckter</td><td>„dubletten“ hat keinen Reiter</td></tr>
+            <tr><td>Startseiten-Reiter</td><td>2</td><td>Standards, Anleitungen — frei erweiterbar</td></tr>
+            <tr><td>Kopfleiste</td><td>6 Symbole</td><td>3 davon abschaltbar</td></tr>
+            <tr><td>Bildschirme</td><td>24</td><td>einer davon unerreichbar</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Der Aufbau ist bewusst gestaltet und im Quelltext begründet. Die Probleme entstehen an den vier Stellen, an denen dieses Bild nicht mehr stimmt.</p>
+    </section>
+
+    <!-- 3 ─────────────────────────────────────────────────────── -->
+    <section id="doppel">
+      <h2 class="sec"><span class="n">3</span>Doppelte und redundante Wege</h2>
+
+      <h3>3.1 · Kategorien &amp; Unterkategorien: zwei Menüs, ungleicher Umfang</h3>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>Handgriff</th><th>Verwaltung</th><th>Materialzentrale → Ordnung</th></tr></thead>
+          <tbody>
+            <tr><td>Name ändern</td><td class="ja">✔</td><td class="ja">✔</td></tr>
+            <tr><td>Farbe ändern</td><td class="ja">✔ Palette</td><td class="ja">✔ Farbwähler</td></tr>
+            <tr><td>Symbol ändern</td><td class="ja">✔</td><td class="nein">✔ zeichnet nicht neu</td></tr>
+            <tr><td>„zählt als Material“</td><td class="ja">✔</td><td class="ja">✔</td></tr>
+            <tr><td>Neue Kategorie</td><td class="ja">✔</td><td class="nein">✔ ohne Wirkung</td></tr>
+            <tr><td>Kategorie löschen</td><td class="ja">✔</td><td class="nein">fehlt</td></tr>
+            <tr><td>Auf Vorgabe zurücksetzen</td><td class="ja">✔</td><td class="nein">fehlt</td></tr>
+            <tr><td>Unterkategorien sortieren ▲▼</td><td class="ja">✔</td><td class="nein">fehlt</td></tr>
+            <tr><td>Zusammenführen</td><td class="ja">✔ mit Erklärung</td><td class="nein">✔ ohne Erklärung</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <blockquote class="zitat">Ein zweiter Weg mit weniger Rückfragen ist der gefährlichere.<cite>Grundsatz ⑥ · Begründung</cite></blockquote>
+      <p>Der Kopfkommentar der Materialzentrale nennt die Zusammenführung von „neun Einstiegen“ als seine Daseinsberechtigung. <strong>Fünf davon stehen noch als eigene Verwaltungs-Karte da.</strong> Der Umbau ist begonnen, nicht abgeschlossen — und der Zwischenzustand ist schlechter als beide Endzustände.</p>
+
+      <h3>3.2 · Vier Verwaltungsbereiche liegen nicht in der Verwaltung</h3>
+      <p>Pop-up-Dialoge, Ärzte &amp; Varianten, Diagnose und Material sind nur über ☰ erreichbar, während alle vergleichbaren Editoren Verwaltungs-Karten sind. Das schlägt auf die Einstellungs-Suche durch — gemessen mit 18 Alltagsbegriffen, <strong>acht finden nichts</strong>:</p>
+      <pre class="mess">popup <b>0</b> · pop-up <b>0</b> · arzt <b>0</b> · varianten <b>0</b> · diagnose <b>0</b>
+katalog <b>0</b> · passwort <b>0</b> · barcode <b>0</b> · glossar <b>0</b>
+material <span class="ok">4</span> · farbe <span class="ok">3</span> · bild <span class="ok">3</span> · anleitung <span class="ok">1</span> · preis <span class="ok">1</span> · sicherung <span class="ok">1</span></pre>
+      <p>Ein Suchfeld, das „Einstellung suchen“ verspricht und bei „Pop-up“ <em>„Kein Treffer“</em> meldet, ist schlechter als kein Suchfeld: Es beweist der Nutzerin, dass es die Funktion nicht gibt.</p>
+
+      <h3>3.3 · „Etikett scannen“ sieht nur, wer sich nicht angemeldet hat</h3>
+      <p>Der Menüpunkt trägt <code>nur:'gast'</code>. Damit sieht ausgerechnet die Rolle, die Material pflegt, ihn nicht — und die Rolle, die ihn sieht, darf beim Bearbeiten nichts speichern. Für Angemeldete gibt es den Scanner nur an anderer Stelle und mit anderem Verhalten: gleiche Beschriftung, zwei Orte, zwei Verhalten, rollenverkehrt verteilt.</p>
+    </section>
+
+    <!-- 4 ─────────────────────────────────────────────────────── -->
+    <section id="stumm">
+      <h2 class="sec"><span class="n">4</span>Knöpfe, die nicht tun, was sie sagen</h2>
+      <p>Alle drei Befunde sind im laufenden Browser reproduziert.</p>
+
+      <h3>4.1 · „＋ Kategorie“: ohne Wirkung, ohne Rückmeldung</h3>
+      <pre class="mess">Knopf gefunden:              ＋ Kategorie
+Kategorien vorher / nachher: 5 / 5
+Rückmeldung (toast):         <i>[ ]</i>
+Eingabefeld im DOM:          <b>false</b>
+<b>⇒ LAUTLOS OHNE WIRKUNG</b></pre>
+      <p>Die Funktion liest ein Eingabefeld, das nur in der Verwaltung existiert. Auf dem anderen Bildschirm ist es <code>null</code>, und sie kehrt wortlos zurück. Exakt das Fehlerbild, gegen das Grundsatz ⑧ geschrieben wurde — nur hier ohne <code>prompt()</code> als Ursache.</p>
+
+      <h3>4.2 · Änderungen wirken, aber der Bildschirm zeigt sie nicht</h3>
+      <pre class="mess">Nativer Dialog:        prompt: Symbol (Emoji) für diese Kategorie
+Symbol im Datenmodell: 📦 → 🚀
+Symbol auf dem Schirm: <b>📦</b>
+aktiver Bildschirm:    scr-care
+<b>⇒ GEÄNDERT, ABER NICHT NEU GEZEICHNET</b></pre>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>Funktion</th><th>in der Materialzentrale</th><th>schließt mit</th><th>nativer Dialog</th></tr></thead>
+          <tbody>
+            <tr><td><code>setNatColor</code></td><td>ja</td><td class="ja">refreshSettingsViews ✔</td><td>–</td></tr>
+            <tr><td><code>setNatLabel</code></td><td>ja</td><td class="ja">refreshSettingsViews ✔</td><td>–</td></tr>
+            <tr><td><code>setNatBeschaffbar</code></td><td>ja</td><td class="ja">refreshSettingsViews ✔</td><td>–</td></tr>
+            <tr><td><code>setUkColor</code></td><td>ja</td><td class="ja">refreshSettingsViews ✔</td><td>–</td></tr>
+            <tr><td><code>addNat</code></td><td>ja</td><td class="nein">renderAdmin ✘</td><td>–</td></tr>
+            <tr><td><code>editNatIcon</code></td><td>ja</td><td class="nein">renderAdmin ✘</td><td class="nein">prompt</td></tr>
+            <tr><td><code>renameUk</code></td><td>ja</td><td class="nein">renderAdmin ✘</td><td class="nein">prompt</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Vier Funktionen wurden umgestellt, drei übersehen. Darum ist es eine Doppelung und kein Einzelfehler.</p>
+
+      <h3>4.3 · Zwei der vier Felder unter „🔤 Texte“ sind wirkungslos</h3>
+      <pre class="mess">appTitle   (Bildschirm use)  : im Kopf <span class="ok">JA</span>
+careTitle  (Bildschirm care) : im Kopf nein · im Inhalt nein   <b>← OHNE WIRKUNG</b>
+careIntro  (Bildschirm care) : im Kopf nein · im Inhalt nein   <b>← OHNE WIRKUNG</b>
+pruefTitle (Bildschirm admin): im Inhalt <span class="ok">JA</span></pre>
+      <p>Der Bildschirm, zu dem sie gehörten, ist durch die Materialzentrale ersetzt worden — deren Überschrift steht fest im Quelltext. Die Feldbeschriftung nennt weiterhin einen Bildschirm, den es nicht mehr gibt. Ein A7-Verstoß der unangenehmsten Sorte: nicht „nicht einstellbar“, sondern <strong>„sieht einstellbar aus“</strong>.</p>
+      <p>Nebenbei heißt derselbe Bildschirm an fünf Stellen verschieden: <em>Material &amp; Einträge</em> · <em>🧬 Material &amp; Einträge</em> · <em>Material</em> · <em>Materialwirtschaft</em> · <em>Material pflegen</em>.</p>
+    </section>
+
+    <!-- 5 ─────────────────────────────────────────────────────── -->
+    <section id="grundsaetze">
+      <h2 class="sec"><span class="n">5</span>Einhaltung der Grundsätze</h2>
+      <p class="legende"><span style="color:var(--gut)">✔ eingehalten</span><span style="color:var(--mittel)">⚠ mit Einschränkung</span><span style="color:var(--schwer)">✘ verletzt</span></p>
+      <div class="raster">
+        <div class="regel" data-st="ok"><div class="k"><span class="id">A1</span><span class="z">✔</span></div><div class="t">Keine Patientendaten</div></div>
+        <div class="regel" data-st="fail"><div class="k"><span class="id">A2</span><span class="z">✘</span></div><div class="t">Keine Bestandsführung — Bestellmodul steht dagegen</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">A3</span><span class="z">✔</span></div><div class="t">Defi-Kennwort nicht gespeichert</div></div>
+        <div class="regel" data-st="warn"><div class="k"><span class="id">A4</span><span class="z">⚠</span></div><div class="t">Keine Zugriffsprotokolle — zwei personennahe Spuren</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">A5</span><span class="z">✔</span></div><div class="t">Quelle &amp; Status „unbestätigt“</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">A6</span><span class="z">✔</span></div><div class="t">Excel-Liste außen vor</div></div>
+        <div class="regel" data-st="fail"><div class="k"><span class="id">A7</span><span class="z">✘</span></div><div class="t">Volle Kontrolle — drei feste Listen im Code</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">A8</span><span class="z">✔</span></div><div class="t">Deutsch, mit Begründung — vorbildlich</div></div>
+        <div class="regel" data-st="warn"><div class="k"><span class="id">A9</span><span class="z">⚠</span></div><div class="t">Sicherheit zurückgestellt — zwei Punkte fehlen</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">①</span><span class="z">✔</span></div><div class="t">Leer schlägt falsch</div></div>
+        <div class="regel" data-st="warn"><div class="k"><span class="id">②</span><span class="z">⚠</span></div><div class="t">Nichts verschlucken — der Katalog verschluckt</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">③</span><span class="z">✔</span></div><div class="t">Der Mensch schlägt alles</div></div>
+        <div class="regel" data-st="warn"><div class="k"><span class="id">④</span><span class="z">⚠</span></div><div class="t">Kein Fachwort im Code — Prüfung hat eine Lücke</div></div>
+        <div class="regel" data-st="warn"><div class="k"><span class="id">⑤</span><span class="z">⚠</span></div><div class="t">Alles konfigurierbar — siehe A7</div></div>
+        <div class="regel" data-st="fail"><div class="k"><span class="id">⑥</span><span class="z">✘</span></div><div class="t">Ein Menü, zwei Kontexte — verletzt</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">⑦</span><span class="z">✔</span></div><div class="t">Nicht in die Quelle schreiben</div></div>
+        <div class="regel" data-st="fail"><div class="k"><span class="id">⑧</span><span class="z">✘</span></div><div class="t">Keine nativen Eingabefenster — 47 verblieben, darunter die Anmeldung</div></div>
+        <div class="regel" data-st="ok"><div class="k"><span class="id">⑨</span><span class="z">✔</span></div><div class="t">Was nicht geprüft wird, ist nicht wahr</div></div>
+      </div>
+
+      <h3>A9 · Zwei Punkte, die in der Aufzählung fehlen</h3>
+      <p>A9 verlangt ausdrücklich, dass die offenen Punkte „in keiner Analyse verschwiegen“ werden. Die drei genannten stimmen. Zwei kommen hinzu:</p>
+
+      <div class="befunde">
+        <article class="befund" data-grad="mittel">
+          <div class="befund-kopf"><span class="befund-nr">A9·4</span><h3>Der Konfliktschutz ist eine Attrappe</h3></div>
+          <div class="marken"><span class="marke mittel">mittel</span><span class="marke nachweis">belegt</span></div>
+          <p>Der Client sendet bei jedem Schreibvorgang <code>baseRev</code>. Der Server liest ihn <strong>nie</strong> — er schreibt bedingungslos, der letzte gewinnt. Der Merge ist <em>je Schlüssel</em>, nicht je Eintrag: Zwei Personen, die gleichzeitig <em>verschiedene</em> Zeilen bearbeiten, schreiben beide denselben Schlüssel — und die zuletzt gespeicherte Fassung gewinnt vollständig.</p>
+          <p>Das ist der einzige Befund dieses Berichts, der <strong>Arbeit vernichten</strong> kann. Und der gesendete <code>baseRev</code> liest sich im Quelltext wie ein Schutz, den es nicht gibt.</p>
+        </article>
+        <article class="befund" data-grad="mittel">
+          <div class="befund-kopf"><span class="befund-nr">A9·5</span><h3>Der Kennwort-Hash ist nicht rückrechnungssicher</h3></div>
+          <div class="marken"><span class="marke mittel">mittel</span><span class="marke nachweis">belegt</span></div>
+          <p>32-Bit-djb2, und der Hash steht im unauthentifizierten geteilten Zustand. A9 sagt korrekt, dass das Kennwort „mitliegt“; dass es aus dem Mitgelegenen in Sekunden zurückgerechnet werden kann, steht nicht dabei. Bei zurückgestellter Zugangssicherung ist das <em>kein neuer Mangel</em> — aber es gehört in die Aufzählung, damit die Entscheidung auf vollständiger Grundlage bleibt.</p>
+        </article>
+      </div>
+
+      <h3>A7 · Drei feste Listen, die dem Haus gehören müssten</h3>
+      <p>A7 nennt als Verstoßmerkmal wörtlich: <em>„Einer festen Liste im Code, die eigentlich das Haus pflegen müsste (Hersteller, Kategorien, Symbole, Rubriknamen, Statuswörter).“</em></p>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>Ort</th><th>Liste</th><th>Was fehlt</th></tr></thead>
+          <tbody>
+            <tr><td><code>guides.js:28</code></td><td><code>GUIDE_BEREICHE</code></td><td>Gruppierung <em>aller</em> Anleitungen. Wer „Hygiene“ braucht, braucht einen Entwickler.</td></tr>
+            <tr><td><code>guides.js:32</code></td><td><code>GUIDE_INTERVALLE</code></td><td>doppelt sich mit <code>AUF_TAKTE_RUECKFALL</code>, das für dieselbe Sache acht Takte kennt statt sechs — und konfigurierbar ist. Zwei Wahrheiten über „wie oft“.</td></tr>
+            <tr><td><code>ocr.js:98</code></td><td>GTIN-Präfix → Hersteller</td><td>Zweite, versteckte Herstellertabelle. Ein neuer Lieferant — laut Kommentar daneben „ein Alltagsereignis“ — lässt sich hier nicht nachtragen.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Alle übrigen Listen der App laufen vorbildlich über <code>bezWert</code>. Diese drei sind die Ausnahme — und <code>npm run check</code> meldet sie nicht, weil Prüfung 4 auf Vergleichsoperatoren sieht, nicht auf <code>Array.indexOf()</code> gegen ein Literal-Array. <strong>Das ist der Grund, warum sie monatelang unbemerkt blieben.</strong></p>
+    </section>
+
+    <!-- 6 ─────────────────────────────────────────────────────── -->
+    <section id="bedienung">
+      <h2 class="sec"><span class="n">6</span>Was im Alltag Kraft kostet</h2>
+
+      <h3>6.1 · Jede Einstellung klappt ihre Karte zu</h3>
+      <pre class="mess">vor  der Änderung:            offen = [ "Kategorien", "Einstufung prüfen" ]
+nach dem Ändern EINER Farbe:  offen = [ "Einstufung prüfen" ]
+<b>⇒ Karte „Kategorien" noch offen: false</b></pre>
+      <p>49 sichtbare Bedienelemente rufen <code>renderAdmin()</code> direkt auf. Das zeichnet die <em>gesamte</em> Verwaltung neu — der teuerste Renderpfad der App (gemessen: <strong>113,9 ms im Mittel, 203,4 ms im schlechtesten Fall</strong>, auf Entwickler-Hardware) — und wirft dabei den Aufklapp-Zustand aller Karten weg. Wer fünf Kategorien einfärbt, klappt die Karte fünfmal wieder auf.</p>
+      <p>Dass es anders geht, steht in derselben Datei: <code>adminSearch()</code> filtert <em>ohne</em> Neu-Render, ausdrücklich mit dem Kommentar „Kein Re-Render → Panel-Zustände bleiben.“</p>
+
+      <h3>6.2 · „Verlassen“ meldet ab</h3>
+      <p>Der einzige Knopf im Kopf der Verwaltung heißt „Verlassen“ und beendet die Anmeldung. Verwaltung und Materialzentrale sind außerdem die <strong>einzigen</strong> Bildschirme ohne ‹-Zurück (gemessen über zehn Bildschirme). Wer die Verwaltung nur <em>schließen</em> will, meldet sich damit ab — und muss sich neu anmelden. Auf dem Tablet heißt das nach Befund 01: <strong>gar nicht mehr.</strong> Die beiden Befunde verstärken sich.</p>
+
+      <h3>6.3 · Weitere Beobachtungen</h3>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>Beobachtung</th><th>Messwert</th></tr></thead>
+          <tbody>
+            <tr><td>Materialindex, läuft nach fast jeder ⋯-Änderung</td><td>59,9 ms Mittel · 264,9 ms Maximum</td></tr>
+            <tr><td>„Details bearbeiten“ öffnen</td><td>7 Felder in 10 Gruppen · 1,8 Bildschirmhöhen · verlässt die Ansicht</td></tr>
+            <tr><td>Fünf Zeilen ändern — schneller Weg</td><td>8 Berührungen, Ansicht nie verlassen</td></tr>
+            <tr><td>Dieselben fünf einzeln über ⋯</td><td>25 Berührungen</td></tr>
+            <tr><td>Langdruck auf Flächen der Kernbedienung</td><td>0 von 110 ohne — A7 ist hier belegt, nicht behauptet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7 ─────────────────────────────────────────────────────── -->
+    <section id="gut">
+      <h2 class="sec"><span class="n">7</span>Was gut ist — und so bleiben sollte</h2>
+      <p>Damit die Befundliste nicht das falsche Bild erzeugt.</p>
+      <ul class="gut-liste">
+        <li><b>Die Grundsätze existieren und werden geprüft</b>Sieben Maschinenprüfungen, eine Altlastenliste, die nur schrumpfen darf, 1 004 Tests, ein Messstand, der zählt statt zu schätzen. Das ist mehr, als die meisten Produkte dieser Größe haben.</li>
+        <li><b>Das Funktionsregister</b>Die konsequenteste Umsetzung von A7, die man bauen kann: 46 ⋯-Aktionen, 30 Karten, 17 Menüpunkte, 3 Kopf-Symbole — alle einzeln benennbar, abschaltbar, sortierbar, ohne Programmierung.</li>
+        <li><b>Die Reichweiten-Frage</b>„Wo soll es gelten?“ mit Trefferzahl und Bestätigung bei weiten Reichweiten macht die gefährlichste Handlung der App zur ehrlichsten.</li>
+        <li><b>Der Umgang mit den eigenen Fehlern</b>Das abgeräumte Kettensymbol, die entfernte Verfalls-Berechnung, die gelöschte Verknüpfungs-Oberfläche: Jedes Mal steht daneben, warum. Genau dieser Umgang hat die Befunde dieses Berichts auffindbar gemacht.</li>
+      </ul>
+    </section>
+
+    <!-- 8 ─────────────────────────────────────────────────────── -->
+    <section id="reihenfolge">
+      <h2 class="sec"><span class="n">8</span>Vorschlag zur Reihenfolge</h2>
+      <p>Nach Wirkung je Aufwand. Die ersten drei sind klein und heben die schwersten Befunde.</p>
+      <div class="tabbox">
+        <table>
+          <thead><tr><th>#</th><th>Maßnahme</th><th>Warum zuerst</th><th>Aufwand</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>Anmeldung, Kennwortwechsel und Glossar auf die Sheet-Eingabe umstellen</td><td>Ohne das ist die Verwaltung auf dem Zielgerät gesperrt; das Muster liegt fertig daneben</td><td class="aufwand">klein</td></tr>
+            <tr><td class="num">2</td><td><code>addNat</code>, <code>editNatIcon</code>, <code>renameUk</code> auf <code>refreshSettingsViews()</code></td><td>Drei Knöpfe, die lügen; vier Schwesterfunktionen zeigen den Weg</td><td class="aufwand">sehr klein</td></tr>
+            <tr><td class="num">3</td><td><code>careTitle</code> / <code>careIntro</code> entfernen oder anschließen</td><td>Ein Feld, das nichts tut, ist schlimmer als kein Feld</td><td class="aufwand">sehr klein</td></tr>
+            <tr><td class="num">4</td><td>Katalog: Einstieg schaffen oder Bildschirm entfernen</td><td>Daten ohne Sicht; drei Altlasten in totem Code</td><td class="aufwand">mittel</td></tr>
+            <tr><td class="num">5</td><td>A2 im Dokument klären</td><td>Regel oder Code — nur der Auftraggeber kann das entscheiden</td><td class="aufwand">Entscheidung</td></tr>
+            <tr><td class="num">6</td><td>Kategorien &amp; Unterkategorien auf einen Ort führen</td><td>Grundsatz ⑥; heute kann jede Seite etwas, das die andere nicht kann</td><td class="aufwand">mittel</td></tr>
+            <tr><td class="num">7</td><td>Offene Karten über <code>renderAdmin()</code> retten</td><td>Betrifft jede einzelne Einstellung, jeden Tag</td><td class="aufwand">klein</td></tr>
+            <tr><td class="num">8</td><td>Pop-ups, Varianten, Diagnose, Material als Karte ergänzen</td><td>Die Suche verspricht, was sie nicht halten kann</td><td class="aufwand">klein</td></tr>
+            <tr><td class="num">9</td><td>„Etikett scannen“ auf <code>nur:'alle'</code></td><td>Rollenverkehrte Sichtbarkeit</td><td class="aufwand">sehr klein</td></tr>
+            <tr><td class="num">10</td><td>Anleitungs-Bereiche, Intervalle und GTIN-Hersteller ins Haus geben</td><td>A7 nennt genau diese Sorte Liste</td><td class="aufwand">mittel</td></tr>
+            <tr><td class="num">11</td><td>Prüfung 4 um Literal-Arrays erweitern</td><td>Damit Nummer 10 nicht wiederkommt</td><td class="aufwand">klein</td></tr>
+            <tr><td class="num">12</td><td><code>baseRev</code> serverseitig prüfen oder entfernen</td><td>Ein Schutz, der keiner ist, ist gefährlicher als keiner</td><td class="aufwand">mittel</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>Alle Messungen gegen einen frisch gestarteten Server mit dem ausgelieferten Datenbestand (Chromium, 390 × 844). Die Sonden sind gegen <code>e2e/util.js</code> gebaut und mit demselben Unterbau wiederholbar. Kein Befund stützt sich auf die Excel-Liste (Grundsatz A6). Die ausführliche Fassung mit allen Zeilennummern liegt unter <code>docs/audits/2026-08-14-redundanz-und-bedienung.md</code>.</p>
+    </footer>
+
+  </main>
+</div>
