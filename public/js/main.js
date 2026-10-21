@@ -1,5 +1,8 @@
 /* Bootstrap: erst Server-Stand holen, dann App rendern, dann Sync aktiv. */
 (async function boot(){
+  /* Im Neuaufbau sofort das Band zeigen — vor allem anderen, damit kein
+     einziger Moment so aussieht wie der Bestand (features/raum.js). */
+  if(typeof raumLeisteZeigen==='function') try{ raumLeisteZeigen(); }catch(e){}
   await initAuth();
   await sync.init();
   await load();

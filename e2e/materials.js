@@ -107,11 +107,18 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const box = document.getElementById('scr-admin');
     const html = box.innerHTML;
     const hasPanel = html.indexOf('Materialzusammenführung') >= 0;
-    const hasSelect = box.querySelectorAll('select.vw-sel[data-k]').length > 0;
-    return { hasPanel, hasSelect };
+    /* Früher stand hier ein <select> über ALLE Stammsätze — ohne Suche, ohne
+       Foto, gedeckelt auf 300 Zeilen, und es schrieb sofort. Jetzt führt je
+       Material derselbe Knopf ins Zuordnen-Blatt wie überall sonst
+       (features/zuordnen.js). */
+    const knoepfe = [...box.querySelectorAll('button.vlink[data-k]')]
+      .filter(b => /zuordnen|Zuordnung/i.test(b.textContent || ''));
+    const keinAltesKlappmenue = box.querySelectorAll('select.vw-sel[data-k]').length === 0;
+    return { hasPanel, knoepfe: knoepfe.length, keinAltesKlappmenue };
   });
   check('Verwaltung: Panel „Materialzusammenführung" ist da', r7.hasPanel);
-  check('… mit Verknüpfungs-Auswahl je Material', r7.hasSelect);
+  check('… mit Zuordnen-Knopf je Material', r7.knoepfe > 0);
+  check('… und ohne das alte Klappmenü', r7.keinAltesKlappmenue);
 
   // 8) Admin-Verknüpfung über das Panel (matAdminLink) + Auflösen
   const r8 = await A.page.evaluate((prev) => {
@@ -218,6 +225,74 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   check('Verknüpfter Eintrag: Formular zeigt Produkt-Block statt Größen/Merkmale-Editor', r12.hasProductBlock && r12.noSizeEditor);
   check('… Speichern ohne Änderung erzeugt keine Schein-Regel', r12.noPhantomRule && r12.noSheet);
   check('… Eintragskarte zeigt die Maße aus der EINEN Quelle (Material)', r12.cardShowsMatSize);
+
+  /* 13) ZUORDNEN-BLATT (features/zuordnen.js): der Weg, der vorher fehlte —
+         eine Zeile mit einem BEREITS VORHANDENEN Produkt verbinden, mit Suche,
+         Wirkungsangabe, Bestätigung und einem sichtbaren Rückweg. */
+  const r13 = await A.page.evaluate(() => {
+    // Ausgangslage: eine Zeile ohne Produkt und ein Stammsatz, den es schon gibt.
+    let mk = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((rb, ri) => (rb.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((e, ei) => {
+      if (!mk && e.material_key && !canonId(e.material_key)) mk = e.material_key;
+    }))));
+    const ziel = matCreateStamm('Zuordnen-Prüfprodukt', { ref: 'ZU-1', hersteller: 'Prüf AG' });
+
+    zuOeffnen(mk, { name: 'Zuordnen-Prüfzeile' });
+    const sheet = document.getElementById('sheet');
+    const offen = sheet.classList.contains('show');
+    const zeigtStand = /noch kein Produkt zugeordnet/i.test(sheet.innerHTML);
+    const zeigtWirkung = /gilt an/.test(sheet.innerHTML);
+    const hatSuchfeld = !!document.getElementById('zuSuchfeld');
+
+    // Suche grenzt ein, ohne das ganze Blatt neu zu bauen (Fokus/Tastatur!)
+    zuSuchEingabe('Zuordnen-Prüf');
+    const trefferDa = /Zuordnen-Prüfprodukt/.test(document.getElementById('zuListe').innerHTML);
+    zuSuchEingabe('gibtesnicht-xyz');
+    const leerMeldung = /Kein Produkt gefunden/.test(document.getElementById('zuListe').innerHTML);
+
+    // Auswählen schreibt NOCH NICHT — erst die Bestätigung tut das.
+    zuWaehlen(ziel);
+    const nurGewaehlt = canonId(mk) === null && /Bitte bestätigen/.test(sheet.innerHTML);
+    const nenntWirkung = /gilt für/.test(sheet.innerHTML) || /Stellen?<\/b>/.test(sheet.innerHTML);
+    zuBestaetigen();
+    const verknuepft = canonId(mk) === ziel;
+
+    // Rückweg: aufheben ist ein Knopf, kein Listeneintrag — und wirkt.
+    zuOeffnen(mk, { name: 'Zuordnen-Prüfzeile' });
+    const hatAufheben = /Zuordnung aufheben/.test(document.getElementById('sheet').innerHTML);
+    zuLoesenFragen();
+    const fragtNach = /Verknüpfung lösen\?/.test(document.getElementById('sheet').innerHTML);
+    zuLoesenBestaetigen();
+    const geloest = canonId(mk) === null;
+    showSheet(false);
+    return { offen, zeigtStand, zeigtWirkung, hatSuchfeld, trefferDa, leerMeldung,
+      nurGewaehlt, nenntWirkung, verknuepft, hatAufheben, fragtNach, geloest };
+  });
+  check('Zuordnen: Blatt öffnet und benennt den Stand ehrlich', r13.offen && r13.zeigtStand && r13.zeigtWirkung);
+  check('… Suche über alle Produkte statt Klappmenü', r13.hatSuchfeld && r13.trefferDa && r13.leerMeldung);
+  check('… Auswählen schreibt noch nicht — erst die Bestätigung', r13.nurGewaehlt && r13.nenntWirkung);
+  check('… Bestätigen verknüpft mit dem VORHANDENEN Produkt', r13.verknuepft);
+  check('… „Zuordnung aufheben" ist sichtbar und fragt nach', r13.hatAufheben && r13.fragtNach);
+  check('… und löst die Verknüpfung wirklich', r13.geloest);
+
+  /* 14) Sichtbarkeit an der Zeile: „kein Produkt" NUR im Verwaltungsmodus —
+         im Saal wäre die Verknüpfungs-Frage Lärm. */
+  const r14 = await A.page.evaluate(() => {
+    let cid = null, e = null;
+    DB.standards.forEach(s => (s.rubriken || []).forEach((rb, ri) => (rb.sub_bereiche || []).forEach((sb, si) => (sb.eintraege || []).forEach((x, ei) => {
+      if (!cid && x.material_key && !canonId(x.material_key) && natOf(effNatur(x, cidOf(s.id, ri, si, ei))).beschaffbar) {
+        cid = cidOf(s.id, ri, si, ei); e = x;
+      }
+    }))));
+    if (!cid) return { übersprungen: true };
+    const alsAdmin = entryCardHTML(e, cid, true);
+    const warAdmin = ADMIN; ADMIN = false;
+    const alsGast = entryCardHTML(e, cid, true);
+    ADMIN = warAdmin;
+    return { adminSieht: /kein Produkt/.test(alsAdmin), gastSiehtNicht: !/kein Produkt/.test(alsGast) };
+  });
+  check('Zeile ohne Produkt: Hinweis in der Verwaltung sichtbar', r14.übersprungen || r14.adminSieht);
+  check('… und im Saal ausgeblendet', r14.übersprungen || r14.gastSiehtNicht);
 
   check('keine Konsolenfehler', A.errs.length === 0);
   await r.finish(browser, [srv]);

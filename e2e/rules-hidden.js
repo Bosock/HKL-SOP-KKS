@@ -9,8 +9,11 @@
       Dasselbe für „🌐 überall" → collectHidden.byMat + restoreMat.
 
    B) Kategorie-Korrektur über setNatur (Regel-Pfad, prop 'natur'):
-      - zählt im Prüf-Workflow als „korrigiert"/„erledigt"
-        (naturKorrigiert/isHandled), obwohl sie NICHT in overrides liegt. */
+      - landet als Regel an der STELLE und NICHT im Alt-Speicher `overrides`,
+      - wirkt über effNatur, und die Rücknahme räumt sie wieder ab.
+      Früher prüfte dieser Abschnitt zusätzlich, dass die Korrektur im
+      Prüf-Workflow als „erledigt" zählte. Das Einstufungs-Konzept ist
+      entfernt — die Regel-Aussage bleibt. */
 'use strict';
 const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
@@ -22,7 +25,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
   const ready = await A.page.evaluate(() => {
     doLogin('1234567');
-    return typeof collectHidden === 'function' && typeof restoreCid === 'function' && typeof naturKorrigiert === 'function';
+    return typeof collectHidden === 'function' && typeof restoreCid === 'function' && typeof setNatur === 'function';
   });
   r.check('Admin-Helfer verfügbar', ready);
 
@@ -61,24 +64,26 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     r.check('restoreMat nimmt die „überall"-Regel zurück', b.ruleGone);
   }
 
-  // B) Kategorie-Korrektur via setNatur zählt als korrigiert/erledigt
+  // B) Kategorie-Korrektur via setNatur schreibt eine Stelle-Regel
   const c = await A.page.evaluate(() => {
     const x = allMatGerEntries().find(y => y.e.material_key && y.e.natur !== 'ueberschrift');
     if (!x) return { none: true };
-    const base = x.e.natur_manuell || x.e.natur;
+    const base = effNatur(x.e, x.cid);
     const other = natList().map(n => n.key).find(k => k !== 'ueberschrift' && k !== base) || 'geraet';
-    const pre = naturKorrigiert(x.cid);
+    const hatRegel = () => rulesActive(RULES).some(z => z.wo.art === 'stelle' && z.prop === 'natur' && z.wo.wert === x.cid);
+    const pre = hatRegel();
     setNatur(x.cid, other);
-    const post = { korr: naturKorrigiert(x.cid), handled: isHandled(x.cid), noLegacy: overrides[x.cid] === undefined };
+    const post = { regel: hatRegel(), wirkt: effNatur(findEntry(x.cid), x.cid) === other,
+      noLegacy: overrides[x.cid] === undefined };
     setNatur(x.cid, base); // zurück
-    const after = naturKorrigiert(x.cid);
-    return { none: false, pre, post, after };
+    const after = effNatur(findEntry(x.cid), x.cid);
+    return { none: false, pre, post, after, base };
   });
   if (!c.none) {
-    r.check('vor Korrektur: nicht korrigiert', !c.pre);
-    r.check('setNatur-Korrektur zählt als „korrigiert" (ohne overrides)', c.post.korr && c.post.noLegacy);
-    r.check('… und als „erledigt" im Prüf-Workflow', c.post.handled);
-    r.check('Zurück auf Basis: wieder nicht korrigiert', !c.after);
+    r.check('vor der Korrektur liegt keine Stelle-Regel', !c.pre);
+    r.check('setNatur schreibt eine Stelle-Regel (nicht overrides)', c.post.regel && c.post.noLegacy);
+    r.check('… und die Regel wirkt (effNatur)', c.post.wirkt);
+    r.check('Zurück auf die Ausgangskategorie', c.after === c.base);
   }
 
   r.check('keine Konsolenfehler', A.errs.length === 0);

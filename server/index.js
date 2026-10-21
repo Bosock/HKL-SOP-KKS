@@ -32,7 +32,7 @@ const authRoute = require('./routes/auth');
 
 async function main() {
   await fsp.mkdir(config.STATE_DIR, { recursive: true });
-  await state.loadState();
+  await state.loadAll();   /* alle Räume (server/raeume.js) */
   server.listen(config.PORT, () => console.log(`[server] listening on :${config.PORT} (public=${config.PUBLIC_DIR}, state=${config.STATE_FILE})`));
 }
 
@@ -66,6 +66,9 @@ module.exports = {
   // State accessors for tests (STATE is module-private).
   getState: state.getState,
   resetState: state.resetState,
+  // Räume (server/raeume.js): Zustand je Raum und die feste Raumliste.
+  raum: state.raum,
+  raeume: require('./raeume'),
   config: {
     PUBLIC_DIR: config.PUBLIC_DIR,
     STATE_DIR: config.STATE_DIR,

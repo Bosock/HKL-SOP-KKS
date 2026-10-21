@@ -102,6 +102,10 @@ const NICHT_AUSLOESEN = [
     { name: 'Funktionsregister',    oeffnen: `openFunktionen()` },
     { name: 'Pflege-Weg',           oeffnen: `openPflege({umfang:{art:'alle'}})` },
     { name: 'Rubrik (Reihenfolge)', oeffnen: `setMode('use'); openStandard(DB.standards[0].id, true); openRubrik(0, true); sortAn(0)` },
+    /* Der Editor gehört dem Neuaufbau (features/editor.js) — für den Durchklick
+       wird er hier freigeschaltet und an einem eigenen Standard geöffnet, damit
+       auch seine Knöpfe ausgelöst werden. Ziehen prüft e2e/editor.js. */
+    { name: 'Editor am PC',         oeffnen: `NEUFREI.editor = true; if(!ADDITIONS.standards.length){ addStandard('Durchklick-Editor','DK'); const s=ADDITIONS.standards[0]; ADDITIONS.entries[s.id+'|1']=[makeAddEntry({aid:newAid(),name:'Durchklick-Zeile',menge:'1x'})]; saveAdditions(); rebuildDB(); } edOeffnen(ADDITIONS.standards[0].id)` },
   ];
 
   /* Jeder Bildschirm der App MUSS hier vorkommen. Diese Prüfung ist der Grund,

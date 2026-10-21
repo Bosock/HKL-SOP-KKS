@@ -68,7 +68,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('Reset nimmt NUR die Stelle-Regel zurück', d.stelleGone && d.alleStays);
   r.check('nach Reset greift die alle-Regel wieder (#alle1)', d.val === '#alle1');
 
-  // E) „Einstufung prüfen" schreibt Regeln (Stelle), nicht overrides/reassign
+  // E) Kategorie/Unterkategorie schreiben Regeln (Stelle), nicht overrides/reassign
   const e = await A.page.evaluate((p) => {
     const ent = findEntry(p.a.cid);
     const otherNat = natList().map(n => n.key).find(k => k !== 'ueberschrift' && k !== effNatur(ent, p.a.cid)) || 'geraet';
@@ -79,9 +79,9 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
     const ukRule = rulesActive(RULES).some(x => x.wo.art === 'stelle' && x.prop === 'uk' && x.wo.wert === p.a.cid);
     return { natRule, noLegacyNat, effNat: effNatur(findEntry(p.a.cid), p.a.cid), want: otherNat, ukRule, uk: canonUk(findEntry(p.a.cid), p.a.cid) };
   }, pick);
-  r.check('Einstufung prüfen → Kategorie als Stelle-Regel (nicht overrides)', e.natRule && e.noLegacyNat);
+  r.check('Kategorie als Stelle-Regel (nicht overrides)', e.natRule && e.noLegacyNat);
   r.check('Kategorie-Regel wirkt (effNatur)', e.effNat === e.want);
-  r.check('Einstufung prüfen → Unterkategorie als Stelle-Regel', e.ukRule && e.uk === 'E2E-UK');
+  r.check('Unterkategorie als Stelle-Regel', e.ukRule && e.uk === 'E2E-UK');
 
   // F) Rückwärtskompatibilität: reiner Alt-Wert ohne Regel löst korrekt auf
   const f = await A.page.evaluate((p) => {

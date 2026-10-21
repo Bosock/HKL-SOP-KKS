@@ -1,9 +1,16 @@
 /* ============ Laden ============ */
+/* Die Grundlage eines Raums ohne mitgelieferte Daten (Neuaufbau): keine
+   Standards. Alles, was dort entsteht, kommt aus dem geteilten Zustand des
+   Raums — so, wie ein Haus anfinge, das die App zum ersten Mal benutzt. */
+function leereGrundlage(){ return { export_datum:null, anzahl_standards:0, standards:[] }; }
 async function load(){
   applyNatConfig();
   applyDesign();
+  if(!RAUM.basis){ DB=leereGrundlage(); }
+  else{
   try{ const res=await fetch(DATA_URL,{cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); DB=await res.json(); if(!DB||!Array.isArray(DB.standards)) throw new Error('Struktur ungültig'); }
   catch(e){ DB=DEMO; setTimeout(()=>toast('Keine Standards-Datei gefunden – Demodaten aktiv',true),400); }
+  }
   DB_BASE=DB; rebuildDB(); /* eigene Standards/Einträge (Server) + App-eigene Standards (lokal) über die Basis legen */
   buildMaterialIndex(); checkAdminHash(); applyAdminUI(); try{ history.replaceState({d:0},''); }catch(e){} applyDeepLink(); renderStandards(); updateBar();
   loadMaterialData();  /* Referenz-Katalog + Aufräum-Vorschläge (tolerant, nicht blockierend) */
@@ -12,8 +19,15 @@ async function load(){
 /* Lädt die mitgelieferten Material-Datendateien (Baustein 1+2). Bewusst NACH dem
    Render und tolerant: fehlt eine Datei, bleibt die App voll bedienbar. */
 async function loadMaterialData(){
+  /* Im Neuaufbau KEIN mitgeliefertes Material: weder der Referenzkatalog
+     (527 recherchierte Produkte) noch die Aufräum-Vorschläge zu den
+     Word-Zeilen — beides sind Daten des Bestands. Das WISSEN der App bleibt
+     (Merkmalskatalog, Zerlegungsregeln, Herstellerliste fürs Etikett-Lesen):
+     Das bekäme jedes Haus mit, das die App neu einführt. */
+  if(RAUM.basis){
   try{ const r=await fetch('data/material_catalog.json',{cache:'no-store'}); if(r.ok && typeof catSetData==='function') catSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/cleanup_suggestions.json',{cache:'no-store'}); if(r.ok && typeof cleanupSetData==='function') cleanupSetData(await r.json()); }catch(e){}
+  }
   try{ const r=await fetch('data/merkmale.json',{cache:'no-store'}); if(r.ok && typeof merkSetData==='function') merkSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/zerlegung.json',{cache:'no-store'}); if(r.ok && typeof zerlSetData==='function') zerlSetData(await r.json()); }catch(e){}
   try{ const r=await fetch('data/bezeichnungen.json',{cache:'no-store'}); if(r.ok && typeof bezSetData==='function') bezSetData(await r.json()); }catch(e){}

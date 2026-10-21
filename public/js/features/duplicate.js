@@ -178,7 +178,7 @@ function dupEintrag(e, altCid){
   try{ const uk=rawUk(e, altCid); n.unterkategorie = (uk===undefined?e.unterkategorie:uk); }
   catch(err){ n.unterkategorie = e.unterkategorie; }
   /* Herkunftsmerkmale der Erkennung sind für eine Kopie ohne Bedeutung. */
-  n.natur_konfidenz='hoch'; n.natur_merkmale=[];
+  n.natur_merkmale=[];
   /* Kennzeichen des Quell-Systems abstreifen — die Kopie ist app-eigen. */
   delete n._added; delete n._aid; delete n.__new;
   return n;
@@ -273,7 +273,6 @@ function ownDeleteEntry(cid){
   QE.cid   = dupCidShift(QE.cid,   sid, ri, si, ei); saveQE();
   overrides= dupCidShift(overrides,sid, ri, si, ei); saveJSON('hkl_overrides',overrides);
   reassign = dupCidShift(reassign, sid, ri, si, ei); saveJSON('hkl_reassign',reassign);
-  reviewed = dupCidShift(reviewed, sid, ri, si, ei); saveJSON('hkl_reviewed',reviewed);
   if(typeof checks!=='undefined'){ checks=dupCidShift(checks, sid, ri, si, ei); if(typeof saveChecks==='function') saveChecks(); }
   if(typeof VARIANTS!=='undefined' && VARIANTS && VARIANTS.data){
     Object.keys(VARIANTS.data).forEach(a=>{ const d=VARIANTS.data[a]; if(d&&d.qe) d.qe=dupCidShift(d.qe, sid, ri, si, ei); });
@@ -296,7 +295,6 @@ function ownDeleteRubrik(sid, ri){
   QE.cid   = wegRaeumen(QE.cid);   saveQE();
   overrides= wegRaeumen(overrides);saveJSON('hkl_overrides',overrides);
   reassign = wegRaeumen(reassign); saveJSON('hkl_reassign',reassign);
-  reviewed = wegRaeumen(reviewed); saveJSON('hkl_reviewed',reviewed);
   if(typeof checks!=='undefined'){ checks=wegRaeumen(checks); if(typeof saveChecks==='function') saveChecks(); }
   Object.keys(RUBE||{}).forEach(k=>{ if(k.indexOf(sid+'|')===0) delete RUBE[k]; }); saveRUBE();
   rebuildDB();

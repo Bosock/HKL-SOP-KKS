@@ -83,46 +83,11 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   r.check('D: … ist als Regel journaliert', d.journaled);
   r.check('D: Feld wieder entfernbar', d.gone);
 
-  // C) „Einstufung prüfen" benutzt DASSELBE Bearbeiten-Menü wie der Saal
-  //    (Grundsatz ⑥). Früher hatte das Panel eigene Kategorie-Knöpfe und eine
-  //    eigene Unterkategorie-Auswahl, die ohne Reichweiten-Frage sofort auf
-  //    📍 Stelle schrieben — dieselbe Handlung wirkte dort anders als hier.
-  const cRes = await A.page.evaluate(() => {
-    setMode('admin');
-    const x = collectUncertain().find(y => y.e.material_key);
-    if (!x) return { none: true };
-    const box = document.getElementById('scr-admin');
-    const alteKnoepfe = !!box.querySelector('.vw-set') || !!box.querySelector('.vw-sel[onchange*="admUkChange"]');
-    admPruefMenue(x.cid);
-    const sheetOffen = document.getElementById('sheet').classList.contains('show');
-    // … und der ganze Weg bis zur Reichweiten-Frage steht dort zur Verfügung
-    sheetGo('uk'); sheetNewUk();
-    const feld = document.getElementById('skNewUk');
-    if (!feld) return { alteKnoepfe, sheetOffen, opened: false };
-    feld.value = 'SouveraenUK';
-    sheetNewUkSave();
-    const frageDa = /Wo soll es gelten/.test(document.getElementById('sheet').innerHTML);
-    applyPending('cid');
-    return { alteKnoepfe, sheetOffen, opened: true, frageDa,
-      applied: canonUk(findEntry(x.cid), x.cid) === 'SouveraenUK' };
-  });
-  if (!cRes.none) {
-    r.check('C: das Prüf-Panel hat keine eigenen Kategorie-/UK-Bedienelemente mehr', !cRes.alteKnoepfe);
-    r.check('C: „⋯ Bearbeiten" öffnet dasselbe Menü wie im Saal', cRes.sheetOffen);
-    r.check('C: „＋ Neue Unterkategorie…" ist dort erreichbar', cRes.opened);
-    r.check('C: … und stellt dieselbe Reichweiten-Frage', cRes.frageDa);
-    r.check('C: neue Unterkategorie wird zugewiesen', cRes.applied);
-  }
-
-  // C2) Datalist für Gruppe im Standard-Formular
-  const c2 = await A.page.evaluate(() => {
-    openStandardForm(null);
-    const dl = document.getElementById('grpList');
-    const ok = !!dl && dl.children.length > 0;
-    closeForm();
-    return ok;
-  });
-  r.check('C: Gruppen-Datalist im Standard-Formular (wählen oder frei tippen)', c2);
+  /* Der frühere Abschnitt C prüfte, dass die Karte „Einstufung prüfen" dasselbe
+     Bearbeiten-Menü benutzt wie der Saal. Das Einstufungs-Konzept ist
+     inzwischen restlos entfernt — es gibt weder die Karte noch die unsicheren
+     Zeilen. Die Aussage dahinter (EIN Menü, zwei Kontexte) prüft weiterhin
+     e2e/rules-migration.js über setNatur/reassignEntry. */
 
   // A) Inhalte-&-Aufbau-Panel: Baum + ＋ Eintrag aus dem Panel
   const a = await A.page.evaluate((c) => {

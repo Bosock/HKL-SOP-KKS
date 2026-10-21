@@ -297,8 +297,10 @@ function diagChecks(){
 
   add('Speicherplatz ausreichend', ()=>{
     let bytes=0;
+    /* speicher:ok — reine Messung, schreibt nichts. Sie zählt bewusst über
+       ALLE Räume: Die Grenze des Browsers gilt für das Gerät, nicht je Raum. */
     try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
-      bytes+=(k.length+(localStorage.getItem(k)||'').length)*2; } }catch(e){ return { ok:true, info:'nicht messbar' }; }
+      bytes+=(k.length+(localStorage.getItem(k)||'').length)*2; /* speicher:ok (Messung) */ } }catch(e){ return { ok:true, info:'nicht messbar' }; }
     const mb=bytes/1048576;
     return { ok:mb<4.2, info:mb.toFixed(2)+' MB belegt (Grenze der Browser meist ~5 MB)' };
   }, 'Neue Fotos zählen hier nicht mit — sie liegen einzeln auf dem Server, nicht im Gerätespeicher. Ältere Fotos aus Anleitungen, Etikett-Scans und Bestellungen ziehen im Hintergrund dorthin um, sobald Netz da ist; solange belegen sie noch Platz. Wird es dauerhaft eng, hilft ein Backup mit anschließendem Aufräumen.');

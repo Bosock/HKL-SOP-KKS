@@ -5,6 +5,69 @@ const DATA_URL='data/hkl_standards_export.json';
 /* Hook: wird nach jedem store.set(key) aufgerufen. Der Server-Sync-Baustein
    hängt sich hier ein, um geänderte Schlüssel an /api/state zu schicken. */
 let onStoreSet=null;
+/* ─────────────────────────────────────────────────────────────
+   RÄUME — Bestand und Neuaufbau (Gegenstück zu server/raeume.js)
+
+   Die App kennt zwei vollständig getrennte Datenbestände. Der BESTAND ist
+   das, womit im Labor gearbeitet wird. Der NEUAUFBAU beginnt leer — ohne die
+   eingelesenen Standards, ohne Material, ohne Bilder — und ist nur über ein
+   zweites Passwort in der Verwaltung zu betreten.
+
+   Auf dem Gerät trennt ein PRÄFIX die beiden: Jeder Schlüssel des
+   Neuaufbaus liegt als „raum:neuaufbau:hkl_…" im Speicher, die des Bestands
+   unverändert als „hkl_…". Weil ALLE Zugriffe auf den Gerätespeicher durch
+   `store` laufen (npm run check erzwingt das), genügt diese eine Stelle: Kein
+   Baustein der App muss wissen, in welchem Raum er gerade arbeitet.
+
+   Welcher Raum gilt, entscheidet sich einmal beim Laden der Seite:
+     1. eine bewusste Wahl auf diesem Gerät (nur per Zweitpasswort gesetzt),
+     2. sonst der Raum, den der Server zuletzt als „live" gemeldet hat,
+     3. sonst der Bestand.
+   Ein Raumwechsel lädt die Seite neu — nie wird im laufenden Betrieb
+   umgeschaltet, sonst hielte ein Baustein noch Daten des alten Raums.
+   ───────────────────────────────────────────────────────────── */
+const RAEUME_DEF={
+  bestand:  { titel:'Bestand',   basis:true,  praefix:'' },
+  neuaufbau:{ titel:'Neuaufbau', basis:false, praefix:'raum:neuaufbau:' },
+};
+/* Diese beiden Schlüssel liegen bewusst AUSSERHALB jedes Raums: Sie wählen
+   den Raum erst aus. */
+const RAUM_WAHL_KEY='hkl_raumwahl';
+const RAUM_LIVE_KEY='hkl_liveraum';
+function raumRoh(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+const RAUM=(()=>{
+  const w=raumRoh(RAUM_WAHL_KEY), l=raumRoh(RAUM_LIVE_KEY);
+  const has=(x)=>!!x && Object.prototype.hasOwnProperty.call(RAEUME_DEF,x);
+  const gewaehlt=has(w);
+  const id=gewaehlt?w:(has(l)?l:'bestand');
+  const d=RAEUME_DEF[id];
+  /* neu = hier laufen die Neuerungen, die (noch) nur dem Neuaufbau gehören. */
+  return Object.freeze({ id, titel:d.titel, basis:d.basis, praefix:d.praefix, gewaehlt, neu:id!=='bestand' });
+})();
+/* Raumangabe für Anfragen an den Server. Für den Bestand LEER — seine
+   Anfragen sehen exakt so aus wie vor der Einführung der Räume. */
+function raumParam(trenner){ return RAUM.id==='bestand' ? '' : ((trenner||'?')+'raum='+encodeURIComponent(RAUM.id)); }
+/* Raum wechseln: nur die Wahl wird gesetzt, der Wechsel selbst geschieht beim
+   Neuladen (siehe oben). `sitzungBis` meldet im Zielraum gleich an — wer das
+   Zweitpasswort kennt, muss nicht noch ein drittes Mal tippen. */
+function raumWaehlen(id, sitzungBis){
+  try{
+    if(id && id!=='bestand'){
+      if(!Object.prototype.hasOwnProperty.call(RAEUME_DEF,id)) return false;
+      localStorage.setItem(RAUM_WAHL_KEY, id);
+      if(sitzungBis) localStorage.setItem(RAEUME_DEF[id].praefix+'hkl_authuntil', String(sitzungBis));
+    } else {
+      localStorage.removeItem(RAUM_WAHL_KEY);
+    }
+    return true;
+  }catch(e){ return false; }
+}
+/* Der Server meldet einen anderen Live-Raum: merken (gilt ab dem nächsten
+   Laden für Geräte ohne eigene Wahl). */
+function raumLiveMerken(id){
+  try{ if(Object.prototype.hasOwnProperty.call(RAEUME_DEF,id)) localStorage.setItem(RAUM_LIVE_KEY, id); }catch(e){}
+}
+
 /* Speicher-Wrapper um localStorage mit zwei Absicherungen:
    1. localStorage von Anfang an gesperrt (z. B. Privatmodus) → reiner
       Arbeitsspeicher-Betrieb (mem).
@@ -12,15 +75,16 @@ let onStoreSet=null;
       Fotos): der Wert bleibt in der mem-Überlagerung erhalten und get()
       liefert ihn weiter aus. Vorher las get() am vollen localStorage den
       ALTEN Wert → die Eingabe war sofort und still verloren (QA-Befund P1).
-      Zusätzlich wird die Nutzerin gewarnt (höchstens 1×/Minute). */
-const store=(()=>{ let mem={},ok=false,warnedAt=0; try{localStorage.setItem('__t','1');localStorage.removeItem('__t');ok=true;}catch(e){ok=false;}
+      Zusätzlich wird die Nutzerin gewarnt (höchstens 1×/Minute).
+   Jeder Schlüssel bekommt das Präfix des aktuellen Raums (siehe oben). */
+const store=(()=>{ let mem={},ok=false,warnedAt=0; const P=RAUM.praefix; try{localStorage.setItem('__t','1');localStorage.removeItem('__t');ok=true;}catch(e){ok=false;}
   function quotaWarn(){ const now=Date.now(); if(now-warnedAt<60000) return; warnedAt=now;
     try{ if(typeof toast==='function') toast('Gerätespeicher voll – Änderungen halten nur bis zum Neuladen. Bitte alte Fotos entfernen.',true); }catch(e){} }
   return {
-    get(k){ if(k in mem) return mem[k]; try{ return ok?localStorage.getItem(k):null; }catch(e){ return null; } },
-    set(k,v){ let stored=false;
-      if(ok){ try{ localStorage.setItem(k,v); stored=true; delete mem[k]; }catch(e){ quotaWarn(); } }
-      if(!stored) mem[k]=v;
+    get(k){ const pk=P+k; if(pk in mem) return mem[pk]; try{ return ok?localStorage.getItem(pk):null; }catch(e){ return null; } },
+    set(k,v){ const pk=P+k; let stored=false;
+      if(ok){ try{ localStorage.setItem(pk,v); stored=true; delete mem[pk]; }catch(e){ quotaWarn(); } }
+      if(!stored) mem[pk]=v;
       if(onStoreSet){try{onStoreSet(k);}catch(_){}} } }; })();
 /* schreibt in den Store OHNE den Sync-Hook auszulösen (für eingehende
    Server-Daten – sonst würden wir Fremdänderungen sofort zurückspielen). */

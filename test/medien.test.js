@@ -23,9 +23,19 @@ const K1 = '0123456789abcdef0123456789abcdef';
 const K2 = 'fedcba9876543210fedcba9876543210';
 const K3 = 'aaaabbbbccccddddeeeeffff00001111';
 
-function umgebung(vorgabe) {
+/* Der Raum kommt im echten Betrieb aus core/store.js. Hier wird er
+   nachgestellt — vorgegeben ist der Bestand, wie auf jedem Gerät im Labor. */
+function raumVon(id) {
+  const neu = id && id !== 'bestand';
+  return {
+    RAUM: { id: id || 'bestand', titel: neu ? 'Neuaufbau' : 'Bestand', basis: !neu, praefix: neu ? 'raum:' + id + ':' : '', gewaehlt: neu, neu },
+    raumParam: (t) => (neu ? (t || '?') + 'raum=' + encodeURIComponent(id) : ''),
+  };
+}
+
+function umgebung(vorgabe, raum) {
   const store = Object.assign({ hkl_medientexte: {}, hkl_medienanker: {} }, vorgabe || {});
-  const ctx = vm.createContext({
+  const ctx = vm.createContext(Object.assign({
     console,
     loadJSON: (k, d) => (k in store) ? JSON.parse(JSON.stringify(store[k])) : d,
     saveJSON: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
@@ -33,7 +43,7 @@ function umgebung(vorgabe) {
     window: undefined,
     indexedDB: undefined,
     setTimeout: () => {},
-  });
+  }, raumVon(raum)));
   vm.runInContext(SRC + `
     ;globalThis.__f = {
       paare:medPaare, liste:medListe, groesse:medGroesseGueltig, wort:medGroesseWort,
@@ -43,7 +53,8 @@ function umgebung(vorgabe) {
       satz:medSatz, textSetzen:medTextSetzen, detailSetzen:medDetailSetzen,
       hatDetail:medHatDetail, ankStd:medAnkStd, ankRub:medAnkRub, ankUk:medAnkUk, ankSeg:medAnkSeg,
       bildHTML:medBildHTML, paareHTML:medPaareHTML, ankerHTML:medAnkerHTML,
-      max:MED_MAX_PRO_ZEILE, arten:MED_GROESSEN, vorgabe:MED_GROESSE_VORGABE
+      max:MED_MAX_PRO_ZEILE, arten:MED_GROESSEN, vorgabe:MED_GROESSE_VORGABE,
+      url:medUrl, kennungAusUrl:medKennungAusUrl, istMediaUrl:medIstMediaUrl, db:MED_DB
     };
     ;globalThis.__store = () => ({ txt: MEDTXT, ank: MEDANK });
   `, ctx);
@@ -247,13 +258,13 @@ test('ohne Bild und ohne Verwaltung entsteht kein Markup', () => {
 const crypto5 = require('node:crypto');
 
 function umgebung5mb() {
-  const ctx = vm.createContext({
+  const ctx = vm.createContext(Object.assign({
     console, Blob, atob, btoa, TextEncoder, TextDecoder, Uint8Array,
     crypto: crypto5.webcrypto,
     loadJSON: () => ({}), saveJSON: () => {},
     esc: (s) => String(s == null ? '' : s),
     window: undefined, indexedDB: undefined, setTimeout: () => {},
-  });
+  }, raumVon()));
   vm.runInContext(SRC + `
     ;globalThis.__m = { url:medUrl, istMedia:medIstMediaUrl,
       kennungAusUrl:medKennungAusUrl, zuBlob:medZuBlob, kennungVon:medKennungVon };
@@ -309,6 +320,24 @@ test('Media-URLs werden erkannt und ihre Kennung herausgelesen (Offline-Fallback
   assert.equal(m.istMedia('data:image/png;base64,AAAA'), false);
   assert.equal(m.kennungAusUrl('/api/media/' + k), k);
   assert.equal(m.kennungAusUrl('data:image/png;base64,AAAA'), null);
+});
+
+
+/* ═══ Räume: Bilder des Neuaufbaus liegen getrennt (server/raeume.js) ═══ */
+
+test('Bestand: Bildadresse und lokale Datenbank wie immer — kein Raum in der Adresse', () => {
+  const { f } = umgebung();
+  assert.equal(f.url(K1), '/api/media/' + K1);
+  assert.equal(f.db, 'hkl-medien');
+});
+
+test('Neuaufbau: Bildadresse nennt den Raum, Warteschlange in eigener Datenbank', () => {
+  const { f } = umgebung({}, 'neuaufbau');
+  assert.equal(f.url(K1), '/api/media/' + K1 + '?raum=neuaufbau');
+  assert.equal(f.db, 'hkl-medien-neuaufbau', 'ein offline aufgenommenes Foto wird nie in den Bestand hochgeladen');
+  // Die Kennung bleibt aus der Adresse lesbar — Spiegel und Rückfall hängen daran.
+  assert.equal(f.kennungAusUrl(f.url(K1)), K1);
+  assert.equal(f.istMediaUrl(f.url(K1)), true);
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

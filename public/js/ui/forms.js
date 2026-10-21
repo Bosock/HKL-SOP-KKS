@@ -190,7 +190,11 @@ function readEntryForm(){
 function saveEntryForm(){ const f=readEntryForm(); if(!f.name.trim()){ toast('Bitte eine Bezeichnung eingeben',true); return; }
   const d=formCtx&&formCtx.desc; if(!d) return;
   if(d.kind==='add'){ const key=d.sid+'|'+d.ri; const arr=ADDITIONS.entries[key]||(ADDITIONS.entries[key]=[]); arr.push(makeAddEntry(Object.assign({},f,{aid:newAid(),seg:(d.defaultSeg||null)}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Eintrag hinzugefügt'); }
-  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){ Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid,seg:(e.seg||null)}))); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
+  else if(d.kind==='editAdd'){ const e=findAddEntry(d.sid,d.ri,d.aid); if(e){
+      /* Eine Zeile, die auf ein Produkt zeigt (Neuaufbau), behält ihren
+         Produktschlüssel — sonst würde sie beim Umbenennen wieder zum Wort. */
+      const bleibt=e.produkt?{material_key:e.material_key}:{};
+      Object.assign(e,makeAddEntry(Object.assign({},f,{aid:d.aid,seg:(e.seg||null)})),bleibt); saveAdditions(); rebuildDB(); buildMaterialIndex(); toast('Gespeichert'); } }
   else if(d.kind==='editBase'){
     /* Reichweiten-Nachfrage (Betreiber-Wunsch: IMMER gefragt werden): bei
        Material-/Geräte-Einträgen (geteiltes material_key) fragen, ob die

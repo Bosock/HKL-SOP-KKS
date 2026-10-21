@@ -135,7 +135,9 @@ function filterGtin(list, q){
   q=(q||'').trim().toLowerCase();
   const arr=(list||[]).slice();
   if(!q) return arr;
-  return arr.filter(r=>((r.name||'')+' '+(r.ref||'')+' '+(r.hersteller||'')+' '+(r.gtin||'')+' '+(r.verwendung||'')).toLowerCase().indexOf(q)>=0);
+  /* Synonyme (Neuaufbau, features/produkt.js) zählen mit — wer „CS-Katheter"
+     tippt, soll den Inquiry finden. Ohne Synonyme ändert sich nichts. */
+  return arr.filter(r=>((r.name||'')+' '+(r.ref||'')+' '+(r.hersteller||'')+' '+(r.gtin||'')+' '+(r.verwendung||'')+' '+(Array.isArray(r.synonyme)?r.synonyme.join(' '):'')).toLowerCase().indexOf(q)>=0);
 }
 
 /* Gruppiert Produktdatensätze nach Hersteller (alphabetisch), Einträge je
@@ -187,17 +189,21 @@ function matSizeList(r){
 function matPhotos(r){
   if(!r) return [];
   const out=[];
-  const push=(src,titel)=>{ const s=String(src||''); if(!s) return;
-    if(out.some(x=>x.src===s)) return; out.push({ src:s, titel:titel||'' }); };
-  if(Array.isArray(r.fotos)) r.fotos.forEach(f=>{ if(typeof f==='string') push(f,''); else if(f) push(f.src, f.titel); });
+  /* Die ROLLE eines Bildes (Etikett/Produkt/Verpackung, features/produkt.js)
+     wird nur mitgeführt, wenn es eine gibt — Bilder ohne Rolle bleiben genau
+     so, wie sie immer waren. */
+  const push=(src,titel,rolle)=>{ const s=String(src||''); if(!s) return;
+    if(out.some(x=>x.src===s)) return; const o={ src:s, titel:titel||'' }; if(rolle) o.rolle=rolle; out.push(o); };
+  if(Array.isArray(r.fotos)) r.fotos.forEach(f=>{ if(typeof f==='string') push(f,''); else if(f) push(f.src, f.titel, f.rolle); });
   push(r.photo,'');                       /* Alt-Einzelfoto nie verlieren */
   return out;
 }
 /* Foto anhängen (ohne Dubletten). Liefert eine NEUE Liste. Rein. */
-function matPhotoAdd(list, src, titel){
+function matPhotoAdd(list, src, titel, rolle){
   const s=String(src||''); const arr=(list||[]).slice();
   if(!s || arr.some(x=>x&&x.src===s)) return arr;
-  arr.push({ src:s, titel:titel||'' }); return arr;
+  const o={ src:s, titel:titel||'' }; if(rolle) o.rolle=rolle;
+  arr.push(o); return arr;
 }
 /* Foto entfernen. Rein. */
 function matPhotoDel(list, i){ const arr=(list||[]).slice(); if(i<0||i>=arr.length) return arr; arr.splice(i,1); return arr; }
@@ -210,6 +216,7 @@ let GTINDB=loadJSON('hkl_gtin',{}); function saveGtinDB(){ saveJSON('hkl_gtin',G
 let scanGalerie=[];                                 /* Fotoliste des gerade offenen Editors */
 let lastScanInfo=null;                              /* transiente Info des letzten Scans (LOT/Verfall/Serie) */
 let scanPendingLinkKey=null;                        /* material_key, der beim nächsten Speichern mit dem Stammsatz verknüpft wird (Materialverwaltung) */
+let scanOffenId=null;                               /* welches Produkt gerade im Produktblatt/Editor offen ist (für Notizen) */
 let scanStream=null, scanTimer=null, scanDetector=null, scanBusy=false, scanTorchOn=false;
 const SCAN_FORMATS=['data_matrix','qr_code','code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf','codabar'];
 
@@ -375,8 +382,15 @@ function onDecode(raw, fmt){
      wir nur die GTIN (Identität) und eine evtl. mitcodierte Hersteller-REF (240)
      als Vorbefüllhilfe fürs Formular. */
   lastScanInfo={ gtin, itemRef:parsed.itemRef||'' };
-  if(GTINDB[gtin]) openScanItem(gtin,false);       /* bekannt → Datensatz zeigen */
-  else openScanItem(gtin,true);                    /* neu → Formular vorbefüllt */
+  if(GTINDB[gtin]){ openScanItem(gtin,false); return; }   /* bekannt → Datensatz zeigen */
+  /* Ein Karton trägt eine andere GTIN als die Einheit darin. Ist er als
+     Verpackungsstufe bekannt, führt der Scan zum Produkt der Einheit
+     (features/produkt.js) — statt ein zweites Produkt anzulegen. */
+  if(typeof neuFrei==='function' && neuFrei('verpackung') && typeof packungFinden==='function'){
+    const pk=packungFinden(GTINDB, gtin);
+    if(pk && GTINDB[pk.id]){ toast('Verpackung: '+pk.packung.menge+' Stück · '+(GTINDB[pk.id].name||GTINDB[pk.id].ref||pk.id)); openScanItem(pk.id,false); return; }
+  }
+  openScanItem(gtin,true);                    /* neu → Formular vorbefüllt */
 }
 
 /* ===== Ansichten ===== */
@@ -442,6 +456,7 @@ function scanMerkeHerkunft(){
   else if(id==='scr-catalog') scanHerkunft='katalog';
   else if(id==='scr-detail'||id==='scr-rubriken') scanHerkunft='standard';
   else if(id==='scr-admin') scanHerkunft='verwaltung';
+  else if(id==='scr-editor') scanHerkunft='editor';
   else scanHerkunft = (typeof mode!=='undefined' && mode==='care') ? 'zentrale' : 'uebersicht';
 }
 
@@ -473,6 +488,9 @@ function scanZurueck(){
     case 'uebersicht':
       if(typeof setMode==='function'){ setMode('use'); return true; }
       break;
+    case 'editor':
+      if(typeof ED!=='undefined' && ED && typeof edOeffnen==='function'){ edOeffnen(ED.sid); return true; }
+      break;
   }
   /* Vorgabe: die Materialzentrale — von dort kommt der Weg am häufigsten. */
   if(typeof renderMatCenter==='function'){
@@ -488,6 +506,7 @@ function openScanItem(gArg, edit){
   scanMerkeHerkunft();
   scanPendingLinkKey=null;   /* direkter Aufruf ist keine „lege-neu-und-verknüpfe"-Aktion */
   const key=gArg?gtinKey(gArg):'';
+  scanOffenId=key||null;
   const r = key ? (GTINDB[key]||{gtin:key}) : {gtin:''};
   if(edit) renderScanItemForm(r); else renderScanItemView(r);
   show('scr-scan-item');
@@ -528,6 +547,8 @@ function renderScanItemView(r){
     ${scanViewGalerieHTML(r)}
     ${badges?`<div class="info-field"><div class="if-l">Maße</div><div class="if-v">${badges}</div></div>`:''}
     ${rows}
+    ${(typeof produktViewFelderHTML==='function')?produktViewFelderHTML(r):''}
+    ${(typeof bzhViewHTML==='function')?bzhViewHTML(r):''}
     ${scanMerkViewHTML(r)}
     ${(typeof catInfoBlockHTML==='function')?catInfoBlockHTML(r):''}
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Zur Liste</button><button class="btn btn-pri" data-g="${esc(r.gtin)}" onclick="openScanItem(this.dataset.g,true)">Bearbeiten</button></div>
@@ -543,20 +564,24 @@ function renderScanItemForm(r){
     <div class="pc-name">${r.manual?'Material-Stammsatz (ohne Barcode)':(g?('GTIN '+esc(g)):'Neues Produkt')}</div>
     <div class="scope-note">🎯 Gilt für <b>dieses Material überall</b> – in jedem Standard, in dem es vorkommt. Was nur an EINER Stelle anders sein soll (z. B. die Menge), gehört an den Eintrag.</div>
     ${g?'':`<div class="flabel">GTIN (Barcode-Nummer) *</div><input class="loc-input" id="scGtin" inputmode="numeric" placeholder="z. B. 04012345678901" value="">`}
+    ${(typeof produktGudidSlotHTML==='function' && !GTINDB[g])?produktGudidSlotHTML(g):''}
     <button type="button" class="scan-cta ocr-cta" onclick="ocrWizStart()">📸 Geführte Erfassung – Barcode &amp; Etikett</button>
     <div class="ocr-hint">Führt in zwei Schritten durch die Aufnahme: erst der Barcode (Produktnummer exakt, ohne Texterkennung), dann das Etikett (REF, Hersteller, Maße). Ein Foto genügt auch. Alle Werte bitte prüfen.</div>
     <div class="p-actions" style="margin-top:4px"><button type="button" class="btn btn-sec" onclick="ocrCaptureAndFill()">Nur ein Etikett-Foto lesen</button></div>
     <div class="flabel" style="margin-top:12px">FOTOS</div>
     <div id="scGallery">${scanGalerieHTML()}</div>
     <input type="file" id="scanFileInp" accept="image/*" multiple style="display:none" onchange="scanOnPhoto(event)">
+    <input type="file" id="scanFileInpKamera" accept="image/*" capture="environment" style="display:none" onchange="scanOnPhoto(event, scanFotoRolle)">
     <p class="hint">Beliebig viele Fotos: Verpackung, Etikett, ausgepacktes Produkt, Anschluss, Regalplatz. Das erste Bild ist das Vorschaubild in allen Listen; jedes Bild lässt sich antippen und vergrößern.</p>
     <div class="flabel" style="margin-top:12px">HERSTELLER *</div><input class="loc-input" id="scHersteller" placeholder="z. B. Terumo" value="${esc(r.hersteller||'')}">
-    <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}" oninput="if(typeof catCheckForm==='function')catCheckForm()">
+    <div class="flabel">REF / BESTELLNR. *</div><input class="loc-input" id="scRef" placeholder="z. B. RM*RG5J40" value="${esc(r.ref||refHint||'')}" data-g="${esc(g)}" oninput="if(typeof catCheckForm==='function')catCheckForm();if(typeof produktRefPruefen==='function')produktRefPruefen(this.dataset.g)">
+    ${(typeof produktRefSlotHTML==='function')?produktRefSlotHTML():''}
     <div id="catMatch" style="display:none"></div>
     <input type="hidden" id="catHold" value="${r.katspecs?esc(JSON.stringify({specs:r.katspecs,ref:r.katref||'',quelle:r.katquelle||'',status:r.katstatus||'unbestätigt'})):''}">
     <div class="flabel">KATEGORIE</div><input class="loc-input" id="scKat" placeholder="z. B. Schleuse / Introducer" value="${esc(r.kategorie||'')}" list="catKatList">
     <datalist id="catKatList">${(typeof MATCAT_KATS!=='undefined'?MATCAT_KATS:[]).map(k=>`<option value="${esc(k)}">`).join('')}</datalist>
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
+    ${(typeof produktSynonymFeldHTML==='function')?produktSynonymFeldHTML(r):''}
     <div class="flabel">VERWENDUNG</div><input class="loc-input" id="scVerw" placeholder="z. B. radialer Zugang" value="${esc(r.verwendung||'')}">
     <div class="flabel" style="margin-top:12px">MASSE / GRÖSSEN</div>
     <div id="scSizes">${matSizeList(r).map(scSizeRowHTML).join('')}</div>
@@ -566,6 +591,8 @@ function renderScanItemForm(r){
     <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="scanAddPropUI()">＋ Eigenschaft (z. B. Tip Load)</button></div>
     <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>
     ${scanMerkFormHTML(r)}
+    ${(typeof produktPackHTML==='function')?produktPackHTML(r):''}
+    ${(typeof bzhFormHTML==='function')?bzhFormHTML(r):''}
     <div class="flabel" style="margin-top:12px">LAGERORT</div><input class="loc-input" id="scLoc" placeholder="z. B. Regal A · Fach 3" value="${esc(r.lagerort||'')}">
     <div class="flabel">STÜCKPREIS € (optional)</div><input class="loc-input" id="scPreis" inputmode="decimal" placeholder="z. B. 12,50" value="${esc(r.preis!=null?String(r.preis).replace('.',','):'')}">
     <div class="p-actions"><button class="btn btn-sec" onclick="openScanHub()">Abbrechen</button><button class="btn btn-pri" data-g="${esc(g)}" onclick="saveScanItem(this.dataset.g)">Speichern</button></div>
@@ -573,6 +600,10 @@ function renderScanItemForm(r){
   </div>
   <div class="foot">Die GTIN kommt aus dem Barcode und ist der Schlüssel: REF, Hersteller und Maße einmal erfassen — bei jedem weiteren Scan sind sie sofort da. Alles wird zentral gespeichert und auf allen Geräten geteilt.</div>`;
   if(typeof catCheckForm==='function') catCheckForm();   /* Referenz-Katalog: Treffer zur vorhandenen REF gleich anzeigen */
+  /* Neuaufbau (features/produkt.js): REF-Dubletten sofort zeigen, bei einer
+     neuen GTIN AccessGUDID fragen — vor allem, ob sie eine Verpackung ist. */
+  if(typeof produktRefPruefen==='function') produktRefPruefen(g);
+  if(typeof produktGudidPruefen==='function' && $('pdGudid')) produktGudidPruefen(g);
 }
 /* Eigene Eigenschaft (Schema-erweiternd, z. B. „Tip Load") anlegen — erscheint
    danach bei JEDEM Produkt als Feld. Inline-Zeile statt prompt(). */
@@ -596,6 +627,14 @@ function scanReadSizes(){ const box=$('scSizes'); if(!box) return [];
 function _scanShrink(d,cb){ if(typeof shrinkPhoto==='function') shrinkPhoto(d,cb); else cb(d); }
 /* Kachelraster: erstes Bild trägt die Marke „Vorschau". */
 function scanGalerieHTML(){
+  /* Bildrollen (features/produkt.js): je Bild eine Auswahl, dazu zwei
+     Schnellknöpfe für die beiden Aufnahmen, die jedes Produkt braucht. */
+  const rollen=(typeof neuFrei==='function' && neuFrei('fotorollen') && typeof FOTO_ROLLEN!=='undefined');
+  const rolleWahl=(f,i)=>rollen?`<select class="form-sel gal-rolle" aria-label="Rolle des Bildes" onchange="scanGalerieRolle(${i},this.value)">
+      <option value="">— Rolle —</option>${FOTO_ROLLEN.map(x=>`<option value="${esc(x.key)}"${f.rolle===x.key?' selected':''}>${esc(x.ico+' '+fotoRolleWort(x.key))}</option>`).join('')}</select>`:'';
+  const schnell=rollen?`<div class="gal-schnell">
+      <button type="button" class="btn btn-sec" onclick="scanFotoMitRolle('etikett')">🏷 Etikett fotografieren</button>
+      <button type="button" class="btn btn-sec" onclick="scanFotoMitRolle('produkt')">📦 Produkt fotografieren</button></div>`:'';
   const kacheln=scanGalerie.map((f,i)=>`<div class="gal-item">
       <img src="${esc(f.src)}" alt="${esc(f.titel||('Foto '+(i+1)))}" data-zoom data-cap="${esc(f.titel||'')}">
       ${i===0?'<span class="gal-main">Vorschau</span>':''}
@@ -604,18 +643,28 @@ function scanGalerieHTML(){
         <button type="button" title="Zuschneiden / drehen" aria-label="Zuschneiden oder drehen" onclick="scanGalerieEdit(${i})">✂</button>
         <button type="button" title="Entfernen" aria-label="Foto entfernen" onclick="scanGalerieDel(${i})">✕</button>
       </div>
+      ${rolleWahl(f,i)}
       <input class="gal-cap" placeholder="Bildunterschrift (optional)" value="${esc(f.titel||'')}" oninput="scanGalerieCap(${i}, this.value)">
     </div>`).join('');
-  return `<div class="gal-grid">${kacheln}<button type="button" class="gal-add" onclick="$('scanFileInp').click()"><span class="ph-ico">📷</span><span class="ph-sub">Foto hinzufügen</span></button></div>`;
+  return schnell+`<div class="gal-grid">${kacheln}<button type="button" class="gal-add" onclick="$('scanFileInp').click()"><span class="ph-ico">📷</span><span class="ph-sub">Foto hinzufügen</span></button></div>`;
 }
+/* Rolle eines Bildes setzen (leer = keine Rolle). */
+function scanGalerieRolle(i, v){ const f=scanGalerie[i]; if(!f) return;
+  const r=(typeof fotoRolleGueltig==='function')?fotoRolleGueltig(v):''; if(r) f.rolle=r; else delete f.rolle; }
+/* Aufnahme mit vorgegebener Rolle: Kamera öffnen, das Bild bekommt die Rolle
+   gleich mit — kein zweiter Handgriff. */
+let scanFotoRolle='';
+function scanFotoMitRolle(rolle){
+  scanFotoRolle=(typeof fotoRolleGueltig==='function')?fotoRolleGueltig(rolle):'';
+  const inp=$('scanFileInpKamera'); if(inp) inp.click(); }
 function scanGalerieRender(){ const box=$('scGallery'); if(box) box.innerHTML=scanGalerieHTML(); }
 /* Ein Bild anhängen. Es erscheint SOFORT in der Galerie (sonst wirkt die App
    beim Hinzufügen träge) und wird im Hintergrund verkleinert — das Verkleinern
    braucht einen Bild-Ladevorgang und wäre sonst ein Wettlauf mit dem
    Speichern-Knopf. */
-function scanGalerieAdd(src, titel){
+function scanGalerieAdd(src, titel, rolle){
   const vorher=scanGalerie.length;
-  scanGalerie=matPhotoAdd(scanGalerie, src, titel);
+  scanGalerie=matPhotoAdd(scanGalerie, src, titel, rolle);
   if(scanGalerie.length===vorher) return;              /* Dublette – nichts zu tun */
   const i=scanGalerie.length-1;
   scanGalerieRender();
@@ -632,33 +681,33 @@ function scanGalerieAdd(src, titel){
   }
 }
 /* Mehrere Bilder anhängen (z. B. die Aufnahmen des geführten Dialogs). */
-function scanGalerieAddMany(list, titel){ (list||[]).filter(Boolean).forEach(src=>scanGalerieAdd(src, titel)); }
+function scanGalerieAddMany(list, titel, rolle){ (list||[]).filter(Boolean).forEach(src=>scanGalerieAdd(src, titel, rolle)); }
 function scanGalerieDel(i){ scanGalerie=matPhotoDel(scanGalerie,i); scanGalerieRender(); }
 function scanGalerieMain(i){ scanGalerie=matPhotoMain(scanGalerie,i); scanGalerieRender(); }
 function scanGalerieCap(i, v){ if(scanGalerie[i]) scanGalerie[i].titel=(v||'').trim(); }
 function scanGalerieEdit(i){ const f=scanGalerie[i]; if(!f) return;
   openPhotoEditor(f.src,(edited)=>{ if(edited==null) return;
     if(typeof medFotoAblegen==='function'){
-      medFotoAblegen(edited).then(url=>{ scanGalerie[i]={src:url||edited,titel:f.titel||''}; scanGalerieRender(); });
+      medFotoAblegen(edited).then(url=>{ scanGalerie[i]=Object.assign({src:url||edited,titel:f.titel||''}, f.rolle?{rolle:f.rolle}:{}); scanGalerieRender(); });
     } else {
-      _scanShrink(edited,(klein)=>{ scanGalerie[i]={src:klein,titel:f.titel||''}; scanGalerieRender(); });
+      _scanShrink(edited,(klein)=>{ scanGalerie[i]=Object.assign({src:klein,titel:f.titel||''}, f.rolle?{rolle:f.rolle}:{}); scanGalerieRender(); });
     }
   }); }
 /* Mehrfachauswahl aus der Dateiauswahl: jedes Bild einzeln durch den
    Foto-Editor zu schicken wäre eine Zumutung — nur bei EINEM Bild wird der
    Editor geöffnet, mehrere wandern direkt in die Galerie (dort einzeln
    nachbearbeitbar). */
-function scanOnPhoto(ev){
+function scanOnPhoto(ev, rolle){
   const files=[...((ev.target&&ev.target.files)||[])]; if(!files.length) return;
   try{ ev.target.value=''; }catch(e){}
   if(files.length===1){
     const r=new FileReader();
-    r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; scanGalerieAdd(edited); }); };
+    r.onload=()=>{ openPhotoEditor(r.result,(edited)=>{ if(edited==null) return; scanGalerieAdd(edited, '', rolle||''); }); };
     r.readAsDataURL(files[0]); return;
   }
   const bilder=[]; let i=0;
   (function step(){
-    if(i>=files.length){ scanGalerieAddMany(bilder); return; }
+    if(i>=files.length){ scanGalerieAddMany(bilder, '', rolle||''); return; }
     const r=new FileReader(); r.onload=()=>{ bilder.push(r.result); i++; step(); }; r.onerror=()=>{ i++; step(); };
     r.readAsDataURL(files[i]);
   })();
@@ -678,6 +727,23 @@ async function saveScanItem(gArg){
   if(manual){ if(!val('scName') && !hersteller && !ref){ toast('Bitte mindestens einen Produktnamen (oder Hersteller/REF) angeben.',true); return; } }
   else if(!hersteller && !ref){ toast('Bitte mindestens Hersteller oder REF angeben.',true); return; }
   const preis=parsePreis(val('scPreis'));
+  /* Neuaufbau (features/produkt.js): Prüfziffer, Verpackungsstufen und —
+     bewusst als Rückfrage im Formular, nicht als Fenster — die REF-Dublette. */
+  if(typeof produktFormPruefen==='function'){
+    const fehler=produktFormPruefen(g, !GTINDB[g]);
+    if(fehler){ toast(fehler,true); return; }
+  }
+  if(typeof neuFrei==='function' && neuFrei('refpruefung') && typeof refDubletten==='function' && ref){
+    const dup=refDubletten(GTINDB, ref, g);
+    const ok=$('pdRefOk');
+    if(dup.length && !(ok && ok.checked)){
+      const slot=$('pdRefWarn');
+      if(slot && !ok){ slot.insertAdjacentHTML('beforeend', `<label class="pd-ok"><input type="checkbox" id="pdRefOk"> Ja, bewusst dieselbe REF — trotzdem speichern</label>`); }
+      toast('Diese REF steht schon an einem anderen Produkt — bitte prüfen (oder bewusst bestätigen).', true);
+      try{ (slot||{}).scrollIntoView && slot.scrollIntoView({block:'center'}); }catch(e){}
+      return;
+    }
+  }
   /* Fotos sichern, BEVOR gespeichert wird: eine noch nicht hochgeladene
      Neuaufnahme ist eine data-URL. Käme sie so in GTINDB, läge base64 im
      localStorage — bei vollem Speicher schlägt der Schreibvorgang fehl und das
@@ -687,7 +753,8 @@ async function saveScanItem(gArg){
   for(const f of (scanGalerie||[])){
     const src=(typeof f==='string')?f:(f&&f.src); if(!src) continue;
     const url=(typeof medFotoSichern==='function')?await medFotoSichern(src):src;
-    fotosSicher.push({ src:url, titel:(f&&f.titel)||'' });
+    const satz={ src:url, titel:(f&&f.titel)||'' }; if(f&&f.rolle) satz.rolle=f.rolle;
+    fotosSicher.push(satz);
   }
   const patch={ gtin:g, hersteller:hersteller||null, ref:ref||null, name:val('scName')||null, verwendung:val('scVerw')||null,
     kategorie:val('scKat')||null,
@@ -696,6 +763,10 @@ async function saveScanItem(gArg){
     french:null, laenge:null, dAussen:null, dInnen:null, weitere:null,
     lagerort:val('scLoc')||null, preis:(preis==null?null:preis),
     fotos:fotosSicher, photo:(fotosSicher[0]&&fotosSicher[0].src)||null, props:scanReadProps() };
+  /* Neuerungen des Neuaufbaus (Synonyme, Verpackungsstufen, Beziehungen) —
+     nur, was freigegeben ist; sonst bleibt der Satz wie bisher. */
+  if(typeof produktFormPatch==='function') Object.assign(patch, produktFormPatch());
+  if(typeof bzhFormPatch==='function') Object.assign(patch, bzhFormPatch(g));
   /* Merkmale (typisiert, je Materialklasse). Unplausible Werte werden gemeldet,
      aber NICHT abgelehnt: Das Etikett ist die Wirklichkeit, der Katalog nur
      unsere Erwartung. Wer eine 300-cm-Schleuse hat, soll sie eintragen können. */

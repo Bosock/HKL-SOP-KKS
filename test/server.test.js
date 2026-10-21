@@ -610,3 +610,133 @@ test('unerlaubte Methode → 405 mit Allow-Kopf', async () => {
   assert.equal(r.status, 405);
   assert.match(r.headers['allow'], /POST/);
 });
+
+// ===========================================================================
+// RÄUME — Bestand und Neuaufbau sind vollständig getrennt (server/raeume.js)
+// ---------------------------------------------------------------------------
+// Die eine Zusage, an der alles hängt: Was im Neuaufbau geschieht, berührt
+// den Bestand nicht — nicht seinen Zustand, nicht seine Datei auf der Platte,
+// nicht seine Bilder. Und ohne Raumangabe ist IMMER der Bestand gemeint.
+// ===========================================================================
+const NB = () => srv.raum('neuaufbau');
+const NB_DIR = path.join(STATE_DIR, 'raeume', 'neuaufbau');
+async function warteAufDatei(datei, pruef) {
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    try { const d = JSON.parse(await fsp.readFile(datei, 'utf8')); if (pruef(d)) return d; }
+    catch (e) { /* noch nicht geschrieben */ }
+    if (Date.now() > deadline) return null;
+    await new Promise(r => setTimeout(r, 25));
+  }
+}
+
+test('Räume: der Neuaufbau beginnt leer — auch wenn der Bestand Daten hat', async () => {
+  NB().resetState();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { hkl_overrides: { x: 1 } } }) });
+  const j = json(await request('GET', '/api/state?raum=neuaufbau'));
+  assert.equal(j.rev, 0);
+  assert.deepEqual(j.state, {});
+  assert.equal(j.raum, 'neuaufbau', 'mit Raumangabe nennt die Antwort den Raum');
+});
+
+test('Räume: Schreiben in den Neuaufbau lässt den Bestand unberührt (Speicher UND Platte)', async () => {
+  NB().resetState();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { bestand: 'bleibt' } }) });
+  const vorher = await warteAufDatei(srv.config.STATE_FILE, d => d.state && d.state.bestand === 'bleibt');
+  assert.ok(vorher, 'Bestand liegt auf der Platte');
+  const rohVorher = await fsp.readFile(srv.config.STATE_FILE, 'utf8');
+
+  const r = await request('PUT', '/api/state?raum=neuaufbau', { body: JSON.stringify({ state: { hkl_gtin: { a: 1 }, bestand: 'überschrieben?' } }) });
+  assert.equal(r.status, 200);
+  assert.equal(json(r).raum, 'neuaufbau');
+  const nbDatei = await warteAufDatei(path.join(NB_DIR, 'state.json'), d => d.state && d.state.hkl_gtin);
+  assert.ok(nbDatei, 'der Neuaufbau hat seine EIGENE state.json');
+
+  const b = json(await request('GET', '/api/state'));
+  assert.equal(b.rev, 1, 'Bestand-Revision unverändert');
+  assert.deepEqual(b.state, { bestand: 'bleibt' });
+  assert.equal(b.raum, undefined, 'ohne Raumangabe sieht die Antwort aus wie immer');
+  await NB().flush();
+  assert.equal(await fsp.readFile(srv.config.STATE_FILE, 'utf8'), rohVorher, 'state.json des Bestands Byte für Byte gleich');
+});
+
+test('Räume: ?raum=bestand ist dasselbe wie gar keine Angabe', async () => {
+  await request('PUT', '/api/state?raum=bestand', { body: JSON.stringify({ state: { k: 1 } }) });
+  const j = json(await request('GET', '/api/state'));
+  assert.deepEqual(j.state, { k: 1 });
+});
+
+test('Räume: ein unbekannter Raum wird abgewiesen — nie still in den Bestand', async () => {
+  for (const r of ['test', '..%2f..', 'Neuaufbau', '__proto__', 'constructor']) {
+    const g = await request('GET', '/api/state?raum=' + r);
+    assert.equal(g.status, 400, r);
+    const p = await request('PUT', '/api/state?raum=' + r, { body: JSON.stringify({ state: { boese: 1 } }) });
+    assert.equal(p.status, 400, r);
+  }
+  assert.deepEqual(json(await request('GET', '/api/state')).state, {}, 'Bestand blieb leer');
+  assert.ok(!fs.existsSync(path.join(STATE_DIR, 'raeume', 'test')), 'kein Ordner für erfundene Räume');
+});
+
+test('Räume: since-Abkürzung gilt je Raum', async () => {
+  NB().resetState();
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { a: 1 } }) });        // Bestand rev 1
+  const n = json(await request('GET', '/api/state?raum=neuaufbau&since=1'));
+  assert.equal(n.unchanged, undefined, 'Revision 1 des Bestands ist NICHT Revision 1 des Neuaufbaus');
+  assert.equal(n.rev, 0);
+  const u = json(await request('GET', '/api/state?raum=neuaufbau&since=0'));
+  assert.deepEqual(u, { rev: 0, unchanged: true, raum: 'neuaufbau' });
+});
+
+test('Räume: der Neuaufbau sichert in seinen EIGENEN Sicherungsordner', async () => {
+  NB().resetState();
+  await request('PUT', '/api/state?raum=neuaufbau', { body: JSON.stringify({ state: { gesichert: true } }) });
+  const datei = await NB().snapshot();
+  assert.ok(datei.startsWith(path.join(NB_DIR, 'backups')), datei);
+  const inhalt = JSON.parse(await fsp.readFile(datei, 'utf8'));
+  assert.equal(inhalt.state.gesichert, true);
+  const bestandSicherungen = await listSnaps();
+  assert.ok(!bestandSicherungen.some(n => fs.readFileSync(path.join(BACKUP_DIR, n), 'utf8').includes('gesichert')),
+    'keine Neuaufbau-Sicherung im Ordner des Bestands');
+});
+
+test('Räume: Bilder des Neuaufbaus liegen getrennt — im Bestand nicht auffindbar', async () => {
+  const PNG_ROT = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
+  const r = await request('POST', '/api/media?raum=neuaufbau', { body: PNG_ROT, headers: { 'Content-Type': 'image/png' } });
+  assert.equal(r.status, 201);
+  const { kennung } = json(r);
+  assert.ok(fs.existsSync(path.join(NB_DIR, 'media', kennung + '.png')), 'Datei im Medienordner des Neuaufbaus');
+  assert.equal((await request('GET', '/api/media/' + kennung)).status, 404, 'Bestand kennt das Bild nicht');
+  const g = await request('GET', '/api/media/' + kennung + '?raum=neuaufbau');
+  assert.equal(g.status, 200);
+  assert.deepEqual(g.raw, PNG_ROT);
+  const liste = json(await request('GET', '/api/media?raum=neuaufbau'));
+  assert.ok(liste.bilder.some(b => b.kennung === kennung));
+  const bestandListe = json(await request('GET', '/api/media'));
+  assert.ok(!bestandListe.bilder.some(b => b.kennung === kennung), 'Bestandsübersicht ohne Neuaufbau-Bild');
+  assert.equal((await request('POST', '/api/media?raum=gibtsnicht', { body: PNG_ROT, headers: { 'Content-Type': 'image/png' } })).status, 400);
+});
+
+test('Räume: /api/raeume nennt beide Räume und den Live-Zeiger', async () => {
+  const zeiger = srv.raeume.ZEIGER_DATEI;
+  try { fs.unlinkSync(zeiger); } catch (e) {}
+  let j = json(await request('GET', '/api/raeume'));
+  assert.equal(j.live, 'bestand', 'ohne Zeigerdatei ist der Bestand live');
+  assert.deepEqual(j.raeume.map(r => r.id), ['bestand', 'neuaufbau']);
+  assert.equal(j.raeume.find(r => r.id === 'neuaufbau').basis, false, 'Neuaufbau ohne Basisdaten');
+  assert.equal(j.raeume.find(r => r.id === 'bestand').basis, true);
+
+  fs.writeFileSync(zeiger, JSON.stringify({ live: 'neuaufbau' }));
+  j = json(await request('GET', '/api/raeume'));
+  assert.equal(j.live, 'neuaufbau', 'Zeiger wird ohne Neustart gelesen');
+  // Der Zeiger lenkt KEINE Anfrage um: ohne Raumangabe bleibt es der Bestand.
+  await request('PUT', '/api/state', { body: JSON.stringify({ state: { trotzZeiger: 'bestand' } }) });
+  assert.equal(srv.getState().state.trotzZeiger, 'bestand');
+  assert.equal(NB().getState().state.trotzZeiger, undefined);
+
+  fs.writeFileSync(zeiger, '{kaputt');
+  assert.equal(json(await request('GET', '/api/raeume')).live, 'bestand', 'kaputte Datei → Bestand');
+  fs.writeFileSync(zeiger, JSON.stringify({ live: 'erfunden' }));
+  assert.equal(json(await request('GET', '/api/raeume')).live, 'bestand', 'unbekannter Raum → Bestand');
+  fs.unlinkSync(zeiger);
+  assert.equal((await request('PUT', '/api/raeume')).status, 405, 'nur lesend');
+});

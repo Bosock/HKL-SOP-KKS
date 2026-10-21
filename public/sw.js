@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v72';
+const CACHE_VERSION = 'v75';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -92,8 +92,14 @@ const SHELL = [
   'js/features/gudid.js',
   'js/features/ocr.js',
   'js/features/ocrwizard.js',
+  'js/features/zuordnen.js',
+  'js/features/produkt.js',
+  'js/features/beziehungen.js',
+  'js/features/editor.js',
   'js/features/duplicate.js',
   'js/features/diag.js',
+  'js/features/notizen.js',
+  'js/features/raum.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',
