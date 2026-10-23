@@ -113,7 +113,12 @@ server.js             dünner Einstiegspunkt (node server.js)
   [docs/NEUAUFBAU.md](docs/NEUAUFBAU.md)): Bestand und Neuaufbau haben je eigene
   `state.json`, Sicherungen und Bilder. Ohne `?raum=` ist immer der Bestand
   gemeint; auf dem Gerät trennt ein Schlüssel-Präfix (`raum:neuaufbau:`), das
-  ausschließlich `store` setzt (Prüfung in `npm run check`).
+  ausschließlich `store` setzt (Prüfung in `npm run check`). Welcher Raum
+  „live" ist, sagt der Zeiger `raeume.json`; umgeschaltet wird per Knopf in der
+  Verwaltung (`PUT /api/raeume`, Passwort des Neuaufbaus als Fingerabdruck,
+  vom Server geprüft). Geräte ohne eigene Raumwahl folgen beim Start, beim
+  Aufwecken und — wenn niemand bedient — nach zwei Minuten Ruhe
+  (`core/sync.js`, `raumAbgleich`).
 
 - Der Client schreibt alles über `store.set()` nach `localStorage`; der
   Sync-Baustein (`core/sync.js`) schickt geänderte `SHARED_KEYS` gebündelt
@@ -1006,6 +1011,8 @@ Die öffentliche Adresse kommt aus der Repository-Variablen `PUBLIC_URL`
   `onclick`-String-Literale interpolieren — IDs/Indizes übergeben oder
   `data-`-Attribute nutzen (Beispiele: `moveGroup(i,…)`, `toggleUk(this.dataset.k)`).
 - Der Passwort-Schutz (`core/config.js`) ist Komfort-, keine echte
-  Sicherheitsfunktion (djb2-Hash im geteilten Zustand); die App ist für den
-  internen Gebrauch hinter vertrauenswürdigem Netz gedacht.
+  Sicherheitsfunktion (djb2-Hash im geteilten Zustand, je Raum; seit `v76` als
+  JSON gespeichert und damit auf allen Geräten gültig); die App ist für den
+  internen Gebrauch hinter vertrauenswürdigem Netz gedacht. Dasselbe gilt für
+  das Passwort des Neuaufbaus und den Live-Schalter.
 - Kein Auth am `/api/state`-Endpunkt — gleiche Begründung.

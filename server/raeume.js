@@ -87,4 +87,35 @@ function liveRaum() {
   return STANDARD;
 }
 
-module.exports = { RAEUME, STANDARD, RAEUME_DIR, ZEIGER_DATEI, istRaum, ausAnfrage, liveRaum };
+/* ── Umschalten ──────────────────────────────────────────────────────────
+   Der Live-Schalter in der App (features/raum.js) schreibt den Zeiger. Er
+   verlangt das Passwort des Neuaufbaus — als Fingerabdruck, genau wie die App
+   es speichert (pwHash, public/js/core/config.js; hier wortgleich). Erwartet
+   wird der im Bestand hinterlegte Fingerabdruck (hkl_raumpw), sonst der der
+   Vorgabe. Das ist — wie jedes Passwort dieser App — Komfort, keine
+   Sicherheit (Grundsatz A9): Es verhindert den Fehlgriff, nicht die Absicht. */
+const RAUM_PW_VORGABE = 'abcdefg';
+function pwHash(s) { let h = 5381; s = String(s); for (let i = 0; i < s.length; i++) { h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0; } return 'h' + h.toString(36); }
+function erwarteterFingerabdruck(bestandZustand) {
+  const v = bestandZustand && bestandZustand.hkl_raumpw;
+  return (typeof v === 'string' && v) ? v : pwHash(RAUM_PW_VORGABE);
+}
+
+/* Den Zeiger setzen — atomar über eine Zwischendatei, mit kurzem Verlauf
+   (wann wurde wohin geschaltet). Gibt den neuen Inhalt zurück. */
+function liveSetzen(id) {
+  if (!istRaum(id)) { const e = new Error('unknown room'); e.code = 'RAUM'; throw e; }
+  let alt = {};
+  try { alt = JSON.parse(fs.readFileSync(ZEIGER_DATEI, 'utf8')) || {}; } catch (e) { alt = {}; }
+  const vorher = istRaum(alt.live) ? alt.live : STANDARD;
+  const jetzt = new Date().toISOString();
+  const verlauf = (Array.isArray(alt.verlauf) ? alt.verlauf : []).concat([{ live: id, vorher, at: jetzt }]).slice(-20);
+  const neu = { live: id, geaendert: jetzt, verlauf };
+  fs.mkdirSync(path.dirname(ZEIGER_DATEI), { recursive: true });
+  const tmp = ZEIGER_DATEI + '.' + process.pid + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(neu, null, 2));
+  fs.renameSync(tmp, ZEIGER_DATEI);
+  return neu;
+}
+
+module.exports = { RAEUME, STANDARD, RAEUME_DIR, ZEIGER_DATEI, RAUM_PW_VORGABE, istRaum, ausAnfrage, liveRaum, liveSetzen, pwHash, erwarteterFingerabdruck };

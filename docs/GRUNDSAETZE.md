@@ -254,8 +254,13 @@ bis das Produkt inhaltlich fertig ist. Diese Entscheidung gilt. Sie darf aber in
 keiner Analyse verschwiegen werden — offen ist heute:
 
 1. Wer die Adresse kennt, kann den geteilten Zustand ohne Anmeldung abrufen.
-2. Das Verwaltungskennwort liegt im geteilten Zustand mit.
+2. Das Verwaltungskennwort liegt im geteilten Zustand mit (als djb2-Fingerabdruck;
+   seit `v76` gilt eine Änderung dadurch tatsächlich auf allen Geräten). Ebenso
+   das Passwort des Neuaufbaus.
 3. Bearbeiten zwei Geräte gleichzeitig, kann eines das andere still überschreiben.
+4. Den Live-Schalter (`PUT /api/raeume`) kann betätigen, wer das Passwort des
+   Neuaufbaus kennt — oder dessen Fingerabdruck aus Punkt 1/2 liest. Er schützt
+   vor dem Versehen, nicht vor der Absicht; Daten bewegt oder löscht er nicht.
 
 Punkt 3 ist der einzige, der im Alltag Daten kosten kann.
 
@@ -425,7 +430,9 @@ Bezeichnung):
 Drei Dinge kann kein Entwickler übernehmen:
 
 1. **Verwaltungskennwort ändern** (☰ → Passwort ändern). Es steht noch das
-   ausgelieferte.
+   ausgelieferte. Seit `v76` gilt die Änderung auf allen Geräten. Wer mag, ändert
+   auch das Passwort des Neuaufbaus (Verwaltung → 🧪 Neuaufbau → „Passwort des
+   Neuaufbaus ändern").
 2. **Fachliche Durchsicht** der Erkennungsregeln (`data/merkmale.json`,
    `data/zerlegung.json`) — ob „Abdeckung" im Haus ein Material oder eine Tätigkeit
    ist, weiß nur das Labor.

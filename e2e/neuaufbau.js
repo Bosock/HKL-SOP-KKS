@@ -43,14 +43,16 @@ function bestandsSchluessel(page) {
   const karte = await page.evaluate(() => [...document.querySelectorAll('#scr-admin .vp-title')].some(t => t.textContent === 'Neuaufbau'));
   r.check('Verwaltung zeigt die Karte „Neuaufbau"', karte);
 
-  /* Zweitpasswort festlegen: zu kurz, verschieden, gleich dem Verwaltungspasswort → abgelehnt */
+  /* Hinein mit dem Zweitpasswort — Vorgabe „abcdefg", kein Festlegen vorab.
+     Ein falsches Passwort hält draußen. */
   await page.evaluate(() => { const d = [...document.querySelectorAll('#scr-admin details.vpanel')].find(x => x.querySelector('.vp-title').textContent === 'Neuaufbau'); d.open = true; });
-  const pruef = await page.evaluate(() => [raumPwPruefeNeu('ab', 'ab'), raumPwPruefeNeu('geheim1', 'geheim2'), raumPwPruefeNeu('1234567', '1234567'), raumPwPruefeNeu('geheim1', 'geheim1')]);
-  r.check('zu kurz / verschieden / gleich dem Verwaltungspasswort werden abgewiesen', !!pruef[0] && !!pruef[1] && !!pruef[2] && pruef[3] === '');
-
-  await page.fill('#raumPwNeu1', 'testraum');
-  await page.fill('#raumPwNeu2', 'testraum');
-  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('text=Festlegen und betreten')]);
+  r.check('das Passwortfeld steht gleich da (kein „Festlegen")', await page.evaluate(() => !!document.getElementById('raumPwEin') && !document.getElementById('raumPwNeu1')));
+  await page.fill('#raumPwEin', '1234567');
+  await page.click('text=Neuaufbau betreten');
+  await page.waitForTimeout(400);
+  r.check('das Verwaltungspasswort öffnet den Neuaufbau nicht', await page.evaluate(() => RAUM.id === 'bestand' && localStorage.getItem('hkl_raumwahl') === null));
+  await page.fill('#raumPwEin', 'abcdefg');
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('text=Neuaufbau betreten')]);
   await warte(page, () => typeof RAUM !== 'undefined' && typeof onStoreSet === 'function' && DB);
 
   /* ── 2. Im Neuaufbau ── */
@@ -64,8 +66,8 @@ function bestandsSchluessel(page) {
   r.check('Fenstertitel nennt den Raum', /^Neuaufbau/.test(nb.titel));
   r.check('direkt angemeldet (kein drittes Passwort)', nb.admin === true);
   r.check('kein Referenzkatalog geladen', await page.evaluate(() => typeof CATDATA === 'undefined' || !CATDATA || !Object.keys(CATDATA.eintraege || CATDATA || {}).length));
-  const amPasswort = await json(srv.base, '/api/state');
-  r.check('das Zweitpasswort liegt im Bestand (nur Fingerabdruck)', typeof amPasswort.state.hkl_raumpw === 'string' && amPasswort.state.hkl_raumpw !== 'testraum');
+  r.check('das Verwaltungspasswort des Neuaufbaus ist „abcdefg", nicht das des Bestands',
+    await page.evaluate(() => checkPw('abcdefg') && !checkPw('1234567')));
 
   /* Ausgangslage des Bestands festhalten — ab hier darf sich daran nichts ändern. */
   const bestandVorher = await json(srv.base, '/api/state');
@@ -107,13 +109,25 @@ function bestandsSchluessel(page) {
   r.check('„Verlassen" führt in den Bestand', zurueck.id === 'bestand' && !zurueck.leiste);
   r.check('Bestand sieht nichts vom Neuaufbau', zurueck.titel === 'Bestand-Titel' && !zurueck.eigener);
 
-  /* ── 4. Wieder hinein: falsches Passwort hält draußen, richtiges öffnet den alten Stand ── */
+  /* ── 4. Zweitpasswort ändern, dann wieder hinein: das alte hält draußen,
+     das neue öffnet den alten Stand ── */
   await page.evaluate(() => setMode('admin'));
-  await page.evaluate(() => { const d = [...document.querySelectorAll('#scr-admin details.vpanel')].find(x => x.querySelector('.vp-title').textContent === 'Neuaufbau'); d.open = true; });
-  await page.fill('#raumPwEin', 'falsch');
+  await page.evaluate(() => { document.getElementById('raumKarte').open = true; document.getElementById('raumPwAendern').open = true; });
+  await page.waitForTimeout(300);
+  await page.fill('#raumPwAlt', 'abcdefg');
+  await page.fill('#raumPwAend1', 'testraum');
+  await page.fill('#raumPwAend2', 'testraum');
+  await page.click('#raumKarte button:has-text("Passwort ändern")');
+  await warte(page, () => document.getElementById('syncDot').className.includes('ok'), null, 8000);
+  await page.waitForTimeout(1200);
+  const amPasswort = await json(srv.base, '/api/state');
+  r.check('das geänderte Zweitpasswort liegt im Bestand — nur als Fingerabdruck', typeof amPasswort.state.hkl_raumpw === 'string'
+    && amPasswort.state.hkl_raumpw !== 'testraum' && amPasswort.state.hkl_raumpw === (await page.evaluate(() => pwHash('testraum'))));
+  await page.evaluate(() => { document.getElementById('raumKarte').open = true; });
+  await page.fill('#raumPwEin', 'abcdefg');
   await page.click('text=Neuaufbau betreten');
   await page.waitForTimeout(400);
-  r.check('falsches Zweitpasswort: bleibt im Bestand', await page.evaluate(() => RAUM.id === 'bestand' && localStorage.getItem('hkl_raumwahl') === null));
+  r.check('nach dem Ändern öffnet die Vorgabe nicht mehr', await page.evaluate(() => RAUM.id === 'bestand' && localStorage.getItem('hkl_raumwahl') === null));
   await page.fill('#raumPwEin', 'testraum');
   await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('text=Neuaufbau betreten')]);
   await warte(page, () => typeof RAUM !== 'undefined' && RAUM.id === 'neuaufbau' && DB && DB.standards.length === 1);
@@ -136,7 +150,7 @@ function bestandsSchluessel(page) {
   const nbNachSchalter = await json(srv.base, '/api/state?raum=neuaufbau');
   r.check('… ohne Bestandsdaten in den Neuaufbau zu tragen (keine Erstbefüllung)',
     !nbNachSchalter.state.hkl_overrides && nbNachSchalter.rev === nbVorSchalter.rev);
-  r.check('… und sieht den Neuaufbau', await kollege.page.evaluate(() => DB.standards.length === 1 && !!document.getElementById('raumLeiste')));
+  r.check('… und sieht den Neuaufbau — als Live-Raum ohne Band', await kollege.page.evaluate(() => DB.standards.length === 1 && !document.getElementById('raumLeiste')));
   r.check('der Live-Zeiger lenkt Anfragen ohne Raum NICHT um (Bestand bleibt Bestand)',
     !!(await json(srv.base, '/api/state')).state.hkl_overrides['nur-im-bestand']);
 

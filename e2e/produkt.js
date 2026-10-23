@@ -165,7 +165,7 @@ async function speichern(page) {
 
   /* ── 8. Im Bestand: nichts davon — bis es freigegeben wird ── */
   const b = await bootPage(browser, srv.base);
-  await b.page.evaluate(() => { doLogin('1234567'); raumPwSetzen('testraum'); openScanItem('04012345678901', true); });
+  await b.page.evaluate(() => { doLogin('1234567'); openScanItem('04012345678901', true); });
   const vorFrei = await b.page.evaluate(() => ({ syn: !!document.getElementById('pdSyn'), pack: !!document.getElementById('pdPack'), rollen: document.querySelectorAll('.gal-schnell').length, bzh: !!document.getElementById('bzhBox'), gudid: !!document.getElementById('pdGudid'), leiste: !!document.getElementById('raumLeiste') }));
   r.check('Bestand: Produktformular wie immer (keine Neuerung sichtbar)', !vorFrei.syn && !vorFrei.pack && !vorFrei.rollen && !vorFrei.bzh && !vorFrei.gudid && !vorFrei.leiste);
   await b.page.evaluate(() => setMode('admin'));
@@ -174,7 +174,7 @@ async function speichern(page) {
   await b.page.click('button:has-text("Freigaben anzeigen")');
   r.check('Freigaben nur mit dem Zweitpasswort', await b.page.locator('#raumFreigaben input[type=checkbox]').count() === 0);
   await b.page.evaluate(() => { document.querySelector('#raumFreigaben').open = true; });
-  await b.page.fill('#raumPwFrei', 'testraum');
+  await b.page.fill('#raumPwFrei', 'abcdefg');   /* Vorgabe des Zweitpassworts */
   await b.page.click('button:has-text("Freigaben anzeigen")');
   await b.page.waitForTimeout(150);
   r.check('… dann je Neuerung ein Schalter', await b.page.locator('#raumFreigaben input[type=checkbox]').count() === 7);

@@ -20,7 +20,8 @@ let onStoreSet=null;
    Baustein der App muss wissen, in welchem Raum er gerade arbeitet.
 
    Welcher Raum gilt, entscheidet sich einmal beim Laden der Seite:
-     1. eine bewusste Wahl auf diesem Gerät (nur per Zweitpasswort gesetzt),
+     1. eine bewusste Wahl auf diesem Gerät (Zweitpasswort bzw. „alten
+        Bestand ansehen"),
      2. sonst der Raum, den der Server zuletzt als „live" gemeldet hat,
      3. sonst der Bestand.
    Ein Raumwechsel lädt die Seite neu — nie wird im laufenden Betrieb
@@ -35,37 +36,41 @@ const RAEUME_DEF={
 const RAUM_WAHL_KEY='hkl_raumwahl';
 const RAUM_LIVE_KEY='hkl_liveraum';
 function raumRoh(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function raumBekannt(x){ return !!x && Object.prototype.hasOwnProperty.call(RAEUME_DEF,x); }
 const RAUM=(()=>{
   const w=raumRoh(RAUM_WAHL_KEY), l=raumRoh(RAUM_LIVE_KEY);
-  const has=(x)=>!!x && Object.prototype.hasOwnProperty.call(RAEUME_DEF,x);
-  const gewaehlt=has(w);
-  const id=gewaehlt?w:(has(l)?l:'bestand');
+  const gewaehlt=raumBekannt(w);
+  const id=gewaehlt?w:(raumBekannt(l)?l:'bestand');
   const d=RAEUME_DEF[id];
-  /* neu = hier laufen die Neuerungen, die (noch) nur dem Neuaufbau gehören. */
-  return Object.freeze({ id, titel:d.titel, basis:d.basis, praefix:d.praefix, gewaehlt, neu:id!=='bestand' });
+  /* neu = hier laufen die Neuerungen, die (noch) nur dem Neuaufbau gehören.
+     wahl = die bewusste Wahl dieses Geräts (null: es folgt dem Live-Raum). */
+  return Object.freeze({ id, titel:d.titel, basis:d.basis, praefix:d.praefix, gewaehlt, wahl:gewaehlt?w:null, neu:id!=='bestand' });
 })();
 /* Raumangabe für Anfragen an den Server. Für den Bestand LEER — seine
    Anfragen sehen exakt so aus wie vor der Einführung der Räume. */
 function raumParam(trenner){ return RAUM.id==='bestand' ? '' : ((trenner||'?')+'raum='+encodeURIComponent(RAUM.id)); }
 /* Raum wechseln: nur die Wahl wird gesetzt, der Wechsel selbst geschieht beim
-   Neuladen (siehe oben). `sitzungBis` meldet im Zielraum gleich an — wer das
-   Zweitpasswort kennt, muss nicht noch ein drittes Mal tippen. */
+   Neuladen (siehe oben). `id` null heißt: keine eigene Wahl, dem Live-Raum
+   folgen. `sitzungBis` meldet im Zielraum gleich an — wer das Zweitpasswort
+   kennt, muss nicht noch ein drittes Mal tippen. */
 function raumWaehlen(id, sitzungBis){
   try{
-    if(id && id!=='bestand'){
-      if(!Object.prototype.hasOwnProperty.call(RAEUME_DEF,id)) return false;
+    if(id){
+      if(!raumBekannt(id)) return false;
       localStorage.setItem(RAUM_WAHL_KEY, id);
-      if(sitzungBis) localStorage.setItem(RAEUME_DEF[id].praefix+'hkl_authuntil', String(sitzungBis));
     } else {
       localStorage.removeItem(RAUM_WAHL_KEY);
     }
+    const ziel = id || raumLiveGemerkt();
+    if(sitzungBis && ziel!=='bestand') localStorage.setItem(RAEUME_DEF[ziel].praefix+'hkl_authuntil', String(sitzungBis));
     return true;
   }catch(e){ return false; }
 }
-/* Der Server meldet einen anderen Live-Raum: merken (gilt ab dem nächsten
-   Laden für Geräte ohne eigene Wahl). */
+/* Der Live-Raum, wie ihn der Server zuletzt gemeldet hat (Vorgabe: Bestand). */
+function raumLiveGemerkt(){ const l=raumRoh(RAUM_LIVE_KEY); return raumBekannt(l) ? l : 'bestand'; }
+/* Den gemeldeten Live-Raum merken — nur schreiben, wenn er sich ändert. */
 function raumLiveMerken(id){
-  try{ if(Object.prototype.hasOwnProperty.call(RAEUME_DEF,id)) localStorage.setItem(RAUM_LIVE_KEY, id); }catch(e){}
+  try{ if(raumBekannt(id) && localStorage.getItem(RAUM_LIVE_KEY)!==id) localStorage.setItem(RAUM_LIVE_KEY, id); }catch(e){}
 }
 
 /* Speicher-Wrapper um localStorage mit zwei Absicherungen:

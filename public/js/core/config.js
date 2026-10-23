@@ -3,13 +3,28 @@
    DEFAULT_NAT sind die Voreinstellungen im Code. Sie werden von
    deinen über die Oberfläche gemachten Änderungen überschrieben.
    ───────────────────────────────────────────────────────────── */
-/* Passwort-Schutz (Komfort, keine echte Sicherheit). Start-Passwort: 1234567; in der App änderbar. */
-const AUTH_DEFAULT_PW='1234567';
+/* Passwort-Schutz (Komfort, keine echte Sicherheit). Jeder Raum hat sein
+   eigenes Verwaltungspasswort (core/store.js, RAUM): Der Bestand behält sein
+   bisheriges — Vorgabe 1234567 —, der Neuaufbau beginnt mit „abcdefg".
+   Beide sind in der App änderbar. */
+const AUTH_DEFAULT_PW=(typeof RAUM!=='undefined' && RAUM.id==='neuaufbau') ? 'abcdefg' : '1234567';
 const AUTH_TTL=3600*1000; /* Verwaltungsmodus bleibt bis 1 Stunde Inaktivität aktiv */
 function pwHash(s){ let h=5381; s=String(s); for(let i=0;i<s.length;i++){ h=(((h<<5)+h)+s.charCodeAt(i))>>>0; } return 'h'+h.toString(36); }
-function getAuthHash(){ return store.get('hkl_authpw') || pwHash(AUTH_DEFAULT_PW); }
+/* Das Passwort wird als JSON gespeichert und damit über alle Geräte geteilt
+   (core/sync.js schickt nur, was sich als JSON lesen lässt). Bis Oktober 2026
+   lag es als roher Text im Speicher — der Abgleich hat es still übergangen,
+   eine Änderung galt also nur auf dem einen Gerät. Ein solcher ALTER Wert gilt
+   weiter, aber nur dort, wo er gesetzt wurde: So verliert niemand seinen
+   Zugang, und ein altes Passwort wird nicht plötzlich allen aufgezwungen.
+   Sobald jemand das Passwort neu setzt, gilt es auf allen Geräten. */
+function getAuthHash(){
+  const roh=store.get('hkl_authpw');
+  if(!roh) return pwHash(AUTH_DEFAULT_PW);
+  try{ const v=JSON.parse(roh); if(typeof v==='string' && v) return v; }catch(e){ /* alter, roher Wert */ }
+  return roh;
+}
 function checkPw(pw){ return pwHash(pw)===getAuthHash(); }
-function setAuthPw(pw){ store.set('hkl_authpw', pwHash(pw)); }
+function setAuthPw(pw){ saveJSON('hkl_authpw', pwHash(pw)); }
 function authValid(){ return Date.now() < (+(store.get('hkl_authuntil')||0)); }
 function refreshAuth(){ if(ADMIN) store.set('hkl_authuntil', String(Date.now()+AUTH_TTL)); }
 const DEFAULT_NAT=[

@@ -3,7 +3,9 @@ const BACKUP_KEYS=['hkl_natcfg','hkl_overrides','hkl_reassign','hkl_ukmap','hkl_
 function buildBackup(){ const daten={}; BACKUP_KEYS.forEach(k=>{ const raw=store.get(k); if(raw==null) return; try{ daten[k]=JSON.parse(raw); }catch(e){ daten[k]=raw; } });
   return { __hkl:'hkl-anpassungen', version:1, erstellt:new Date().toISOString(), daten }; }
 function applyBackup(obj){ if(!obj||obj.__hkl!=='hkl-anpassungen'||!obj.daten) throw new Error('ungueltig');
-  BACKUP_KEYS.forEach(k=>{ if(k in obj.daten){ const v=obj.daten[k]; store.set(k, (typeof v==='string')?v:JSON.stringify(v)); } }); }
+  /* Das Verwaltungspasswort immer als JSON zurückschreiben — als roher Text
+     bliebe es auf diesem Gerät liegen statt für alle zu gelten (core/config.js). */
+  BACKUP_KEYS.forEach(k=>{ if(k in obj.daten){ const v=obj.daten[k]; store.set(k, (typeof v==='string' && k!=='hkl_authpw')?v:JSON.stringify(v)); } }); }
 function exportBackup(){ try{ const obj=buildBackup(); const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='hkl-anpassungen-'+today()+'.json';
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast('Sicherung heruntergeladen'); }catch(e){ toast('Export fehlgeschlagen',true); } }
