@@ -284,8 +284,47 @@ function merkRefFelder(ref, grammatik){
    Merkmale überhaupt gefragt sind — und würde an einer Kompresse nach
    Kurvenformen suchen. Bewertet wird über die Signalwörter der Klasse;
    längere Wörter zählen mehr, weil sie eindeutiger sind. */
+/* Für den Klassenvergleich falten: Kleinschreibung, Umlaute zur Grundform —
+   und das „ii", das die englische Texterkennung aus einem „ü" macht
+   („Fiihrungsdraht"). Nur für den VERGLEICH, nie für die Anzeige. Rein. */
+function merkFalte(s){
+  return String(s==null?'':s).toLowerCase()
+    .replace(/ü/g,'u').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ß/g,'ss')
+    .replace(/([a-z])ii(?=[a-z])/g,'$1u');
+}
+/* Editierdistanz mit Obergrenze (bricht früh ab). Rein. */
+function merkNahe(a, b, max){
+  if(Math.abs(a.length-b.length)>max) return false;
+  let prev=[]; for(let j=0;j<=b.length;j++) prev[j]=j;
+  for(let i=1;i<=a.length;i++){ const cur=[i]; let zeileMin=i;
+    for(let j=1;j<=b.length;j++){ cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1));
+      if(cur[j]<zeileMin) zeileMin=cur[j]; }
+    if(zeileMin>max) return false; prev=cur; }
+  return prev[b.length]<=max;
+}
+/* Steht das Signalwort UNSCHARF im Text? Für lange Wörter (≥ 9 Zeichen)
+   gleicht ein Lesefehler aus („Diagnostic Cathete" am Bildrand, „Introducef");
+   ab 16 Zeichen zwei. Kurze Wörter nur exakt — dort wäre ein Fehlgriff zu
+   leicht. Verglichen wird Wortfolge gegen Wortfolge. Rein. */
+function merkUnscharf(woerter, wort){
+  if(wort.length<9) return false;
+  const max=wort.length>=16?2:1;
+  const k=wort.split(' ').length;
+  for(let i=0;i+k<=woerter.length;i++){
+    const seg=woerter.slice(i,i+k).join(' ');
+    if(merkNahe(seg, wort, max)) return true;
+  }
+  return false;
+}
+
+/* Welche Materialart liegt hier? Ohne Klasse wüsste die App nicht, welche
+   Merkmale überhaupt gefragt sind — und würde an einer Kompresse nach
+   Kurvenformen suchen. Bewertet wird über die Signalwörter der Klasse;
+   längere Wörter zählen mehr, weil sie eindeutiger sind. Ein nur unscharf
+   gefundenes Wort zählt einen Punkt weniger als ein exaktes. */
 function merkKlassifizieren(text, klassen){
-  const t = merkNormText(text).toLowerCase();
+  const t = merkFalte(merkNormText(text));
+  const woerter = t.split(/[^a-z0-9\-]+/).filter(Boolean);
   const liste = klassen || (MERKKAT && MERKKAT.klassen) || [];
   let beste = null, bestPunkte = 0;
   const alle = [];
@@ -293,13 +332,16 @@ function merkKlassifizieren(text, klassen){
     /* Ausschlusswörter zuerst: „Ablationskatheter" steckt wörtlich in
        „Kryoablationskatheter". Ohne Ausschluss gewänne die HF-Ablation bei
        jedem Kryokatheter. Das ist der Preis dafür, dass Klassen über Wörter
-       erkannt werden — und der Katalog löst es ohne Codeänderung. */
-    const aus = (k.nicht||[]).some(w=>{ const wl=String(w||'').toLowerCase(); return wl && t.indexOf(wl)>=0; });
+       erkannt werden — und der Katalog löst es ohne Codeänderung. Ausschluss
+       bleibt bewusst EXAKT: ein unscharfer Ausschluss nähme zu viel weg. */
+    const aus = (k.nicht||[]).some(w=>{ const wl=merkFalte(w); return wl && t.indexOf(wl)>=0; });
     if(aus) return;
     let p = 0;
     (k.worte||[]).forEach(w=>{
-      const wl = String(w||'').toLowerCase();
-      if(wl && t.indexOf(wl) >= 0) p += wl.length;
+      const wl = merkFalte(w);
+      if(!wl) return;
+      if(t.indexOf(wl) >= 0) p += wl.length;
+      else if(merkUnscharf(woerter, wl)) p += wl.length - 1;
     });
     if(p > 0) alle.push({ id:k.id, label:k.label, punkte:p });
     if(p > bestPunkte){ bestPunkte = p; beste = k; }

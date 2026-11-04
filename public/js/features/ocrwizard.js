@@ -17,6 +17,13 @@
 
    Am Ende steht eine Übersicht mit Herkunftsangabe je Feld. Übernommen wird
    nur, was der Nutzer sieht und bestätigt — und nur in LEERE Formularfelder.
+
+   MEHRERE ETIKETTFOTOS (2026-11): Ist das Ergebnis unsicher, bietet die
+   Prüfseite ein weiteres Foto an (bis zu drei) und sagt konkret, was daran
+   besser werden kann (Licht, Abstand, Spiegelung). Jedes Foto wird nur
+   EINMAL gelesen; zusammengeführt wird über alle (ocrZusammenfuehren).
+   Pflicht ist das nie — wer mit einem Foto ein gutes Ergebnis hat, sieht
+   nur einen kleinen Link.
    ───────────────────────────────────────────────────────────── */
 
 /* Zustand des laufenden Dialogs. */
@@ -29,7 +36,7 @@ const WIZ_SCHRITTE = [
   { id:'barcode', titel:'Barcode fotografieren',
     hilfe:'Ganz nah an den Barcode oder den DataMatrix-Code (das kleine Quadrat). Der Code darf das Bild ruhig ausfüllen — daraus kommt die Produktnummer exakt, ganz ohne Texterkennung.' },
   { id:'etikett', titel:'Etikett fotografieren',
-    hilfe:'Jetzt das ganze Etikett, möglichst gerade von oben und formatfüllend. Daraus werden REF, Hersteller, Maße und Eigenschaften gelesen.' },
+    hilfe:'Jetzt das ganze Etikett, möglichst gerade von oben und formatfüllend, bei gutem Licht. Daraus werden REF, Hersteller, Maße und Eigenschaften gelesen. Tipp: Die Nachtaufnahme der Kamera-App hilft bei wenig Licht.' },
   { id:'pruefen', titel:'Ergebnis prüfen',
     hilfe:'Alles noch einmal ansehen. Übernommen wird nur, was hier steht — und nur in leere Felder.' },
 ];
@@ -96,7 +103,8 @@ function ocrWizStart(opt){
   if(!opt.adminfrei && typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>ocrWizStart(opt)); return; } }
   let fokus=null; try{ fokus=document.activeElement; }catch(e){}
   WIZ={ schritt:0, gtin:'', gtinTreffer:null, barcodeRef:'', fields:{}, refInfo:null,
-        kandidaten:[], fotoBarcode:null, fotoEtikett:null, meldung:'', busy:false, lastFocus:fokus,
+        kandidaten:[], fotoBarcode:null, fotoEtikett:null, fotosEtikett:[], fotoErg:[], fest:{}, erg:null,
+        meldung:'', busy:false, lastFocus:fokus,
         fertig:(typeof opt.fertig==='function')?opt.fertig:null };
   const el=wizEnsure();
   el.classList.add('show'); el.setAttribute('aria-hidden','false');
@@ -132,7 +140,8 @@ function wizRender(){
       <div class="wiz-actions">
         <button type="button" class="btn btn-pri" onclick="wizShoot('etikett')">📷 ${WIZ.fotoEtikett?'Neu aufnehmen':'Etikett aufnehmen'}</button>
         <button type="button" class="btn btn-sec" onclick="wizNext()">${WIZ.fotoEtikett?'Weiter':'Überspringen'}</button>
-      </div>`;
+      </div>
+      <button type="button" class="wiz-link" onclick="wizShoot('galerie')">Fotos aus der Galerie wählen (bis ${WIZ_MAX_FOTOS} vom selben Etikett)</button>`;
   } else {
     inhalt=wizPruefenHTML();
   }
@@ -158,6 +167,7 @@ function wizPruefenHTML(){
   if(!zeilen.length && !merkTeil){
     return `<div class="wiz-leer"><div class="ei">🔍</div><h3>Nichts sicher erkannt</h3>
       <p>Lieber leer als falsch. Bitte näher, gerader und bei besserem Licht fotografieren – oder die Felder von Hand ausfüllen.</p></div>
+      ${wizWeiteresFotoHTML()}
       <div class="wiz-actions"><button type="button" class="btn btn-sec" onclick="wizBack()">Zurück</button><button type="button" class="btn btn-pri" onclick="wizClose()">Schließen</button></div>`;
   }
   const rows=zeilen.map(z=>`<div class="wiz-row"><div class="wiz-l">${esc(z[0])}</div><div class="wiz-v">${esc(z[1])}</div><div class="wiz-q">${esc(z[2])}</div></div>`).join('');
@@ -165,9 +175,16 @@ function wizPruefenHTML(){
     ? `<div class="wiz-wahl"><div class="wiz-wahl-t">Mehrere passende REFs im Bestand – bitte auswählen:</div>
        ${WIZ.refInfo.kandidaten.map(k=>`<button type="button" class="wiz-chip" data-r="${esc(k)}" onclick="wizPickRef(this.dataset.r)">${esc(k)}</button>`).join('')}</div>`
     : '';
+  /* REF nicht sicher: lieber leer — aber die besten Lesungen zum Antippen. */
+  const vorschl=(!(WIZ.fields&&WIZ.fields.ref) && WIZ.refInfo && (WIZ.refInfo.vorschlaege||[]).length)
+    ? `<div class="wiz-wahl"><div class="wiz-wahl-t">${WIZ.refInfo.unsicherGelesen
+        ? 'REF unsicher gelesen (O/0, I/1, S/5 …?). Bitte Zeichen für Zeichen mit dem Etikett vergleichen – Antippen übernimmt sie:'
+        : 'REF nicht sicher erkannt. Steht eine davon auf dem Etikett? Antippen übernimmt sie:'}</div>
+       ${WIZ.refInfo.vorschlaege.map(k=>`<button type="button" class="wiz-chip" data-r="${esc(k)}" onclick="wizPickRef(this.dataset.r)">${esc(k)}</button>`).join('')}</div>`
+    : '';
   const fotoAdd=(WIZ.fotoEtikett||WIZ.fotoBarcode)
     ? `<label class="wiz-check"><input type="checkbox" id="wizFotoAdd" checked> Aufnahmen als Materialfotos übernehmen</label>` : '';
-  return `<div class="wiz-list">${rows}</div>${mehrdeutig}${merkTeil}${fotoAdd}
+  return `<div class="wiz-list">${rows}</div>${mehrdeutig}${vorschl}${wizWeiteresFotoHTML()}${merkTeil}${fotoAdd}
     <p class="wiz-note">Alle Werte sind Vorschläge. Übernommen wird nur in <b>leere</b> Felder – bereits Eingetragenes bleibt unangetastet.</p>
     <div class="wiz-actions">
       <button type="button" class="btn btn-sec" onclick="wizBack()">Zurück</button>
@@ -175,6 +192,36 @@ function wizPruefenHTML(){
     </div>`;
 }
 
+
+/* Höchstens so viele Etikettfotos: Ab dem dritten bringt ein weiteres am
+   Messstand nichts mehr, kostet aber jedes Mal einige Sekunden. */
+const WIZ_MAX_FOTOS=3;
+
+/* Alle Qualitätshinweise der bisherigen Etikettfotos, ohne Doppelungen. Rein. */
+function wizHinweise(w){
+  const out=[];
+  ((w&&w.erg&&w.erg.qualitaet)||[]).forEach(q=>{
+    (typeof ocrQualitaetsHinweise==='function'?ocrQualitaetsHinweise(q):[]).forEach(h=>{ if(out.indexOf(h)<0) out.push(h); }); });
+  return out;
+}
+
+/* Angebot „weiteres Foto": deutlich, wenn das Ergebnis unsicher ist — sonst
+   nur ein kleiner Link. Nach dem dritten Foto nichts mehr. */
+function wizWeiteresFotoHTML(){
+  if(!WIZ || !(WIZ.fotoErg||[]).length) return '';
+  const n=WIZ.fotoErg.length;
+  if(n>=WIZ_MAX_FOTOS) return `<p class="wiz-note">${n} Fotos gemeinsam ausgewertet.</p>`;
+  const unsicher=(typeof ocrNochEinFoto==='function') ? ocrNochEinFoto(WIZ.erg) : false;
+  const hinweise=wizHinweise(WIZ);
+  if(!unsicher){
+    return `<button type="button" class="wiz-link" onclick="wizShoot('weiteres')">Weiteres Foto zur Absicherung (${n}/${WIZ_MAX_FOTOS})</button>`;
+  }
+  return `<div class="wiz-mehr">
+      <div class="wiz-mehr-t">Ergebnis noch unsicher – ein weiteres Foto vom selben Etikett hilft${n>1?' (alle Fotos werden gemeinsam ausgewertet)':''}.</div>
+      ${hinweise.length?`<ul class="wiz-mehr-l">${hinweise.map(h=>`<li>${esc(h)}</li>`).join('')}</ul>`:'<div class="wiz-sub">Am besten aus einem leicht anderen Winkel.</div>'}
+      <button type="button" class="btn btn-pri" onclick="wizShoot('weiteres')">📷 Weiteres Foto (${n+1}/${WIZ_MAX_FOTOS})</button>
+    </div>`;
+}
 
 /* ═══ MERKMALE im Assistenten ═══════════════════════════════════
    Derselbe Etikettentext, zweite Auswertung: diesmal nach typisierten
@@ -264,13 +311,25 @@ function wizBack(){ if(!WIZ) return; WIZ.schritt=Math.max(0, WIZ.schritt-1); wiz
 /* Öffnet die Kamera und verarbeitet das Bild je nach Schritt. */
 function wizShoot(art){
   const inp=document.createElement('input');
-  inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment'); inp.style.display='none';
-  inp.onchange=()=>{ const f=inp.files&&inp.files[0];
+  inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  /* Galerie: ohne capture, mit Mehrfachauswahl — für Fotos, die schon mit der
+     Kamera-App gemacht wurden (deren Nachtmodus ist im Dunkeln unschlagbar). */
+  if(art==='galerie') inp.multiple=true; else inp.setAttribute('capture','environment');
+  inp.onchange=async ()=>{ const files=Array.from(inp.files||[]);
     try{ document.body.removeChild(inp); }catch(e){}
-    if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{ if(art==='barcode') wizDoBarcode(r.result); else wizDoEtikett(r.result, art==='beides'); };
-    r.readAsDataURL(f);
+    if(!files.length) return;
+    const lies=(f)=>new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(f); });
+    if(art==='barcode'){ const d=await lies(files[0]); if(d) wizDoBarcode(d); return; }
+    if(art==='galerie'){
+      const frei=WIZ_MAX_FOTOS-((WIZ&&WIZ.fotoErg)||[]).length;
+      const liste=[]; for(const f of files.slice(0,Math.max(1,frei))){ const d=await lies(f); if(d) liste.push(d); }
+      if(files.length>frei) toast('Es werden höchstens '+WIZ_MAX_FOTOS+' Fotos je Etikett ausgewertet.');
+      if(liste.length) wizDoEtikettMehrere(liste, true);
+      return;
+    }
+    const d=await lies(files[0]); if(!d) return;
+    if(art==='weiteres') wizDoEtikettMehrere([d], true);
+    else wizDoEtikett(d, art==='beides');
   };
   document.body.appendChild(inp); inp.click();
 }
@@ -278,7 +337,7 @@ function wizShoot(art){
 /* Schritt ①: Barcode lesen und die Nummer auflösen. */
 async function wizDoBarcode(dataUrl){
   if(!WIZ) return;
-  WIZ.fotoBarcode=dataUrl;
+  WIZ.fotoBarcode=dataUrl; WIZ.fest={};
   wizBusy(true,'Barcode lesen …');
   let code=null;
   try{ code=await ocrBarcodeFromImage(dataUrl); }catch(e){}
@@ -290,40 +349,64 @@ async function wizDoBarcode(dataUrl){
     return;
   }
   WIZ.gtin=code.gtin?((typeof gtinKey==='function')?gtinKey(code.gtin):code.gtin):'';
-  if(code.itemRef){ WIZ.barcodeRef=code.itemRef; WIZ.fields.ref=code.itemRef; }
+  if(code.itemRef){ WIZ.barcodeRef=code.itemRef; WIZ.fields.ref=code.itemRef; WIZ.fest.ref=code.itemRef; }
   if(WIZ.gtin && typeof gtinAufloesen==='function'){
     wizBusy(true,'Nummer nachschlagen …');
     try{
       const t=await gtinAufloesen(WIZ.gtin);
       if(t){ WIZ.gtinTreffer=t;
-        if(t.ref && !WIZ.fields.ref) WIZ.fields.ref=t.ref;
-        if(t.name && !WIZ.fields.name) WIZ.fields.name=t.name;
-        if(t.hersteller && !WIZ.fields.hersteller) WIZ.fields.hersteller=t.hersteller; }
+        ['ref','name','hersteller'].forEach(k=>{ if(t[k] && !WIZ.fest[k]) WIZ.fest[k]=t[k]; if(t[k] && !WIZ.fields[k]) WIZ.fields[k]=t[k]; }); }
     }catch(e){}
   }
   WIZ.busy=false; WIZ.schritt=1; wizRender();
 }
 
-/* Schritt ②: Etikett lesen. `auchBarcode` = das eine Foto soll beides leisten. */
+/* Schritt ②: Etikett lesen. `auchBarcode` = das eine Foto soll beides leisten.
+   Ein NEUES erstes Foto ersetzt die bisherigen; weitere kommen über
+   wizDoEtikettMehrere dazu. */
 async function wizDoEtikett(dataUrl, auchBarcode){
   if(!WIZ) return;
-  WIZ.fotoEtikett=dataUrl;
+  WIZ.fotosEtikett=[]; WIZ.fotoErg=[];
+  return wizDoEtikettMehrere([dataUrl], auchBarcode);
+}
+
+/* Liest die neuen Fotos (jedes genau einmal), führt ALLE bisherigen
+   Etikettfotos zusammen und baut die Prüfseite neu. Was Barcode und
+   Nachschlag schon festgestellt haben (WIZ.fest), bleibt vorrangig. */
+async function wizDoEtikettMehrere(neue, auchBarcode){
+  if(!WIZ) return;
+  const liste=(neue||[]).filter(Boolean);
+  if(!liste.length) return;
   wizBusy(true,'Etikett lesen …');
   try{
-    const erg=await ocrReadLabel(dataUrl, (t)=>{ if(WIZ){ WIZ.meldung=t; wizRender(); } });
-    /* Felder zusammenführen: was schon feststeht (Barcode/Nachschlag) bleibt. */
-    Object.keys(erg.fields||{}).forEach(k=>{ if(erg.fields[k] && !WIZ.fields[k]) WIZ.fields[k]=erg.fields[k]; });
-    WIZ.refInfo=erg.refInfo||null; WIZ.kandidaten=erg.kandidaten||[];
+    for(let i=0;i<liste.length;i++){
+      if(WIZ.fotoErg.length>=WIZ_MAX_FOTOS) break;
+      const nr=WIZ.fotoErg.length+1;
+      const vor=(nr>1||liste.length>1)?('Foto '+nr+': '):'';
+      const f=await ocrLeseFotoEinzeln(liste[i], (t)=>{ if(WIZ){ WIZ.meldung=vor+t; wizRender(); } });
+      if(!WIZ) return;
+      WIZ.fotoErg.push(f); WIZ.fotosEtikett.push(liste[i]);
+    }
+    WIZ.fotoEtikett=WIZ.fotosEtikett[0]||null;
+    const erg=ocrZusammenfuehren(WIZ.fotoErg);
+    WIZ.erg=erg;
+    /* Felder: OCR-Ergebnis, darüber das Festgestellte (Barcode/Nachschlag/Wahl). */
+    const felder={};
+    Object.keys(erg.fields||{}).forEach(k=>{ if(erg.fields[k]) felder[k]=erg.fields[k]; });
+    Object.keys(WIZ.fest||{}).forEach(k=>{ if(WIZ.fest[k]) felder[k]=WIZ.fest[k]; });
+    WIZ.fields=felder;
+    WIZ.refInfo=(WIZ.fest&&WIZ.fest.ref)?{ ref:WIZ.fest.ref, wie:WIZ.barcodeRef?'barcode':'gewählt', sicher:true, kandidaten:[], vorschlaege:[] }:(erg.refInfo||null);
+    WIZ.kandidaten=erg.kandidaten||[];
     WIZ.rohRef=erg.refRoh||'';
     WIZ.confidence=erg.confidence; WIZ.schaerfe=erg.schaerfe;
     if(auchBarcode && erg.gtin && !WIZ.gtin){
-      WIZ.gtin=erg.gtin; WIZ.fotoBarcode=WIZ.fotoBarcode||dataUrl;
+      WIZ.gtin=erg.gtin; WIZ.fotoBarcode=WIZ.fotoBarcode||WIZ.fotoEtikett;
       if(typeof gtinAufloesen==='function'){
         try{ const t=await gtinAufloesen(WIZ.gtin); if(t){ WIZ.gtinTreffer=t;
-          if(t.ref && !WIZ.fields.ref) WIZ.fields.ref=t.ref; } }catch(e){}
+          if(t.ref && !WIZ.fields.ref){ WIZ.fields.ref=t.ref; WIZ.fest.ref=t.ref; } } }catch(e){}
       }
     }
-    if(erg.barcode && erg.barcode.itemRef){ WIZ.barcodeRef=erg.barcode.itemRef; WIZ.fields.ref=erg.barcode.itemRef; }
+    if(erg.barcode && erg.barcode.itemRef){ WIZ.barcodeRef=erg.barcode.itemRef; WIZ.fields.ref=erg.barcode.itemRef; WIZ.fest.ref=erg.barcode.itemRef; }
     /* MERKMALE: Denselben Etikettentext noch einmal auswerten — diesmal nach
        typisierten Eigenschaften. Der Volltext liegt schon vor, das kostet
        nichts extra. Die aufgelöste REF geht mit ein, damit die REF-Grammatik
@@ -331,14 +414,15 @@ async function wizDoEtikett(dataUrl, auchBarcode){
     WIZ.text=erg.text||'';
     wizMerkAuswerten();
   }catch(e){ toast('Etikett konnte nicht gelesen werden: '+((e&&e.message)||e), true); }
+  if(!WIZ) return;
   WIZ.busy=false; WIZ.schritt=2; wizRender();
 }
 
 /* Mehrdeutige REF: der Nutzer entscheidet — und die App lernt daraus. */
 function wizPickRef(ref){
   if(!WIZ) return;
-  WIZ.fields.ref=ref;
-  WIZ.refInfo={ ref, wie:'gewählt', sicher:true, kandidaten:[] };
+  WIZ.fields.ref=ref; if(WIZ.fest) WIZ.fest.ref=ref;
+  WIZ.refInfo={ ref, wie:'gewählt', sicher:true, kandidaten:[], vorschlaege:[] };
   if(WIZ.rohRef && typeof refLearn==='function') refLearn(WIZ.rohRef, ref);
   wizMerkAuswerten();     /* andere REF → andere Grammatik → andere Merkmale */
   wizRender();
@@ -364,7 +448,8 @@ function wizApply(){
   const filled=(typeof ocrFillForm==='function')?ocrFillForm(WIZ.fields):{};
   /* Lernschleife vorbereiten: was die OCR roh gelesen hat, merken. */
   if(typeof ocrLastRead!=='undefined') ocrLastRead={ roh:WIZ.rohRef||'', wie:(WIZ.refInfo&&WIZ.refInfo.wie)||'roh', at:Date.now() };
-  const bilder=[WIZ.fotoEtikett, WIZ.fotoBarcode].filter(Boolean);
+  const bilder=((WIZ.fotosEtikett&&WIZ.fotosEtikett.length)?WIZ.fotosEtikett.slice():[WIZ.fotoEtikett]).concat([WIZ.fotoBarcode])
+    .filter((b,i,a)=>b && a.indexOf(b)===i);
   const merkVor=WIZ.merk;
   wizClose();
   if(typeof catCheckForm==='function') catCheckForm();

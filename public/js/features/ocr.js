@@ -41,7 +41,11 @@ function ocrFixDigits(s){ return String(s==null?'':s)
 function extractLabelFields(text){
   const out={ ref:'', lot:'', hersteller:'', name:'', verwendung:'', french:'', laenge:'', dAussen:'', dInnen:'', weitere:'' };
   if(text==null) return out;
-  const raw=String(text);
+  /* Typische Verlesungen von Einheiten glätten — NUR direkt hinter einer
+     Ziffer, damit kein Wort im Fließtext verändert wird: „rn" wird oft für
+     „m" gelesen („110 crn", „2.0 rnm"). */
+  const roh0=String(text);
+  const raw=roh0.replace(/(\d)\s?crn\b/g,'$1 cm').replace(/(\d)\s?(?:rnm|mrn|rnrn)\b/g,'$1 mm');
   const lines=raw.split(/\r?\n/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
   const reEsc=(s)=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const titleCase=(s)=>String(s||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
@@ -55,9 +59,13 @@ function extractLabelFields(text){
   let m;
 
   /* REF: „REF", „REF OEM:", „REF Catalog No.", „Cat.-Nr." … — Rauschwörter
-     (OEM / Catalog No.) zwischen Marke und Wert überspringen. */
-  m = raw.match(/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
-   || raw.match(/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
+     (OEM / Catalog No.) zwischen Marke und Wert überspringen.
+     Das REF-Symbol nach ISO 15223 ist ein KÄSTCHEN um das Wort. Die Engine
+     liest dessen Rand als „|", „]" oder „)" mit: „REF| RSA60K10SQ",
+     „[REF] M0045000CL0". Ohne diese Toleranz fiel die REF auf fast JEDEM
+     echten Etikett durch (Messstand e2e/messen-ocr.js, 2026-11). */
+  m = raw.match(/\bREF\b\s*[\]|)]*\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i)
+   || raw.match(/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?)\b[\]|):.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/i);
   if(m) out.ref=m[1].replace(/[.,]+$/,'');
   /* Fallback: manche Etiketten führen die Bestell-/Katalognummer nur mit „#"
      (z. B. Edwards „# S3UCM223"). Nur ein Buchstaben+Ziffern-Code, damit keine
@@ -65,7 +73,7 @@ function extractLabelFields(text){
   if(!out.ref){ m = raw.match(/(?:^|[\n\s])#\s*([A-Za-z][A-Za-z0-9][A-Za-z0-9\-]{2,})/);
     if(m && /\d/.test(m[1])) out.ref=m[1].replace(/[.,]+$/,''); }
   /* LOT / Charge (auch „LOT OEM:") */
-  m = raw.match(/\b(?:LOT|CHARGE|BATCH)\b\s*(?:OEM\b\s*)?[:.]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})/i);
+  m = raw.match(/\b(?:LOT|CHARGE|BATCH)\b\s*[\]|)]*\s*(?:OEM\b\s*)?[:.]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})/i);
   if(m) out.lot=m[1].replace(/[.,]+$/,'');
 
   /* Hersteller: bekannte Marken wort-genau, längster Treffer gewinnt … */
@@ -106,6 +114,14 @@ function extractLabelFields(text){
      o. Ä. nicht getroffen wird. */
   if(!out.french){ m = raw.match(/(?:^|\s)F(\d{1,2}(?:[.,]\d)?)(?=\s|$)/);
     if(m) out.french=m[1].replace(',', '.')+'F'; }
+  /* … sonst OCR-verlesene Ziffer vor dem F („SF (1.67 mm)" = 5F) — aber NUR
+     mit Gegenprobe: French ist definiert als 3 × Außendurchmesser in mm. Steht
+     der mm-Wert daneben und passt er (±0,15 mm), ist die Lesart belegt.
+     Ohne Gegenprobe bleibt das Feld leer — leer schlägt falsch. */
+  if(!out.french){ const re=/(?:^|[\s(])([0-9OoQSsIlBZ]{1,2}(?:[.,][0-9OoSsIlBZ])?)\s?F(?:r|rench)?\b[\s(]{0,3}(\d(?:[.,]\d+)?)\s?mm/g;
+    let fm; while((fm=re.exec(raw))){ const fr=parseFloat(ocrFixDigits(fm[1]).replace(',','.'));
+      const mm=parseFloat(fm[2].replace(',','.'));
+      if(isFinite(fr) && isFinite(mm) && fr>=2 && fr<=30 && Math.abs(fr/3-mm)<=0.15){ out.french=String(fr)+'F'; break; } } }
   /* Länge in cm */
   m = raw.match(/(\d{1,3}(?:[.,]\d+)?)\s?cm\b/i);
   if(m) out.laenge=m[1].replace('.', ',')+' cm';
@@ -303,6 +319,103 @@ function ocrSharpness(gray, w, h){
 }
 let _ocrSharp=null;   /* Schärfe des zuletzt vorverarbeiteten Bildes (Qualitätshinweis) */
 
+/* ── Aufbereitung für schwieriges Licht (2026-11) ──────────────────────
+   Gemessen am Messstand (e2e/messen-ocr.js): Bei wenig Licht scheitert die
+   Erkennung nicht an der Auflösung, sondern am RAUSCHEN des Sensors — die
+   Kontrastspreizung hebt es mit dem Text zusammen an. Und ein Schatten über
+   dem Etikett macht einen globalen Schwellwert unbrauchbar. Daher, in dieser
+   Reihenfolge:
+     1) Rauschen schätzen (robust, Immerkær-Kern mit Median statt Mittel).
+     2) Nur wenn nötig weichzeichnen — so wenig wie möglich, damit dünne
+        Striche (die „8") nicht zerlaufen.
+     3) Schattenausgleich: den Papierhintergrund schätzen (heller Anteil je
+        Kachel, geglättet) und das Bild durch ihn teilen. Danach ist das
+        Etikett überall gleich hell — im Schatten wie unter der Lampe.
+     4) Kontrastspreizung wie bisher.
+   Alle Funktionen sind rein (Zahl-Arrays, kein DOM) → testbar. */
+
+/* Kastenweichzeichner, separabel über laufende Summen: O(n) unabhängig vom
+   Radius. Zweimal angewendet ≈ Gauß. Rein & testbar. */
+function ocrBoxBlur(gray, w, h, r){
+  r=Math.round(r||0); if(r<1||w<2||h<2) return gray;
+  const n=2*r+1, tmp=new Float32Array(w*h), out=new Uint8ClampedArray(w*h);
+  for(let y=0;y<h;y++){ const o=y*w; let acc=0;
+    for(let x=-r;x<=r;x++) acc+=gray[o+Math.min(w-1,Math.max(0,x))];
+    for(let x=0;x<w;x++){ tmp[o+x]=acc/n;
+      acc+=gray[o+Math.min(w-1,x+r+1)]-gray[o+Math.max(0,x-r)]; } }
+  for(let x=0;x<w;x++){ let acc=0;
+    for(let y=-r;y<=r;y++) acc+=tmp[Math.min(h-1,Math.max(0,y))*w+x];
+    for(let y=0;y<h;y++){ out[y*w+x]=Math.round(acc/n);
+      acc+=tmp[Math.min(h-1,y+r+1)*w+x]-tmp[Math.max(0,y-r)*w+x]; } }
+  return out;
+}
+
+/* Rauschstärke σ (Graustufen) nach Immerkær (1996), robust gemacht: statt
+   des Mittelwerts der Filterantwort deren MEDIAN — Textkanten sind auf
+   einem Etikett eine Minderheit und verfälschen ihn kaum. Für Gaußrauschen
+   gilt median|v| = 0,6745·6σ. Rein & testbar. */
+function ocrRauschen(gray, w, h){
+  if(w<3||h<3) return 0;
+  const hist=new Uint32Array(1024); let n=0;
+  for(let y=1;y<h-1;y+=2) for(let x=1;x<w-1;x+=2){ const i=y*w+x;
+    const v=gray[i-w-1]-2*gray[i-w]+gray[i-w+1]-2*gray[i-1]+4*gray[i]-2*gray[i+1]+gray[i+w-1]-2*gray[i+w]+gray[i+w+1];
+    const a=Math.min(1023, Math.abs(v)); hist[a]++; n++; }
+  let acc=0;
+  for(let v=0;v<1024;v++){ acc+=hist[v]; if(acc>=n/2) return v/(0.6745*6); }
+  return 0;
+}
+
+/* Schattenausgleich: Hintergrund je Kachel schätzen (90. Perzentil = das
+   Papier, nicht die Schrift), Kachelgitter glätten (Ausreißer in fetter
+   Schrift auffüllen, dann mitteln), bilinear
+   auf jedes Pixel ziehen und das Bild durch den Hintergrund teilen.
+   Rein & testbar. */
+function ocrSchattenAusgleich(gray, w, h){
+  if(w<8||h<8) return gray;
+  const B=Math.max(16, Math.round(Math.min(w,h)/40));
+  const gw=Math.ceil(w/B), gh=Math.ceil(h/B);
+  let grid=new Float32Array(gw*gh);
+  const hist=new Uint32Array(256);
+  for(let gy=0;gy<gh;gy++) for(let gx=0;gx<gw;gx++){
+    hist.fill(0); let n=0;
+    const y0=gy*B, y1=Math.min(h,y0+B), x0=gx*B, x1=Math.min(w,x0+B);
+    for(let y=y0;y<y1;y+=2) for(let x=x0;x<x1;x+=2){ hist[gray[y*w+x]]++; n++; }
+    let acc=0, v=255; const ziel=n*0.9;
+    for(let k=0;k<256;k++){ acc+=hist[k]; if(acc>=ziel){ v=k; break; } }
+    grid[gy*gw+gx]=v;
+  }
+  /* Kachel mitten in fetter Schrift: deutlich dunkler als ihr hellster
+     Nachbar → durch diesen ersetzen. NUR dann — ein pauschales Maximum
+     verschöbe bei einem Schattenverlauf alles zur hellen Seite. */
+  const fuelle=new Float32Array(gw*gh);
+  for(let y=0;y<gh;y++) for(let x=0;x<gw;x++){ let m=0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const yy=y+dy, xx=x+dx;
+      if(yy<0||yy>=gh||xx<0||xx>=gw) continue; if(grid[yy*gw+xx]>m) m=grid[yy*gw+xx]; }
+    const v=grid[y*gw+x]; fuelle[y*gw+x]=(v<0.7*m)?m:v; }
+  grid=new Float32Array(gw*gh);
+  for(let y=0;y<gh;y++) for(let x=0;x<gw;x++){ let sum=0, c=0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const yy=y+dy, xx=x+dx;
+      if(yy<0||yy>=gh||xx<0||xx>=gw) continue; sum+=fuelle[yy*gw+xx]; c++; }
+    grid[y*gw+x]=sum/c; }
+  const out=new Uint8ClampedArray(w*h);
+  for(let y=0;y<h;y++){ const fy=Math.min(gh-1, Math.max(0,(y+0.5)/B-0.5)); const y0=Math.floor(fy), y1=Math.min(gh-1,y0+1), ty=fy-y0;
+    for(let x=0;x<w;x++){ const fx=Math.min(gw-1, Math.max(0,(x+0.5)/B-0.5)); const x0=Math.floor(fx), x1=Math.min(gw-1,x0+1), tx=fx-x0;
+      const bg=(grid[y0*gw+x0]*(1-tx)+grid[y0*gw+x1]*tx)*(1-ty)+(grid[y1*gw+x0]*(1-tx)+grid[y1*gw+x1]*tx)*ty;
+      out[y*w+x]=Math.min(255, Math.round(gray[y*w+x]*255/Math.max(8,bg))); } }
+  return out;
+}
+
+/* Die ganze Aufbereitung für schwieriges Licht. Rein & testbar.
+   Rückgabe { px, rauschen } — rauschen geht in die Qualitätsprüfung. */
+function ocrAufbereiten(gray, w, h){
+  const sigma=ocrRauschen(gray, w, h);
+  let px=gray;
+  if(sigma>2.5){ const r=sigma>9?2:1; px=ocrBoxBlur(ocrBoxBlur(px,w,h,r),w,h,r); }
+  px=ocrSchattenAusgleich(px, w, h);
+  px=ocrStretch(px, w*h, { lowPct:1, highPct:99 });
+  return { px, rauschen:sigma };
+}
+
 /* Auflösungs-Grenzen. WICHTIGE KORREKTUR gegenüber der ersten Fassung: die
    Obergrenze lag bei 2200 px. Ein aktuelles Handyfoto hat ~4000 px Kantenlänge
    — die Verkleinerung warf also fast die Hälfte der linearen Auflösung weg.
@@ -310,36 +423,75 @@ let _ocrSharp=null;   /* Schärfe des zuletzt vorverarbeiteten Bildes (Qualität
    Erkennungsschwelle, während grobe Elemente (Logo, Produktname) unversehrt
    blieben. Das erklärt „er liest alles, nur die REF nicht". */
 const OCR_MAXKANTE=3600, OCR_MINKANTE=1600;
+/* Feinlesung: Zielhöhe eines Wortrahmens in Pixeln. Die LSTM-Engine rechnet
+   jede Zeile intern auf 36 px Höhe um; Großbuchstaben von ~20–30 px liegen
+   im günstigsten Bereich (Tesseract-Forum, Messreihe W. Dotkom 2018:
+   Fehlerquote hängt vor allem an der Versalhöhe in Pixeln). Ein Wortrahmen
+   mit Ober-/Unterlänge ist etwa 1,3 × Versalhöhe. Bestätigt am Messstand. */
+const OCR_ZIEL_HOEHE=40, OCR_GRENZE_PX=4200;
 
 /* Bereitet ein Foto (data-URL) für die OCR auf und liefert die Bildmaße mit.
-     modus 'grau'   → Graustufen + Kontrastspreizung (Standard; LSTM-freundlich)
-     modus 'binaer' → zusätzlich adaptive Binarisierung nach Bradley (zweite
-                      Meinung für glänzende/ungleichmäßig beleuchtete Etiketten)
-   cb(dataUrl, {w,h}). Fällt bei jedem Fehler aufs Originalbild zurück. */
+     modus 'grau'   → Graustufen + Kontrastspreizung
+     modus 'binaer' → zusätzlich adaptive Binarisierung nach Bradley
+     modus 'licht'  → Aufbereitung für schwieriges Licht (Standard, s. o.)
+     modus 'licht-binaer' → 'licht' + Bradley (zweite Meinung)
+     rechteck {x,y,w,h} (Originalpixel) → nur diesen Ausschnitt
+     faktor   → fester Maßstab gegenüber dem Original (Feinlesung)
+   cb(dataUrl, {w,h,faktor,ox,oy,hell,rauschen}). Fällt bei jedem Fehler aufs
+   Originalbild zurück. */
 function ocrRender(dataUrl, opts, cb){
   opts=opts||{};
   const img=new Image();
   img.onload=()=>{ try{
-    let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-    if(!w||!h){ cb(dataUrl,null); return; }
-    /* Auflösung: nur noch sehr große Fotos runter-, kleine hochskalieren. */
-    const MAXED=opts.max||OCR_MAXKANTE, MIN=OCR_MINKANTE;
-    const longest=Math.max(w,h); let scale=1;
-    if(longest>MAXED) scale=MAXED/longest; else if(longest<MIN) scale=Math.min(2, MIN/longest);
-    w=Math.round(w*scale); h=Math.round(h*scale);
+    const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+    if(!W||!H){ cb(dataUrl,null); return; }
+    const q=opts.rechteck||{ x:0, y:0, w:W, h:H };
+    const rx=Math.max(0,Math.round(q.x)), ry=Math.max(0,Math.round(q.y));
+    const rw=Math.max(1,Math.min(W-rx,Math.round(q.w))), rh=Math.max(1,Math.min(H-ry,Math.round(q.h)));
+    let scale;
+    if(opts.faktor) scale=opts.faktor;
+    else { const MAXED=opts.max||OCR_MAXKANTE, MIN=OCR_MINKANTE; const longest=Math.max(rw,rh); scale=1;
+      if(longest>MAXED) scale=MAXED/longest; else if(longest<MIN) scale=Math.min(2, MIN/longest); }
+    if(Math.max(rw,rh)*scale>OCR_GRENZE_PX) scale=OCR_GRENZE_PX/Math.max(rw,rh);
+    const w=Math.max(1,Math.round(rw*scale)), h=Math.max(1,Math.round(rh*scale));
     const c=document.createElement('canvas'); c.width=w; c.height=h;
     const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    ctx.drawImage(img,0,0,w,h);
+    ctx.drawImage(img,rx,ry,rw,rh,0,0,w,h);
     const id=ctx.getImageData(0,0,w,h);
     let px=ocrGrayscale(id.data, w*h);
-    _ocrSharp=ocrSharpness(px, w, h);
-    px=ocrStretch(px, w*h, {});                       /* blasse Schrift anheben */
-    if(opts.modus==='binaer') px=ocrBradleyThreshold(px, w, h, {t:15});
+    let hell=0, grell=0; for(let i=0;i<px.length;i+=7){ hell+=px[i]; if(px[i]>=250) grell++; }
+    hell=hell/Math.ceil(px.length/7); grell=grell/Math.ceil(px.length/7);
+    if(!opts.rechteck) _ocrSharp=ocrSharpness(px, w, h);
+    let rauschen=null;
+    if(opts.modus==='licht' || opts.modus==='licht-binaer'){ const a=ocrAufbereiten(px, w, h); px=a.px; rauschen=a.rauschen; }
+    else px=ocrStretch(px, w*h, {});                  /* blasse Schrift anheben */
+    if(opts.modus==='binaer' || opts.modus==='licht-binaer') px=ocrBradleyThreshold(px, w, h, {t:15});
     for(let i=0;i<w*h;i++){ const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=px[i]; id.data[p+3]=255; }
     ctx.putImageData(id,0,0);
-    cb(c.toDataURL('image/png'), {w,h});               /* PNG: verlustfrei, keine JPEG-Artefakte an Kanten */
+    cb(c.toDataURL('image/png'), { w, h, faktor:scale, ox:rx, oy:ry, hell:Math.round(hell), grell, rauschen });   /* PNG: verlustfrei */
   }catch(e){ cb(dataUrl,null); } };
   img.onerror=()=>cb(dataUrl,null); img.src=dataUrl;
+}
+
+/* Wo steht der Text, und wie groß ist er? Aus den Wortrahmen einer ersten
+   Lesung: Rahmen um alle sicher gelesenen Wörter (mit Rand) und die mittlere
+   Wort-Höhe. Damit wird das Etikett ausgeschnitten und auf die günstigste
+   Schriftgröße gebracht — ein kleines Etikett im großen Bild wird so groß
+   gezogen, ein formatfüllendes verkleinert (das mittelt auch Rauschen weg).
+   Liefert null, wenn zu wenig sicher gelesen wurde. Rein & testbar. */
+function ocrZuschnitt(words, bildW, bildH){
+  if(!Array.isArray(words) || !bildW || !bildH) return null;
+  const gut=words.filter(w=>w && w.bbox && (w.conf||0)>=50 && /[A-Za-z0-9]{2,}/.test(String(w.text||'')));
+  if(gut.length<4) return null;
+  const hs=gut.map(w=>w.bbox.y1-w.bbox.y0).filter(x=>x>0).sort((a,b)=>a-b);
+  if(!hs.length) return null;
+  const hMed=hs[Math.floor(hs.length/2)];
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  gut.forEach(w=>{ x0=Math.min(x0,w.bbox.x0); y0=Math.min(y0,w.bbox.y0); x1=Math.max(x1,w.bbox.x1); y1=Math.max(y1,w.bbox.y1); });
+  const rand=hMed*2.5;
+  x0=Math.max(0,Math.floor(x0-rand)); y0=Math.max(0,Math.floor(y0-rand));
+  x1=Math.min(bildW,Math.ceil(x1+rand)); y1=Math.min(bildH,Math.ceil(y1+rand));
+  return { x:x0, y:y0, w:x1-x0, h:y1-y0, hMed };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -368,24 +520,87 @@ function ocrRefTokens(text){
   };
   let m;
   /* 1) ausdrücklicher REF-Marker (auch „REF OEM:", „REF Catalog No.") */
-  const reRef=/\bREF\b\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
+  const reRef=/\bREF\b\s*[\]|)]*\s*(?:OEM\b\s*)?[:.]?\s*(?:CAT(?:ALOG(?:UE)?)?\.?\s*(?:NO\.?|NUMBER|NUMMER|NR\.?)?\s*[:.]?\s*)?([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
   while((m=reRef.exec(raw))) add(m[1], 100, 'REF');
   /* 2) gleichwertige Marker anderer Hersteller */
-  const reAlt=/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|REORDER(?:\s*NO\.?)?|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?|P\/N|PN)\b[:.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
+  const reAlt=/\b(?:CAT(?:ALOG(?:UE)?)?\.?\s*NO\.?|MODEL|REORDER(?:\s*NO\.?)?|ARTIKEL(?:-?\s*NR)?|ART\.?-?\s*NR|BESTELL(?:-?\s*NR)?|P\/N|PN)\b[\]|):.\s]*([A-Za-z0-9][A-Za-z0-9\-\/*.]{2,})/ig;
   while((m=reAlt.exec(raw))) add(m[1], 90, 'Katalognr.');
   /* 3) „#"-Schreibweise (z. B. Edwards „# S3UCM223") */
   const reHash=/(?:^|[\n\s])#\s*([A-Za-z][A-Za-z0-9][A-Za-z0-9\-]{2,})/g;
   while((m=reHash.exec(raw))) add(m[1], 70, '#');
-  /* 4) freie Tokens mit REF-typischem Muster (Buchstaben UND Ziffern gemischt) */
-  const toks=raw.split(/[\s|]+/);
+  /* 4) freie Tokens mit REF-typischem Muster (Buchstaben UND Ziffern gemischt).
+     Was erkennbar KEINE REF ist, fliegt vorher raus — sonst landete „10cm",
+     „2-5-2mm" oder die Postleitzahl aus der Herstelleradresse im REF-Feld
+     (Messstand: auf 3 von 4 Etiketten passiert). Ausgeschlossen: Maße mit
+     Einheit, Bereiche, der Wert hinter LOT/SN/(10)/(17), und Zeilen, die
+     eine Anschrift sind. */
+  const nichtRef={};
+  const reLot=/\b(?:LOT|CHARGE|BATCH|SN|S\/N|SERIAL)\b\s*[\]|)]*\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})/ig;
+  while((m=reLot.exec(raw))) nichtRef[m[1].toUpperCase()]=1;
+  const reAi=/\((?:10|11|17|21)\)\s*([A-Za-z0-9]{2,})/g;
+  while((m=reAi.exec(raw))) nichtRef[m[1].toUpperCase()]=1;
+  const istAnschrift=(ln)=>/\b(USA|U\.S\.A|GERMANY|DEUTSCHLAND|BELGIUM|IRELAND|NETHERLANDS|SWITZERLAND|FRANCE|ITALY|JAPAN|CHINA|MEXICO|COSTA RICA|INC\.?|CORP\.?|CORPORATION|GMBH|LTD\.?|N\.V\.|B\.V\.|S\.A\.|LLC|STR\.|STRASSE|STRAßE|STREET|AVENUE|AVE\.?|ROAD|DRIVE)\b/i.test(ln) || /\b[A-Z]{2}\s\d{5}\b/.test(ln) || /\b\d{4,5}\s+[A-Z][a-z]/.test(ln);
+  const istMass=(t)=>/^\d+(?:[.,]\d+)?(?:mm|cm|m|ml|µl|ul|l|f|fr|french|in|inch|ft|g|kg|mg|mmhg|atm|bar|psi|h|min|s|°|°c|v|w|mhz|khz)$/i.test(t) || /^\d+(?:[.,]\d+)?(?:[-–x×]\d+(?:[.,]\d+)?)+(?:mm|cm|m)?$/i.test(t);
+  const toks=[];
+  raw.split(/\r?\n/).forEach(ln=>{ if(!istAnschrift(ln)) ln.split(/[\s|]+/).forEach(t=>toks.push(t)); });
   toks.forEach(t=>{
     const clean=t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9\-\/*.]+$/g,'');
     if(!clean) return;
+    if(nichtRef[clean.toUpperCase()] || istMass(clean)) return;
     const hatBuchst=/[A-Za-z]/.test(clean), hatZiffer=/\d/.test(clean);
     if(hatBuchst && hatZiffer) add(clean, 40, 'Muster');
     else if(hatZiffer && /^\d{5,11}$/.test(clean)) add(clean, 20, 'Zahl');
   });
   return out.sort((a,b)=>b.score-a.score || a.tok.length-b.tok.length);
+}
+
+/* Kandidaten aus dem gezielt gelesenen REF-STREIFEN. Der Streifen beginnt am
+   Marker; alles rechts davon IST die Artikelnummer. Weil die Whitelist keine
+   Klammern kennt, kommt der Kästchenrand dort als „I"/„1" an („IREFI 1001782")
+   — der Marker-Regex greift dann nicht. Deshalb: Marker-Token verwerfen, die
+   übrigen plausiblen Tokens mit hoher Bewertung (95) übernehmen. Rein. */
+function ocrBandTokens(bandText){
+  const out=[];
+  String(bandText==null?'':bandText).split(/\s+/).forEach(t=>{
+    const c=t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9\-\/*]+$/g,'');
+    if(!c || /^[I1l|\[(]*(REF|CAT|LOT|MODEL)[I1l|\])]*[:.]?$/i.test(c)) return;
+    if(typeof refPlausible==='function' && !refPlausible(c)) return;
+    if(out.some(o=>o.tok===c)) return;
+    out.push({ tok:c, score:95, quelle:'REF-Streifen' });
+  });
+  return out.slice(0,2);
+}
+
+/* Welche REF kommt ins Formular? Rein & testbar.
+   Regel (Grundsatz „leer schlägt falsch"):
+   - Eine REF mit ausdrücklichem Marker („REF", „CAT NO", „#" …, Bewertung
+     ≥ 70) darf ins Feld — auch wenn sie in keinem Bestand steht (neue
+     Produkte). Lässt sie sich nicht auflösen, werden die übrigen MARKER-
+     Lesungen probiert (die zweite Lesung hat oft recht).
+   - Ein freies Muster ohne Marker („M004…", „1001782") kommt NUR ins Feld,
+     wenn es sich SICHER gegen den Bestand auflöst. Sonst bleibt das Feld
+     leer, und die besten drei stehen als antippbare Vorschläge bereit.
+   best(roh) → {ref, wie, sicher, kandidaten} (refBest) oder null. */
+function ocrRefEntscheid(feldRef, kandidaten, best){
+  const kand=Array.isArray(kandidaten)?kandidaten:[];
+  const marker=kand.filter(k=>k.score>=70);
+  const frei=kand.filter(k=>k.score<70);
+  const loese=(t)=>best?best(t):{ ref:t, wie:'roh', sicher:false, kandidaten:[] };
+  let roh=String(feldRef||'').trim() || (marker[0]&&marker[0].tok) || '';
+  if(roh){
+    let info=loese(roh);
+    if(!info.sicher){
+      for(const k of marker.slice(0,6)){ if(k.tok===roh) continue;
+        const alt=loese(k.tok); if(alt.sicher){ info=alt; roh=k.tok; break; } }
+    }
+    return { ref:info.ref||roh, roh, info:Object.assign({ vorschlaege:[] }, info) };
+  }
+  for(const k of frei.slice(0,6)){
+    const alt=loese(k.tok);
+    if(alt.sicher) return { ref:alt.ref, roh:k.tok, info:Object.assign({ vorschlaege:[] }, alt) };
+  }
+  return { ref:'', roh:'', info:{ ref:'', wie:'roh', sicher:false, kandidaten:[],
+    vorschlaege:frei.slice(0,3).map(k=>k.tok) } };
 }
 
 /* Mehrheitsentscheid über mehrere Feldsätze (aus mehreren Lesungen desselben
@@ -420,7 +635,8 @@ function ocrVoteFields(saetze){
    Kette. Liefert {x,y,w,h} in Bildpixeln oder null. Rein & testbar. */
 function ocrRefBand(words, bildW, bildH){
   if(!Array.isArray(words) || !bildW || !bildH) return null;
-  const istMarker=(t)=>/^(REF|REF[:.]|CAT|CAT[:.]|CATALOG|MODEL|P\/N|PN|REORDER)$/i.test(String(t||'').trim());
+  /* Der Rand des ISO-Kästchens hängt oft am Wort: „[REF]", „REF|", „(REF". */
+  const istMarker=(t)=>/^(REF|CAT|CATALOG|MODEL|P\/N|PN|REORDER)$/i.test(String(t||'').trim().replace(/^[\[|(]+|[\]|):.]+$/g,''));
   let marker=null;
   for(const w of words){ if(w && w.bbox && istMarker(w.text)){ marker=w; break; } }
   if(!marker) return null;
@@ -540,101 +756,294 @@ async function runLabelOCR(image, onProgress){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DIE GESAMTE LESE-KETTE FÜR EIN ETIKETTFOTO
-   Reihenfolge nach dem Grundsatz „das sicherste Signal zuerst":
+   DIE GESAMTE LESE-KETTE (ein oder mehrere Fotos desselben Etiketts)
+   Reihenfolge nach dem Grundsatz „das sicherste Signal zuerst". Je Foto
+   (ocrLeseFoto):
      0) Barcode aus demselben Foto  → GTIN exakt, oft auch die REF (GS1 AI 240)
-     1) Volltext, Graustufe, PSM 3, ohne Wörterbücher
-     2) Gezielter REF-Streifen (aus den Wortrahmen von 1), PSM 7 + Whitelist
-     3) Zweite Meinung: binarisierte Variante (nur wenn 1 dünn war oder die
-        REF noch fehlt) — glänzende Folienetiketten profitieren davon
-     4) Mehrheitsentscheid über alle Lesungen
-     5) REF gegen den bekannten Bestand auflösen (matref.js)
+     1) Volltext auf dem für schwieriges Licht aufbereiteten Bild
+        (Rauschminderung · Schattenausgleich · Kontrastspreizung), PSM 3
+     2) Feinlesung: Etikett ausschneiden, auf die günstige Schriftgröße
+        bringen, erneut lesen (nur wenn es sich lohnt)
+     3) Gezielter REF-Streifen, PSM 7 + Whitelist
+     4) Symbol-Nachlese: steht eine Nummer ohne Beschriftung da, wird links
+        daneben das ISO-Symbol gelesen (REF bestätigt, LOT schließt aus)
+     5) Zweite Meinung (binarisiert) — nur wenn bisher dünn oder ohne REF
+   Danach über ALLE Fotos (ocrZusammenfuehren):
+     6) Mehrheitsentscheid je Feld; REF gewichtet mit der Wort-Sicherheit
+     7) REF gegen den Bestand auflösen (matref.js); unsicher Gelesenes
+        nur vorschlagen — leer schlägt falsch
    Liefert ein Ergebnisobjekt; verändert NICHTS am Formular.
+   Gemessen: e2e/messen-ocr.js · Begründung: docs/KONZEPT-OCR.md §7.
    ═══════════════════════════════════════════════════════════════ */
 /* Die Lesedurchgänge werden im Code über SCHLÜSSEL unterschieden, das Wort
    dient nur der Anzeige (Grundsatz ④ — wer die Bezeichnung ändert, darf nicht
    die Reihenfolge der Abstimmung ändern). */
-const OCR_LESUNG_WORT = { voll:'Volltext', ref:'REF-Streifen', kontrast:'Kontrast' };
+const OCR_LESUNG_WORT = { voll:'Volltext', fein:'Feinlesung', ref:'REF-Streifen', symbol:'Symbol-Nachlese', kontrast:'Kontrast' };
 function ocrLesungWort(k){ return OCR_LESUNG_WORT[k] || String(k||''); }
 
-async function ocrReadLabel(dataUrl, onStatus){
-  const sag=(t)=>{ if(typeof onStatus==='function') onStatus(t); };
-  const lesungen=[];       /* [{text, confidence, quelle}] — quelle ist ein Schlüssel */
+/* Messschalter für den Messstand (e2e/messen-ocr.js): 'alt' = Kette wie bis
+   Oktober 2026 (nur Graustufe, kein Zuschnitt, keine Symbol-Nachlese), 'neu'
+   = aktuelle Kette. Im Betrieb immer 'neu'; der Schalter existiert, damit
+   jede künftige Änderung gegen denselben Ausgangspunkt gemessen werden kann. */
+const OCR_VERSUCH={ modus:'neu' };
+/* Unter dieser Lese-Sicherheit (0–100) wird eine REF, die in keinem Bestand
+   steht, nicht eingetragen, sondern nur vorgeschlagen. Vorläufig am Messstand
+   geeicht (falsche Lesungen ≤ 59, richtige meist ≥ 66) — mit echten
+   Etikettfotos nachzueichen. */
+const OCR_REF_MINDESTSICHERHEIT=65;
 
-  /* 0) Barcode zuerst — kostet Millisekunden und liefert die exakte Wahrheit. */
+/* Der Bildausschnitt LINKS neben einem Wort — dort steht auf Etiketten das
+   Symbol (REF/LOT im Kästchen nach ISO 15223). Rein & testbar. */
+function ocrLinksVon(bbox, bildW, bildH){
+  if(!bbox || !bildW || !bildH) return null;
+  const hg=Math.max(1, bbox.y1-bbox.y0);
+  const x1=Math.round(bbox.x0-Math.max(2, hg*0.12));
+  const x0=Math.max(0, Math.round(x1-hg*3.0));
+  /* Knapp in der Höhe: Mit mehr Luft ragt die Nachbarzeile (oft das LOT-
+     Kästchen direkt darunter) in den Ausschnitt und verdirbt die Lesung. */
+  const y0=Math.max(0, Math.round(bbox.y0-hg*0.15)), y1=Math.min(bildH, Math.round(bbox.y1+hg*0.15));
+  if(x1-x0 < hg*1.2 || y1-y0 < 8) return null;
+  return { left:x0, top:y0, width:x1-x0, height:y1-y0 };
+}
+/* Welches Symbol wurde im Ausschnitt gelesen? Schlüssel 'ref' | 'lot' | 'sn' | ''.
+   Tolerant gegen die typischen Lesefehler am Kästchen (R3F, L0T). Rein. */
+function ocrMarkerArt(text){
+  const t=String(text==null?'':text).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(/R[E3]F/.test(t)) return 'ref';
+  if(/L[O0Q]T/.test(t)) return 'lot';
+  if(/^[I1]?SN[I1]?$/.test(t)) return 'sn';
+  return '';
+}
+
+/* REF-Abstimmung über alle Lesungen (aller Fotos), GEWICHTET mit der
+   Wort-Sicherheit der Engine. Ein reiner Mehrheitsentscheid stand bei zwei
+   Lesungen 1:1 und nahm dann blind die erste — am Messstand oft die
+   schlechtere. Jetzt zählt, wie sicher die Engine das Wort gelesen hat.
+   lesungen: [{text, words, quelle, markerRef}] → [{tok, gewicht, n}]. Rein. */
+function ocrRefStimmen(lesungen){
+  const topf={};
+  (lesungen||[]).forEach(l=>{
+    const werte=[];
+    const f=extractLabelFields(l.text||'');
+    if(f.ref) werte.push(f.ref);
+    if(l.quelle==='ref'){ const b=ocrBandTokens(l.text||''); if(b[0]) werte.push(b[0].tok); }
+    (l.markerRef||[]).forEach(t=>werte.push(t));
+    const gesehen={};
+    werte.forEach(v=>{
+      const k=String(v).toUpperCase(); if(gesehen[k]) return; gesehen[k]=1;
+      const wd=(l.words||[]).find(w=>String(w.text||'').toUpperCase().indexOf(k)>=0);
+      const g=Math.max(1, wd ? (wd.conf||0) : (l.confidence||50));
+      if(!topf[k]) topf[k]={ tok:v, gewicht:0, n:0 };
+      topf[k].gewicht+=g; topf[k].n++;
+    });
+  });
+  return Object.keys(topf).map(k=>topf[k]).sort((a,b)=>(b.gewicht-a.gewicht)||(b.n-a.n));
+}
+
+/* EIN Foto lesen: alle Durchgänge, noch ohne Entscheidung. Liefert die
+   Lesungen, den Barcode und Messwerte für die Qualitätsprüfung. */
+async function ocrLeseFoto(dataUrl, sag){
+  const neu=(OCR_VERSUCH.modus!=='alt');
+  const lesungen=[]; const quali={};
   sag('Barcode suchen …');
   let barcode=null;
   try{ barcode=await ocrBarcodeFromImage(dataUrl); }catch(e){}
 
-  /* 1) Volltext auf der Graustufen-Variante. */
+  /* 1) Volltext auf dem aufbereiteten Gesamtbild. */
   sag('Bild aufbereiten …');
-  const grau=await new Promise(res=>ocrRender(dataUrl,{modus:'grau'},(d,m)=>res({img:d,masse:m})));
-  ocrSetLogger((m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
-    sag(ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
+  const grund=await new Promise(res=>ocrRender(dataUrl,{ modus:neu?'licht':'grau' },(d,m)=>res({img:d,masse:m})));
+  if(grund.masse){ quali.hell=grund.masse.hell; quali.grell=grund.masse.grell; quali.rauschen=grund.masse.rauschen; }
   let haupt={ text:'', confidence:0, words:[] };
-  try{ haupt=await ocrRun(grau.img, { psm:3, woerterbuch:false }); }catch(e){}
-  if(haupt.text) lesungen.push({ text:haupt.text, confidence:haupt.confidence, quelle:'voll' });
+  try{ haupt=await ocrRun(grund.img, { psm:3, woerterbuch:false }); }catch(e){}
+  if(haupt.text) lesungen.push({ text:haupt.text, confidence:haupt.confidence, words:haupt.words, quelle:'voll' });
+  let basis={ img:grund.img, masse:grund.masse, words:haupt.words, text:haupt.text };
 
-  /* 2) Gezielter REF-Streifen. */
-  let bandText='';
-  const band=grau.masse?ocrRefBand(haupt.words, grau.masse.w, grau.masse.h):null;
-  if(band){
-    sag('REF-Feld genau lesen …');
-    try{
-      const r=await ocrRun(grau.img, { psm:7, woerterbuch:false, whitelist:OCR_REF_WHITELIST,
-        rechteck:{ left:band.x, top:band.y, width:band.w, height:band.h } });
-      bandText=r.text||'';
-      if(bandText.trim()) lesungen.push({ text:bandText, confidence:r.confidence, quelle:'ref' });
-    }catch(e){}
-  }
-
-  /* 3) Zweite Meinung auf der binarisierten Variante — nur wenn nötig. */
-  const refBisher=ocrRefTokens(bandText+'\n'+haupt.text);
-  if(ocrDichte(haupt.text)<40 || !refBisher.length){
-    sag('Zweite Lesung (Kontrast) …');
-    try{
-      const bin=await new Promise(res=>ocrRender(dataUrl,{modus:'binaer'},(d)=>res(d)));
-      const r=await ocrRun(bin, { psm:6, woerterbuch:false });
-      if(r.text) lesungen.push({ text:r.text, confidence:r.confidence, quelle:'kontrast' });
-    }catch(e){}
-  }
-  ocrSetLogger(null); ocrReleaseWorker();
-
-  /* 4) Felder je Lesung ziehen und abstimmen. Der REF-Streifen steht bewusst
-     VORNE — bei Gleichstand gewinnt die gezielte Lesung. */
-  const sortiert=lesungen.slice().sort((a,b)=>(b.quelle==='ref'?1:0)-(a.quelle==='ref'?1:0));
-  const saetze=sortiert.map(l=>extractLabelFields(l.text));
-  const fields=ocrVoteFields(saetze);
-  const gesamttext=lesungen.map(l=>l.text).join('\n');
-  const conf=lesungen.length?Math.round(lesungen.reduce((s,l)=>s+(l.confidence||0),0)/lesungen.length):0;
-
-  /* 5) REF bestimmen und auflösen. */
-  const kandidaten=ocrRefTokens((bandText?bandText+'\n':'')+gesamttext);
-  let refRoh=fields.ref||(kandidaten[0]&&kandidaten[0].tok)||'';
-  let refInfo={ ref:refRoh, wie:'roh', sicher:false, kandidaten:[] };
-  if(refRoh && typeof refBest==='function'){
-    refInfo=refBest(refRoh);
-    /* Ließ sich der Favorit nicht auflösen, die nächstbesten Kandidaten
-       probieren — oft steckt die richtige REF in der zweiten Lesung. */
-    if(!refInfo.sicher){
-      for(const k of kandidaten.slice(0,6)){
-        if(k.tok===refRoh) continue;
-        const alt=refBest(k.tok);
-        if(alt.sicher){ refInfo=alt; refRoh=k.tok; break; }
+  /* 2) Feinlesung: Etikett ausschneiden und auf die günstigste Schriftgröße
+     bringen. Kostet einen Durchgang — aber nur, wenn es sich lohnt. */
+  if(neu && grund.masse){
+    const z=ocrZuschnitt(haupt.words, grund.masse.w, grund.masse.h);
+    if(z){
+      const f0=grund.masse.faktor||1;
+      quali.texthoehe=Math.round(z.hMed/f0);                       /* in Originalpixeln */
+      const s=Math.max(0.6, Math.min(2.5, OCR_ZIEL_HOEHE/z.hMed));
+      const anteil=(z.w*z.h)/(grund.masse.w*grund.masse.h);
+      if(anteil<0.7 || Math.abs(s-1)>0.2){
+        sag('Etikett fein lesen …');
+        const rechteck={ x:grund.masse.ox+z.x/f0, y:grund.masse.oy+z.y/f0, w:z.w/f0, h:z.h/f0 };
+        const fein=await new Promise(res=>ocrRender(dataUrl,{ modus:'licht', rechteck, faktor:f0*s },(d,m)=>res({img:d,masse:m})));
+        try{
+          const r=await ocrRun(fein.img, { psm:3, woerterbuch:false });
+          if(r.text){ lesungen.push({ text:r.text, confidence:r.confidence, words:r.words, quelle:'fein' });
+            if(r.confidence>=haupt.confidence-5) basis={ img:fein.img, masse:fein.masse, words:r.words, text:r.text, rechteck }; }
+        }catch(e){}
       }
     }
   }
-  fields.ref=refInfo.ref||refRoh||'';
 
-  /* Der Barcode schlägt jede OCR-Schätzung. */
+  /* 3) Gezielter REF-Streifen auf dem besten Bild. */
+  let bandText='';
+  const band=basis.masse?ocrRefBand(basis.words, basis.masse.w, basis.masse.h):null;
+  if(band){
+    sag('REF-Feld genau lesen …');
+    try{
+      const r=await ocrRun(basis.img, { psm:7, woerterbuch:false, whitelist:OCR_REF_WHITELIST,
+        rechteck:{ left:band.x, top:band.y, width:band.w, height:band.h } });
+      bandText=r.text||'';
+      if(bandText.trim()) lesungen.push({ text:bandText, confidence:r.confidence, words:r.words, quelle:'ref' });
+    }catch(e){}
+  }
+
+  /* 4) Symbol-Nachlese: Das REF-Kästchen wird von der Seitenanalyse oft als
+     Grafik verworfen — übrig bleibt eine Nummer ohne Beschriftung. Dann wird
+     links neben den besten Code-Kandidaten gezielt nachgesehen, welches
+     Symbol dort steht. REF bestätigt die Nummer, LOT schließt sie aus. */
+  const markerRef=[], markerLot=[];
+  const alles=lesungen.map(l=>l.text).join('\n');
+  if(neu && basis.masse && !ocrRefTokens(alles).some(k=>k.score>=70)){
+    const frei=ocrRefTokens(basis.text||'').filter(k=>k.score<70).slice(0,3);
+    for(const k of frei){
+      const wd=(basis.words||[]).find(w=>w.bbox && String(w.text||'').indexOf(k.tok)>=0);
+      const rr=wd?ocrLinksVon(wd.bbox, basis.masse.w, basis.masse.h):null;
+      if(!rr) continue;
+      sag('Symbol neben der Nummer prüfen …');
+      try{
+        /* PSM 8 = „ein Wort". Am Messstand 16/16 Symbole erkannt, PSM 7
+           („eine Zeile") nur 12/16 — der Kästchenrand stört dort mehr. */
+        const wl='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123';
+        let r=await ocrRun(basis.img, { psm:8, woerterbuch:false, whitelist:wl, rechteck:rr });
+        if(!ocrMarkerArt(r.text)) r=await ocrRun(basis.img, { psm:13, woerterbuch:false, whitelist:wl, rechteck:rr });
+        const art=ocrMarkerArt(r.text);
+        if(art==='ref'){ markerRef.push(k.tok); break; }
+        if(art==='lot' || art==='sn') markerLot.push(k.tok);
+      }catch(e){}
+    }
+  }
+  if(markerRef.length) lesungen.push({ text:'', confidence:90, words:[], quelle:'symbol', markerRef });
+
+  /* 5) Zweite Meinung (binarisiert) — nur wenn bisher dünn oder ohne REF. */
+  const refBisher=ocrRefTokens(bandText+'\n'+alles).filter(k=>k.score>=70);
+  if(ocrDichte(basis.text)<40 || (!refBisher.length && !markerRef.length)){
+    sag('Zweite Lesung (Kontrast) …');
+    try{
+      const opt=neu ? { modus:'licht-binaer', rechteck:basis.rechteck, faktor:basis.rechteck?basis.masse.faktor:undefined } : { modus:'binaer' };
+      const bin=await new Promise(res=>ocrRender(dataUrl,opt,(d)=>res(d)));
+      const r=await ocrRun(bin, { psm:6, woerterbuch:false });
+      if(r.text) lesungen.push({ text:r.text, confidence:r.confidence, words:r.words, quelle:'kontrast' });
+    }catch(e){}
+  }
+  const confs=lesungen.filter(l=>l.quelle==='voll'||l.quelle==='fein').map(l=>l.confidence||0);
+  quali.konfidenz=confs.length?Math.max.apply(null,confs):0;
+  quali.schaerfe=_ocrSharp;
+  return { lesungen, barcode, markerLot, quali };
+}
+
+/* Was am Foto verbessert werden kann — konkret und in der Sprache des
+   Labors. Wird gezeigt, wenn das Ergebnis unsicher ist, zusammen mit dem
+   Angebot, ein weiteres Foto aufzunehmen. Schwellen am Messstand geprüft:
+   Die neue Aufbereitung verkraftet viel, deshalb meldet sich die Prüfung
+   erst, wenn es wirklich eng wird. q = quali EINES Fotos. Rein & testbar. */
+function ocrQualitaetsHinweise(q){
+  const out=[];
+  if(!q) return out;
+  if(q.rauschen!=null && q.rauschen>9) out.push('Wenig Licht – das Bild rauscht. Mehr Licht hilft am meisten; eine Lampe schräg von der Seite, nicht frontal (sonst spiegelt die Folie).');
+  else if(q.hell!=null && q.hell<45) out.push('Sehr dunkel – mehr Licht hilft am meisten.');
+  if(q.grell!=null && q.grell>0.12) out.push('Spiegelung auf der Folie – das Handy leicht kippen, Blitz aus.');
+  if(q.texthoehe!=null && q.texthoehe<18) out.push('Schrift sehr klein im Bild – näher heran (etwa 10–15 cm), Etikett bildfüllend.');
+  if(q.schaerfe!=null && q.schaerfe<40) out.push('Unscharf – Handy ruhig halten und vor dem Auslösen kurz auf das Etikett tippen.');
+  if(!out.length && q.konfidenz!=null && q.konfidenz<60) out.push('Schwer lesbar – gerade von oben fotografieren, ohne Schatten der Hand.');
+  return out;
+}
+/* Ist das Ergebnis so unsicher, dass ein weiteres Foto lohnt? Rein. */
+function ocrNochEinFoto(erg){
+  if(!erg) return false;
+  const refOk=erg.refInfo && (erg.refInfo.sicher || (erg.fields && erg.fields.ref && erg.refInfo.wie!=='roh'));
+  const viele=['hersteller','french','laenge','name'].filter(k=>erg.fields && erg.fields[k]).length>=2;
+  const hinweise=(erg.qualitaet||[]).some(q=>ocrQualitaetsHinweise(q).length);
+  return !(erg.fields && erg.fields.ref) || (!refOk && hinweise) || !viele;
+}
+
+/* Die Lesungen ALLER Fotos zu einem Ergebnis zusammenführen.
+   Je Feld Mehrheitsentscheid über alle Lesungen; die REF gewichtet mit der
+   Wort-Sicherheit (ocrRefStimmen) und danach gegen den Bestand aufgelöst
+   (ocrRefEntscheid). Der Barcode schlägt jede Schätzung. */
+function ocrZusammenfuehren(fotos){
+  const lesungen=[]; let barcode=null; const lotAus={};
+  (fotos||[]).forEach(f=>{ (f.lesungen||[]).forEach(l=>lesungen.push(l));
+    if(!barcode && f.barcode && (f.barcode.gtin||f.barcode.itemRef)) barcode=f.barcode;
+    (f.markerLot||[]).forEach(t=>{ lotAus[String(t).toUpperCase()]=1; }); });
+  /* Reihenfolge = Rang bei Gleichstand: gezielte Lesungen zuerst. */
+  const RANG={ ref:0, symbol:1, fein:2, voll:3, kontrast:4 };
+  const sortiert=lesungen.filter(l=>l.text).sort((a,b)=>(RANG[a.quelle]||9)-(RANG[b.quelle]||9));
+  const fields=ocrVoteFields(sortiert.map(l=>extractLabelFields(l.text)));
+  const stimmen=ocrRefStimmen(lesungen).filter(st=>!lotAus[String(st.tok).toUpperCase()]);
+  const gesamttext=sortiert.map(l=>l.text).join('\n');
+  const bandText=lesungen.filter(l=>l.quelle==='ref').map(l=>l.text).join('\n');
+  const frei=ocrRefTokens(gesamttext).filter(k=>!lotAus[k.tok.toUpperCase()]);
+  const kandidaten=stimmen.map(st=>({ tok:st.tok, score:100, quelle:'REF' }))
+    .concat(ocrBandTokens(bandText), frei)
+    .filter((k,i,a)=>a.findIndex(x=>x.tok.toUpperCase()===k.tok.toUpperCase())===i)
+    .sort((a,b)=>b.score-a.score);
+  const ent=ocrRefEntscheid(stimmen[0]?stimmen[0].tok:'', kandidaten, (typeof refBest==='function')?refBest:null);
+  let refInfo=ent.info; fields.ref=ent.ref;
+  const conf=lesungen.length?Math.round(lesungen.reduce((s,l)=>s+(l.confidence||0),0)/lesungen.length):0;
   let gtin='';
   if(barcode){
     if(barcode.gtin) gtin=(typeof gtinKey==='function')?gtinKey(barcode.gtin):barcode.gtin;
-    if(barcode.itemRef){ fields.ref=barcode.itemRef; refInfo={ ref:barcode.itemRef, wie:'barcode', sicher:true, kandidaten:[] }; }
+    if(barcode.itemRef){ fields.ref=barcode.itemRef; refInfo={ ref:barcode.itemRef, wie:'barcode', sicher:true, kandidaten:[], vorschlaege:[] }; }
   }
-  return { fields, refInfo, refRoh, kandidaten, gtin, barcode, text:gesamttext,
-    confidence:conf, schaerfe:_ocrSharp, lesungen:lesungen.map(l=>ocrLesungWort(l.quelle)) };
+  const q=(fotos||[]).map(f=>f.quali||{});
+  /* Wie sicher hat die Engine die gewählte REF gelesen (mittlere Wort-
+     Sicherheit über alle Lesungen, 0–100)? Für den Prüfhinweis im Assistenten. */
+  const gew=stimmen.find(st=>String(st.tok).toUpperCase()===String(ent.roh||'').toUpperCase());
+  const refLeseSicherheit=gew?Math.round(gew.gewicht/gew.n):null;
+  /* Unsicher gelesen UND nicht im Bestand bestätigt → nicht eintragen,
+     sondern zum Antippen anbieten. Am Messstand hatten ALLE falsch gelesenen
+     REFs eine Lese-Sicherheit ≤ 59, die richtigen fast alle ≥ 79. Ein
+     Fingertipp zum Bestätigen ist billiger als eine falsche REF im Stamm. */
+  /* KEINE Ausnahme für „auf mehreren Fotos gleich gelesen": Dieselbe Schrift
+     führt zum selben Irrtum (O statt 0 auf allen drei Aufnahmen — am
+     Messstand belegt). Übereinstimmung ist dort kein Beleg. */
+  if(fields.ref && refInfo && !refInfo.sicher && refInfo.wie==='roh'
+     && refLeseSicherheit!=null && refLeseSicherheit<OCR_REF_MINDESTSICHERHEIT){
+    const alt=stimmen.map(st=>st.tok).filter(t=>t!==fields.ref).slice(0,2);
+    refInfo=Object.assign({}, refInfo, { vorschlaege:[fields.ref].concat(alt), unsicherGelesen:true });
+    fields.ref='';
+  }
+  return { fields, refInfo, refRoh:ent.roh, refLeseSicherheit, kandidaten, gtin, barcode, text:gesamttext,
+    confidence:conf, schaerfe:q.length?q[0].schaerfe:null, qualitaet:q, fotos:(fotos||[]).length,
+    lesungen:lesungen.map(l=>ocrLesungWort(l.quelle)) };
 }
+
+/* Mehrere Fotos DESSELBEN Etiketts gemeinsam lesen. Jede Aufnahme hat andere
+   Fehler (Rauschen, Glanz an anderer Stelle, andere Schärfe) — die Mehrheit
+   über alle Aufnahmen ist verlässlicher als jede einzelne. */
+async function ocrReadLabels(dataUrls, onStatus){
+  const liste=(dataUrls||[]).filter(Boolean);
+  const sag=(t)=>{ if(typeof onStatus==='function') onStatus(t); };
+  ocrSetLogger((m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
+    sag(ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
+  const fotos=[];
+  try{
+    for(let i=0;i<liste.length;i++){
+      const vor=liste.length>1?('Foto '+(i+1)+'/'+liste.length+': '):'';
+      fotos.push(await ocrLeseFoto(liste[i], (t)=>sag(vor+t)));
+    }
+  } finally { ocrSetLogger(null); ocrReleaseWorker(); }
+  return ocrZusammenfuehren(fotos);
+}
+/* Ein einzelnes Foto lesen, OHNE zusammenzuführen — der Assistent hält die
+   Ergebnisse je Foto, damit beim zweiten und dritten Foto nicht alles neu
+   gelesen werden muss. Zusammenführen dann mit ocrZusammenfuehren(). */
+async function ocrLeseFotoEinzeln(dataUrl, onStatus){
+  const sag=(t)=>{ if(typeof onStatus==='function') onStatus(t); };
+  ocrSetLogger((m)=>{ const pct=(m.progress!=null)?Math.round(m.progress*100):null;
+    sag(ocrStatusLabel(m.status)+(pct!=null?(' '+pct+' %'):' …')); });
+  try{ return await ocrLeseFoto(dataUrl, sag); }
+  finally { ocrSetLogger(null); ocrReleaseWorker(); }
+}
+/* Ein Foto — kompatibler Einstieg für den Einzelknopf und Alt-Aufrufe. */
+async function ocrReadLabel(dataUrl, onStatus){ return ocrReadLabels([dataUrl], onStatus); }
+
 /* Liest zusätzlich einen Barcode aus DEMSELBEN Foto (falls die native
    BarcodeDetector-API vorhanden ist). Der Barcode trägt GTIN und teils die REF
    (GS1 AI 240/241) EXAKT — während OCR sie nur schätzt. So wird der Barcode zur
@@ -764,7 +1173,11 @@ function ocrMeldung(erg, filled){
   let msg=teile.join(' · ')+' – bitte prüfen.';
   if(erg.refInfo && erg.refInfo.wie==='mehrdeutig' && erg.refInfo.kandidaten.length)
     msg+=' Mögliche REFs: '+erg.refInfo.kandidaten.join(', ');
-  if((erg.confidence!=null && erg.confidence<55) || (erg.schaerfe!=null && erg.schaerfe<40))
+  else if(erg.refInfo && !erg.fields.ref && (erg.refInfo.vorschlaege||[]).length)
+    msg+=' REF nicht sicher – vielleicht: '+erg.refInfo.vorschlaege.join(', ');
+  const hinweise=(erg.qualitaet||[]).map(ocrQualitaetsHinweise)[0]||[];
+  if(hinweise.length && ocrNochEinFoto(erg)) msg+=' ⚠ '+hinweise[0];
+  else if((erg.confidence!=null && erg.confidence<55) || (erg.schaerfe!=null && erg.schaerfe<40))
     msg+=' ⚠ Bild schwierig – schärfer/gerader & näher fotografieren.';
   toast(msg);
 }
