@@ -138,6 +138,7 @@ function openMaterial(key, nameHinweis){
    erst beim Speichern — die m:-ID wird schon vergeben). */
 function matHubNew(){
   if(typeof ADMIN!=='undefined' && !ADMIN){ if(typeof promptLoginThen==='function'){ promptLoginThen(()=>matHubNew()); return; } }
+  if(typeof erfAktiv==='function' && erfAktiv()){ erfStart({ ort:'verwaltung' }); return; }
   const id='m:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   if(typeof renderScanItemForm==='function'){ renderScanItemForm({ gtin:id, manual:true, props:{} });
     show('scr-scan-item'); if(typeof setBar==='function') setBar('Neues Material','Bearbeiten',true); }

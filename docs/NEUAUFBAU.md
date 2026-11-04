@@ -190,6 +190,7 @@ Zweitpasswort → je Neuerung ein Schalter:
 | `materialexport` | Export für Excel/SAP |
 | `editor` | Editor am PC |
 | `beziehungen` | Zubehör & Aufbereitung |
+| `erfassung` | Geführte Neuanlage: „Was ist das?" → bei Material Kategorie → GTIN/REF/Hersteller → Merkmale → Kontrolle; Kategorien & Felder pflegbar ([KONZEPT-NEUANLAGE.md](KONZEPT-NEUANLAGE.md)) |
 
 Eingeschaltet erscheint die Neuerung sofort auf allen Geräten des Bestands;
 ausschalten blendet sie wieder aus, Daten gehen dabei nicht verloren. Die

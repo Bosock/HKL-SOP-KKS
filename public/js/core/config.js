@@ -33,6 +33,10 @@ const DEFAULT_NAT=[
   {key:'medikament',  label:'Medikament',  color:'#bd8ce8', icon:'💊',  builtin:true, beschaffbar:false},
   {key:'hinweis',     label:'Hinweis',     color:'#7f95ab', icon:'ℹ️',  builtin:true, beschaffbar:false},
   {key:'ueberschrift',label:'Überschrift', color:'#3d9be0', icon:'▸',   builtin:true, beschaffbar:false},
+  /* Neu mit der geführten Neuanlage (Schaubild 04.11.2026) — erscheinen nur,
+     wo neuFrei('erfassung') gilt (Grundsatz ⑩). */
+  {key:'anweisung',   label:'Anweisung',   color:'#4fb3bf', icon:'📝',  builtin:true, beschaffbar:false, neu:'erfassung'},
+  {key:'personal',    label:'Personal',    color:'#e07a5f', icon:'👤',  builtin:true, beschaffbar:false, neu:'erfassung'},
 ];
 function loadNatCfg(){
   const saved=loadJSON('hkl_natcfg',null);
@@ -45,9 +49,10 @@ function loadNatCfg(){
   return {items,order};
 }
 function saveNatCfg(){ store.set('hkl_natcfg',JSON.stringify({order:NATCFG.order,items:NATCFG.items})); }
-function natList(){ return NATCFG.order.map(k=>({key:k,...NATCFG.items[k]})); }
+function natList(){ return NATCFG.order.map(k=>({key:k,...NATCFG.items[k]}))
+  .filter(n=>!n.neu || (typeof neuFrei==='function' && neuFrei(n.neu))); }
 function natOf(key){ return NATCFG.items[key]||{key,label:key,color:'#7f95ab',icon:'•',beschaffbar:false,builtin:false}; }
 /* schreibt die Konfigurationsfarben als CSS-Variablen — die App liest sie überall */
-function applyNatConfig(){ const root=document.documentElement; natList().forEach(n=>{ root.style.setProperty('--n-'+n.key, n.color); }); }
+function applyNatConfig(){ const root=document.documentElement; NATCFG.order.forEach(k=>{ const n=NATCFG.items[k]; if(n) root.style.setProperty('--n-'+k, n.color); }); }
 function natSlug(s){ let base=(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'kat'; let k=base,i=2; while(NATCFG.items[k]){k=base+'_'+i;i++;} return k; }
 

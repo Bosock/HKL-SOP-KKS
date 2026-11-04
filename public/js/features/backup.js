@@ -274,7 +274,7 @@ function renderAdmin(){ const box=$('scr-admin'); const {names,cnt}=computeUkLis
   const pPflege=(typeof pflegePanelHTML==='function')?pflegePanelHTML():'';
   const pSeiten=(typeof seitenPanelHTML==='function')?seitenPanelHTML():'';
   const pAkt=(typeof aktuellPanelHTML==='function')?aktuellPanelHTML():'';
-  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
+  html+=sec('Inhalte pflegen')+pSeiten+pAkt+pInhalt+pStd+pEigen+freigabePanelHTML()+pRubTpl+bausteinPanelHTML()+pKat+((typeof erfPanelHTML==='function')?erfPanelHTML():'')+pUk+pBer+pAlt+pPflege+matMergePanelHTML()+((typeof hartPanelHTML==='function')?hartPanelHTML():'')+rulesPanelHTML()+((typeof fassungPanelHTML==='function')?fassungPanelHTML():'')+pHidden;
   const pBildorte=(typeof bildortePanelHTML==='function')?bildortePanelHTML():'';
   html+=sec('Aussehen & Anzeige')+pAnzeige+pBildorte+pKopf+pGruppen+pDesign+pTexte+pBez+funktionenPanelHTML();
   html+=sec('Daten & Sicherung')+pBackup+medienPanelHTML()+pKosten+((typeof raumPanelHTML==='function')?raumPanelHTML():'')+((typeof notizPanelHTML==='function')?notizPanelHTML():'');

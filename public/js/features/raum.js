@@ -64,6 +64,7 @@ const NEU_FUNKTIONEN = [
   { key:'materialexport', titel:'Material-Export (Excel/SAP)', text:'Tabelle mit GTIN, REF, Name, Hersteller, Packungsgröße, Preisen — wahlweise mit allen Bildern als ZIP.' },
   { key:'editor',         titel:'Editor am PC',                text:'Geteilter Bildschirm: Bibliothek links, Standard rechts — ankreuzen und ziehen, auch zwischen Rubriken.' },
   { key:'beziehungen',    titel:'Zubehör & Aufbereitung',      text:'„braucht dazu" und „neu ↔ aufbereitet" zwischen Produkten festhalten.' },
+  { key:'erfassung',      titel:'Geführte Neuanlage',          text:'Jeder neue Eintrag fragt „Was ist das?". Material läuft durch Kategorie → GTIN/REF/Hersteller → Merkmale vom Etikett → Kontrolle; Kategorien & Felder sind pflegbar.' },
 ];
 /* Freigaben liegen im geteilten Zustand des BESTANDS (hkl_neufrei). */
 let NEUFREI = loadJSON('hkl_neufrei', {});

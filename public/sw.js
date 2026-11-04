@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v77';
+const CACHE_VERSION = 'v78';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -100,6 +100,7 @@ const SHELL = [
   'js/features/diag.js',
   'js/features/notizen.js',
   'js/features/raum.js',
+  'js/features/erfassung.js',
   'js/core/sync.js',
   'js/core/pwa.js',
   'js/main.js',

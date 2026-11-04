@@ -1083,7 +1083,10 @@ function ocrFillForm(f){
   /* Maße gehen jetzt in die EINE Maßliste (#scSizes) als Zeilen — nicht mehr in
      feste Einzelfelder. Bestehende Werte werden nicht gedoppelt. */
   const sizeMap=[['french','french',''],['laenge','laenge',''],['dAussen','durchmesser','außen '],['dInnen','durchmesser','innen '],['weitere','dimension','']];
-  const box=$('scSizes');
+  /* Geführte Neuanlage: Maße laufen über die Merkmale der Kategorie
+     (scanMerkUebernehmen) — nicht zusätzlich in die alte Maßliste, sonst
+     stünden sie doppelt da. */
+  const box=(typeof erfAktiv==='function' && erfAktiv()) ? null : $('scSizes');
   if(box){ const existing=[...box.querySelectorAll('.merk-wert')].map(i=>(i.value||'').trim().toLowerCase());
     sizeMap.forEach(([key,typ,prefix])=>{ const val=f[key]; if(!val) return; const wert=prefix+val;
       if(existing.indexOf(wert.toLowerCase())>=0) return;

@@ -37,6 +37,7 @@ ein, `OCR_TEXT=1` zeigt den gelesenen Text.
 |---|---|
 | `backend-roundtrip.js` | Gerät A schreibt über die realen Save-Funktionen **aller 13 geteilten Module** → Server → Gerät B liest denselben Stand |
 | `scanner.js` | Etikett-Scanner end-to-end (ohne echte Kamera, `onDecode` mit GS1-Strings): Parser · unbekannter Scan → Formular · Speichern → Produktdatenbank · erneuter Scan → Wiedererkennung · Server-Persistenz · Gerät B |
+| `erfassung.js` | Geführte Neuanlage: „Was ist das?" → Material → Kategorie → GTIN (Prüfziffer) / REF / Hersteller → Merkmale vom Etikett → Kontrolle → Stammsatz + verknüpfte Zeile; bekannte GTIN wird wiederverwendet; neue Kategorie mit eigenem Feld; Bestand ohne Freigabe unverändert |
 | `ocr.js` | On-Device-OCR: selbst gehostete Tesseract-Engine wird vom Server (unter der CSP mit WASM) geladen und liest echten Text aus einem gerenderten Etikett; `extractLabelFields` gewinnt REF/Hersteller/French. Dazu: Etikett bei wenig Licht (REF im ISO-Kästchen) und der Assistent mit zwei Fotos. Langsamer (~6 MB + WASM). |
 | `sync-rerender.js` | Eigene Edits erzeugen kein überflüssiges Re-Rendering; Fremd-Edits werden übernommen und rendern |
 | `payload-too-large.js` | 413-Kette: sauberer Serverstatus, klare Client-Meldung, Daten bleiben lokal |
