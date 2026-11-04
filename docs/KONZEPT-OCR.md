@@ -58,7 +58,11 @@ CSP: `connect-src` erlaubt genau diese eine Fremd-Origin (`server/config.js`).
 ### Stufe 2 — Etikett lesen (verbessert)
 `features/ocr.js` · `ocrReadLabel(dataUrl, onStatus)`
 
-Ablauf für **ein** Foto:
+> **Stand November 2026:** Diese Tabelle beschreibt die erste Fassung.
+> Die Kette ist inzwischen um Lichtaufbereitung, Feinlesung, Symbol-Nachlese,
+> gewichtete REF-Abstimmung und Mehrfachfotos erweitert — siehe **§7**.
+
+Ablauf für **ein** Foto (erste Fassung):
 
 | Schritt | Was passiert | Warum |
 |---|---|---|
@@ -158,15 +162,117 @@ aus zwei Gründen zurückgestellt:
    mit schlechtem WLAN nicht — die Stufen 0–3 laufen vollständig auf dem Gerät
    (Stufe 1 nur für den optionalen AccessGUDID-Schritt am Netz).
 
-## 7. Testabdeckung
+## 7. Ausbau November 2026 — gemessen statt vermutet
+
+Anlass: Rückmeldung aus dem Labor — bei schlechtem Licht, aber auch sonst,
+werden die Felder eines Etiketts oft falsch oder gar nicht erkannt.
+
+### 7.1 Erst messen: der Messstand
+
+`e2e/messen-ocr.js` rendert vier realistische Etiketten (Schleuse, EP-Katheter,
+Führungsdraht, Diagnostikkatheter — mit REF/LOT im **ISO-15223-Kästchen**,
+mehrsprachigem Kleingedrucktem, Herstelleranschrift) als 12-MP-„Handyfoto" und
+legt sieben Störungen darüber: sauber, wenig Licht + Sensorrauschen, Schatten,
+leicht unscharf, Glanzlicht, Etikett klein im Bild, Alltag (dunkel + Schatten +
+unscharf). Gezählt werden fünf Felder je Etikett (REF, Hersteller, French,
+Länge, Materialklasse), die REF dreiwertig: **richtig · leer/Vorschlag ·
+falsch eingetragen**.
+
+**Grenze:** Synthetische Etiketten in einer sauberen Schrift. Die Zahlen
+zeigen Richtung und Größenordnung, nicht die Trefferquote im Labor. Echte
+Etikettfotos sind der nächste Schritt (§7.5).
+
+### 7.2 Befunde der Ausgangslage
+
+| Befund | Wirkung |
+|---|---|
+| Das **REF-Kästchen** kommt als „REF\|", „[REF]" oder gar nicht an (die Seitenanalyse verwirft es als Grafik) | Der REF-Marker griff fast nie. Text war oft fehlerfrei gelesen — die Auswertung scheiterte. |
+| Fehlt der Marker, nahm die Kette **das erste freie Muster** | Im REF-Feld landeten „10cm", „115cm", die Postleitzahl der Anschrift, die LOT-Nummer: **21 von 28 REFs falsch eingetragen** |
+| **Rauschen bei wenig Licht** wird von der Kontrastspreizung mit verstärkt | „wenig Licht": 8 von 20 Feldern; Materialklasse fast nie |
+| Gleichstand zweier Lesungen → blind die erste | Oft gewann die schlechtere Lesung |
+| „SF (1.67 mm)" statt „5F", „Fiihrungsdraht" statt „Führungsdraht", „Diagnostic Cathete" am Bildrand | French bzw. Klasse fehlten |
+
+### 7.3 Was geändert wurde
+
+| Baustein | Funktion | Wirkung |
+|---|---|---|
+| Kästchen-Toleranz an REF/LOT | `extractLabelFields`, `ocrRefTokens`, `ocrRefBand` | „REF\| X", „[REF] X" werden erkannt |
+| Freie Muster ohne Maße/Anschrift/LOT | `ocrRefTokens` | „10cm", PLZ, LOT nie mehr REF-Kandidat |
+| **Leer schlägt falsch** bei der REF | `ocrRefEntscheid` | Ohne Marker nur Vorschlag (antippen), außer der Bestand bestätigt |
+| **Lichtaufbereitung** | `ocrRauschen` (Immerkær, robust), `ocrBoxBlur`, `ocrSchattenAusgleich` (Hintergrund je Kachel, Division), `ocrAufbereiten` | Rauschen weg, Schatten ausgeglichen — und Tesseract wird dadurch **schneller** |
+| **Feinlesung** | `ocrZuschnitt` | Etikett ausschneiden, Wortrahmen auf ≈ 40 px bringen (LSTM normiert Zeilen auf 36 px; Fehlerquote hängt an der Versalhöhe in Pixeln) |
+| **Symbol-Nachlese** | `ocrLinksVon`, `ocrMarkerArt` | Nummer ohne Beschriftung → links daneben das Symbol lesen (PSM 8 „ein Wort": 16/16, PSM 7: 12/16). REF bestätigt, LOT schließt aus |
+| **Gewichtete REF-Abstimmung** | `ocrRefStimmen` | Wort-Sicherheit der Engine statt „die erste Lesung" |
+| **Unsicher gelesene REF nur vorschlagen** | `ocrZusammenfuehren`, `OCR_REF_MINDESTSICHERHEIT` (65) | Alle Fehllesungen am Messstand hatten Lese-Sicherheit ≤ 59, die richtigen meist ≥ 66. Unter 65 und nicht im Bestand → Vorschlag mit Hinweis „O/0, I/1 … bitte vergleichen" |
+| French mit Gegenprobe | `extractLabelFields` | „SF (1.67 mm)" → 5F nur, wenn 3 × mm passt (±0,15) |
+| Einheiten-Verlesungen | `extractLabelFields` | „crn"/„rnm" hinter Ziffern → cm/mm |
+| Tolerante Klassenerkennung | `merkFalte`, `merkUnscharf` (merkmale.js) | Umlaut-/„ii"-Faltung; lange Signalwörter mit 1 Lesefehler |
+| **Mehrere Fotos** (bis 3) | `ocrLeseFoto`, `ocrZusammenfuehren`, `ocrReadLabels`; Assistent: `wizDoEtikettMehrere` | Jedes Foto einmal gelesen, gemeinsam ausgewertet |
+| **Qualitätshinweise** | `ocrQualitaetsHinweise`, `ocrNochEinFoto` | Bei unsicherem Ergebnis: konkret (Licht, Spiegelung, Abstand, Schärfe) + „Weiteres Foto" |
+
+### 7.4 Ergebnis am Messstand
+
+| | Ausgangslage | jetzt, 1 Foto | jetzt, 3 Fotos |
+|---|---|---|---|
+| Felder richtig (von 140) | 106 (76 %) | **133 (95 %)** | 133 (95 %) |
+| REF richtig (von 28) | 7 | **21** | 21 |
+| REF **falsch eingetragen** | 21 | **0** | 1 |
+| „wenig Licht + Rauschen" (von 20) | 8 | **19** | 19 |
+| Zeit je Etikett (Testrechner, nacheinander, Störungen sauber/dunkel/Alltag) | ≈ 57 s | **≈ 7,7 s** | ≈ 3 × |
+
+Die übrigen REF-Fehler sind fast alle **eine** Verwechslung: „M0045000CL0" wird
+als „…CLO" gelesen. Bei einem unbekannten Produkt ist O/0 grundsätzlich nicht
+entscheidbar; deshalb wird die Lesung jetzt nur vorgeschlagen. Steht das
+Produkt im Bestand, löst `refResolve` die Verwechslung sicher auf.
+
+**Mehrere Fotos bringen am Messstand nichts Messbares** — die synthetischen
+Wiederholungen sind sich zu ähnlich, und eine Schrift verursacht auf jeder
+Aufnahme denselben Irrtum. Deshalb sind weitere Fotos **ein Angebot bei
+unsicherem Ergebnis, keine Pflicht**. Ihr Nutzen liegt bei Fehlern, die nur
+eine Aufnahme treffen: Verwackeln, Glanzlicht an der falschen Stelle,
+Fokus daneben. Eine geplante Regel „gleiche REF auf zwei Fotos gilt als
+belegt" wurde nach der Messung **verworfen**: Sie hätte systematische
+Fehllesungen zur Wahrheit erklärt.
+
+### 7.5 Nächste Hebel (bewertet, nicht umgesetzt)
+
+1. **Echte Etikettfotos in den Messstand** (20–30 Stück, gerne absichtlich
+   schlechte). Größter Hebel für die Nachhaltigkeit: Schwellen (65, Licht,
+   Textgröße) werden dann an der Wirklichkeit geeicht statt an Kunstbildern.
+   Etiketten enthalten keine Patientendaten (Grundsatz A1).
+2. **Anderes Erkennungsmodell auf dem Gerät: PaddleOCR (PP-OCRv5 mobile)**
+   über ONNX Runtime Web. Offizielles JS-Paket `@paddleocr/paddleocr-js`
+   (0.4.2, Apache-2.0, hängt an onnxruntime-web und OpenCV.js). Für Fotos
+   (statt Scans) gebaut und dort nach mehreren Quellen robuster als Tesseract —
+   die Belege sind allerdings überwiegend Blogvergleiche, keine sauberen
+   Studien. Kosten: deutlich mehr Download für den Offline-Betrieb
+   (Größenordnung Dutzende MB statt ~6 MB) und drei neue Abhängigkeiten.
+   **Erst gegen echte Fotos (Punkt 1) messen, dann entscheiden.**
+3. **Server- oder Cloud-OCR (Vision-Sprachmodell):** am genauesten, aber
+   gegen offline-first und erst nach Authentifizierung von `/api/state`
+   denkbar (§6, Maßnahme E1). Bleibt zurückgestellt.
+4. **Kamera im Browser statt Kamera-App** (Taschenlampe, Serienbild):
+   bewusst NICHT — die Kamera-App des Handys hat Nachtmodus und Mehrbild-
+   Rauschminderung, an die eine Web-App nicht herankommt. Der Assistent
+   empfiehlt sie deshalb ausdrücklich und erlaubt die Auswahl mehrerer
+   Fotos aus der Galerie.
+
+## 8. Testabdeckung
 
 - `test/client-helpers.test.js` — reine Kernfunktionen: `ocrStretch`,
   `ocrRefTokens`, `ocrVoteFields`, `ocrRefBand`, `ocrWordsOf`, `refClassKey`,
   `refDistance`, `refPlausible`, `refIndex`, `refResolve`, `refLearnInto`,
   `refFromLearn`, `gudidUrl`, `gudidExtract`, `wizZusammenfassung`,
   `matPhotos` & Co.
+- `test/ocr-qualitaet.test.js` — Ausbau 2026-11: Kästchen-Toleranz,
+  Ausschluss von Maßen/PLZ/LOT, `ocrRefEntscheid`, `ocrBandTokens`,
+  `ocrRefStimmen`, `ocrMarkerArt`/`ocrLinksVon`, Rauschschätzung,
+  Schattenausgleich, Zuschnitt, Qualitätshinweise, Zusammenführen mehrerer
+  Fotos, Zurückhalten unsicherer REFs.
 - `e2e/ocr.js` — echte Tesseract-Engine im echten Browser unter echter CSP,
   plus REF-Auflösung, Lernschleife, GTIN-Auflösung, geführter Dialog,
-  Auflösungsgrenze der Vorverarbeitung.
+  Auflösungsgrenze der Vorverarbeitung, Etikett bei wenig Licht und der
+  Assistent mit zwei Fotos.
+- `e2e/messen-ocr.js` — Messstand (kein Test, siehe §7.1).
 - `e2e/photoedit.js` — Fotogalerie: mehrere Bilder, Vorschaubild, Speichern,
   Bildunterschriften, Lightbox.

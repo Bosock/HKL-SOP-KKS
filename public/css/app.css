@@ -1732,3 +1732,8 @@ body.ed-zieht,body.ed-zieht *{cursor:grabbing !important;user-select:none}
 .pd-stufe .gtin-mono{font-size:12px;color:var(--text-dim)}
 .pd-best{display:inline-block;margin-left:6px;font-size:11px;font-weight:650;color:var(--n-material);
   border:1px solid var(--n-material);border-radius:6px;padding:0 6px;vertical-align:middle}
+/* Geführte Erfassung: Angebot „weiteres Foto" mit konkreten Hinweisen */
+.wiz-mehr { border:1px solid var(--accent); background:var(--surface-2); border-radius:12px; padding:10px 12px; margin-top:12px; font-size:13.5px; color:var(--text); }
+.wiz-mehr-t { font-weight:600; margin-bottom:6px; }
+.wiz-mehr-l { margin:0 0 10px 18px; padding:0; color:var(--text-dim); font-size:13px; line-height:1.5; }
+.wiz-mehr .btn { width:100%; }

@@ -7,6 +7,7 @@
    Langsamer als die anderen Suiten (lädt ~6 MB + WASM-Init + Erkennung). */
 'use strict';
 const { launchBrowser, startServer, bootPage, reporter } = require('./util');
+const { ETIKETTEN, STOERUNGEN, rendernImBrowser } = require('./ocr-etiketten');
 
 (async () => {
   const r = reporter('ocr');
@@ -219,6 +220,41 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
   });
   r.check('Vorverarbeitung skaliert erst ab ' + pre.grenze + ' px herunter (nicht mehr 2200)',
     pre.grenze >= 3500 && pre.breite === 3000);
+
+  // ─────────── 8) Schwieriges Licht + mehrere Fotos im Assistenten ───────────
+  // Realistisches Etikett (REF im ISO-Kästchen) bei wenig Licht mit Rauschen:
+  // Die Kette muss REF, French und Länge trotzdem finden. Danach ein zweites
+  // Foto über den Assistenten: Es wird dazugelesen, nicht alles neu.
+  const dunkel = STOERUNGEN.find(x => x.id === 'dunkel');
+  const mehr = await A.page.evaluate(async ({ render, spec, st }) => {
+    doLogin('1234567');
+    const rendern = eval('(' + render + ')');
+    const f1 = rendern({ spec, stoerung: st, seed: 11 });
+    const f2 = rendern({ spec, stoerung: st, seed: 97 });
+    openScanItem('', true);
+    ocrWizStart();
+    WIZ.schritt = 1;
+    const t0 = Date.now();
+    await wizDoEtikett(f1, false);
+    const nachEins = { ref: WIZ.fields.ref, vorschlag: ((WIZ.refInfo && WIZ.refInfo.vorschlaege) || [])[0],
+      french: WIZ.fields.french, laenge: WIZ.fields.laenge,
+      fotos: WIZ.fotoErg.length, text: document.getElementById('wizBody').textContent, ms: Date.now() - t0 };
+    await wizDoEtikettMehrere([f2], false);
+    const nachZwei = { ref: WIZ.fields.ref, fotos: WIZ.fotoErg.length, bilder: WIZ.fotosEtikett.length,
+      text: document.getElementById('wizBody').textContent };
+    wizApply();
+    const galerie = (typeof scanGalerie !== 'undefined') ? scanGalerie.length : -1;
+    return { nachEins, nachZwei, galerie };
+  }, { render: rendernImBrowser.toString(), spec: ETIKETTEN[0], st: dunkel });
+  // Die REF ist richtig eingetragen ODER (bei mäßiger Lese-Sicherheit) als
+  // erster Vorschlag zum Antippen angeboten — falsch eingetragen nie.
+  r.check('Wenig Licht: REF trotz Rauschen und ISO-Kästchen gelesen (' + (mehr.nachEins.ref || 'Vorschlag ' + mehr.nachEins.vorschlag) + ', ' + mehr.nachEins.ms + ' ms)',
+    mehr.nachEins.ref === ETIKETTEN[0].wahr.ref || (!mehr.nachEins.ref && mehr.nachEins.vorschlag === ETIKETTEN[0].wahr.ref));
+  r.check('Wenig Licht: French und Länge gelesen', mehr.nachEins.french === '6F' && mehr.nachEins.laenge === '10 cm');
+  r.check('Prüfseite bietet ein weiteres Foto an', /Weiteres Foto/.test(mehr.nachEins.text));
+  r.check('Zweites Foto wird dazugelesen (2 Ergebnisse, 2 Bilder)', mehr.nachZwei.fotos === 2 && mehr.nachZwei.bilder === 2);
+  r.check('Nach zwei Fotos steht die REF fest (beide Aufnahmen stimmen überein)', mehr.nachZwei.ref === ETIKETTEN[0].wahr.ref);
+  r.check('Übernehmen hängt beide Etikettfotos an die Galerie', mehr.galerie >= 2);
 
   r.check('keine CSP-/Konsolenfehler', A.errs.filter(e => /content security|refused|wasm/i.test(e)).length === 0);
   await r.finish(browser, [srv]);
