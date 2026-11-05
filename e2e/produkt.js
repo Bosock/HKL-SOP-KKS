@@ -177,7 +177,7 @@ async function speichern(page) {
   await b.page.fill('#raumPwFrei', 'abcdefg');   /* Vorgabe des Zweitpassworts */
   await b.page.click('button:has-text("Freigaben anzeigen")');
   await b.page.waitForTimeout(150);
-  r.check('… dann je Neuerung ein Schalter', await b.page.locator('#raumFreigaben input[type=checkbox]').count() === 7);
+  r.check('… dann je Neuerung ein Schalter', await b.page.locator('#raumFreigaben input[type=checkbox]').count() === await b.page.evaluate(() => NEU_FUNKTIONEN.length));
   await b.page.check('#raumFreigaben input[data-k="synonyme"]');
   await b.page.evaluate(() => openScanItem('04012345678901', true));
   r.check('freigegebene Neuerung (Synonyme) erscheint jetzt auch im Bestand', await b.page.evaluate(() => !!document.getElementById('pdSyn') && !document.getElementById('pdPack')));

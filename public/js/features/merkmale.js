@@ -38,6 +38,10 @@
 /* Der Katalog wird beim Start geladen (siehe merkLoad unten). Bis dahin leer —
    die App läuft ohne ihn unverändert weiter. */
 let MERKKAT = { merkmale: [], klassen: [], einheiten: {}, ref_grammatik: [], kompatibilitaet: { regeln: [] } };
+/* Der Katalog, wie er aus data/merkmale.json kommt. MERKKAT ist der WIRKSAME
+   Katalog: die Quelle plus die im Haus gepflegten Kategorien & Felder
+   (features/erfassung.js, Overlay hkl_kattpl). Die Quelle bleibt unverändert. */
+let MERKKAT_QUELLE = null;
 
 /* ===== Zahlen und Einheiten ===== */
 
@@ -479,9 +483,15 @@ function merkWertNormieren(def, roh){
    `merkmale` sind die verwertbaren Funde in Anzeigereihenfolge, `mehrdeutig`
    die, bei denen sich Quellen widersprechen — die gehören in den Dialog, nicht
    in den Datensatz. */
-function merkSammeln(text, ref, katalog){
+/* `klasseFest`: Die Kategorie hat der Mensch schon gewählt (geführte
+   Neuanlage) — dann werden GENAU deren Felder gesucht, nicht die einer
+   geratenen Klasse. Was der Text selbst nahelegt, kommt als `erkannt` mit,
+   damit eine Fehlwahl auffällt (Grundsatz ③: der Mensch entscheidet). */
+function merkSammeln(text, ref, katalog, klasseFest){
   const kat = katalog || MERKKAT;
-  const kl = merkKlassifizieren(text, kat.klassen);
+  const erkannt = merkKlassifizieren(text, kat.klassen);
+  const fest = klasseFest ? (kat.klassen||[]).filter(k=>k.id===klasseFest)[0] : null;
+  const kl = fest ? { klasse:fest.id, label:fest.label, sicher:true, kandidaten:[] } : erkannt;
   const defs = merkFuerKlasse(kat, kl.klasse);
   const refFelder = merkRefFelder(ref, kat.ref_grammatik);
   const gut = [], unklar = [];
@@ -508,7 +518,7 @@ function merkSammeln(text, ref, katalog){
   });
   gut.sort((a,b)=>(a.rang||99)-(b.rang||99));
   return { klasse: kl.klasse, klasseLabel: kl.label, klasseSicher: kl.sicher,
-           klasseKandidaten: kl.kandidaten, merkmale: gut, mehrdeutig: unklar };
+           klasseKandidaten: kl.kandidaten, merkmale: gut, mehrdeutig: unklar, erkannt: erkannt };
 }
 
 /* ===== Anzeige ===== */
@@ -578,7 +588,10 @@ function merkPasst(regel, linksMerkmale, rechtsMerkmale, einheiten){
    Render und bewusst tolerant: Fehlt die Datei, läuft die App unverändert
    weiter, nur ohne Merkmalserkennung. */
 function merkSetData(j){
-  if(j && Array.isArray(j.merkmale)) MERKKAT = j;
+  if(j && Array.isArray(j.merkmale)){
+    MERKKAT_QUELLE = j;
+    MERKKAT = (typeof katMitVorlagen==='function' && typeof KATTPL!=='undefined') ? katMitVorlagen(j, KATTPL) : j;
+  }
   return MERKKAT;
 }
 

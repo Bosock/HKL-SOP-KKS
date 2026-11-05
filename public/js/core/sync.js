@@ -24,6 +24,8 @@ const SHARED_KEYS=['hkl_natcfg','hkl_overrides','hkl_qedits','hkl_reassign','hkl
   /* Zweitpasswort für den Neuaufbau (features/raum.js) — nur der Fingerabdruck —
      und welche Neuerungen des Neuaufbaus auch im Bestand gelten */
   'hkl_raumpw','hkl_neufrei',
+  /* Kategorien & Felder der geführten Neuanlage (features/erfassung.js) */
+  'hkl_kattpl',
   /* Notizen, die beim Neuaufbau anfallen (features/notizen.js) */
   'hkl_notizen',
   /* Regel-Journal der Verwaltungspolitik (append-only; adopt() VEREINIGT statt zu überschreiben) */
@@ -43,6 +45,7 @@ function hydrateVars(){
   careMem=loadJSON('hkl_care',{});
   PROD=loadJSON('hkl_prod',{});
   GTINDB=loadJSON('hkl_gtin',{});
+  if(typeof erfVorlagenLaden==='function') erfVorlagenLaden();
   if(typeof OCRLEARN!=='undefined') OCRLEARN=loadJSON('hkl_ocrlearn',{});
   if(typeof DIAG!=='undefined'){ DIAG=loadJSON('hkl_diag',[]); if(!Array.isArray(DIAG)) DIAG=[]; }
   if(typeof refInvalidateIndex==='function') refInvalidateIndex();   /* REF-Bestand hat sich geändert */

@@ -356,11 +356,14 @@ function clearRubrikChecks(idx){ const cids=rubrikCids(idx); const set=cids.filt
    Liest Standard/Rubrik aus dem Navigationszustand (keine Nutzertexte im onclick). */
 function startAddEntry(){ const top=nav[nav.length-1]; if(!top||top.lvl!=='rub'||!curStd) return;
   const r=curStd.rubriken[top.idx]; const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
+  /* Geführte Neuanlage: erst „Was ist das?" (features/erfassung.js). */
+  if(typeof erfAktiv==='function' && erfAktiv()){ erfStart({ort:'standard',sid:curStd.id,ri:top.idx,defaultNat}); return; }
   openEntryForm({kind:'add',sid:curStd.id,ri:top.idx,defaultNat}); }
 /* Eintrag direkt in einen bestimmten Abschnitt (Unterkategorie) anlegen –
    das UK-Feld ist vorbelegt. */
 function startAddEntryUk(idx,uk){ if(!ADMIN||!curStd) return; const r=curStd.rubriken[idx]; if(!r) return;
   const defaultNat=r.typ==='geraete'?'geraet':(r.typ==='material'?'material':'hinweis');
+  if(typeof erfAktiv==='function' && erfAktiv()){ erfStart({ort:'standard',sid:curStd.id,ri:idx,defaultNat,uk}); return; }
   openEntryForm({kind:'add',sid:curStd.id,ri:idx,defaultNat,defaultUk:uk}); }
 /* Eingabe-Sheet für einen neuen Abschnitt („Reiter") – bewusst KEIN prompt(),
    das in installierten PWAs (standalone) lautlos null liefert (M1). */
@@ -383,6 +386,7 @@ function removeUkSectionUI(idx,uk){ if(!ADMIN) return;
    „Abschnitte überall"). Eine eigene Überschrift ist ein added Eintrag mit
    natur 'ueberschrift'; ablaufSegments macht daraus einen Abschnitt. */
 function startAddEntrySeg(idx,seg){ if(!ADMIN||!curStd) return;
+  if(typeof erfAktiv==='function' && erfAktiv()){ erfStart({ort:'standard',sid:curStd.id,ri:idx,defaultNat:'hinweis',seg}); return; }
   openEntryForm({kind:'add',sid:curStd.id,ri:idx,defaultNat:'hinweis',defaultSeg:seg}); }
 function addSegSectionUI(idx){ if(!ADMIN||!curStd) return;
   const h=`<div class="sheet-grip"></div><div class="sheet-title">Neuer Abschnitt (Überschrift)</div>

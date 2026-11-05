@@ -390,6 +390,9 @@ function onDecode(raw, fmt){
     const pk=packungFinden(GTINDB, gtin);
     if(pk && GTINDB[pk.id]){ toast('Verpackung: '+pk.packung.menge+' Stück · '+(GTINDB[pk.id].name||GTINDB[pk.id].ref||pk.id)); openScanItem(pk.id,false); return; }
   }
+  /* Geführte Neuanlage: erst „Was ist das?" und die Kategorie — die GTIN
+     aus dem Scan steht dann schon fest (features/erfassung.js). */
+  if(typeof erfAktiv==='function' && erfAktiv() && ADMIN){ erfStart({ ort:'verwaltung', gtin, itemRef:parsed.itemRef||'' }); return; }
   openScanItem(gtin,true);                    /* neu → Formular vorbefüllt */
 }
 
@@ -413,7 +416,9 @@ function renderScanHub(q){
   const cta = scannerSupported()
     ? `<button class="scan-cta" onclick="startCam()">📷 Etikett scannen</button>`
     : `<div class="scan-this">Der Live-Scanner braucht Android-Chrome mit Kamerafreigabe und ist auf diesem Gerät nicht verfügbar. Die Produktdatenbank lässt sich hier trotzdem durchsuchen${ADMIN?' und manuell pflegen':''}.</div>`;
-  const manual = ADMIN ? `<button class="add-entry-btn" onclick="openScanItem('',true)">＋ Produkt ohne Scan anlegen</button>` : '';
+  const manual = ADMIN ? ((typeof erfAktiv==='function' && erfAktiv())
+    ? `<button class="add-entry-btn" onclick="erfStart({ort:'verwaltung'})">＋ Neues Material oder Gerät</button>`
+    : `<button class="add-entry-btn" onclick="openScanItem('',true)">＋ Produkt ohne Scan anlegen</button>`) : '';
   const search = `<div class="std-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="search" id="gtinSearchInput" placeholder="Produkt, REF, Hersteller, GTIN …" value="${esc(q||'')}" oninput="scanSearch(this.value)" autocomplete="off"></div>`;
   /* Slot für die dauerhafte Kamera-Freigabe-Hilfe (showCamHelp bei Sperre). */
   $('scr-scan').innerHTML = cta + `<div class="scan-help-slot"></div>` + manual + search + `<div id="gtinList">${scanListHTML(q)}</div>`;
@@ -578,18 +583,18 @@ function renderScanItemForm(r){
     ${(typeof produktRefSlotHTML==='function')?produktRefSlotHTML():''}
     <div id="catMatch" style="display:none"></div>
     <input type="hidden" id="catHold" value="${r.katspecs?esc(JSON.stringify({specs:r.katspecs,ref:r.katref||'',quelle:r.katquelle||'',status:r.katstatus||'unbestätigt'})):''}">
-    <div class="flabel">KATEGORIE</div><input class="loc-input" id="scKat" placeholder="z. B. Schleuse / Introducer" value="${esc(r.kategorie||'')}" list="catKatList">
+    ${(typeof erfAktiv==='function' && erfAktiv()) ? `<input type="hidden" id="scKat" value="${esc(r.kategorie||'')}">` : `<div class="flabel">KATEGORIE</div><input class="loc-input" id="scKat" placeholder="z. B. Schleuse / Introducer" value="${esc(r.kategorie||'')}" list="catKatList">`}
     <datalist id="catKatList">${(typeof MATCAT_KATS!=='undefined'?MATCAT_KATS:[]).map(k=>`<option value="${esc(k)}">`).join('')}</datalist>
     <div class="flabel">PRODUKTNAME</div><input class="loc-input" id="scName" placeholder="z. B. Radialschleuse 6F" value="${esc(r.name||'')}">
     ${(typeof produktSynonymFeldHTML==='function')?produktSynonymFeldHTML(r):''}
     <div class="flabel">VERWENDUNG</div><input class="loc-input" id="scVerw" placeholder="z. B. radialer Zugang" value="${esc(r.verwendung||'')}">
-    <div class="flabel" style="margin-top:12px">MASSE / GRÖSSEN</div>
+    ${scanAltWrap(r, `    <div class="flabel" style="margin-top:12px">MASSE / GRÖSSEN</div>
     <div id="scSizes">${matSizeList(r).map(scSizeRowHTML).join('')}</div>
     <button type="button" class="add-btn" onclick="scanAddSize()">＋ Maß</button>
     <p class="hint">Alle Maße frei mit Typ — z. B. Stärke 4-0 · Länge 45 cm · Fr 6 · Ø 2,6 mm. Ersetzt die früheren Einzelfelder; gilt für das ganze Material.</p>
     <div id="scProps">${MATPROPS.map(p=>`<div class="flabel">${esc((p.label||'').toUpperCase())}</div><input class="loc-input" data-pk="${esc(p.key)}" value="${esc((r.props&&r.props[p.key])||'')}">`).join('')}</div>
     <div class="p-actions" style="margin-top:8px"><button type="button" class="btn btn-sec" onclick="scanAddPropUI()">＋ Eigenschaft (z. B. Tip Load)</button></div>
-    <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>
+    <div class="form-row" id="scNewPropRow" style="display:none;margin-top:8px"><input class="loc-input" id="scNewPropInp" placeholder="Name der Eigenschaft"><button type="button" class="add-btn" onclick="scanAddPropSave()">Anlegen</button></div>`)}
     ${scanMerkFormHTML(r)}
     ${(typeof produktPackHTML==='function')?produktPackHTML(r):''}
     ${(typeof bzhFormHTML==='function')?bzhFormHTML(r):''}
@@ -773,6 +778,10 @@ async function saveScanItem(gArg){
   if(scanMerkBereit()){
     const kl=$('scMerkKlasse'); const mw=scanReadMerkmale();
     patch.klasse = (kl && kl.value) || null;
+    /* Kategorie und Materialklasse sind EIN Feld (geführte Neuanlage): Die
+       Bezeichnung folgt der gewählten Klasse. */
+    if(typeof erfAktiv==='function' && erfAktiv() && patch.klasse){
+      const k=(MERKKAT.klassen||[]).filter(x=>x.id===patch.klasse)[0]; if(k) patch.kategorie=k.label; }
     patch.merkmale = Object.keys(mw).length ? mw : null;
     const mahn = merkPruefe(mw, patch.klasse, MERKKAT);
     if(mahn.length) toast(mahn[0].text + (mahn.length>1?(' (und '+(mahn.length-1)+' weitere)'):''), true);
@@ -888,17 +897,31 @@ function scanMerkFelderHTML(klasseId, werte){
     : '');
 }
 
+/* Geführte Neuanlage (features/erfassung.js): Kategorie = Materialklasse,
+   und die Merkmale ersetzen Maßliste und freie Eigenschaften — sonst stünde
+   „7 F" zweimal da. Die alten Blöcke bleiben für Bestandsdaten sichtbar
+   (zugeklappt, „Ältere Angaben"); ohne Daten verschwinden sie. Die Felder
+   bleiben im DOM, damit beim Speichern nichts verloren geht. */
+function scanAltWrap(r, html){
+  if(!(typeof erfAktiv==='function' && erfAktiv())) return html;
+  const hatDaten = matSizeList(r).length>0 || Object.keys((r&&r.props)||{}).some(k=>r.props[k]);
+  if(!hatDaten) return `<div style="display:none">${html}</div>`;
+  return `<details class="merk-mehr"><summary>Ältere Angaben (Maße / Eigenschaften) – bitte in die Merkmale übernehmen</summary>${html}</details>`;
+}
+
 /* Editor-Block: Klassenwahl + Felder. Beim Wechsel der Klasse werden die
    bereits eingetippten Werte mitgenommen — niemand soll Arbeit verlieren,
    nur weil er die Klasse korrigiert. */
 function scanMerkFormHTML(r){
   if(!scanMerkBereit()) return '';
   const klasse = (r&&r.klasse) || '';
-  const opts = (MERKKAT.klassen||[]).filter(k=>k.id!=='allgemein')
+  const eins = (typeof erfAktiv==='function' && erfAktiv());
+  const klassen = eins && typeof erfKategorien==='function' ? erfKategorien(MERKKAT) : (MERKKAT.klassen||[]).filter(k=>k.id!=='allgemein');
+  const opts = klassen
     .map(k=>`<option value="${esc(k.id)}"${k.id===klasse?' selected':''}>${esc(k.label)}</option>`).join('');
-  return `<div class="flabel" style="margin-top:12px">MERKMALE</div>
+  return `<div class="flabel" style="margin-top:12px">${eins?'KATEGORIE · MERKMALE':'MERKMALE'}</div>
     <select class="form-sel" id="scMerkKlasse" onchange="scanMerkKlasseWechsel()">
-      <option value="">— Materialklasse wählen —</option>${opts}</select>
+      <option value="">${eins?'— Kategorie wählen —':'— Materialklasse wählen —'}</option>${opts}</select>
     <p class="hint">Die Klasse bestimmt, welche Merkmale gefragt sind: ein Draht hat keine Kurvenform, eine Kompresse keinen Berstdruck. Leer lassen ist erlaubt — dann erscheinen nur die allgemeinen Angaben.</p>
     <div id="scMerkFelder">${scanMerkFelderHTML(klasse, (r&&r.merkmale)||{})}</div>`;
 }
