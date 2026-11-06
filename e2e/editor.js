@@ -16,6 +16,9 @@ const { launchBrowser, startServer, reporter } = require('./util');
 
 async function neuaufbauSeite(browser, base, viewport) {
   const ctx = await browser.newContext({ viewport });
+  /* Diese Suite prüft die ALTE Oberfläche im Neuaufbau; ohne die Marke leitete
+     store.js in die neue App um (public/neu, docs/NEUE-APP.md). */
+  await ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
   const page = await ctx.newPage();
   const errs = [];
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });

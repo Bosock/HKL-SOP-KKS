@@ -1,0 +1,102 @@
+/* ============================================================
+   NEUE APP — Ergänzungen zu ../css/app.css
+   Farben, Kopfzeile, Karten, Blätter und Knöpfe kommen aus app.css, damit
+   die Ansicht für Anwender aussieht wie gewohnt. Hier steht nur, was die
+   neue App zusätzlich braucht.
+   ============================================================ */
+main#naMain { padding-bottom:96px; }
+.na-tabs { position:fixed; left:0; right:0; bottom:0; z-index:60; max-width:var(--maxw); margin:0 auto; display:flex;
+  background:var(--surface); border-top:1px solid var(--line); padding:4px 4px calc(4px + env(safe-area-inset-bottom)); }
+.na-tab { flex:1; border:none; background:transparent; color:var(--text-dim); font-size:11px; font-weight:650; padding:6px 2px; border-radius:10px; cursor:pointer; min-height:48px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.na-tab b { font-size:19px; font-weight:400; }
+.na-tab.an { color:var(--accent); background:var(--surface-2); }
+.na-leiste { background:#7a2e8e; color:#fff; font-size:12.5px; font-weight:650; padding:6px 12px; display:flex; gap:8px; align-items:center; }
+.na-leiste span { flex:1; }
+.na-leiste button { background:rgba(255,255,255,.18); color:#fff; border:none; border-radius:8px; padding:4px 10px; font-weight:700; cursor:pointer; }
+
+.na-suche { width:100%; padding:12px; border-radius:11px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:15px; margin-bottom:10px; }
+.na-zeile { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.na-zeile > .btn { flex:1 1 auto; }
+.na-knopf { padding:9px 13px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:14px; font-weight:600; cursor:pointer; min-height:42px; }
+.na-knopf:active { background:var(--surface-3); }
+.na-knopf.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
+.na-knopf.weg { color:var(--danger); }
+.na-knopf.klein { padding:5px 9px; min-height:32px; font-size:13px; }
+.na-knopf[disabled] { opacity:.45; cursor:default; }
+.na-plus { position:fixed; right:max(16px, calc(50% - var(--maxw)/2 + 16px)); bottom:calc(76px + env(safe-area-inset-bottom)); z-index:61; width:56px; height:56px; border-radius:50%;
+  background:var(--accent); color:#fff; border:none; font-size:30px; box-shadow:0 6px 18px rgba(0,0,0,.35); cursor:pointer; }
+
+.na-eintrag { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:7px; display:flex; gap:11px; align-items:center; cursor:pointer; min-height:var(--tap); }
+.na-eintrag:active { border-color:var(--accent); }
+.na-eintrag .na-ico { font-size:20px; flex:0 0 26px; text-align:center; }
+.na-eintrag .na-haupt { flex:1; min-width:0; }
+.na-eintrag .na-name { font-weight:620; font-size:15px; overflow-wrap:anywhere; }
+.na-eintrag .na-sub { font-size:12px; color:var(--text-faint); margin-top:2px; overflow-wrap:anywhere; }
+.na-eintrag .na-rechts { font-size:12px; color:var(--text-dim); flex:0 0 auto; text-align:right; }
+.na-eintrag.archiv { opacity:.55; }
+.na-bild { width:44px; height:44px; flex:0 0 44px; border-radius:9px; object-fit:cover; background:var(--surface-2); }
+
+.na-feld { margin-bottom:12px; }
+.na-feld > label, .na-l { display:block; font-size:11.5px; font-weight:650; color:var(--text-dim); margin-bottom:5px; letter-spacing:.02em; }
+.na-feld input[type=text], .na-feld input[type=number], .na-feld input[type=password], .na-feld input[type=search], .na-feld textarea, .na-feld select {
+  width:100%; padding:11px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:15px; font-family:inherit; }
+.na-feld textarea { min-height:70px; resize:vertical; }
+.na-feld input:focus, .na-feld textarea:focus { outline:none; border-color:var(--accent); }
+.na-feld .na-hilfe { font-size:12px; color:var(--text-faint); margin-top:4px; }
+.na-feld.fehler input { border-color:var(--danger); }
+.na-feld .na-ok { color:var(--ok); } .na-feld .na-falsch { color:var(--danger); }
+.na-wahl { width:100%; padding:11px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:15px; text-align:left; cursor:pointer; display:flex; gap:8px; align-items:center; min-height:46px; }
+.na-wahl .na-leer { color:var(--text-faint); }
+.na-wahl::after { content:'▾'; margin-left:auto; color:var(--text-faint); }
+.na-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.na-chip { padding:5px 10px; border-radius:16px; background:var(--surface-3); color:var(--text); font-size:12.5px; font-weight:600; border:1px solid transparent; cursor:pointer; }
+.na-chip.an { border-color:var(--accent); color:var(--accent); }
+.na-chip.ansage { background:rgba(239,143,66,.18); color:var(--warn); }
+.na-chip.stern::before { content:'★ '; color:var(--warn); }
+
+.na-warn { background:rgba(239,143,66,.13); border:1px solid rgba(239,143,66,.45); color:var(--text); border-radius:11px; padding:10px 12px; font-size:13.5px; margin:8px 0; }
+.na-info { background:var(--surface-2); border:1px solid var(--line); border-radius:11px; padding:10px 12px; font-size:13px; color:var(--text-dim); margin:8px 0; }
+.na-fehler { background:rgba(232,93,93,.13); border:1px solid rgba(232,93,93,.5); border-radius:11px; padding:10px 12px; font-size:13.5px; margin:8px 0; }
+.na-h { font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--text-faint); margin:16px 4px 8px; }
+.na-karte { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:10px; }
+.na-karte h3 { margin:0 0 8px; font-size:15.5px; }
+.na-fotos { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
+.na-fotos img { width:76px; height:76px; object-fit:cover; border-radius:10px; border:1px solid var(--line); }
+.na-mono { font-family:var(--mono); letter-spacing:.02em; }
+.na-dim { color:var(--text-dim); font-size:13px; }
+.na-preis { color:var(--accent); font-weight:700; }
+
+/* Standard ansehen */
+.na-rub { margin:14px 0 6px; display:flex; align-items:center; gap:8px; }
+.na-rub h2 { margin:0; font-size:15px; font-weight:700; flex:1; }
+.na-abs { font-size:12.5px; font-weight:700; color:var(--text-dim); margin:10px 4px 5px; }
+.na-pos { background:var(--surface); border:1.5px solid var(--line-soft); border-left:4px solid var(--pf,var(--line)); border-radius:11px; margin-bottom:6px; display:flex; gap:10px; align-items:center; padding:10px 12px; min-height:var(--tap); }
+.na-pos .chk { cursor:pointer; }
+.na-pos.erledigt .chk { background:var(--ok); border-color:var(--ok); color:#06210f; }
+.na-pos.erledigt .na-ptext { color:var(--text-faint); text-decoration:line-through; }
+.na-pos .na-ptext { flex:1; min-width:0; overflow-wrap:anywhere; }
+.na-pos .na-pmenge { font-weight:700; color:var(--size); flex:0 0 auto; }
+.na-pos .na-pzusatz { display:block; font-size:12px; color:var(--text-dim); }
+.na-pos.hinweis { background:var(--surface-2); font-size:14px; }
+.na-pos .na-pakt { display:flex; gap:4px; flex:0 0 auto; }
+.na-pos .na-griff { cursor:grab; color:var(--text-faint); padding:0 2px; user-select:none; }
+.na-pos.zieh { opacity:.4; }
+.na-fortschritt { height:6px; border-radius:3px; background:var(--surface-3); overflow:hidden; margin:4px 0 10px; }
+.na-fortschritt i { display:block; height:100%; background:var(--ok); }
+
+/* Rüstliste */
+.na-ruest-ort { font-size:12.5px; font-weight:700; color:var(--accent); margin:10px 4px 5px; }
+
+/* Tabellen (Kosten, Listen) */
+.na-tab-tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
+.na-tab-tbl th, .na-tab-tbl td { padding:7px 6px; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
+.na-tab-tbl td.z, .na-tab-tbl th.z { text-align:right; white-space:nowrap; }
+.na-tab-tbl tr.luecke td { color:var(--warn); }
+
+.na-schutz { padding:40px 18px; text-align:center; }
+.na-schutz h2 { margin:0 0 10px; }
+
+@media (min-width:900px){
+  :root { --maxw:900px; }
+  .na-zwei { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+}

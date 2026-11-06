@@ -31,12 +31,26 @@ zählt, welche Felder die echte Kette richtig liefert — die REF dreiwertig
 nicht Teil von `npm run e2e`. `OCR_NUR=dunkel,klein` schränkt die Störungen
 ein, `OCR_TEXT=1` zeigt den gelesenen Text.
 
+## Messstand Alltagsaufgaben der neuen App (kein Test)
+
+```bash
+node e2e/messen-aufgaben.js
+```
+
+Zählt die Tipps (ohne Texteingabe) für zehn Alltagsaufgaben in der neuen App und
+stellt sie den Werten der Verwaltungsanalyse gegenüber (docs/NEUE-APP.md, Abschnitt 5).
+
+**Ältere Suiten im Neuaufbau** (`neuaufbau`, `liveschalter`, `editor`, `produkt`)
+setzen `hkl_neu_alt = '1'`: Sie prüfen die alte Oberfläche, die sonst in die neue
+App umgeleitet würde.
+
 ## Suiten
 
 | Datei | Beweist |
 |---|---|
 | `backend-roundtrip.js` | Gerät A schreibt über die realen Save-Funktionen **aller 13 geteilten Module** → Server → Gerät B liest denselben Stand |
 | `scanner.js` | Etikett-Scanner end-to-end (ohne echte Kamera, `onDecode` mit GS1-Strings): Parser · unbekannter Scan → Formular · Speichern → Produktdatenbank · erneuter Scan → Wiedererkennung · Server-Persistenz · Gerät B |
+| `neue-app.js` | Neue App im Neuaufbau (`public/neu/`, docs/NEUE-APP.md): Raumschutz und Umleitung, getippte Anmeldung, Material/Gerät/Medikament mit GTIN-Prüfziffer und Doppelungsschutz, Standard bauen, abhaken, Rüstliste, Kosten, Meldung von Gerät B, Listen umbenennen, Papierkorb, Sicherung, Ziehen am PC; Bestand am Anfang und Ende Byte für Byte gleich |
 | `erfassung.js` | Geführte Neuanlage: „Was ist das?" → Material → Kategorie → GTIN (Prüfziffer) / REF / Hersteller → Merkmale vom Etikett → Kontrolle → Stammsatz + verknüpfte Zeile; bekannte GTIN wird wiederverwendet; neue Kategorie mit eigenem Feld; Bestand ohne Freigabe unverändert |
 | `ocr.js` | On-Device-OCR: selbst gehostete Tesseract-Engine wird vom Server (unter der CSP mit WASM) geladen und liest echten Text aus einem gerenderten Etikett; `extractLabelFields` gewinnt REF/Hersteller/French. Dazu: Etikett bei wenig Licht (REF im ISO-Kästchen) und der Assistent mit zwei Fotos. Langsamer (~6 MB + WASM). |
 | `sync-rerender.js` | Eigene Edits erzeugen kein überflüssiges Re-Rendering; Fremd-Edits werden übernommen und rendern |

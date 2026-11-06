@@ -46,6 +46,20 @@ const RAUM=(()=>{
      wahl = die bewusste Wahl dieses Geräts (null: es folgt dem Live-Raum). */
   return Object.freeze({ id, titel:d.titel, basis:d.basis, praefix:d.praefix, gewaehlt, wahl:gewaehlt?w:null, neu:id!=='bestand' });
 })();
+/* NEUE APP (public/neu/, docs/NEUE-APP.md): Der Neuaufbau ist eine eigene,
+   neu gebaute Oberfläche. Wer in diesem Raum ist, wird dorthin geleitet —
+   bevor ein weiterer Baustein der alten Oberfläche lädt (window.stop hält das
+   Laden an; erst danach wird umgeleitet, sonst bräche stop die Umleitung ab).
+   Im BESTAND passiert hier nichts: RAUM.neu ist dort falsch.
+   `hkl_neu_alt` = '1' (außerhalb jedes Raums) öffnet im Neuaufbau bewusst die
+   alte Oberfläche — für die älteren Browser-Tests und zum Nachsehen. */
+(function(){
+  if(!RAUM.neu || typeof window==='undefined' || typeof location==='undefined') return;
+  if(/\/neu\/(index\.html)?$/.test(location.pathname)) return;
+  if(raumRoh('hkl_neu_alt')==='1') return;
+  try{ if(window.stop) window.stop(); }catch(e){}
+  try{ location.replace(new URL('neu/', location.href).href); }catch(e){}
+})();
 /* Raumangabe für Anfragen an den Server. Für den Bestand LEER — seine
    Anfragen sehen exakt so aus wie vor der Einführung der Räume. */
 function raumParam(trenner){ return RAUM.id==='bestand' ? '' : ((trenner||'?')+'raum='+encodeURIComponent(RAUM.id)); }

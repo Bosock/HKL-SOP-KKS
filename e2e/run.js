@@ -9,7 +9,7 @@ const files = fs.readdirSync(__dirname)
   /* messen.js ist KEINE Prüfung, sondern ein Messstand: Es liefert Zahlen und
      schlägt nie fehl. In diesem Lauf hätte es nichts zu sagen und kostete nur
      eine Minute. Aufruf einzeln über `npm run messen`. */
-  .filter(f => f.endsWith('.js') && !['run.js', 'util.js', 'messen.js', 'messen-ocr.js', 'ocr-etiketten.js'].includes(f))
+  .filter(f => f.endsWith('.js') && !['run.js', 'util.js', 'messen.js', 'messen-ocr.js', 'messen-aufgaben.js', 'ocr-etiketten.js'].includes(f))
   .sort();
 
 let failed = [];

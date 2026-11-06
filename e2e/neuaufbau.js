@@ -31,6 +31,9 @@ function bestandsSchluessel(page) {
   const srv = await startServer();
   const browser = await launchBrowser();
   const { page, ctx, errs } = await bootPage(browser, srv.base);
+  /* Diese Suite prüft die ALTE Oberfläche im Neuaufbau; ohne die Marke leitete
+     store.js in die neue App um (public/neu, docs/NEUE-APP.md). */
+  await ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
 
   /* ── 1. Im Bestand: anmelden, etwas ändern, Karte finden ── */
   await page.evaluate(() => { doLogin('1234567'); TXT.appTitle = 'Bestand-Titel'; saveTXT(); });
@@ -139,6 +142,7 @@ function bestandsSchluessel(page) {
      dort lokale Daten. Wird der Neuaufbau live geschaltet, folgt es — und darf
      dabei KEINEN Bestands-Schlüssel in den Neuaufbau hochladen. */
   const kollege = await bootPage(browser, srv.base);
+  await kollege.ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
   await kollege.page.evaluate(() => { doLogin('1234567'); overrides['nur-im-bestand'] = { x: 1 }; saveJSON('hkl_overrides', overrides); });
   await warte(kollege.page, () => document.getElementById('syncDot').className.includes('ok'));
   const nbVorSchalter = await json(srv.base, '/api/state?raum=neuaufbau');

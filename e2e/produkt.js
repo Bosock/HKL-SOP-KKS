@@ -18,6 +18,9 @@ const G = { inq: '04015630006120', kab: '04015630099993', karton: '1401563000612
 
 async function neuaufbau(browser, base, vorher) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  /* Diese Suite prüft die ALTE Oberfläche im Neuaufbau; ohne die Marke leitete
+     store.js in die neue App um (public/neu, docs/NEUE-APP.md). */
+  await ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
   const page = await ctx.newPage();
   /* Abfangen VOR dem ersten Laden: Danach steuert der Service Worker die
      Seite, und Playwright sähe die Anfrage sonst nicht mehr. */
@@ -165,6 +168,7 @@ async function speichern(page) {
 
   /* ── 8. Im Bestand: nichts davon — bis es freigegeben wird ── */
   const b = await bootPage(browser, srv.base);
+  await b.ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
   await b.page.evaluate(() => { doLogin('1234567'); openScanItem('04012345678901', true); });
   const vorFrei = await b.page.evaluate(() => ({ syn: !!document.getElementById('pdSyn'), pack: !!document.getElementById('pdPack'), rollen: document.querySelectorAll('.gal-schnell').length, bzh: !!document.getElementById('bzhBox'), gudid: !!document.getElementById('pdGudid'), leiste: !!document.getElementById('raumLeiste') }));
   r.check('Bestand: Produktformular wie immer (keine Neuerung sichtbar)', !vorFrei.syn && !vorFrei.pack && !vorFrei.rollen && !vorFrei.bzh && !vorFrei.gudid && !vorFrei.leiste);
