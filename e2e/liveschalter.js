@@ -56,8 +56,13 @@ async function liveKarte(page) {
   await warte(A.page, () => document.getElementById('syncDot').className.includes('ok'));
   await A.page.waitForTimeout(1200);
   const B = await bootPage(browser, srv.base);
+  /* Diese Suite prüft die ALTE Oberfläche im Neuaufbau; ohne die Marke leitete
+     store.js in die neue App um (public/neu, docs/NEUE-APP.md). */
+  await A.ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
+  await B.ctx.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
 
   const ctxC = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctxC.addInitScript(() => { try { localStorage.setItem('hkl_neu_alt', '1'); } catch (e) {} });
   const pC = await ctxC.newPage();
   const errsC = [];
   pC.on('console', m => { if (m.type() === 'error') errsC.push(m.text()); });

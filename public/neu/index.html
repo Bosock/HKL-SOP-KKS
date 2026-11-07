@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c1116">
+<title>HKL Standards</title>
+<script>
+/* Ohne Schrägstrich am Ende zeigten alle relativen Pfade ins Leere. */
+if(!/\/$/.test(location.pathname) && !/index\.html$/.test(location.pathname)) location.replace(location.pathname+'/'+location.search+location.hash);
+</script>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HKL SOP">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="../css/app.css">
+<link rel="stylesheet" href="neu.css">
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div id="naLeiste"></div>
+    <div class="bar-row">
+      <button class="icon-btn" id="naZurueck" hidden aria-label="Zurück">‹</button>
+      <div class="bar-title"><h1 id="naTitel">HKL Standards</h1><div class="crumb" id="naPfad">Lädt…</div></div>
+      <span id="naPunkt" class="sync-dot" role="status" aria-live="polite" title="Server-Status"></span>
+      <button class="icon-btn" id="naAnmelden" aria-label="Verwaltung">🔓</button>
+      <button class="icon-btn" id="naThema" aria-label="Ansicht wechseln">◐</button>
+    </div>
+  </header>
+  <main id="naMain"></main>
+  <nav class="na-tabs" id="naTabs"></nav>
+</div>
+<div class="toast" id="toast"></div>
+<div class="sheet-overlay" id="naSheetOv"></div>
+<div class="sheet" id="naSheet" role="dialog" aria-modal="true"></div>
+<input type="file" id="naDatei" accept="image/*" capture="environment" hidden>
+<input type="file" id="naDateiJson" accept="application/json,.json" hidden>
+
+<script src="../js/core/store.js"></script>
+<script src="../js/features/merkmale.js"></script>
+<script src="../js/features/ocr.js"></script>
+<script src="js/kern.js"></script>
+<script src="js/abgleich.js"></script>
+<script src="js/daten.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/stamm.js"></script>
+<script src="js/standards.js"></script>
+<script src="js/werkzeuge.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

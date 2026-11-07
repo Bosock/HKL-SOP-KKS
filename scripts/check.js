@@ -129,7 +129,11 @@ function grundsatzProblems() {
     kettensymbol.pruefe(ROOT, 'public/js', alt.kettensymbol || {}),
     verdrahtung.pruefe(ROOT, alt),
     pipeline.pruefe(ROOT, alt.pipeline || {}),
-    speicherzugriff.pruefe(ROOT, 'public/js'));
+    speicherzugriff.pruefe(ROOT, 'public/js'),
+    /* Die neue App (public/neu, docs/NEUE-APP.md) gilt ohne Altlasten:
+       keine nativen Eingabefenster, kein Gerätespeicher an store vorbei. */
+    eingabefenster.pruefe(ROOT, 'public/neu', {}),
+    speicherzugriff.pruefe(ROOT, 'public/neu'));
 }
 
 function collectProblems() {

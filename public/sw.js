@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v78';
+const CACHE_VERSION = 'v79';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -114,6 +114,21 @@ const SHELL = [
   'data/bezeichnungen.json',
 ];
 
+/* Die NEUE APP (public/neu/, docs/NEUE-APP.md) — eine eigene Seite mit eigener
+   Shell. Sie nutzt store.js, merkmale.js und ocr.js aus der Liste oben mit. */
+const NEU_SHELL = [
+  'neu/index.html',
+  'neu/neu.css',
+  'neu/js/kern.js',
+  'neu/js/abgleich.js',
+  'neu/js/daten.js',
+  'neu/js/ui.js',
+  'neu/js/stamm.js',
+  'neu/js/standards.js',
+  'neu/js/werkzeuge.js',
+  'neu/js/app.js',
+];
+
 /* Alle mitgelieferten Datendateien unter /data/*.json (Standards, Referenz-
    Katalog, Aufräum-Vorschläge) laufen über dieselbe cache-first-Strategie. */
 function isDataPath(pathname){ return /^\/data\/.*\.json$/.test(pathname); }
@@ -122,7 +137,7 @@ function isDataPath(pathname){ return /^\/data\/.*\.json$/.test(pathname); }
    darf die Installation nicht komplett verhindern. */
 async function precache() {
   const cache = await caches.open(SHELL_CACHE);
-  await Promise.all(SHELL.map(async (url) => {
+  await Promise.all(SHELL.concat(NEU_SHELL).map(async (url) => {
     try {
       const res = await fetch(url, { cache: 'no-store' });
       if (res && res.ok) await cache.put(url, res.clone());
@@ -181,14 +196,21 @@ function istSeite(pfad) {
 }
 
 /* Navigationen network-first: online immer frische index.html, offline die
-   gecachte Shell (Single-Page-App → jede Route rendert dieselbe Shell). */
+   gecachte Shell (Single-Page-App → jede Route rendert dieselbe Shell).
+   Die neue App unter /neu/ hat ihre EIGENE Shell: Ohne diese Weiche würde ihre
+   Seite als „index.html" gecacht — offline öffnete dann der Bestand die neue
+   App (und umgekehrt). */
+function istNeueApp(pfad) { return /\/neu\/(index\.html)?$/.test(pfad); }
 async function navigate(req) {
   const cache = await caches.open(SHELL_CACHE);
+  const neu = istNeueApp(new URL(req.url).pathname);
+  const schluessel = neu ? 'neu/index.html' : 'index.html';
   try {
     const res = await fetch(req);
-    if (res && res.ok) cache.put('index.html', res.clone());
+    if (res && res.ok) cache.put(schluessel, res.clone());
     return res;
   } catch (e) {
+    if (neu) return (await cache.match('neu/index.html')) || Response.error();
     return (await cache.match('index.html')) || (await cache.match('./')) || Response.error();
   }
 }

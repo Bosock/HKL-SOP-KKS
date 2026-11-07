@@ -43,6 +43,13 @@ Berechtigungskonzept — sie ist für Patientendaten schlicht nicht gebaut.
 Ein Freitextfeld, in das jemand *versehentlich* einen Patientennamen schreiben
 könnte, ist bereits der Fehler — nicht erst der eingetragene Name.
 
+**Präzisiert (06.11.2026, Entscheidung des Auftraggebers).** *Geräte- und
+Kalibrierwerte* sind keine Patientendaten und dürfen erfasst werden — etwa der
+Kontroll- oder Kalibrierwert eines ACT-Geräts in einem Pop-up. Ein Messwert
+*eines Patienten* bleibt ausgeschlossen. Deshalb heißt jedes solche Feld
+ausdrücklich „Kalibrier-/Kontrollwert" und erklärt im Hilfetext, dass hier kein
+Patientenwert hingehört.
+
 ### A2 · Keine Bestandsführung — Charge und Verfallsdatum sind irrelevant
 
 > „Verfallsdatum und Charge sind irrelevant"
@@ -60,6 +67,13 @@ einem Medizinprodukt werden kann (siehe README, Abgrenzung MDR).
 **Verstoß erkennt man an.** Feldern namens `lot`, `charge`, `expiry`, `verfall`,
 `bestand`, `menge_lager`, an einer Ansicht „bald abgelaufen", an einer Warnung beim
 Scannen.
+
+**Präzisiert (06.11.2026, Entscheidung des Auftraggebers).** Erlaubt ist eine
+**Meldung** („ist leer", „fehlt") an die zuständige Stelle — mit dem Status, ob
+sie weitergegeben und erledigt ist. Die App **löst keine Bestellung aus**, kennt
+keine Lagermengen und keine Bestellnummern des Lieferanten; das bleibt Aufgabe
+der Materialwirtschaft. Die Stufen heißen deshalb „gemeldet · weitergegeben ·
+erledigt", nicht „bestellt · geliefert".
 
 **Zulässige Ausnahme, bewusst.** Der Barcode-Leser *zerlegt* GS1-Codes vollständig,
 also auch die Felder für Charge (AI 10) und Verfall (AI 17). Das muss er, sonst

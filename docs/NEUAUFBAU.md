@@ -11,6 +11,11 @@ alle **live schalten** — und ebenso zurück (Abschnitt 5). Ziel: die App von G
 Haus täte, das sie zum ersten Mal benutzt — und dabei die Standards im Format der
 App aufbauen statt im alten Word-Format.
 
+> **Neu (06.11.2026):** Im Neuaufbau läuft jetzt eine eigene, neu gebaute App —
+> siehe [`NEUE-APP.md`](NEUE-APP.md). Wer den Neuaufbau betritt, wird dorthin
+> geleitet; der Bestand bleibt unverändert. Für den Tag des Umschaltens:
+> [`UMSCHALTEN-PROMPT.md`](UMSCHALTEN-PROMPT.md).
+
 ---
 
 ## 1. Was getrennt ist und was nicht
