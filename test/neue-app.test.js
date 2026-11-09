@@ -18,6 +18,7 @@ vm.runInContext(KERN + `
 ;globalThis.__K = { naNorm, naAehnliche, naGtinPruefziffer, naGtinKey, naParseGS1, naParseScan, naMengeZahl,
   naStueckpreis, naKosten, naPositionen, naVerwendungen, naListenVerwendung, naRuestliste, naKatalog, naFelder,
   naHerstellerAusGtin, naNameVorschlag, naStandardNeu, naStandardKopie, naUnterschiede, naCsv,
+  naFotos, naHauptbild, naFotosSetzen, naFotoDazu, naFotoErsetzen, naFotoOriginal, naFotoEntfernen, naFotoAendern, NA_FOTO_ROLLEN,
   NA_ARTEN_VORGABE, NA_BEREICHE_VORGABE, NA_RUBRIKEN_VORGABE };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -139,6 +140,47 @@ test('Kopie bekommt neue Kennungen überall', () => {
 test('Vorgaben: Hinweis wird nicht abgehakt; Bereiche Tisch und Eingriff', () => {
   assert.equal(K.NA_ARTEN_VORGABE.find(a => a.id==='hinweis').haken, false);
   assert.deepEqual(plain(K.NA_BEREICHE_VORGABE.map(b => b.name)), ['Tischvorbereitung', 'Eingriffsvorbereitung']);
+});
+
+/* ── Bilder ── */
+test('Anzeigebild: Wahl schlägt Regel; ein Etikett wird nie von allein das Gesicht', () => {
+  assert.equal(K.naHauptbild({}), null);
+  /* ältere Einträge: bloße Kennungen → das erste */
+  assert.equal(K.naHauptbild({ fotos:['a','b'] }).k, 'a');
+  /* Etikett zuerst aufgenommen, Produkt danach → das Produktbild */
+  const o = { fotos:[{ k:'e', rolle:'etikett' }, { k:'v', rolle:'verpackung' }, { k:'p', rolle:'produkt' }] };
+  assert.equal(K.naHauptbild(o).k, 'p');
+  /* kein Produktbild → das erste, das kein Etikett ist */
+  assert.equal(K.naHauptbild({ fotos:[{ k:'e', rolle:'etikett' }, { k:'x' }] }).k, 'x');
+  /* nur Etiketten → besser dieses als keines */
+  assert.equal(K.naHauptbild({ fotos:[{ k:'e', rolle:'etikett' }] }).k, 'e');
+  /* ausdrückliche Wahl gilt — auch für ein Etikett; ein toter Zeiger nicht */
+  assert.equal(K.naHauptbild(Object.assign({ hauptbild:'e' }, o)).k, 'e');
+  assert.equal(K.naHauptbild(Object.assign({ hauptbild:'weg' }, o)).k, 'p');
+});
+test('Bilder: anhängen, bearbeitetes ersetzt, Original zurück, entfernen', () => {
+  const o = { fotos:['alt'] };
+  K.naFotoDazu(o, { k:'n1', v:'n1v' }, 'produkt');
+  K.naFotoDazu(o, { k:'n1', v:'n1v' }, 'produkt');                       /* dasselbe Bild nicht doppelt */
+  assert.deepEqual(plain(o.fotos), [{ k:'alt' }, { k:'n1', v:'n1v', rolle:'produkt' }]);
+  K.naFotoDazu(o, { k:'x' }, 'gibtsnicht');                              /* unbekannte Rolle wird nicht gespeichert */
+  assert.equal(o.fotos[2].rolle, undefined);
+  K.naFotoAendern(o, 'n1', { titel:'von oben' });
+  o.hauptbild = 'n1';
+  K.naFotoErsetzen(o, 'n1', { k:'n2', v:'n2v' });                        /* zugeschnitten */
+  assert.deepEqual(plain(o.fotos[1]), { k:'n2', v:'n2v', rolle:'produkt', titel:'von oben', orig:'n1', origV:'n1v' });
+  assert.equal(o.hauptbild, 'n2');                                       /* Wahl wandert mit */
+  K.naFotoErsetzen(o, 'n2', { k:'n3' });                                 /* noch einmal: Original bleibt das ERSTE */
+  assert.equal(o.fotos[1].orig, 'n1'); assert.equal(o.fotos[1].origV, 'n1v'); assert.equal(o.hauptbild, 'n3');
+  K.naFotoOriginal(o, 'n3');
+  assert.deepEqual(plain(o.fotos[1]), { k:'n1', v:'n1v', rolle:'produkt', titel:'von oben' });
+  assert.equal(o.hauptbild, 'n1');
+  K.naFotoErsetzen(o, 'x', { k:'alt' });                                 /* Ergebnis gibt es schon → nur das alte fällt weg */
+  assert.deepEqual(plain(o.fotos.map(f => f.k)), ['alt', 'n1']);
+  K.naFotoEntfernen(o, 'n1');
+  assert.equal(o.hauptbild, undefined);                                  /* Zeiger zeigt nie ins Leere */
+  assert.deepEqual(plain(o.fotos), [{ k:'alt' }]);
+  assert.deepEqual(plain(K.NA_FOTO_ROLLEN.map(r => r.id)), ['produkt', 'etikett', 'verpackung', 'sonstiges']);
 });
 
 /* ── Umleitung in store.js: nur im Neuaufbau ── */

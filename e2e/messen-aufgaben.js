@@ -79,9 +79,10 @@ const AUFGABEN = [
 
   await aufgabe(4, async () => {
     await tipp('.na-tab:has-text("Material")'); await tipp('.na-eintrag:has-text("Radialschleuse")');
-    const fc = p.waitForEvent('filechooser'); await tipp('text=＋ Foto');
+    const fc = p.waitForEvent('filechooser'); await tipp('[data-na="fotoAuf"]');
     await (await fc).setFiles({ name:'f.png', mimeType:'image/png', buffer:Buffer.from(PNG, 'base64') });
-    await p.waitForSelector('.na-fotos img'); await tipp('[data-na="entwSpeichern"]');
+    await p.waitForSelector('#photoEditOv'); await tipp('#peApply');   /* zuschneiden/drehen: hier nur bestätigen */
+    await p.waitForSelector('.na-foto'); await tipp('[data-na="entwSpeichern"]');
     if (await p.isVisible('#naSheet.show button:has-text("Überall übernehmen")')) await tipp('#naSheet.show button:has-text("Überall übernehmen")');
   }, () => p.evaluate(id => (naHole('material', id).fotos||[]).length === 1, ids.m1));
 

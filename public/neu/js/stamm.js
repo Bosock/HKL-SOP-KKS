@@ -47,7 +47,8 @@ function naVerzeichnisListe(typ){
   const daten = naVerwendungDaten();
   return treffer.slice(0, 300).map(o=>{
     const n = naVerwendungen(daten.standards, typ, o.id).length;
-    const bild = (o.fotos && o.fotos[0]) ? '<img class="na-bild" loading="lazy" alt="" src="'+esc(naBildUrl(o.fotos[0]))+'">' : '<span class="na-ico">'+T.ico+'</span>';
+    const hb = naHauptbild(o);
+    const bild = hb ? '<img class="na-bild" loading="lazy" alt="" src="'+esc(naBildSrc(hb, true))+'">' : '<span class="na-ico">'+T.ico+'</span>';
     return '<div class="na-eintrag'+(o.archiviert?' archiv':'')+'" data-na="geh" data-ziel="#/'+typ+'/'+esc(o.id)+'">'+bild
       + '<div class="na-haupt"><div class="na-name">'+esc(o.name||'(ohne Namen)')+(o.archiviert?' · archiviert':'')+'</div><div class="na-sub">'+esc(naStammSub(typ,o))+'</div></div>'
       + '<div class="na-rechts">'+(n ? (n+'× verwendet') : '')+'</div></div>';
@@ -58,7 +59,7 @@ naEin('vzSuche', (v, d)=>{ NA_VZ_Q[d.typ] = v; const l = $('naVzListe'); if(l) l
 /* ── Ansicht für Anwender ── */
 function naStammAnsicht(typ, o){
   const T = NA_TYPEN[typ]; let h = '<div class="na-karte">';
-  if(o.fotos && o.fotos.length) h += '<div class="na-fotos">'+o.fotos.map(k=>'<img alt="" src="'+esc(naBildUrl(k))+'">').join('')+'</div>';
+  h += naFotoReihe(o);
   h += '<h3>'+T.ico+' '+esc(o.name)+'</h3><div class="na-dim">'+esc(naStammSub(typ,o))+'</div>';
   const zeile = (l, w)=>w ? '<div style="margin-top:6px"><span class="na-l" style="display:inline">'+esc(l)+':</span> '+w+'</div>' : '';
   if(typ==='material'){
@@ -146,7 +147,7 @@ function naStammForm(){
   }
   if(typ!=='material' || o.kategorie){
     h += '<div class="na-zwei">' + naF('Lagerort', naT('lagerort',{ ph:'z. B. Schrank 3, Fach B' })) + naF('Bereich (Vorgabe für die Rüstliste)', naW('bereich','bereiche',{ ph:'— keiner —' })) + '</div>';
-    h += naF('Fotos', '<div class="na-fotos">'+(o.fotos||[]).map((k,i)=>'<span style="position:relative"><img alt="" src="'+esc(naBildUrl(k))+'"><button class="na-knopf klein weg" style="position:absolute;top:2px;right:2px" data-na="fotoWeg" data-i="'+i+'" aria-label="Foto entfernen">×</button></span>').join('')+'</div><button class="na-knopf" data-na="fotoDazu">＋ Foto</button>');
+    h += naFotoFeld();
     if(typ!=='geraet'){
       const sp = naStueckpreis(o.preis);
       h += '<div class="na-karte"><h3>Preis <span class="na-dim">(nur Verwaltung · Sachkostenüberblick)</span></h3><div class="na-zwei">'
@@ -247,14 +248,95 @@ naAkt('merkNeu', async ()=>{
   toast(vorhanden ? 'Vorhandenes Feld „'+vorhanden.label+'" zugeordnet' : 'Feld „'+label+'" angelegt');
   naFormNeu();
 });
-naAkt('fotoDazu', async ()=>{
+/* ── Bilder am Stammsatz ──
+   EIN Feld in der Maske (kein eigenes Menü), für Material, Gerät und
+   Medikament dasselbe: aufnehmen oder aus den Fotos wählen, gleich
+   zuschneiden und drehen, eines als Anzeigebild wählen. Regeln: kern.js. */
+function naFotoReihe(o){
+  const l = naFotos(o); if(!l.length) return '';
+  const hb = naHauptbild(o); const reihe = [hb].concat(l.filter(f=>f.k!==hb.k));
+  return '<div class="na-fotos">'+reihe.map(f=>'<img alt="'+esc(f.titel||'')+'" loading="lazy" data-zoom data-gross="'+esc(naBildSrc(f))+'" data-cap="'+esc(f.titel||o.name||'')+'" src="'+esc(naBildSrc(f, true))+'">').join('')+'</div>';
+}
+function naFotoFeld(){
+  const E = NA_ENTWURF, o = E.obj; const l = naFotos(o); const hb = naHauptbild(o);
+  const kacheln = l.map(f=>{ const r = naFotoRolle(f.rolle); const haupt = hb && hb.k===f.k;
+    return '<button type="button" class="na-foto'+(haupt?' haupt':'')+'" data-na="fotoBlatt" data-k="'+esc(f.k)+'" aria-label="Bild bearbeiten'+(haupt?' (Anzeigebild)':'')+'">'
+      + '<img alt="'+esc(f.titel||'Foto')+'" loading="lazy" src="'+esc(naBildSrc(f, true))+'">'
+      + (haupt ? '<span class="na-foto-marke">★ Anzeigebild</span>' : '')
+      + (r ? '<span class="na-foto-rolle" title="'+esc(r.name)+'">'+r.ico+'</span>' : '')+'</button>'; }).join('');
+  let offen = false;
+  if(!E.neu){ const alt = naHole(E.typ, o.id) || {}; offen = JSON.stringify([naFotos(alt), alt.hauptbild||'']) !== JSON.stringify([l, o.hauptbild||'']); }
+  return naF('Bilder', '<div class="na-fotos">'+kacheln+'</div>'
+    + '<div class="na-zeile"><button class="na-knopf" data-na="fotoAuf">📷 Foto aufnehmen</button><button class="na-knopf" data-na="fotoWahl">🖼 Aus Fotos wählen</button></div>',
+    (l.length ? 'Bild antippen: zuschneiden, drehen, als Anzeigebild wählen. Das Anzeigebild erscheint in Listen und in den Standards.' : 'Nach der Aufnahme lässt sich das Bild gleich zuschneiden und drehen.')
+    + (offen ? ' <b class="na-falsch">Bildänderungen sind noch nicht gespeichert — unten „Speichern".</b>' : ''));
+}
+/* Ein neues Bild: (auf Wunsch) erst zuschneiden/drehen, dann ablegen. */
+async function naFotoNeu(E, dataUrl, rolle, mitEditor){
+  let bild = dataUrl;
+  if(mitEditor){ bild = await naBildBearbeiten(dataUrl); if(!bild) return false; }
+  toast('Bild wird gespeichert …');
+  const b = await naBildHochladen(bild);
+  if(NA_ENTWURF!==E) return false;
+  naFotoDazu(E.obj, b, rolle); return true;
+}
+naAkt('fotoAuf', async ()=>{
   const E = NA_ENTWURF; if(!E) return;
-  const f = await naDateiWaehlen(); if(!f) return;
-  try{ toast('Foto wird gespeichert …'); const k = await naBildHochladen(await naDateiAlsDataUrl(f));
-    if(NA_ENTWURF!==E) return; E.obj.fotos = (E.obj.fotos||[]).concat([k]); naFormNeu(); }
+  const f = await naDateiWaehlen('kamera'); if(!f) return;
+  try{ if(await naFotoNeu(E, await naDateiAlsDataUrl(f), 'produkt', true)){ toast('Bild hinzugefügt'); naFormNeu(); } }
   catch(e){ toast(e.message, true); }
 });
-naAkt('fotoWeg', d=>{ const E = NA_ENTWURF; if(!E) return; E.obj.fotos.splice(+d.i, 1); naFormNeu(); });
+/* Mehrere auf einmal wandern direkt ins Feld (jedes einzeln durch den Editor
+   zu schicken wäre eine Zumutung) — dort einzeln nachbearbeitbar. */
+naAkt('fotoWahl', async ()=>{
+  const E = NA_ENTWURF; if(!E) return;
+  const dateien = await naBilderWaehlen(); if(!dateien.length) return;
+  let n = 0;
+  try{ for(const f of dateien){ if(await naFotoNeu(E, await naDateiAlsDataUrl(f), 'produkt', dateien.length===1)) n++; } }
+  catch(e){ toast(e.message, true); }
+  if(n){ toast(n===1 ? 'Bild hinzugefügt' : n+' Bilder hinzugefügt'); naFormNeu(); }
+});
+function naFotoBlatt(k){
+  const E = NA_ENTWURF; if(!E) return;
+  const f = naFotos(E.obj).find(x=>x.k===k); if(!f){ naSheetZu(null); return; }
+  const hb = naHauptbild(E.obj); const haupt = hb && hb.k===k; const kk = esc(k);
+  naSheetAuf('<div class="sheet-title">Bild</div>'
+    + '<img class="na-foto-gross" alt="" data-zoom data-cap="'+esc(f.titel||E.obj.name||'')+'" src="'+esc(naBildSrc(f))+'">'
+    + '<button class="sheet-act" data-na="fotoSchnitt" data-k="'+kk+'"><span class="sa-ico">✂</span><span>Zuschneiden / drehen</span></button>'
+    + (haupt ? '<div class="na-info">★ Das ist das Anzeigebild: So erscheint der Eintrag in Listen und in den Standards.</div>'
+        : '<button class="sheet-act" data-na="fotoHaupt" data-k="'+kk+'"><span class="sa-ico">★</span><span>Als Anzeigebild wählen<span class="sa-sub">erscheint in Listen und in den Standards</span></span></button>')
+    + '<div class="na-l" style="margin-top:10px">Was zeigt das Bild?</div><div class="na-chips" style="margin-bottom:10px">'
+    + NA_FOTO_ROLLEN.map(r=>'<button class="na-chip'+(f.rolle===r.id?' an':'')+'" data-na="fotoRolle" data-k="'+kk+'" data-r="'+r.id+'">'+r.ico+' '+esc(r.name)+'</button>').join('')+'</div>'
+    + naF('Bildunterschrift (freiwillig)', '<input type="text" value="'+esc(f.titel||'')+'" placeholder="z. B. Ansicht von oben" data-na-ein="fotoTitel" data-k="'+kk+'" autocomplete="off">')
+    + (f.orig && f.orig!==f.k ? '<button class="sheet-act" data-na="fotoOriginal" data-k="'+kk+'"><span class="sa-ico">↺</span><span>Original wiederherstellen<span class="sa-sub">Zuschnitt und Drehung zurücknehmen</span></span></button>' : '')
+    + '<button class="sheet-act danger" data-na="fotoWeg" data-k="'+kk+'"><span class="sa-ico">✕</span><span>Bild entfernen</span></button>'
+    + '<button class="btn btn-sec" style="width:100%;margin-top:4px" data-na="sheetZu">Fertig</button>');
+}
+naAkt('fotoBlatt', d=>naFotoBlatt(d.k));
+naAkt('fotoHaupt', d=>{ const E = NA_ENTWURF; if(!E) return; E.obj.hauptbild = d.k; naFormNeu(); naFotoBlatt(d.k); });
+naAkt('fotoRolle', d=>{ const E = NA_ENTWURF; if(!E) return;
+  const f = naFotos(E.obj).find(x=>x.k===d.k); if(!f) return;
+  naFotoAendern(E.obj, d.k, { rolle: f.rolle===d.r ? '' : d.r }); naFormNeu(); naFotoBlatt(d.k); });
+naEin('fotoTitel', (v, d)=>{ const E = NA_ENTWURF; if(E) naFotoAendern(E.obj, d.k, { titel: String(v||'').trim().slice(0, 80) }); });
+naAkt('fotoSchnitt', async d=>{
+  const E = NA_ENTWURF; if(!E) return;
+  const f = naFotos(E.obj).find(x=>x.k===d.k); if(!f) return;
+  naSheetZu(null);
+  const erg = await naBildBearbeiten(naBildSrc(f));
+  if(NA_ENTWURF!==E) return;
+  if(!erg){ naFotoBlatt(d.k); return; }
+  try{ toast('Bild wird gespeichert …'); const b = await naBildHochladen(erg);
+    if(NA_ENTWURF!==E) return;
+    naFotoErsetzen(E.obj, d.k, b); naFormNeu(); naFotoBlatt(b.k); toast('Bild geändert'); }
+  catch(e){ toast(e.message, true); }
+});
+naAkt('fotoOriginal', d=>{ const E = NA_ENTWURF; if(!E) return;
+  const f = naFotos(E.obj).find(x=>x.k===d.k); if(!f || !f.orig) return;
+  const ziel = f.orig; naFotoOriginal(E.obj, d.k); naFormNeu(); naFotoBlatt(ziel); toast('Original wiederhergestellt'); });
+naAkt('fotoWeg', async d=>{ const E = NA_ENTWURF; if(!E) return;
+  if(!(await naFrage('Dieses Bild entfernen?', { ja:'Entfernen', gefahr:true }))){ if(NA_ENTWURF===E) naFotoBlatt(d.k); return; }
+  if(NA_ENTWURF!==E) return;
+  naFotoEntfernen(E.obj, d.k); naFormNeu(); });
 
 /* ── Etikett lesen (ocr.js + merkmale.js aus der alten App, unverändert) ── */
 function naOcrStand(t){ if(NA_ENTWURF){ NA_ENTWURF.ocr = Object.assign(NA_ENTWURF.ocr||{}, { stand:t }); } const s = $('naOcrStand'); if(s) s.textContent = t; }
@@ -288,7 +370,9 @@ naAkt('etikett', async ()=>{
     const erg = ocrZusammenfuehren([foto]);
     if(NA_ENTWURF!==E) return;
     const neu = naEtikettUebernehmen(E, erg);
-    try{ const k = await naBildHochladen(url); E.obj.fotos = (E.obj.fotos||[]).concat([k]); }catch(e){ /* Foto ist Zugabe */ }
+    /* Das Etikettfoto bleibt als Bild erhalten — mit der Rolle „Etikett", damit
+       es nicht von allein zum Anzeigebild wird. */
+    try{ naFotoDazu(E.obj, await naBildHochladen(url), 'etikett'); }catch(e){ /* Foto ist Zugabe */ }
     naOcrStand(neu.length ? ('Übernommen: '+neu.join(', ')+'. Bitte prüfen.') : 'Nichts Sicheres gelesen — bitte von Hand eintragen.'
       + (E.ocr.herstellerNeu ? ' Hersteller gelesen: „'+E.ocr.herstellerNeu+'" (noch nicht in der Liste).' : ''));
     naFormNeu();
@@ -324,7 +408,7 @@ async function naStammPruefen(E){
   if(!E.neu){
     const alt = naHole(typ, o.id);
     /* Fotos, Notiz und Preis ändern keine Zeile im Standard — dafür keine Rückfrage. */
-    const felder = naUnterschiede(alt, o).filter(f=>['fotos','notiz','preis'].indexOf(f)<0);
+    const felder = naUnterschiede(alt, o).filter(f=>['fotos','hauptbild','notiz','preis'].indexOf(f)<0);
     const v = naVerwendungen(naVerwendungDaten().standards, typ, o.id);
     const stds = v.map(x=>x.std.titel || (naHole('baustein',x.std.id)||{}).name).filter((x,i,a)=>a.indexOf(x)===i);
     if(felder.length && stds.length && !(await naFrage('Diese Änderung wirkt in '+stds.length+' Standard(s).', { ja:'Überall übernehmen', mehr: esc(stds.slice(0,8).join(' · ')+(stds.length>8?' …':'')) }))) return false;
@@ -335,6 +419,7 @@ naAkt('entwSpeichern', async ()=>{
   const E = NA_ENTWURF; if(!E) return;
   if(!(await naStammPruefen(E))) return;
   if(E.typ==='material' && E.obj.preis) E.obj.preis.bezugsmenge = Math.max(1, +E.obj.preis.bezugsmenge || 1);
+  naFotosSetzen(E.obj, naFotos(E.obj));   /* einheitliche Bildform, auch für ältere Einträge */
   naSpeichern(E.typ, E.obj);
   NA_ENTWURF = null; toast('Gespeichert');
   const zurueck = NA_RUECKSPRUNG; NA_RUECKSPRUNG = null;

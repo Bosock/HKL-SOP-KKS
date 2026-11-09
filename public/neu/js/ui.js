@@ -173,37 +173,78 @@ function naAbmelden(){ store.set('hkl_authuntil', '0'); }
 let naAktivZuletzt = 0;
 document.addEventListener('click', ()=>{ const t = Date.now(); if(t-naAktivZuletzt < 60000 || !naAdmin()) return; naAktivZuletzt = t; store.set('hkl_authuntil', String(t+NA_SITZUNG)); }, true);
 
-/* ── Bilder: verkleinern, im Medienspeicher des Neuaufbaus ablegen ── */
+/* ── Bilder: verkleinern, im Medienspeicher des Neuaufbaus ablegen ──
+   Jedes Bild wird zweimal abgelegt: groß (längste Kante 1600) und als kleine
+   Vorschau (320). Listen und Standards laden nur die Vorschau — ein Standard
+   mit 30 Materialien kostet so einige hundert Kilobyte statt mehrerer
+   Megabyte. Bearbeitet wird mit dem Foto-Editor der alten App
+   (features/photoedit.js: zuschneiden, in 90°-Schritten drehen), vergrößert
+   mit ihrer Großansicht (features/lightbox.js). Beide unverändert. */
 function naBildUrl(k){ return '/api/media/'+encodeURIComponent(k)+'?raum='+NA_RAUM; }
-function naDateiWaehlen(nurBild){
-  const inp = $(nurBild===false ? 'naDateiJson' : 'naDatei');
+/* Adresse eines Bildes: klein = Vorschau (wenn vorhanden), sonst das große. */
+function naBildSrc(f, klein){ if(!f) return ''; const b = (typeof f==='string') ? { k:f } : f; return naBildUrl((klein && b.v) || b.k); }
+/* art: 'kamera' (Vorgabe) · 'json'. Liefert EINE Datei oder null. */
+function naDateiWaehlen(art){
+  const inp = $((art===false || art==='json') ? 'naDateiJson' : 'naDatei');
   return new Promise(res=>{
     inp.value = '';
     inp.onchange = ()=>{ const f = inp.files && inp.files[0]; res(f || null); };
     inp.click();
   });
 }
+/* Bilder aus der Fotosammlung des Geräts (ohne Kamera-Zwang), auch mehrere. */
+function naBilderWaehlen(){
+  const inp = $('naDateiWahl');
+  return new Promise(res=>{
+    inp.value = '';
+    inp.onchange = ()=>res(Array.from(inp.files || []));
+    inp.click();
+  });
+}
 function naDateiAlsDataUrl(f){ return new Promise((res, rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
 function naDateiAlsText(f){ return new Promise((res, rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result); r.onerror = rej; r.readAsText(f); }); }
-function naVerkleinern(dataUrl, kante){
+function naVerkleinern(quelle, kante, guete){
   return new Promise((res)=>{
     const im = new Image();
     im.onload = ()=>{ const k = kante||1600; const f = Math.min(1, k/Math.max(im.width, im.height));
-      const c = document.createElement('canvas'); c.width = Math.round(im.width*f); c.height = Math.round(im.height*f);
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width*f)); c.height = Math.max(1, Math.round(im.height*f));
       c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-      c.toBlob(b=>res(b), 'image/jpeg', 0.85); };
+      c.toBlob(b=>res(b), 'image/jpeg', guete||0.85); };
     im.onerror = ()=>res(null);
-    im.src = dataUrl;
+    im.src = quelle;
   });
 }
-async function naBildHochladen(dataUrl){
-  const blob = await naVerkleinern(dataUrl, 1600);
-  if(!blob) throw new Error('Bild nicht lesbar');
+async function naBildAblegen(blob){
   const r = await fetch('/api/media?raum='+NA_RAUM, { method:'POST', headers:{ 'Content-Type':'image/jpeg' }, body: blob });
   if(!r.ok) throw new Error('Hochladen fehlgeschlagen (HTTP '+r.status+')');
   const j = await r.json(); if(!j || !j.kennung) throw new Error('Server hat keine Kennung geliefert');
   return j.kennung;
 }
+/* Legt ein Bild ab und liefert { k, v } (v fehlt, wenn die Vorschau nicht
+   abgelegt werden konnte — dann wird überall das große Bild gezeigt). */
+async function naBildHochladen(dataUrl){
+  const gross = await naVerkleinern(dataUrl, 1600, 0.85);
+  if(!gross) throw new Error('Bild nicht lesbar');
+  const k = await naBildAblegen(gross);
+  let v = '';
+  try{ const klein = await naVerkleinern(dataUrl, 320, 0.8); if(klein) v = await naBildAblegen(klein); }catch(e){ v = ''; }
+  return v && v!==k ? { k, v } : { k };
+}
+/* Foto-Editor: zuschneiden und drehen. Liefert das bearbeitete Bild als
+   data-URL oder null (abgebrochen). quelle = data-URL oder Bildadresse. */
+function naBildBearbeiten(quelle){
+  return new Promise(res=>{
+    if(typeof openPhotoEditor!=='function'){ res(quelle); return; }
+    openPhotoEditor(quelle, erg=>res(erg || null));
+  });
+}
+/* Antippen macht groß — überall dieselbe Regel: jedes <img data-zoom>.
+   data-gross nennt das große Bild, wenn im Element nur die Vorschau steckt. */
+document.addEventListener('click', ev=>{
+  const t = ev.target; if(!t || t.tagName!=='IMG' || !t.hasAttribute('data-zoom') || typeof openLightbox!=='function') return;
+  ev.preventDefault(); ev.stopPropagation();
+  openLightbox(t.getAttribute('data-gross') || t.getAttribute('src'), t.getAttribute('data-cap') || '');
+}, true);
 
 /* ── Abhaken (nur dieses Gerät; es ist der Arbeitsstand im Saal) ── */
 function naHaken(stdId){ return loadJSON('nalokal_haken_'+stdId, {}) || {}; }

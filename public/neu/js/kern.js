@@ -298,3 +298,66 @@ function naUnterschiede(vorher, nachher){
 }
 /* CSV (Semikolon, Excel-tauglich). Rein. */
 function naCsv(zeilen){ return zeilen.map(z=>z.map(v=>{ const s=String(v==null?'':v); return /[;"\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s; }).join(';')).join('\r\n'); }
+
+/* ── Bilder ──
+   Festlegungen aus der alten App, hier als reine Logik:
+     · Ein Bild ist { k, v?, rolle?, titel?, orig?, origV? } — k = Kennung im
+       Medienspeicher, v = kleine Vorschau (für Listen und Standards), orig =
+       die Kennung VOR dem Zuschneiden/Drehen (damit es ein Zurück gibt).
+       Ältere Einträge sind bloße Kennungen; naFotos liest beides.
+     · Das ANZEIGEBILD ist das Bild, das in Listen und Standards erscheint.
+       Wer eines gewählt hat (★), bekommt genau das. Sonst: das erste
+       Produktbild, sonst das erste Bild, das kein Etikett ist, sonst das
+       erste. Ein Etikettfoto wird also nie von allein zum Gesicht des
+       Materials, nur weil es zuerst aufgenommen wurde. */
+const NA_FOTO_ROLLEN = [
+  { id:'produkt',    name:'Produkt',    ico:'📦' },
+  { id:'etikett',    name:'Etikett',    ico:'🏷' },
+  { id:'verpackung', name:'Verpackung', ico:'🗃' },
+  { id:'sonstiges',  name:'Sonstiges',  ico:'🖼' },
+];
+function naFotoRolle(id){ return NA_FOTO_ROLLEN.find(r=>r.id===id) || null; }
+function naFotos(o){
+  return ((o && o.fotos) || []).map(f=>(typeof f==='string') ? { k:f } : f).filter(f=>f && f.k);
+}
+function naHauptbild(o){
+  const l = naFotos(o); if(!l.length) return null;
+  const gewaehlt = o.hauptbild ? l.find(f=>f.k===o.hauptbild) : null;
+  return gewaehlt || l.find(f=>f.rolle==='produkt') || l.find(f=>f.rolle!=='etikett') || l[0];
+}
+/* Bilder zurückschreiben: einheitliche Form, leere Angaben weg, und der
+   Zeiger aufs Anzeigebild zeigt nie ins Leere. */
+function naFotosSetzen(o, liste){
+  o.fotos = (liste||[]).filter(f=>f && f.k).map(f=>{ const n = { k:f.k };
+    ['v','rolle','titel','orig','origV'].forEach(p=>{ if(f[p]) n[p] = f[p]; }); return n; });
+  if(o.hauptbild && !o.fotos.some(f=>f.k===o.hauptbild)) delete o.hauptbild;
+  return o;
+}
+function naFotoDazu(o, bild, rolle){
+  const l = naFotos(o); if(l.some(f=>f.k===bild.k)) return naFotosSetzen(o, l);
+  const n = { k:bild.k }; if(bild.v) n.v = bild.v; if(rolle && naFotoRolle(rolle)) n.rolle = rolle;
+  return naFotosSetzen(o, l.concat([n]));
+}
+/* Ein bearbeitetes Bild tritt an die Stelle des alten: Rolle, Unterschrift
+   und die Wahl als Anzeigebild bleiben; das Original wird gemerkt. */
+function naFotoErsetzen(o, altK, bild){
+  if(bild.k===altK) return o;
+  /* Das Ergebnis gibt es schon als eigenes Bild: dann fällt nur das alte weg. */
+  if(naFotos(o).some(f=>f.k===bild.k)){ const warH = o.hauptbild===altK; naFotoEntfernen(o, altK); if(warH) o.hauptbild = bild.k; return o; }
+  const l = naFotos(o).map(f=>{ if(f.k!==altK) return f;
+    return Object.assign({}, f, { k:bild.k, v:bild.v||'', orig:f.orig||f.k, origV:f.orig ? (f.origV||'') : (f.v||'') }); });
+  const warHaupt = o.hauptbild===altK;
+  naFotosSetzen(o, l); if(warHaupt) o.hauptbild = bild.k;
+  return o;
+}
+function naFotoOriginal(o, k){
+  const f = naFotos(o).find(x=>x.k===k); if(!f || !f.orig || f.orig===f.k) return o;
+  const l = naFotos(o).map(x=>{ if(x.k!==k) return x; const n = Object.assign({}, x, { k:x.orig, v:x.origV||'' }); delete n.orig; delete n.origV; return n; });
+  const warHaupt = o.hauptbild===k;
+  naFotosSetzen(o, l); if(warHaupt) o.hauptbild = f.orig;
+  return o;
+}
+function naFotoEntfernen(o, k){ return naFotosSetzen(o, naFotos(o).filter(f=>f.k!==k)); }
+function naFotoAendern(o, k, aenderung){
+  return naFotosSetzen(o, naFotos(o).map(f=>f.k===k ? Object.assign({}, f, aenderung) : f));
+}

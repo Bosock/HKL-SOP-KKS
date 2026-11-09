@@ -38,11 +38,14 @@ if(!/\/$/.test(location.pathname) && !/index\.html$/.test(location.pathname)) lo
 <div class="sheet-overlay" id="naSheetOv"></div>
 <div class="sheet" id="naSheet" role="dialog" aria-modal="true"></div>
 <input type="file" id="naDatei" accept="image/*" capture="environment" hidden>
+<input type="file" id="naDateiWahl" accept="image/*" multiple hidden>
 <input type="file" id="naDateiJson" accept="application/json,.json" hidden>
 
 <script src="../js/core/store.js"></script>
 <script src="../js/features/merkmale.js"></script>
 <script src="../js/features/ocr.js"></script>
+<script src="../js/features/photoedit.js"></script>
+<script src="../js/features/lightbox.js"></script>
 <script src="js/kern.js"></script>
 <script src="js/abgleich.js"></script>
 <script src="js/daten.js"></script>
