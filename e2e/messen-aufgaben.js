@@ -59,7 +59,7 @@ const AUFGABEN = [
     await editor();   /* Ausgangspunkt: der Standard im Editor */
     await tipp('[data-na="neuAnlegen"]'); await tipp('#naAuswListe >> text=Material');
     await p.fill('#naAuswQ', 'Führungsdraht 0,035'); await tipp('#naAuswListe >> text=neu anlegen');
-    await tipp('button[data-f="kategorie"]'); await p.fill('#naAuswQ', 'Führungsdraht'); await tipp('#naAuswListe .sheet-act >> nth=0');
+    /* Die Kategorie wird aus dem Namen vorgeschlagen — kein Tippen mehr nötig. */
     await p.fill('input[data-f="gtin"]', gtin('0401234567111')); await p.fill('input[data-f="ref"]', 'RF-GA35');
     await tipp('[data-na="herstellerNehmen"]');   /* Vorschlag aus dem GTIN-Präfix */
     await tipp('[data-na="entwSpeichern"]');

@@ -71,7 +71,8 @@ function naPosBild(pos){
 function naPosZeile(std, pos, h, editor){
   const art = naArt(pos.art); const haken = art.haken!==false;
   const zusatz = pos.zusatz ? '<span class="na-pzusatz">'+esc(pos.zusatz)+'</span>' : '';
-  const ansage = pos.ansage ? ' <span class="na-chip ansage">auf Ansage</span>' : '';
+  const ansage = (pos.ansage ? ' <span class="na-chip ansage">auf Ansage</span>' : '')
+    + (pos.ref && pos.ref.typ==='material' && naHatErsatz(naStamm(pos.ref)) ? ' <span class="na-chip ersatz" title="Ersatz eingetragen — antippen">🔁 Ersatz</span>' : '');
   const cls = 'na-pos'+(h && h[pos.id] ? ' erledigt' : '')+(haken ? '' : ' hinweis');
   const text = '<span class="na-ptext"'+(pos.ref ? ' data-na="posInfo" data-pos="'+esc(pos.id)+'" data-std="'+esc(std.id)+'" style="cursor:pointer"' : '')+'>'
     + (art.ico ? esc(art.ico)+' ' : '')+esc(naPosText(pos))+ansage+zusatz+'</span>';
@@ -281,6 +282,22 @@ naAkt('neuAnlegen', async d=>{
 function naZielListe(ziel){ const o = naHole(ziel.typ, ziel.id); if(!o) return null;
   if(ziel.typ==='baustein'){ o.positionen = o.positionen || []; return { o, liste:o.positionen }; }
   const x = naAbschnittFinden(o, ziel.abs); return x ? { o, liste:x.a.positionen = x.a.positionen || [] } : null; }
+/* Verknüpfung „braucht dazu": Fehlt das Zubehör in dieser Liste noch, bietet
+   die App es an — sie fügt nichts ungefragt ein. */
+async function naZubehoerAnbieten(ziel, artId, typ, ids){
+  if(typ!=='material') return;
+  const o = naHole(ziel.typ, ziel.id); if(!o) return;
+  const da = naPositionenAlle(o).filter(p=>p.ref && p.ref.typ==='material').map(p=>p.ref.id);
+  const alle = naAlle('material', true); const fehlt = [];
+  ids.forEach(id=>naZubehoerFehlt(alle, id, da).forEach(x=>{ const m = naHole('material', x); if(m && !m.archiviert && fehlt.indexOf(x)<0) fehlt.push(x); }));
+  if(!fehlt.length) return;
+  const namen = fehlt.map(x=>naHole('material', x).name);
+  if(!(await naFrage('Dazu gehört noch Zubehör. Gleich mit hinzufügen?', { ja: fehlt.length===1 ? 'Hinzufügen' : 'Alle '+fehlt.length+' hinzufügen', nein:'Nein', mehr: esc(namen.join(' · ')) }))) return;
+  const z = naZielListe(ziel); if(!z) return;
+  fehlt.forEach(id=>z.liste.push({ id:naId('p'), art:artId, ref:{ typ:'material', id }, menge:'' }));
+  naSpeichern(ziel.typ, z.o, fehlt.length+' Zubehör-Position(en)');
+  toast(fehlt.length+' Zubehör hinzugefügt'); naFormNeu();
+}
 let NA_NEU_NAME = '';
 async function naPositionenHinzu(ziel, artId){
   const art = naArt(artId);
@@ -292,7 +309,7 @@ async function naPositionenHinzu(ziel, artId){
     if(!w || !w.length) return;
     if(w.indexOf('__neu__')>=0){
       const zurueck = location.hash;
-      naStammNeuAusStandard(typ, r=>{ const z = naZielListe(ziel); if(z){ z.liste.push({ id:naId('p'), art:artId, ref:{ typ, id:r.id }, menge:'' }); naSpeichern(ziel.typ, z.o, 'Position: '+naPosText(z.liste[z.liste.length-1])); } naGeh(zurueck); },
+      naStammNeuAusStandard(typ, r=>{ const z = naZielListe(ziel); if(z){ z.liste.push({ id:naId('p'), art:artId, ref:{ typ, id:r.id }, menge:'' }); naSpeichern(ziel.typ, z.o, 'Position: '+naPosText(z.liste[z.liste.length-1])); } naGeh(zurueck); naZubehoerAnbieten(ziel, artId, typ, [r.id]); },
         ()=>{ naGeh(zurueck); }, NA_NEU_NAME);
       NA_NEU_NAME = '';
       return;
@@ -301,6 +318,7 @@ async function naPositionenHinzu(ziel, artId){
     w.forEach(id=>z.liste.push({ id:naId('p'), art:artId, ref:{ typ, id }, menge:'' }));
     naSpeichern(ziel.typ, z.o, w.length+' Position(en) '+art.name);
     toast(w.length+' hinzugefügt — Menge und Zusatz über ✎'); naFormNeu();
+    await naZubehoerAnbieten(ziel, artId, typ, w);
     return;
   }
   const t = await naSheetAuf('<div class="sheet-title">'+esc(art.ico+' '+art.name)+'</div>'
@@ -353,7 +371,7 @@ naAkt('bsWeg', async ()=>{ const b = naEdObj(); if(!b) return; if(!(await naFrag
 /* ── Rüstliste (E9): nach Bereich, darin nach Lagerort; „auf Ansage" markiert ── */
 function naSichtRuest(id){
   const s = naHole('standard', id); if(!s) return { titel:'Rüstliste', html: naLeer('❓','Nicht gefunden','') };
-  const gruppen = naRuestliste(s, naStamm, naListe('bereiche', true));
+  const gruppen = naRuestliste(s, naStammFuerListe, naListe('bereiche', true));
   const h = loadJSON('nalokal_ruest_'+s.id, {}) || {};
   let html = '<div class="na-zeile" style="margin-bottom:8px"><button class="na-knopf" data-na="ruestNull" data-std="'+esc(s.id)+'">↺ Haken zurücksetzen</button></div>';
   if(!gruppen.length) html += naLeer('🧺','Nichts zu richten','Die Rüstliste zeigt Material, Geräte und Medikamente des Standards.');

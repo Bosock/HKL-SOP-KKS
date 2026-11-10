@@ -70,10 +70,14 @@ async function wahl(page, such, text) {
   await p.fill('#naAnmeldePw', 'abcdefg'); await p.click('#naSheet >> text=Anmelden');
   r.check('Passwort „abcdefg" meldet an', await p.evaluate(() => naAdmin()));
 
-  /* ── 2. Material: Kategorie zuerst, GTIN mit Prüfziffer, Hersteller an Ort und Stelle ── */
+  /* ── 2. Material: alles Wichtige sofort da, Kategorie freiwillig; GTIN mit Prüfziffer, Hersteller an Ort und Stelle ── */
   await p.click('.na-tab:has-text("Material")'); await p.click('.na-plus');
-  r.check('vor der Kategorie keine weiteren Felder', !(await p.isVisible('input[data-f="gtin"]')));
+  r.check('Name, GTIN, Hersteller und Lagerort sind sofort da — die Kategorie ist kein Tor', (await p.isVisible('input[data-f="name"]')) && (await p.isVisible('input[data-f="gtin"]'))
+    && (await p.isVisible('button[data-f="hersteller"]')) && (await p.isVisible('button[data-f="lagerort"]')) && !(await p.isVisible('button[data-f="kategorie"]')));
+  r.check('„fehlt noch" nennt die fünf Kern-Angaben', /Hersteller · GTIN oder REF · Lagerort · Produktbild · Kategorie/.test(await p.textContent('#naFehltZeile')));
+  await p.click('details[data-ab="kat"] > summary');
   await p.click('button[data-f="kategorie"]'); await wahl(p, 'Schleuse', 'Schleuse / Introducer');
+  r.check('Abschnitt bleibt nach der Wahl aufgeklappt', await p.isVisible('button[data-f="kategorie"]'));
   await p.fill('input[data-f="gtin"]', GTIN_FALSCH);
   r.check('falsche Prüfziffer sofort angezeigt', /Prüfziffer stimmt nicht/.test(await p.textContent('#naGtinStand')));
   await p.fill('input[data-f="gtin"]', GTIN);
@@ -87,8 +91,11 @@ async function wahl(page, such, text) {
   await p.click('text=Vorschlag aus Kategorie');
   const name = await p.inputValue('input[data-f="name"]');
   r.check('Namensvorschlag aus Kategorie + ★-Merkmalen (' + name + ')', /^Schleuse/.test(name) && /6/.test(name));
-  await p.fill('input[data-f="lagerort"]', 'Schrank 3');
+  await p.click('button[data-f="lagerort"]'); await p.fill('#naAuswQ', 'Schrank 3'); await p.click('#naAuswListe >> text=„Schrank 3" neu anlegen');
+  r.check('Lagerort ist ein Listeneintrag (an Ort und Stelle angelegt)', await p.evaluate(() => naListe('lagerorte').length === 1 && naListeName('lagerorte', NA_ENTWURF.obj.lagerort) === 'Schrank 3'));
+  await p.click('details[data-ab="sonst"] > summary');
   await p.click('button[data-f="bereich"]'); await p.click('#naAuswListe >> text=Tischvorbereitung');
+  await p.click('details[data-ab="pack"] > summary');
   await p.fill('input[data-f="preis.betrag"]', '120');
   await p.fill('input[data-f="preis.bezugsmenge"]', '10');
   r.check('Stückpreis gerechnet', /12,00/.test(await p.textContent('#naStueckpreis')));
@@ -99,13 +106,22 @@ async function wahl(page, such, text) {
   r.check('… mit GTIN, REF, Hersteller-Kennung, Merkmalen, Preis', mat.gtin === GTIN && mat.ref === 'RSS601' && /^he/.test(mat.hersteller) && Object.keys(mat.merkmale).length >= 2 && mat.preis.bezugsmenge === 10);
 
   /* Doppelte GTIN wird abgewiesen. */
-  await p.click('.na-plus'); await p.click('button[data-f="kategorie"]'); await wahl(p, 'Schleuse', 'Schleuse / Introducer');
+  await p.click('.na-plus');
   await p.fill('input[data-f="gtin"]', GTIN);
   r.check('doppelte GTIN wird benannt', /schon/.test(await p.textContent('#naGtinStand')));
   await p.fill('input[data-f="name"]', 'Zweite Schleuse'); await p.click('[data-na="entwSpeichern"]');
   await p.waitForTimeout(300);
   r.check('… und nicht gespeichert', await p.evaluate(() => naAlle('material').length === 1));
-  await p.click('text=Abbrechen');
+  /* Schutz: Eine Maske mit Eingaben verlässt man nicht aus Versehen. */
+  await p.click('.na-tab:has-text("Geräte")');
+  r.check('Verlassen mit ungespeicherten Eingaben fragt nach', await warte(p, () => /noch nicht gespeichert/.test(document.getElementById('naSheet').textContent) && document.getElementById('naSheet').classList.contains('show')));
+  await p.click('#naSheet.show button:has-text("Weiter bearbeiten")');
+  r.check('„Weiter bearbeiten": Maske und Eingaben bleiben', (await p.evaluate(() => location.hash)) === '#/material/neu' && (await p.inputValue('input[data-f="name"]')) === 'Zweite Schleuse');
+  await p.goBack(); await p.waitForTimeout(250);
+  r.check('auch „Zurück" des Geräts fragt — und bleibt in der Maske', (await p.evaluate(() => location.hash)) === '#/material/neu' && await p.evaluate(() => document.getElementById('naSheet').classList.contains('show')));
+  await p.click('#naSheet.show button:has-text("Weiter bearbeiten")');
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');
+  r.check('„Verwerfen" verlässt die Maske', await warte(p, () => location.hash === '#/material' && !NA_ENTWURF));
 
   /* ── 3. Gerät: ähnlicher Hersteller → Warnung statt Doppelung ── */
   await p.click('.na-tab:has-text("Geräte")'); await p.click('.na-plus');

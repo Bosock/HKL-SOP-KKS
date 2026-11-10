@@ -15,7 +15,7 @@
    ───────────────────────────────────────────────────────────── */
 'use strict';
 
-const CACHE_VERSION = 'v80';
+const CACHE_VERSION = 'v81';
 const SHELL_CACHE = 'hkl-shell-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'hkl-runtime-' + CACHE_VERSION;
 
@@ -120,6 +120,7 @@ const NEU_SHELL = [
   'neu/index.html',
   'neu/neu.css',
   'neu/js/kern.js',
+  'neu/js/barcode.js',
   'neu/js/abgleich.js',
   'neu/js/daten.js',
   'neu/js/ui.js',
@@ -127,6 +128,8 @@ const NEU_SHELL = [
   'neu/js/standards.js',
   'neu/js/werkzeuge.js',
   'neu/js/app.js',
+  'neu/daten/katalog-zusatz.json',
+  'neu/daten/material-namen.json',
 ];
 
 /* Alle mitgelieferten Datendateien unter /data/*.json (Standards, Referenz-

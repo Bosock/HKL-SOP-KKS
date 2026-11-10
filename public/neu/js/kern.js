@@ -150,6 +150,7 @@ function naListenVerwendung(liste, id, daten){
   if(liste==='arten') standards.forEach(s=>naPositionen(s).forEach(x=>{ if(x.pos.art===id) n++; }));
   else if(liste==='bereiche'){ standards.forEach(s=>naPositionen(s).forEach(x=>{ if(x.pos.bereich===id) n++; })); stamm.forEach(m=>{ if(m.bereich===id) n++; }); }
   else if(liste==='hersteller') stamm.forEach(m=>{ if(m.hersteller===id) n++; });
+  else if(liste==='lagerorte') stamm.forEach(m=>{ if(m.lagerort===id) n++; });
   else if(liste==='gruppen') standards.forEach(s=>{ if(s.gruppe===id) n++; });
   else if(liste==='kennzeichen') standards.forEach(s=>{ if((s.kennzeichen||[]).indexOf(id)>=0) n++; });
   else if(liste==='abschnitte') standards.forEach(s=>(s.rubriken||[]).forEach(r=>(r.abschnitte||[]).forEach(a=>{ if(a.name===id) n++; })));
@@ -257,6 +258,7 @@ const NA_LISTEN = [
   { key:'kategorien',       wort:'Material-Kategorien & Felder' },
   { key:'bereiche',         wort:'Bereiche (Rüstliste)' },
   { key:'hersteller',       wort:'Hersteller' },
+  { key:'lagerorte',        wort:'Lagerorte' },
   { key:'gruppen',          wort:'Gruppen von Standards' },
   { key:'kennzeichen',      wort:'Kennzeichen an Standards' },
   { key:'rubriken',         wort:'Rubrik-Namen' },

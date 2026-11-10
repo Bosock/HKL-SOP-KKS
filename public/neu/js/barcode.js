@@ -97,7 +97,9 @@ async function naBarcodeAusBild(quelle){
 
 /* ── Live-Scan: Kamera, bis ein Code mit gültiger GTIN im Bild ist ──
    Liefert { gtin, itemRef, roh } · { foto:true } (Nutzer will ein Foto
-   machen) · null (abgebrochen). Ohne Kamera sofort { foto:true }. */
+   machen) · null (abgebrochen). Ohne Kamera-Schnittstelle sofort
+   { foto:true }; ist die Kamera nur nicht freigegeben, bleibt das Fenster
+   offen und bietet das Foto an. */
 function naBarcodeScannen(){
   return new Promise(async fertig=>{
     if(!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia!=='function'){ fertig({ foto:true }); return; }
@@ -118,7 +120,14 @@ function naBarcodeScannen(){
       /* getUserMedia als ERSTES nach dem Tipp — ein await davor verbraucht
          auf manchen Geräten die Freigabe durch die Berührung. */
       strom = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1920 }, height:{ ideal:1080 } } });
-    }catch(e){ schliessen({ foto:true, grund:'Kamera nicht freigegeben' }); return; }
+    }catch(e){
+      /* Nicht still zum Foto wechseln: Der Tipp auf den Knopf ist die frische
+         Berührung, die iPhone und iPad für den Foto-Dialog verlangen. */
+      ov.classList.add('ohne-kamera');
+      stand('Die Kamera ist für diese Seite nicht freigegeben. Stattdessen ein Foto vom Barcode aufnehmen:');
+      const fb = ov.querySelector('#naScanFoto'); fb.textContent = '📷 Foto vom Barcode'; fb.className = 'btn btn-pri';
+      return;
+    }
     if(zu){ try{ strom.getTracks().forEach(t=>t.stop()); }catch(e){} return; }
     const video = ov.querySelector('#naScanVideo'); video.srcObject = strom;
     try{ await video.play(); }catch(e){}
