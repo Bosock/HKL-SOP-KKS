@@ -10,4 +10,5 @@ module.exports = [
   require('./state'),
   require('./media'),
   require('./raeume'),
+  require('./register'),
 ];
