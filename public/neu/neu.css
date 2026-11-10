@@ -62,6 +62,15 @@ main#naMain { padding-bottom:96px; }
 .na-karte h3 { margin:0 0 8px; font-size:15.5px; }
 .na-fotos { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
 .na-fotos img { width:76px; height:76px; object-fit:cover; border-radius:10px; border:1px solid var(--line); }
+.na-fotos img[data-zoom], .na-pbild, .na-foto-gross { cursor:zoom-in; }
+/* Bild-Kachel in der Maske: antippen öffnet die Bearbeitung. */
+.na-foto { position:relative; width:92px; height:92px; padding:0; border:2px solid var(--line); border-radius:12px; background:var(--surface-2); overflow:hidden; cursor:pointer; }
+.na-foto img { width:100%; height:100%; object-fit:cover; border:0; border-radius:0; display:block; }
+.na-foto.haupt { border-color:var(--accent); }
+.na-foto-marke { position:absolute; left:0; right:0; bottom:0; background:var(--accent); color:#fff; font-size:10.5px; font-weight:700; padding:2px 3px; text-align:center; }
+.na-foto-rolle { position:absolute; top:3px; right:3px; background:rgba(0,0,0,.55); border-radius:7px; padding:0 4px; font-size:13px; line-height:1.5; }
+.na-foto-gross { display:block; max-width:100%; max-height:36vh; margin:0 auto 10px; border-radius:12px; }
+.na-pbild { width:38px; height:38px; flex:0 0 38px; border-radius:8px; object-fit:cover; background:var(--surface-2); }
 .na-mono { font-family:var(--mono); letter-spacing:.02em; }
 .na-dim { color:var(--text-dim); font-size:13px; }
 .na-preis { color:var(--accent); font-weight:700; }

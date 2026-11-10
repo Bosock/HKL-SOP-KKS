@@ -63,6 +63,11 @@ async function naStandardAnlegen(){
 }
 
 /* ── Ansehen und abhaken ── */
+/* Das Anzeigebild des Stammsatzes an der Zeile — klein, antippen macht groß. */
+function naPosBild(pos){
+  const st = pos && pos.ref ? naStamm(pos.ref) : null; const hb = st ? naHauptbild(st) : null;
+  return hb ? '<img class="na-pbild" loading="lazy" draggable="false" alt="" data-zoom data-gross="'+esc(naBildSrc(hb))+'" data-cap="'+esc(st.name||'')+'" src="'+esc(naBildSrc(hb, true))+'">' : '';
+}
 function naPosZeile(std, pos, h, editor){
   const art = naArt(pos.art); const haken = art.haken!==false;
   const zusatz = pos.zusatz ? '<span class="na-pzusatz">'+esc(pos.zusatz)+'</span>' : '';
@@ -71,13 +76,14 @@ function naPosZeile(std, pos, h, editor){
   const text = '<span class="na-ptext"'+(pos.ref ? ' data-na="posInfo" data-pos="'+esc(pos.id)+'" data-std="'+esc(std.id)+'" style="cursor:pointer"' : '')+'>'
     + (art.ico ? esc(art.ico)+' ' : '')+esc(naPosText(pos))+ansage+zusatz+'</span>';
   const menge = pos.menge ? '<span class="na-pmenge">'+esc(pos.menge)+'</span>' : '';
+  const bild = naPosBild(pos);
   if(editor){
-    return '<div class="'+cls+'" style="--pf:'+esc(art.farbe||'')+'" draggable="true" data-pos-id="'+esc(pos.id)+'"><span class="na-griff" title="Ziehen zum Verschieben">⋮⋮</span>'+text+menge
+    return '<div class="'+cls+'" style="--pf:'+esc(art.farbe||'')+'" draggable="true" data-pos-id="'+esc(pos.id)+'"><span class="na-griff" title="Ziehen zum Verschieben">⋮⋮</span>'+bild+text+menge
       + '<span class="na-pakt"><button class="na-knopf klein" data-na="posBearb" data-pos="'+esc(pos.id)+'" aria-label="Bearbeiten">✎</button>'
       + '<button class="na-knopf klein" data-na="posSchieb" data-pos="'+esc(pos.id)+'" data-r="-1" aria-label="nach oben">↑</button>'
       + '<button class="na-knopf klein" data-na="posSchieb" data-pos="'+esc(pos.id)+'" data-r="1" aria-label="nach unten">↓</button></span></div>';
   }
-  return '<div class="'+cls+'" style="--pf:'+esc(art.farbe||'')+'">'+(haken ? '<span class="chk" data-na="haken" data-std="'+esc(std.id)+'" data-pos="'+esc(pos.id)+'" role="checkbox" aria-checked="'+(h && h[pos.id] ? 'true' : 'false')+'">✓</span>' : '<span style="width:26px;text-align:center">ℹ</span>')+text+menge+'</div>';
+  return '<div class="'+cls+'" style="--pf:'+esc(art.farbe||'')+'">'+(haken ? '<span class="chk" data-na="haken" data-std="'+esc(std.id)+'" data-pos="'+esc(pos.id)+'" role="checkbox" aria-checked="'+(h && h[pos.id] ? 'true' : 'false')+'">✓</span>' : '<span style="width:26px;text-align:center">ℹ</span>')+bild+text+menge+'</div>';
 }
 function naSichtStandard(id){
   const s = naHole('standard', id);
@@ -355,7 +361,7 @@ function naSichtRuest(id){
     html += '<div class="na-rub"><h2>'+esc(g.bereich ? naListeName('bereiche', g.bereich) : 'Ohne Bereich')+'</h2></div>';
     g.orte.forEach(o=>{
       html += '<div class="na-ruest-ort">📍 '+esc(o.ort || 'ohne Lagerort')+'</div>';
-      html += o.posten.map(p=>'<div class="na-pos'+(h[p.pos.id]?' erledigt':'')+'"><span class="chk" data-na="ruestHaken" data-std="'+esc(s.id)+'" data-pos="'+esc(p.pos.id)+'">✓</span><span class="na-ptext">'+esc(NA_TYPEN[p.typ].ico+' '+p.name)+(p.ansage?' <span class="na-chip ansage">auf Ansage</span>':'')+(p.pos.zusatz?'<span class="na-pzusatz">'+esc(p.pos.zusatz)+'</span>':'')+'</span>'+(p.menge?'<span class="na-pmenge">'+esc(p.menge)+'</span>':'')+'</div>').join('');
+      html += o.posten.map(p=>'<div class="na-pos'+(h[p.pos.id]?' erledigt':'')+'"><span class="chk" data-na="ruestHaken" data-std="'+esc(s.id)+'" data-pos="'+esc(p.pos.id)+'">✓</span>'+naPosBild(p.pos)+'<span class="na-ptext">'+esc(NA_TYPEN[p.typ].ico+' '+p.name)+(p.ansage?' <span class="na-chip ansage">auf Ansage</span>':'')+(p.pos.zusatz?'<span class="na-pzusatz">'+esc(p.pos.zusatz)+'</span>':'')+'</span>'+(p.menge?'<span class="na-pmenge">'+esc(p.menge)+'</span>':'')+'</div>').join('');
     });
   });
   return { titel:'Rüstliste', pfad:s.titel, zurueck:'#/s/'+s.id, html };

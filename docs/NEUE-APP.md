@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 06.11.2026 · Cache-Version `v79` · Code: `public/neu/`
+**Stand:** 09.11.2026 · Cache-Version `v80` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -83,8 +83,32 @@ Die Material-Maske der Verwaltung, Schritt für Schritt:
 5. **Merkmale.** ★-Felder stehen zuerst. Werte und neue Felder lassen sich an
    Ort und Stelle anlegen.
 6. **Name** mit Vorschlag aus Kategorie und Merkmalen.
-7. Weitere Felder: Lagerort, Bereich, Fotos, Preis je Bezugsmenge.
+7. Weitere Felder: Lagerort, Bereich, Bilder, Preis je Bezugsmenge.
 8. Danach: „Verwendet in", Dublette zusammenführen, archivieren, Papierkorb.
+
+**Bilder** (seit 09.11.2026; ein Feld in der Maske, für Material, Gerät und
+Medikament dasselbe — kein eigenes Menü):
+
+- **Aufnehmen oder aus den Fotos wählen.** Nach der Aufnahme öffnet sofort der
+  Foto-Editor: zuschneiden (Rahmen ziehen) und in 90°-Schritten drehen.
+  Mehrere Bilder auf einmal kommen ohne Editor hinzu und lassen sich einzeln
+  nachbearbeiten.
+- **Bild antippen** öffnet ein Blatt in der Maske: zuschneiden/drehen, als
+  **Anzeigebild** wählen (★), sagen, was es zeigt (Produkt · Etikett ·
+  Verpackung · Sonstiges), Bildunterschrift, Original wiederherstellen,
+  entfernen.
+- **Anzeigebild** ist das Bild, das in Listen, in den Standards und in der
+  Rüstliste an der Zeile steht. Ohne ausdrückliche Wahl gilt: das erste
+  Produktbild, sonst das erste Bild, das kein Etikett ist, sonst das erste.
+  Das Etikettfoto aus „Etikett lesen" bekommt die Rolle „Etikett" und wird
+  deshalb nicht von allein zum Gesicht des Materials.
+- **Antippen macht groß** — überall, mit Zoom (Großansicht der alten App).
+- Jedes Bild liegt groß (längste Kante 1600) und als kleine Vorschau (320) im
+  Medienspeicher; Listen und Standards laden nur die Vorschau.
+- Foto-Editor (`features/photoedit.js`) und Großansicht
+  (`features/lightbox.js`) sind die der alten App, unverändert.
+- Bildänderungen gehören zum Entwurf der Maske und gelten erst nach
+  „Speichern"; die Maske weist darauf hin.
 
 **Anwender und Verwaltung:** Die Anmeldung ist dieselbe wie im Neuaufbau
 bisher: Verwaltungspasswort, Vorgabe „abcdefg", eine Stunde Sitzung. Sie ist
@@ -110,6 +134,8 @@ Wiederverwendet, **ohne Änderung**:
 - `js/core/store.js` (Speicher mit Raum-Präfix)
 - `js/features/merkmale.js` (Merkmalskatalog)
 - `js/features/ocr.js` (Etikett)
+- `js/features/photoedit.js` (zuschneiden, drehen), `js/features/lightbox.js`
+  (Großansicht)
 - `data/merkmale.json`
 
 **Datenmodell** (geteilter Zustand des Raums Neuaufbau). Jedes Objekt ist ein
@@ -117,7 +143,7 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 
 | Schlüssel | Inhalt |
 |---|---|
-| `na_m_<id>` | Material: name, kategorie, gtin, ref, hersteller (Kennung), merkmale{}, lagerort, bereich, fotos[], preis{betrag, bezugsmenge}, notiz, archiviert |
+| `na_m_<id>` | Material: name, kategorie, gtin, ref, hersteller (Kennung), merkmale{}, lagerort, bereich, fotos[{k, v, rolle, titel, orig, origV}], hauptbild, preis{betrag, bezugsmenge}, notiz, archiviert |
 | `na_g_<id>` | Gerätetyp: name, kategorie, hersteller, modell, lagerort, bereich, fotos[], hinweis |
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
 | `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage}]}]}] |
@@ -153,8 +179,8 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1109 Tests grün, davon 13 neu (`test/neue-app.test.js`: Logik
-  sowie Umleitung nur im Neuaufbau).
+- `npm test`: 1111 Tests grün, davon 15 in `test/neue-app.test.js` (Logik,
+  Bild-Regeln sowie Umleitung nur im Neuaufbau).
 - `npm run check`: grün, und die Prüfungen gelten jetzt auch für `public/neu`.
 - `node e2e/neue-app.js` prüft 52 Punkte. Dabei ist die Anmeldung getippt, und
   jede Aktion läuft über sichtbare Schaltflächen. Abgedeckt sind:
@@ -162,6 +188,10 @@ das.
   - der Bestand am Anfang und am Ende Byte für Byte gleich;
   - kein `na_*`-Schlüssel im Bestand;
   - der Live-Zeiger unberührt.
+- `node e2e/neue-app-bilder.js` prüft 36 Punkte am echten Bedienweg:
+  aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
+  nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
+  Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
 - Die älteren Suiten, die den Neuaufbau betreten (`neuaufbau`, `liveschalter`,
   `editor`, `produkt`, `erfassung`), sind grün.
 - **Messung** (`node e2e/messen-aufgaben.js`): zehn Alltagsaufgaben, gezählt in
@@ -172,7 +202,7 @@ das.
 | 1 | Neues Material mit GTIN/REF/Hersteller erfassen und in Standard setzen | ≈ 12, 2 Masken, 4 Bildschirme | 6 | **7**, eine Maske |
 | 2 | Vorhandenes Material in Standard setzen | 3 | 3 | **4** |
 | 3 | Material überall umbenennen | Reichweiten-Regel über alle Zeilen | 1 Feld | **4** (inkl. Wirkungsvorschau) |
-| 4 | Foto zu einem Material | 4 + Frage nach dem Bildort | 3 | **4**, ein Bildort |
+| 4 | Foto zu einem Material | 4 + Frage nach dem Bildort | 3 | **5**, ein Bildort (ein Tipp davon bestätigt Zuschnitt/Drehung) |
 | 5 | Menge nur an einer Stelle | 3–4 + Prüfblatt | 2 | **2** |
 | 6 | Dublette auflösen | 5 verschiedene Orte | 1 Ort | **5**, an einem Ort |
 | 7 | Neuen Auswahlwert an Ort und Stelle | nur in der Verwaltung oder gar nicht | 1 | **4** (2 davon Weg zum Feld) |
@@ -202,7 +232,8 @@ gibt es in ihr **nicht**:
 | Änderungsvorschläge (E18), Notizen (E22) | Rückstand |
 | Aktuelles (Pinnwand), Aufgaben | nicht Teil der Standards. Als eigenes Modul entscheiden. |
 | Bestellungen | ersetzt durch **Meldungen** (A2) |
-| PDF-Druck, Suche über alles, GUDID-Abfrage, Bildbearbeitung | Rückstand |
+| PDF-Druck, Suche über alles, GUDID-Abfrage | Rückstand |
+| Bildbearbeitung (zuschneiden, drehen, Anzeigebild) | **vorhanden** seit 09.11.2026 |
 | Design und Texte frei einstellbar (E16) | Rückstand |
 | Massenänderung „in Verwendungen ändern", Bilder in der Sicherung | Rückstand |
 
