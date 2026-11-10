@@ -200,6 +200,10 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   r.check('Text eines Handscanners: GTIN und REF übernommen, Charge und Verfall nie', await warte(p, g => NA_ENTWURF.obj.gtin === g && NA_ENTWURF.obj.ref === 'REF-77' && !/LOT123|280630/.test(JSON.stringify(NA_ENTWURF.obj)), G(E_FREMD)));
   await p.click('[data-na="registerHolen"]');
   r.check('Fehlanzeige wird gesagt, nichts erfunden', await warte(p, () => /steht dazu nichts/.test(document.getElementById('naOcrStand').textContent)) && !(await entwurf()).register);
+  /* Die Antwort des Registers darf nicht stören, wenn schon getippt wird. */
+  await p.fill('input[data-f="gtin"]', G(E_HAHN).slice(0, 13)); await p.focus('input[data-f="name"]');
+  await p.evaluate(() => { const f = document.querySelector('input[data-f="name"]'); f.setSelectionRange(3, 3); naFormNeu(); });
+  r.check('Neuzeichnen lässt Cursor und Feld, in dem getippt wird', await p.evaluate(() => { const a = document.activeElement; return a && a.getAttribute('data-f') === 'name' && a.selectionStart === 3; }));
   await p.fill('input[data-f="gtin"]', G(E_AUSFALL)); await p.click('[data-na="registerHolen"]');
   r.check('Register nicht erreichbar: gesagt, GTIN bleibt', await warte(p, () => /nicht erreichbar/.test(document.getElementById('naOcrStand').textContent)) && (await entwurf()).gtin === G(E_AUSFALL));
 

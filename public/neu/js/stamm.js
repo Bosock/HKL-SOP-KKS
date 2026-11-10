@@ -422,7 +422,18 @@ naEin('entw', (v, d)=>{
   const z = $('naFehltZeile'); if(z) z.innerHTML = naFehltHtml();
 });
 naEin('entwHaken', (v, d)=>{ if(NA_ENTWURF) naWertSetzen(NA_ENTWURF.obj, d.f, v ? true : ''); });
-function naFormNeu(){ const y = window.scrollY; naZeigen(); window.scrollTo(0, y); }
+/* Neu zeichnen, ohne den Menschen zu stören: Rollstand UND das Feld, in dem
+   gerade getippt wird, bleiben (die Register-Antwort kommt, während man schon
+   den Namen schreibt). */
+function naFormNeu(){
+  const y = window.scrollY; const a = document.activeElement;
+  const ein = a && a.getAttribute ? a.getAttribute('data-na-ein') : null; const f = ein ? a.getAttribute('data-f') : null;
+  let von = null, bis = null; if(f){ try{ von = a.selectionStart; bis = a.selectionEnd; }catch(e){} }
+  naZeigen(); window.scrollTo(0, y);
+  if(!f) return;
+  const n = Array.from(document.querySelectorAll('#naMain [data-na-ein="'+ein+'"]')).find(x=>x.getAttribute('data-f')===f);
+  if(n){ try{ n.focus({ preventScroll:true }); if(von!=null) n.setSelectionRange(von, bis); }catch(e){} }
+}
 naAkt('entwWahl', async d=>{
   if(!NA_ENTWURF) return;
   const E = NA_ENTWURF; const T = NA_TYPEN[E.typ];

@@ -21,6 +21,8 @@
    Mensch den Stammsatz speichert (Grundsatz A5).
 
    Abschalten: REGISTER=0 in der Umgebung. Die App arbeitet dann wie zuvor.
+   Zeitlimit je Register: REGISTER_TIMEOUT_MS (7 s). Pause nach einem
+   Ausfall: REGISTER_PAUSE_MS (5 min; 0 = keine).
    ───────────────────────────────────────────────────────────── */
 'use strict';
 const fs = require('fs');
@@ -36,6 +38,10 @@ const CACHE_DATEI = path.join(STATE_DIR, 'register-cache.json');
 const TREFFER_TAGE = 30;            /* ein Treffer gilt 30 Tage */
 const FEHLANZEIGE_STUNDEN = 24;     /* „nicht gefunden" nur einen Tag — die Register füllen sich */
 const MAX_JE_MINUTE = 60;           /* Schutz der fremden Dienste vor einem Versehen */
+/* Antwortet ein Register nicht (am 10.11.2026 hing EUDAMED über eine Minute),
+   wird es einige Minuten übersprungen — sonst wartete jeder Scan aufs Neue
+   das volle Zeitlimit ab, bevor das zweite Register gefragt wird. */
+const pauseMs = () => parseInt(process.env.REGISTER_PAUSE_MS || '300000', 10);
 
 /* ── Reine Helfer (testbar) ── */
 function gtinOk(g) {
@@ -91,7 +97,10 @@ function ausGudid(json) {
 function frisch(eintrag, jetzt) {
   if (!eintrag || !eintrag.t) return false;
   const alter = (jetzt || Date.now()) - eintrag.t;
-  return eintrag.treffer ? alter < TREFFER_TAGE * 864e5 : alter < FEHLANZEIGE_STUNDEN * 36e5;
+  /* vorlaeufig: Treffer aus dem zweiten Register, während das erste ausfiel —
+     nur einen Tag merken, damit EUDAMED (mit Registriernummer und Einordnung)
+     bald wieder zum Zug kommt. */
+  return (eintrag.treffer && !eintrag.vorlaeufig) ? alter < TREFFER_TAGE * 864e5 : alter < FEHLANZEIGE_STUNDEN * 36e5;
 }
 
 /* ── Zwischenspeicher (eine Datei; die Register sind raumunabhängig) ── */
@@ -129,6 +138,7 @@ function gedrosselt() {
   return ++fenster.n > MAX_JE_MINUTE;
 }
 const laufend = new Map();
+const pauseBis = {};                /* Register → Zeitpunkt, bis zu dem es übersprungen wird */
 /* Liefert { gtin, treffer|null, ausCache, fehler? }. Wirft nie. */
 async function abfragen(roh) {
   const gtin = gtin14(roh);
@@ -143,20 +153,26 @@ async function abfragen(roh) {
       [GUDID_URL + '?di=' + encodeURIComponent(gtin), ausGudid],
     ]) {
       versuche++;
+      if ((pauseBis[lesen.name] || 0) > Date.now()) { fehler++; continue; }
       try { const a = await holen(url); treffer = a.json ? lesen(a.json) : null; }
-      catch (e) { fehler++; console.error('[register]', lesen.name, gtin, e && (e.name === 'AbortError' ? 'Zeitlimit' : e.message)); }
+      catch (e) {
+        fehler++; if (pauseMs() > 0) pauseBis[lesen.name] = Date.now() + pauseMs();
+        console.error('[register]', lesen.name, gtin, e && (e.name === 'AbortError' ? 'Zeitlimit' : e.message));
+      }
       if (treffer) break;
     }
     if (treffer) { treffer.abgerufen = new Date().toISOString(); }
     /* Nur ein EINDEUTIGES Ergebnis merken: Antwortet ein Register gar nicht,
        wird „nicht gefunden" nicht gespeichert — sonst bliebe ein Produkt
        einen Tag lang unauffindbar, nur weil das Netz kurz weg war. */
-    if (treffer || fehler === 0) { cache[gtin] = { t: Date.now(), treffer }; cacheSchreiben(); }
-    return Object.assign({ gtin, treffer, ausCache: false }, (!treffer && fehler === versuche) ? { fehler: 'Register nicht erreichbar' } : {});
+    if (treffer || fehler === 0) { cache[gtin] = Object.assign({ t: Date.now(), treffer }, (treffer && fehler) ? { vorlaeufig: true } : {}); cacheSchreiben(); }
+    /* Ohne Treffer zählt schon EIN ausgefallenes Register als „nicht erreichbar":
+       „steht in keinem Register" darf nur heißen, dass beide geantwortet haben. */
+    return Object.assign({ gtin, treffer, ausCache: false }, (!treffer && fehler) ? { fehler: 'Register nicht erreichbar' } : {});
   })();
   laufend.set(gtin, lauf);
   try { return await lauf; } finally { laufend.delete(gtin); }
 }
 
 module.exports = { AN, gtinOk, gtin14, ausEudamed, ausGudid, frisch, abfragen, CACHE_DATEI,
-  flush: () => schreibt, _reset: () => { CACHE = null; fenster = { start: 0, n: 0 }; } };
+  flush: () => schreibt, _reset: () => { CACHE = null; fenster = { start: 0, n: 0 }; Object.keys(pauseBis).forEach(k => { delete pauseBis[k]; }); } };

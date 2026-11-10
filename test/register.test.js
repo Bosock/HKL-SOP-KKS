@@ -22,6 +22,8 @@ const GUDID_ORION = { gudid: { device: { brandName: 'IntellaMap Orion', versionM
   deviceDescription: null, singleUse: true, labeledContainsNRL: false, labeledNoNRL: true, sterilization: { deviceSterile: true, sterilizationPriorToUse: false } } } };
 
 const G_HAHN = '04022495787309', G_ORION = '08714729841968', G_NICHTS = '00884450456309', G_AUSFALL = '04012345678901';
+/* EUDAMED fällt aus, GUDID kennt das Produkt · und eine GTIN, die niemand kennt. */
+const G_HALB = '04012345678918', G_LEER = '04012345678925';
 const zaehler = { eudamed: 0, gudid: 0 };
 let attrappe, R, route;
 
@@ -33,14 +35,14 @@ test.before(async () => {
       zaehler.eudamed++;
       const g = u.searchParams.get('PRIMARY_DI');
       if (u.searchParams.get('format') !== 'json' || u.searchParams.get('api-version') !== 'v1.0') return json(400, { message: 'Required parameter format missing.' });
-      if (g === G_AUSFALL) return json(500, { message: 'Internal server error' });
+      if (g === G_AUSFALL || g === G_HALB) return json(500, { message: 'Internal server error' });
       return json(200, g === G_HAHN ? EUDAMED_HAHN : { value: [] });
     }
     if (u.pathname === '/gudid') {
       zaehler.gudid++;
       const g = u.searchParams.get('di');
       if (g === G_AUSFALL) return json(500, { error: 'kaputt' });
-      return g === G_ORION ? json(200, GUDID_ORION) : json(404, { error: 'No device found for DI ' + g });
+      return (g === G_ORION || g === G_HALB) ? json(200, GUDID_ORION) : json(404, { error: 'No device found for DI ' + g });
     }
     json(404, {});
   });
@@ -49,6 +51,7 @@ test.before(async () => {
   process.env.STATE_DIR = path.join(TMP, 'state');
   process.env.REGISTER_EUDAMED_URL = basis + '/eudamed/udi';
   process.env.REGISTER_GUDID_URL = basis + '/gudid';
+  process.env.REGISTER_PAUSE_MS = '0';
   R = require('../server/register');
   route = require('../server/routes/register');
 });
@@ -128,6 +131,27 @@ test('Zwischenspeicher: Treffer 30 Tage, Fehlanzeige 24 Stunden', () => {
   assert.equal(R.frisch({ t: jetzt - 23 * 36e5, treffer: null }, jetzt), true);
   assert.equal(R.frisch({ t: jetzt - 25 * 36e5, treffer: null }, jetzt), false);
   assert.equal(R.frisch(null, jetzt), false);
+});
+
+test('Ausfall eines Registers: das zweite antwortet, der Treffer gilt nur vorläufig, das ausgefallene pausiert', async () => {
+  assert.equal(R.gtinOk(G_HALB), true); assert.equal(R.gtinOk(G_LEER), true);
+  process.env.REGISTER_PAUSE_MS = '60000';
+  try {
+    const a = await R.abfragen(G_HALB);
+    assert.equal(a.treffer.quelle, 'GUDID'); assert.equal(a.fehler, undefined);
+    await R.flush();
+    const e = JSON.parse(fs.readFileSync(R.CACHE_DATEI, 'utf8'))[G_HALB];
+    assert.equal(e.vorlaeufig, true);
+    assert.equal(R.frisch(e, e.t + 23 * 36e5), true);
+    assert.equal(R.frisch(e, e.t + 25 * 36e5), false);       /* nach einem Tag wird EUDAMED wieder gefragt */
+    /* Während der Pause wird EUDAMED übersprungen — der Scan wartet kein Zeitlimit ab. */
+    const v = Object.assign({}, zaehler);
+    const b = await R.abfragen(G_LEER);
+    assert.equal(zaehler.eudamed, v.eudamed); assert.equal(zaehler.gudid, v.gudid + 1);
+    assert.equal(b.treffer, null); assert.equal(b.fehler, 'Register nicht erreichbar');   /* nicht „steht nirgends": EUDAMED hat nicht geantwortet */
+    await R.flush();
+    assert.equal(JSON.parse(fs.readFileSync(R.CACHE_DATEI, 'utf8'))[G_LEER], undefined);   /* „nicht gefunden" ist nicht gesichert → nicht gemerkt */
+  } finally { process.env.REGISTER_PAUSE_MS = '0'; R._reset(); }
 });
 
 test('Route: nur GET, nur gültige GTIN', async () => {

@@ -99,9 +99,9 @@ const AUFGABEN = [
 
   await aufgabe(7, async () => {
     await tipp('.na-tab:has-text("Material")'); await tipp('.na-eintrag:has-text("Radialschleuse")');
-    await tipp('button[data-f="bereich"]'); await p.fill('#naAuswQ', 'Notfallwagen'); await tipp('#naAuswListe >> text=neu anlegen');
-  }, () => p.evaluate(() => naListe('bereiche').some(b => b.name === 'Notfallwagen')));
-  await p.click('text=Abbrechen');
+    await tipp('button[data-f="lagerort"]'); await p.fill('#naAuswQ', 'Notfallwagen'); await tipp('#naAuswListe >> text=neu anlegen');
+  }, () => p.evaluate(() => naListe('lagerorte').some(b => b.name === 'Notfallwagen')));
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');   /* nicht gezählt: Aufräumen */
 
   await aufgabe(8, async () => {
     await tipp('.na-tab:has-text("Mehr")'); await tipp('text=Verlauf'); await p.fill('.na-suche', 'Notfallwagen');
