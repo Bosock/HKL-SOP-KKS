@@ -15,7 +15,12 @@ const NA_TABS = [
 let NA_BEARBEITUNG = false;
 /* Navigation: Adresse setzen UND sofort zeichnen (pushState löst kein
    hashchange aus; „Zurück" des Geräts schon). */
-function naGeh(ziel){
+function naGeh(ziel, ohneFrage){
+  /* Ungespeicherte Änderungen in einer Maske gehen nie still verloren. */
+  if(!ohneFrage && naEntwurfGeaendert() && !naZielIstEntwurf(ziel)){
+    naVerlassenFragen().then(ja=>{ if(!ja) return; NA_ENTWURF = null; NA_RUECKSPRUNG = null; naGeh(ziel, true); });
+    return;
+  }
   if(naSheetOffen()) naSheetZu(null);
   if(location.hash!==ziel){ try{ history.pushState(null, '', ziel); }catch(e){ location.hash = ziel; return; } }
   naZeigen(); window.scrollTo(0, 0);
@@ -104,8 +109,22 @@ async function naStart(){
   $('naThema').addEventListener('click', ()=>NA_AKT.thema());
   $('naPunkt').addEventListener('click', ()=>{ const s = naAbgleich.status(); toast(s.text || 'Abgleich …'); naAbgleich.runde(); });
   try{ const r = await fetch('../data/merkmale.json', { cache:'no-store' }); if(r.ok){ NA_MERKQUELLE = await r.json(); if(typeof merkSetData==='function') merkSetData(NA_MERKQUELLE); } }catch(e){ /* ohne Katalog: nur eigene Kategorien */ }
+  /* Nur für die neue App: Kategorien für Verbrauchsmaterial, Suchwörter und
+     Register-Einordnung (daten/katalog-zusatz.json) — die Quelle bleibt, wie
+     sie ist, und die alte App merkt davon nichts. */
+  try{ const r = await fetch('daten/katalog-zusatz.json', { cache:'no-store' }); if(r.ok && NA_MERKQUELLE){ NA_MERKQUELLE = naKatalog(NA_MERKQUELLE, await r.json()); if(typeof merkSetData==='function') merkSetData(NA_MERKQUELLE); } }catch(e){ /* ohne Zusatz: der mitgelieferte Katalog */ }
+  fetch('daten/material-namen.json').then(r=>r.ok ? r.json() : null).then(j=>{ if(j && Array.isArray(j.namen)) NA_NAMEN = j.namen; }).catch(()=>{});
   naAllesLaden();
-  window.addEventListener('hashchange', ()=>{ if(naSheetOffen()) naSheetZu(null); naZeigen(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', ()=>{
+    /* „Zurück" des Geräts aus einer Maske mit ungespeicherten Änderungen:
+       erst zurück in die Maske, dann fragen. */
+    if(naEntwurfGeaendert() && !naZielIstEntwurf(location.hash)){
+      const ziel = location.hash || '#/standards'; const E = NA_ENTWURF;
+      try{ history.pushState(null, '', '#/'+E.typ+'/'+(E.neu ? 'neu' : encodeURIComponent(E.obj.id))); }catch(e){}
+      naVerlassenFragen().then(ja=>{ if(!ja || NA_ENTWURF!==E) return; NA_ENTWURF = null; NA_RUECKSPRUNG = null; naGeh(ziel, true); });
+      return;
+    }
+    if(naSheetOffen()) naSheetZu(null); naZeigen(); window.scrollTo(0, 0); });
   naZeigen();
   naAbgleich.start(keys=>{
     keys.forEach(naSchluesselLaden);

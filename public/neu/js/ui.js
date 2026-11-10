@@ -81,7 +81,7 @@ naAkt('eingabeOk', ()=>naSheetZu(($('naEingabeFeld')||{}).value || ''));
    Liefert die gewählte Kennung (oder Liste) — null = abgebrochen,
    '' = bewusst „keine". */
 let NA_AUSW = null;
-function naAuswahlItems(){ const o = NA_AUSW.opt; return o.liste ? naListe(o.liste).map(e=>({ id:e.id, name:e.name, sub:e.sub||'', ico:e.ico||'' })) : (o.items||[]); }
+function naAuswahlItems(){ const o = NA_AUSW.opt; return o.liste ? naListe(o.liste).map(e=>({ id:e.id, name:e.name, sub:e.sub||e.amtlich||'', ico:e.ico||'' })) : (o.items||[]); }
 function naAuswahl(opt){
   const gew = opt.mehrfach ? (opt.gewaehlt||[]).slice() : (opt.gewaehlt ? [opt.gewaehlt] : []);
   const meins = NA_AUSW = { opt, q:'', sel:new Set(gew), pruef:null };

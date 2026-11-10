@@ -38,6 +38,7 @@ const marke = page => page.evaluate(() => { const l = [...document.querySelector
   await p.goto(srv.base + '/', { waitUntil: 'networkidle' });
   await p.evaluate(() => { localStorage.setItem('hkl_raumwahl', 'neuaufbau'); localStorage.setItem('raum:neuaufbau:hkl_authuntil', String(Date.now() + 3600000)); });
   await p.goto(srv.base + '/neu/#/material/neu', { waitUntil: 'networkidle' });
+  await p.click('details[data-ab="kat"] > summary');
   await p.click('button[data-f="kategorie"]'); await p.fill('#naAuswQ', 'Schleuse'); await p.click('#naAuswListe .sheet-act:has-text("Schleuse / Introducer")');
   await p.fill('input[data-f="name"]', 'Schleuse 6F');
 

@@ -1,0 +1,46 @@
+{
+  "_zweck": "Ergänzt den Merkmalskatalog (public/data/merkmale.json) NUR für die neue App: Kategorien für Verbrauchsmaterial, zusätzliche Suchwörter und die Einordnung des EU-Registers. Die Quelle bleibt unverändert, der Bestand merkt davon nichts.",
+  "_grund": "Der mitgelieferte Katalog kennt 28 Kategorien, fast alle für Katheter und Implantate. Von 328 Materialbezeichnungen des Bestands erkannte er 35 % (Analyse vom 09.11.2026).",
+  "_pflege": "worte = Suchwörter, an denen die Kategorie im Namen erkannt wird (das längste gefundene Wort gewinnt). emdn = Anfang des Einordnungs-Codes aus dem EU-Register (EMDN, aufgebaut wie die italienische CND). Beides dient nur dem VORSCHLAG; entschieden wird in der Maske. Im Haus ändern: Mehr → Listen-Verzeichnis → Material-Kategorien.",
+  "klassen": {
+    "spritze_kanuele": { "neu": true, "vorgabe": true, "label": "Spritze / Kanüle / Punktionsnadel",
+      "worte": ["spritze", "perfusorspritze", "einmalspritze", "luer-solo", "kanüle", "kanuele", "punktionskanüle", "injektionskanüle", "luer-lock needle", "venenverweilkanüle", "braunüle"],
+      "emdn": ["A01", "A02"], "dazu": ["nadel_g", "nadel_laenge_mm", "volumen_ml", "anschluss"], "diff": ["nadel_g", "nadel_laenge_mm", "volumen_ml"] },
+    "infusion": { "neu": true, "vorgabe": true, "label": "Infusion / Leitung / Hahn",
+      "worte": ["3-wege-hahn", "dreiwegehahn", "3-wegehahn", "wegehahn", "hahn", "discofix", "heidelberger", "verlängerung", "perfusorleitung", "infusionssystem", "infusionsbesteck", "infusionsleitung", "rückschlagventil", "combi-stopper", "verschlussstopfen"],
+      "emdn": ["A03", "A07"], "dazu": ["anschluss", "schlauch_laenge_cm", "max_druck_psi", "anzahl_haehne"], "diff": ["schlauch_laenge_cm", "anschluss"] },
+    "naht": { "neu": true, "vorgabe": true, "label": "Nahtmaterial",
+      "worte": ["nahtmaterial", "naht", "hautnaht", "annaht", "z-naht", "faden", "vicryl", "monocryl", "mersilene", "ethibond", "prolene", "optilene", "ethilon"],
+      "emdn": ["H01"], "dazu": ["faden_staerke", "faden_laenge_cm", "resorbierbar"], "diff": ["faden_staerke", "faden_laenge_cm"] },
+    "verband": { "neu": true, "vorgabe": true, "label": "Verband / Pflaster",
+      "worte": ["pflaster", "verband", "druckverband", "binde", "ideal-binde", "opsite", "folien-waben", "wundverband", "tegaderm", "druckpunkt"],
+      "emdn": ["M03", "M04", "M05"], "dazu": ["masse_cm"], "diff": ["masse_cm"] },
+    "instrument": { "neu": true, "vorgabe": true, "label": "Instrument (Skalpell, Klemme, Nadelhalter)",
+      "worte": ["skalpell", "scalpel", "nadelhalter", "einmalnadelhalter", "klemme", "schere", "pinzette", "kornzange", "wundspreizer"],
+      "emdn": ["L"], "dazu": ["groesse_text"], "diff": ["groesse_text"] },
+    "desinfektion": { "neu": true, "vorgabe": true, "label": "Desinfektion / Hautantiseptik",
+      "worte": ["softasept", "braunol", "octenisept", "kodan", "cutasept", "betaisodona", "hautdesinfektion", "desinfektionsmittel", "antiseptik"],
+      "emdn": ["D"], "dazu": ["volumen_ml"], "diff": ["volumen_ml"] },
+    "schutz": { "neu": true, "vorgabe": true, "label": "Handschuhe / Schutzkleidung",
+      "worte": ["handschuh", "handschuhe", "op-kittel", "kittel", "mundschutz", "op-haube", "schürze"],
+      "emdn": ["T01", "T03"], "dazu": ["groesse_text"], "diff": ["groesse_text"] },
+    "op_zubehoer": { "neu": true, "vorgabe": true, "label": "OP-Zubehör (Lampengriff, Schale, Becher)",
+      "worte": ["lampengriff", "op-lampengriff", "schale", "nierenschale", "becher", "messbecher"],
+      "emdn": [], "dazu": ["volumen_ml"], "diff": [] },
+
+    "textil": { "worteDazu": ["kompressen", "abdecktuch", "abdeckhaube", "tischbezug", "ultraschallbezug", "bezug", "lochtuch", "op-folie", "molltex", "einmalmolltex"], "emdn": ["M01", "M02", "T02"] },
+    "loesung": { "worteDazu": ["nacl", "kochsalz", "ringer", "sterofundin", "aqua dest"] },
+    "sensor_monitoring": { "worteDazu": ["neutralelektrode", "defi-patch", "defi-patches", "patches", "ekg-elektroden"] },
+    "set": { "worteDazu": ["coro-set", "schrittmacher set", "schrittmacher-set", "schrittmacher sieb", "sieb", "set", "punktionsset"] },
+    "fuehrungsdraht": { "worteDazu": ["j-draht", "draht"] },
+    "zubehoer_druck": { "worteDazu": ["hahnenbank", "druckaufnehmer", "indiflator", "ptca-pumpe", "angiomat leitung", "hochdruck"] },
+    "verschluss": { "worteDazu": ["angioseal", "perclose", "femoseal", "tr-band", "druckmanschette"] },
+    "kabel": { "worteDazu": ["kabel", "schrittmacherkabel"] }
+  },
+  "merkmale": {
+    "faden_staerke": { "label": "Fadenstärke", "typ": "text", "anker": ["fadenstärke", "usp"] },
+    "faden_laenge_cm": { "label": "Fadenlänge", "typ": "mass", "einheit": "cm", "anker": ["fadenlänge"] },
+    "groesse_text": { "label": "Größe", "typ": "text", "anker": ["größe", "size"] }
+  },
+  "werte": {}
+}

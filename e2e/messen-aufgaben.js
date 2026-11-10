@@ -59,7 +59,7 @@ const AUFGABEN = [
     await editor();   /* Ausgangspunkt: der Standard im Editor */
     await tipp('[data-na="neuAnlegen"]'); await tipp('#naAuswListe >> text=Material');
     await p.fill('#naAuswQ', 'Führungsdraht 0,035'); await tipp('#naAuswListe >> text=neu anlegen');
-    await tipp('button[data-f="kategorie"]'); await p.fill('#naAuswQ', 'Führungsdraht'); await tipp('#naAuswListe .sheet-act >> nth=0');
+    /* Die Kategorie wird aus dem Namen vorgeschlagen — kein Tippen mehr nötig. */
     await p.fill('input[data-f="gtin"]', gtin('0401234567111')); await p.fill('input[data-f="ref"]', 'RF-GA35');
     await tipp('[data-na="herstellerNehmen"]');   /* Vorschlag aus dem GTIN-Präfix */
     await tipp('[data-na="entwSpeichern"]');
@@ -99,9 +99,9 @@ const AUFGABEN = [
 
   await aufgabe(7, async () => {
     await tipp('.na-tab:has-text("Material")'); await tipp('.na-eintrag:has-text("Radialschleuse")');
-    await tipp('button[data-f="bereich"]'); await p.fill('#naAuswQ', 'Notfallwagen'); await tipp('#naAuswListe >> text=neu anlegen');
-  }, () => p.evaluate(() => naListe('bereiche').some(b => b.name === 'Notfallwagen')));
-  await p.click('text=Abbrechen');
+    await tipp('button[data-f="lagerort"]'); await p.fill('#naAuswQ', 'Notfallwagen'); await tipp('#naAuswListe >> text=neu anlegen');
+  }, () => p.evaluate(() => naListe('lagerorte').some(b => b.name === 'Notfallwagen')));
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');   /* nicht gezählt: Aufräumen */
 
   await aufgabe(8, async () => {
     await tipp('.na-tab:has-text("Mehr")'); await tipp('text=Verlauf'); await p.fill('.na-suche', 'Notfallwagen');

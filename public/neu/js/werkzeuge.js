@@ -17,7 +17,7 @@ function naSichtMehr(){
     h += z('#/kosten', '€', 'Kostenübersicht', 'Plankosten je Standard, CSV für Einkauf und Controlling');
     h += z('#/sicherung', '💾', 'Sicherung', 'alles als Datei sichern oder einspielen');
   }
-  h += z('#/einstellungen', '⚙', 'Einstellungen', 'Ansicht · Gerätename · Passwort · Raum');
+  h += z('#/einstellungen', '⚙', 'Einstellungen', 'Ansicht · Gerätename · Passwort · EU-Register · Raum');
   return { titel:'Mehr', pfad: a ? 'Verwaltung angemeldet' : 'Anwender', tab:'mehr', html:h };
 }
 
@@ -36,6 +36,7 @@ function naSichtListe(key){
   const h = '<div class="na-zeile" style="margin-bottom:8px"><button class="na-knopf pri" data-na="listeNeu" data-k="'+key+'">＋ Neu</button></div>'
     + (e.length ? e.map(x=>{ const n = naListenVerwendung(key, nameBasiert ? x.name : x.id, daten);
       return '<div class="na-eintrag'+(x.archiviert?' archiv':'')+'" data-na="listeEintrag" data-k="'+key+'" data-id="'+esc(x.id)+'"><span class="na-ico">'+esc(x.ico||'•')+'</span><div class="na-haupt"><div class="na-name">'+esc(x.name)+(x.archiviert?' · archiviert':'')+'</div>'
+        + (x.amtlich || x.srn ? '<div class="na-sub">amtlich: '+esc(x.amtlich||'—')+(x.srn ? ' · <span class="na-mono">'+esc(x.srn)+'</span>' : '')+'</div>' : '')
         + '<div class="na-sub">'+(x.vorgabe ? 'Vorgabe' : ('angelegt '+esc(naDatum(x.angelegt))+(x.wo?' · in: '+esc(x.wo):'')))+'</div></div><div class="na-rechts">'+n+'× verwendet</div></div>'; }).join('') : naLeer('🗂','Noch leer',''));
   return { titel:naListeWort(key), pfad:'Listen-Verzeichnis', zurueck:'#/listen', html:h };
 }
@@ -182,6 +183,8 @@ function naSichtEinstellungen(){
   if(a) h += '<div class="na-karte"><h3>Passwort der Verwaltung (neue App)</h3>'
     + naF('Neues Passwort', '<input type="password" id="naPw1" autocomplete="new-password">') + naF('Noch einmal', '<input type="password" id="naPw2" autocomplete="new-password">')
     + '<button class="na-knopf" data-na="pwSetzen">Passwort ändern</button><div class="na-dim" style="margin-top:6px">Gilt auf allen Geräten. Komfort, keine Sicherheit (Grundsatz A9).</div></div>';
+  if(a) h += '<div class="na-karte"><h3>EU-Register</h3><div class="na-feld"><label><input type="checkbox" data-na-wechsel="registerAn"'+(naEinstellung('register', true)?' checked':'')+'> Beim Scannen eines Barcodes das Register fragen</label></div>'
+    + '<div class="na-dim">Der Server der App fragt mit der GTIN bei EUDAMED (EU) und, wenn dort nichts steht, bei GUDID (USA) nach Hersteller, Handelsname und REF. Übertragen wird nur die GTIN — keine Daten des Hauses. Die Angaben gelten erst nach dem Speichern als bestätigt. Gilt für alle Geräte.</div></div>';
   h += '<div class="na-karte"><h3>Raum</h3><div class="na-dim">Diese App ist der <b>Neuaufbau</b>. '+(live==='neuaufbau' ? 'Er ist <b>live</b> — alle Geräte ohne eigene Wahl arbeiten hier.' : 'Live (im Labor) ist der <b>Bestand</b>; er bleibt hiervon unberührt.')+'</div>'
     + '<div style="margin-top:8px"><button class="na-knopf" data-na="zumBestand">'+(live==='neuaufbau' ? '↩ Alten Bestand ansehen' : '↩ Zurück zum Bestand')+'</button></div></div>';
   if(a) h += '<div class="na-karte"><h3>Live schalten</h3><div class="na-dim">Schaltet ALLE Geräte ohne eigene Raumwahl um. Daten werden nicht bewegt; Zurückschalten ist dieselbe Handbewegung. '
@@ -192,6 +195,7 @@ function naSichtEinstellungen(){
   h += '<div class="na-dim">Abgleich: '+esc(naAbgleich.status().text||'—')+(naAbgleich.offen()?' · '+naAbgleich.offen()+' warten':'')+'</div>';
   return { titel:'Einstellungen', zurueck:'#/mehr', html:h };
 }
+naEin('registerAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('register', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Register-Abfrage '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Register-Abfrage eingeschaltet' : 'Register-Abfrage ausgeschaltet'); });
 naAkt('thema', ()=>{ const n = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', n); store.set('hkl_theme', n); });
 naEin('geraetName', v=>{ const g = naGeraet(); g.name = String(v||'').trim().slice(0,40); store.set('nalokal_geraet', JSON.stringify(g)); toast('Gerätename gespeichert'); });
 naAkt('pwSetzen', ()=>{ const a = $('naPw1').value, b = $('naPw2').value;

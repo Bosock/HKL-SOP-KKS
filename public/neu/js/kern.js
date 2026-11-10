@@ -150,6 +150,7 @@ function naListenVerwendung(liste, id, daten){
   if(liste==='arten') standards.forEach(s=>naPositionen(s).forEach(x=>{ if(x.pos.art===id) n++; }));
   else if(liste==='bereiche'){ standards.forEach(s=>naPositionen(s).forEach(x=>{ if(x.pos.bereich===id) n++; })); stamm.forEach(m=>{ if(m.bereich===id) n++; }); }
   else if(liste==='hersteller') stamm.forEach(m=>{ if(m.hersteller===id) n++; });
+  else if(liste==='lagerorte') stamm.forEach(m=>{ if(m.lagerort===id) n++; });
   else if(liste==='gruppen') standards.forEach(s=>{ if(s.gruppe===id) n++; });
   else if(liste==='kennzeichen') standards.forEach(s=>{ if((s.kennzeichen||[]).indexOf(id)>=0) n++; });
   else if(liste==='abschnitte') standards.forEach(s=>(s.rubriken||[]).forEach(r=>(r.abschnitte||[]).forEach(a=>{ if(a.name===id) n++; })));
@@ -198,9 +199,14 @@ function naKatalog(quelle, tpl){
   if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[] };
   const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{};
   const klassen=(quelle.klassen||[]).map(k=>{ const v=kl[k.id]; if(!v) return k; const n=Object.assign({},k);
-    if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true; return n; });
+    if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
+    /* zusätzliche Suchwörter und Register-Einordnung für eine vorhandene Kategorie */
+    if(Array.isArray(v.worteDazu)) n.worte=(k.worte||[]).concat(v.worteDazu.filter(w=>(k.worte||[]).indexOf(w)<0));
+    if(Array.isArray(v.emdn)) n.emdn=(k.emdn||[]).concat(v.emdn);
+    return n; });
   Object.keys(kl).forEach(id=>{ const v=kl[id]; if(!v||!v.neu||klassen.some(k=>k.id===id)) return;
-    klassen.push({ id, label:v.label||id, worte:[String(v.label||id).toLowerCase()], leit:Array.isArray(v.diff)?v.diff.slice():[], eigen:true, archiviert:!!v.archiviert, angelegt:v.angelegt||null, wo:v.wo||'' }); });
+    klassen.push({ id, label:v.label||id, worte:(Array.isArray(v.worte)&&v.worte.length)?v.worte.slice():[String(v.label||id).toLowerCase()], emdn:Array.isArray(v.emdn)?v.emdn.slice():[],
+      leit:Array.isArray(v.diff)?v.diff.slice():[], eigen:!v.vorgabe, archiviert:!!v.archiviert, angelegt:v.angelegt||null, wo:v.wo||'' }); });
   const inKlasse=(mid, orig)=>{ const s={}; (orig||[]).forEach(x=>{ s[x]=1; });
     Object.keys(kl).forEach(id=>{ const v=kl[id]||{};
       if(Array.isArray(v.dazu)&&v.dazu.indexOf(mid)>=0) s[id]=1;
@@ -252,6 +258,7 @@ const NA_LISTEN = [
   { key:'kategorien',       wort:'Material-Kategorien & Felder' },
   { key:'bereiche',         wort:'Bereiche (Rüstliste)' },
   { key:'hersteller',       wort:'Hersteller' },
+  { key:'lagerorte',        wort:'Lagerorte' },
   { key:'gruppen',          wort:'Gruppen von Standards' },
   { key:'kennzeichen',      wort:'Kennzeichen an Standards' },
   { key:'rubriken',         wort:'Rubrik-Namen' },
@@ -360,4 +367,164 @@ function naFotoOriginal(o, k){
 function naFotoEntfernen(o, k){ return naFotosSetzen(o, naFotos(o).filter(f=>f.k!==k)); }
 function naFotoAendern(o, k, aenderung){
   return naFotosSetzen(o, naFotos(o).map(f=>f.k===k ? Object.assign({}, f, aenderung) : f));
+}
+
+
+/* ── Kategorie vorschlagen ──
+   Die Kategorie steht nicht mehr am Anfang der Maske: Sie wird aus dem
+   abgeleitet, was schon da ist. Zwei Quellen, in dieser Reihenfolge:
+     1. die EINORDNUNG aus dem EU-Register (EMDN-Code): der längste passende
+        Anfang gewinnt („A0703" vor „A07");
+     2. die SUCHWÖRTER der Kategorien im Namen: das längste gefundene Wort
+        gewinnt — „Nadelhalter" schlägt so „Nadel".
+   Ein Vorschlag, keine Entscheidung: Die Maske zeigt ihn als solchen. Rein. */
+function naKategorieVorschlag(kat, a){
+  a=a||{}; const klassen=((kat&&kat.klassen)||[]).filter(k=>k && !k.archiviert && k.id!=='allgemein');
+  const code=String(a.einordnung||'').replace(/\s/g,'').toUpperCase();
+  if(code){ let best=null, len=0;
+    klassen.forEach(k=>(k.emdn||[]).forEach(p=>{ p=String(p).toUpperCase(); if(p && code.indexOf(p)===0 && p.length>len){ best=k; len=p.length; } }));
+    if(best) return { id:best.id, grund:'einordnung', wort:code }; }
+  const text=' '+naNorm([a.name,a.handelsname,a.bezeichnung].filter(Boolean).join(' '))+' ';
+  if(text.trim().length<3) return null;
+  let best=null, len=0, wort='';
+  klassen.forEach(k=>(k.worte||[]).forEach(w=>{ const n=naNorm(w); if(n.length<3) return;
+    /* kurze Wörter nur als ganzes Wort (sonst träfe „kit" in „Kittel") */
+    const trifft = n.length<5 ? text.indexOf(' '+n+' ')>=0 : text.indexOf(n)>=0;
+    if(trifft && n.length>len){ best=k; len=n.length; wort=w; } }));
+  return best ? { id:best.id, grund:'wort', wort } : null;
+}
+
+/* ── Hersteller: Kurzname fürs Haus aus dem amtlichen Namen ──
+   „B. Braun Melsungen AG" → „B. Braun Melsungen", „MEDTRONIC, INC." →
+   „Medtronic". Nur ein Vorschlag — der Kurzname ist in der Liste änderbar;
+   die Identität hängt an der Registriernummer (SRN), nicht am Wort. Rein. */
+function naHerstellerKurz(amtlich){
+  let s=String(amtlich==null?'':amtlich).replace(/\s+/g,' ').trim();
+  const form=/[,.]?\s+(gmbh\s*&\s*co\.?\s*kg|gmbh|ag|se|kg|inc\.?|incorporated|corp\.?|corporation|ltd\.?|limited|llc|s\.?a\.?s?\.?|s\.?r\.?l\.?|s\.?p\.?a\.?|b\.?v\.?|n\.?v\.?|co\.?|plc|pty|oy|ab|a\/s|k\.?k\.?)$/i;
+  for(let i=0;i<3;i++){ const t=s.replace(form,'').replace(/[,.\s]+$/,'').trim(); if(t===s||!t) break; s=t; }
+  if(s.length>4 && s===s.toUpperCase() && /[A-ZÄÖÜ]/.test(s))
+    s=s.toLowerCase().replace(/(^|[\s\-.&\/])([a-zäöü])/g,(m,a,b)=>a+b.toUpperCase());
+  return s;
+}
+
+/* ── PZN (Pharmazentralnummer): 7- oder 8-stellig, Prüfziffer Modulo 11 ── */
+function naPznOk(p){
+  const s=String(p==null?'':p).replace(/^pzn[\s:\-]*/i,'').replace(/\s/g,'');
+  if(!/^\d{7,8}$/.test(s)) return false;
+  const z=s.split('').map(Number); const pz=z.pop();
+  const start=z.length===7?1:2; let summe=0; z.forEach((d,i)=>{ summe+=d*(i+start); });
+  const r=summe%11; return r!==10 && r===pz;
+}
+
+/* ── Registertreffer in den Entwurf übernehmen ──
+   Füllt NUR leere Felder (der Mensch schlägt alles, Grundsatz ③) und merkt
+   Quelle und Zeitpunkt (Grundsatz A5). Der Hersteller wird außerhalb
+   zugeordnet — er braucht die Herstellerliste. Liefert die Namen der
+   gefüllten Felder. Rein. */
+function naRegisterAnwenden(o, t){
+  const neu=[]; if(!o||!t) return neu;
+  if(t.handelsname && !o.handelsname){ o.handelsname=t.handelsname; neu.push('Handelsname'); }
+  if(t.ref && !o.ref){ o.ref=t.ref; neu.push('REF'); }
+  o.merkmale=o.merkmale||{};
+  const setze=(id,wert,wort)=>{ if(wert==null) return; if(o.merkmale[id]==null||o.merkmale[id]===''){ o.merkmale[id]=wert; neu.push(wort); } };
+  if(t.steril===true) setze('steril','steril','steril'); else if(t.steril===false) setze('steril','unsteril','unsteril');
+  if(t.latex===true) setze('latex','enthält Naturlatex','Latex'); else if(t.latex===false) setze('latex','latexfrei','latexfrei');
+  if(t.mehrweg===false) setze('einmalgebrauch',true,'Einmalprodukt');
+  o.register={ quelle:t.quelle||'', abgerufen:t.abgerufen||'', einordnung:t.einordnung||'', basisUdi:t.basisUdi||'',
+    hersteller:(t.hersteller&&t.hersteller.name)||'', srn:(t.hersteller&&t.hersteller.srn)||'', bezeichnung:t.bezeichnung||'' };
+  return neu;
+}
+
+/* ── Verknüpfungen zwischen Materialien (Entscheidung E2) ──
+   Drei Arten, jede mit Hin- und Gegenrichtung. Gespeichert wird NUR die
+   Hinrichtung, am einen Material; die Gegenrichtung wird gelesen, nie
+   gespeichert — so können die zwei Seiten nicht auseinanderlaufen.
+     ersatz        „stattdessen geht auch" — mit Sorte und Grund
+     zubehoer      „braucht dazu"
+     aufbereitung  „ist die aufbereitete Fassung von"
+   Die vier Sorten von Ersatz hat der Betreiber wörtlich vorgegeben. Sie
+   beantworten im Saal: Darf ich einfach greifen, oder muss ich fragen?
+   Am Material: o.verknuepfungen = [ { art, ziel, sorte?, grund? } ] */
+const NA_VERKN_ARTEN = [
+  { id:'ersatz',       ico:'🔁', name:'Ersatz',       hin:'Stattdessen geht auch',      gegen:'Ist Ersatz für' },
+  { id:'zubehoer',     ico:'🧩', name:'Zubehör',      hin:'Braucht dazu',               gegen:'Wird gebraucht von' },
+  { id:'aufbereitung', ico:'♻️', name:'Aufbereitung', hin:'Aufbereitete Fassung von',   gegen:'Gibt es auch aufbereitet' },
+];
+const NA_ERSATZ_SORTEN = [
+  { id:'gleich',  ico:'🟰', name:'äquivalent',        sub:'eins zu eins nutzbar' },
+  { id:'teuer',   ico:'💶', name:'teures Äquivalent', sub:'eins zu eins — aber deutlich teurer, bitte absprechen' },
+  { id:'bedingt', ico:'≈',  name:'Alternative',       sub:'nicht gleich — nur unter Bedingungen oder mit Einschränkungen' },
+  { id:'reserve', ico:'🧰', name:'Back-Up (Reserve)', sub:'nutzbar, aber nicht optimal' },
+];
+function naVerknArt(id){ return NA_VERKN_ARTEN.find(a=>a.id===id) || null; }
+function naErsatzSorte(id){ return NA_ERSATZ_SORTEN.find(a=>a.id===id) || null; }
+/* Bereinigt: nur bekannte Arten, nie auf sich selbst, keine Dubletten. */
+function naVerknNormal(liste, eigeneId){
+  const aus=[], gesehen={};
+  (Array.isArray(liste)?liste:[]).forEach(v=>{
+    if(!v || !naVerknArt(v.art) || !v.ziel || v.ziel===eigeneId) return;
+    const k=v.art+'|'+v.ziel; if(gesehen[k]) return; gesehen[k]=1;
+    const n={ art:v.art, ziel:String(v.ziel) };
+    if(v.art==='ersatz' && naErsatzSorte(v.sorte)) n.sorte=v.sorte;
+    const g=String(v.grund||'').trim().slice(0,160); if(g) n.grund=g;
+    aus.push(n); });
+  return aus;
+}
+/* Beide Richtungen eines Materials. alle: [Material]. Ziele, die es nicht
+   (mehr) gibt, fallen heraus. { raus:[{art,sorte,grund,o}], rein:[…] }. Rein. */
+function naVerknVon(alle, id){
+  const nach={}; (alle||[]).forEach(m=>{ if(m&&m.id) nach[m.id]=m; });
+  const ich=nach[id];
+  const raus=naVerknNormal(ich&&ich.verknuepfungen, id).filter(v=>nach[v.ziel]).map(v=>Object.assign({}, v, { o:nach[v.ziel] }));
+  const rein=[];
+  (alle||[]).forEach(m=>{ if(!m||m.id===id) return;
+    naVerknNormal(m.verknuepfungen, m.id).forEach(v=>{ if(v.ziel===id) rein.push(Object.assign({}, v, { o:m })); }); });
+  return { raus, rein };
+}
+/* Zubehör, das in einer Liste noch fehlt (für den Hinweis im Standard). Rein. */
+function naZubehoerFehlt(alle, id, vorhandeneIds){
+  const da={}; (vorhandeneIds||[]).forEach(x=>{ da[x]=1; });
+  return naVerknVon(alle, id).raus.filter(v=>v.art==='zubehoer' && !da[v.ziel]).map(v=>v.ziel);
+}
+/* Beim Zusammenführen zweier Dubletten: Verknüpfungen zeigen auf den
+   Verbleibenden. Verändert o, liefert true bei Änderung. Rein. */
+function naVerknUmhaengen(o, von, nach){
+  const alt=JSON.stringify(o.verknuepfungen||[]);
+  const neu=naVerknNormal((o.verknuepfungen||[]).map(v=>v&&v.ziel===von?Object.assign({},v,{ziel:nach}):v), o.id);
+  if(JSON.stringify(neu)===alt) return false;
+  if(neu.length) o.verknuepfungen=neu; else delete o.verknuepfungen;
+  return true;
+}
+
+/* ── Was einem Material noch fehlt ──
+   KERN-Angaben machen ein Material „vollständig" (Filter im Verzeichnis).
+   Der Rest ist Kür und wird in der Maske nur gezählt. Rein. */
+function naAngaben(o, kat){
+  o=o||{}; const m=o.merkmale||{};
+  const f=o.kategorie ? naFelder(kat, o.kategorie) : { diff:[] };
+  const voll=v=>!(v==null||v===''||(Array.isArray(v)&&!v.length));
+  return [
+    { id:'hersteller', wort:'Hersteller',      kern:true,  da:voll(o.hersteller) },
+    { id:'nummer',     wort:'GTIN oder REF',   kern:true,  da:voll(o.gtin)||voll(o.ref) },
+    { id:'lagerort',   wort:'Lagerort',        kern:true,  da:voll(o.lagerort) },
+    { id:'bild',       wort:'Produktbild',     kern:true,  da:naFotos(o).some(x=>x.rolle!=='etikett') },
+    { id:'kategorie',  wort:'Kategorie',       kern:true,  da:voll(o.kategorie) },
+    { id:'merkmale',   wort:'★-Merkmale',      kern:false, da:f.diff.length>0 && f.diff.every(d=>voll(m[d.id])) },
+    { id:'steril',     wort:'Steril-Angabe',   kern:false, da:voll(m.steril) },
+    { id:'handelsname',wort:'Handelsname',     kern:false, da:voll(o.handelsname) },
+    { id:'verwendung', wort:'Verwendung',      kern:false, da:voll(o.verwendung) },
+    { id:'suchwoerter',wort:'Suchwörter',      kern:false, da:voll(o.suchwoerter) },
+    { id:'packung',    wort:'Packungsgröße',   kern:false, da:voll(o.packung) },
+    { id:'verknuepft', wort:'Verknüpfungen',   kern:false, da:voll(o.verknuepfungen) },
+  ];
+}
+function naFehlt(o, kat){ return naAngaben(o, kat).filter(a=>a.kern && !a.da).map(a=>a.wort); }
+
+/* Eine neue Größe desselben Produkts: alles übernehmen, was die Familie
+   teilt — nicht das, was nur dieses eine Stück kennzeichnet. Rein. */
+function naVariante(o){
+  const k=JSON.parse(JSON.stringify(o||{}));
+  k.id=naId('m'); ['gtin','ref','pzn','fotos','hauptbild','register','verknuepfungen','angelegt','angelegtAuf','geaendert','archiviert'].forEach(f=>{ delete k[f]; });
+  k.gtin=''; k.ref=''; k.fotos=[]; k.varianteVon=o.id;
+  return k;
 }

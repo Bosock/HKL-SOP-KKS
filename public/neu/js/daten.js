@@ -112,7 +112,14 @@ function naListeVorgabe(key){
   return [];
 }
 function naKatTpl(){ const l = NA.liste.kategorien; return (l && l.tpl) || { klassen:{}, merkmale:{}, werte:{} }; }
-function naKat(){ return naKatalog(NA_MERKQUELLE, naKatTpl()); }
+/* Der Katalog wird oft gebraucht (jede Zeile im Verzeichnis) — nur neu bauen,
+   wenn sich Quelle oder Overlay geändert haben. */
+let naKatMerk = null;
+function naKat(){
+  const l = NA.liste.kategorien; const g = l ? l.geaendert : '';
+  if(naKatMerk && naKatMerk.q===NA_MERKQUELLE && naKatMerk.l===l && naKatMerk.g===g) return naKatMerk.k;
+  const k = naKatalog(NA_MERKQUELLE, naKatTpl()); naKatMerk = { q:NA_MERKQUELLE, l, g, k }; return k;
+}
 function naListe(key, mitArchiv){
   let e;
   if(key==='kategorien'){
@@ -176,7 +183,7 @@ function naListeArchivieren(key, id, an){
 }
 /* Zusammenführen: alle Verwendungen von `von` zeigen danach auf `nach`, `von`
    wird archiviert. Nur für Listen mit festen Kennungen. */
-const NA_LISTE_FELD = { bereiche:'bereich', hersteller:'hersteller', darreichung:'darreichung', geraetekategorien:'kategorie', kategorien:'kategorie' };
+const NA_LISTE_FELD = { bereiche:'bereich', hersteller:'hersteller', lagerorte:'lagerort', darreichung:'darreichung', geraetekategorien:'kategorie', kategorien:'kategorie' };
 function naListeZusammenfuehren(key, von, nach){
   if(!von || !nach || von===nach) return 0;
   let n = 0;
@@ -188,6 +195,7 @@ function naListeZusammenfuehren(key, von, nach){
   }
   if(key==='bereiche') NA_STAMMTYPEN.forEach(t=>umhaengen(t, 'bereich'));
   if(key==='hersteller'){ umhaengen('material','hersteller'); umhaengen('geraet','hersteller'); }
+  if(key==='lagerorte') NA_STAMMTYPEN.forEach(t=>umhaengen(t, 'lagerort'));
   if(key==='darreichung') umhaengen('medikament','darreichung');
   if(key==='geraetekategorien') umhaengen('geraet','kategorie');
   if(key==='kategorien') umhaengen('material','kategorie');
@@ -205,6 +213,42 @@ function naPositionenAlle(o){
 function naVerwendungDaten(){
   return { standards: naStandards().concat(naAlle('baustein', true).map(b=>({ id:b.id, rubriken:[{ abschnitte:[{ positionen:b.positionen||[] }] }] }))),
     material: naAlle('material', true), geraete: naAlle('geraet', true), medikamente: naAlle('medikament', true) };
+}
+
+/* ── Lagerort: eine Liste statt Freitext (sonst stehen „Inari Wagen" und
+   „Inari-Wagen" nebeneinander). Ältere Einträge mit freiem Text bleiben
+   lesbar. ── */
+function naLagerortName(o){ if(!o || !o.lagerort) return ''; return naListeName('lagerorte', o.lagerort) || String(o.lagerort); }
+/* Stammsatz, wie ihn die Rüstliste braucht: Lagerort als Wort. */
+function naStammFuerListe(ref){ const o = naStamm(ref); return o ? Object.assign({}, o, { lagerort: naLagerortName(o) }) : null; }
+
+/* ── Hersteller aus dem Register ──
+   Die Identität hängt an der EU-Registriernummer (SRN), nicht an der
+   Schreibweise. Gesucht wird erst nach der SRN, dann nach dem Namen (amtlich
+   oder kurz); ein vorhandener Eintrag bekommt SRN und amtlichen Namen
+   nachgetragen. Erst wenn nichts passt, entsteht ein neuer Eintrag — mit
+   Kurznamen fürs Haus. Liefert die Kennung. */
+function naHerstellerAusRegister(h){
+  if(!h || !h.name) return '';
+  const liste = naListe('hersteller', true);
+  const kurz = naHerstellerKurz(h.name);
+  let e = h.srn ? liste.find(x=>x.srn && x.srn===h.srn) : null;
+  if(!e){ const n = [naNorm(h.name), naNorm(kurz)];
+    e = liste.find(x=>!x.archiviert && (n.indexOf(naNorm(x.name))>=0 || (x.amtlich && n.indexOf(naNorm(x.amtlich))>=0))); }
+  if(e){
+    if((h.srn && !e.srn) || !e.amtlich){
+      naListeSpeichern('hersteller', liste.map(x=>x.id===e.id ? Object.assign({}, x, { amtlich: x.amtlich || h.name }, (h.srn && !x.srn) ? { srn:h.srn } : {}) : x), 'Hersteller „'+e.name+'" mit dem Register abgeglichen');
+    }
+    return e.id;
+  }
+  return naListeNeu('hersteller', kurz || h.name, 'Register', Object.assign({ amtlich:h.name }, h.srn ? { srn:h.srn } : {}));
+}
+
+/* ── Einstellungen des Hauses (für alle Geräte) ── */
+function naEinstellung(key, vorgabe){ const l = NA.liste.einstellungen; const w = l && l.werte; return (w && key in w) ? w[key] : vorgabe; }
+function naEinstellungSetzen(key, wert){
+  const l = Object.assign({}, NA.liste.einstellungen || {}); l.werte = Object.assign({}, l.werte || {}); l.werte[key] = wert; l.geaendert = naJetzt();
+  NA.liste.einstellungen = l; naAbgleich.schreiben(NA_TYPEN.liste.p+'einstellungen', l);
 }
 
 /* ── Art einer Position ── */
