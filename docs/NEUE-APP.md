@@ -216,6 +216,10 @@ Wiederverwendet, **ohne Änderung**:
   AccessGUDID. Nur GET, nur Ziffern, feste Zieladressen.
 - Zwischenspeicher in `STATE_DIR/register-cache.json`: Treffer 30 Tage,
   „nicht gefunden" 24 Stunden, ein Ausfall gar nicht.
+- Drosselung: höchstens 15 Abfragen je Minute. EUDAMED begrenzt je
+  Absender-Adresse (Erfahrungswerte anderer Nutzer, Oktober 2026: etwa 20 je
+  Minute, darüber HTTP 429); offiziell dokumentiert ist keine Zahl. Bei 429
+  hält der Server die verlangte Wartezeit (`Retry-After`) ein.
 - Antwortet ein Register nicht, wird es fünf Minuten übersprungen (sonst
   wartete jeder Scan das Zeitlimit ab). Ein GUDID-Treffer während eines
   EUDAMED-Ausfalls gilt nur einen Tag. „Steht in keinem Register" heißt
