@@ -33,6 +33,10 @@ services:
       GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
       GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
       GITHUB_CALLBACK_URL: "${GITHUB_CALLBACK_URL:-https://sops.kardio.wiki/auth/github/callback}"
+      # Register-Abfrage der neuen App (server/register.js): REGISTER=0 schaltet
+      # sie ab; leer = an. Sie braucht ausgehendes HTTPS zu
+      # api.datalake.sante.service.ec.europa.eu und accessgudid.nlm.nih.gov.
+      REGISTER: "${REGISTER:-}"
     volumes:
       # Server-side state (edits made in the web interface) persists here and
       # survives `docker compose pull && up -d` redeploys.

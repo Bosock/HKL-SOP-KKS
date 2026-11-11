@@ -202,6 +202,8 @@ function naKatalog(quelle, tpl){
     if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
     /* zusätzliche Suchwörter und Register-Einordnung für eine vorhandene Kategorie */
     if(Array.isArray(v.worteDazu)) n.worte=(k.worte||[]).concat(v.worteDazu.filter(w=>(k.worte||[]).indexOf(w)<0));
+    /* vom Haus festgelegte Suchwörter ersetzen die Vorgabe (Grundsatz A7) */
+    if(Array.isArray(v.worte)) n.worte=v.worte.slice();
     if(Array.isArray(v.emdn)) n.emdn=(k.emdn||[]).concat(v.emdn);
     return n; });
   Object.keys(kl).forEach(id=>{ const v=kl[id]; if(!v||!v.neu||klassen.some(k=>k.id===id)) return;

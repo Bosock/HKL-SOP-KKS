@@ -369,7 +369,7 @@ function erfZeichnen(){
 }
 function erfZeichnenJetzt(){
   const box=$('scr-form'); if(!box||!ERF) return;
-  const s=ERF_SCHRITTE[ERF.schritt];
+  const s=ERF_SCHRITTE[ERF.schritt]; if(!s) return;   /* z. B. noch in der Art-Auswahl */
   const punkte=ERF_SCHRITTE.map((x,i)=>`<span class="wiz-dot${i===ERF.schritt?' on':''}${i<ERF.schritt?' done':''}"></span>`).join('');
   const kl=erfKlasse();
   let inhalt='';
@@ -493,8 +493,11 @@ async function erfGtinGeaendert(){
   ERF.vorhanden = GTINDB[ERF.gtin] ? ERF.gtin : null;
   erfZeichnen();
   if(typeof gtinPruefzifferOk==='function' && !gtinPruefzifferOk(ERF.gtin)) return;
+  /* Während des Nachschlagens kann ein anderer Assistent geöffnet worden sein —
+     dann gehört die späte Antwort nicht mehr hierher. */
+  const E=ERF;
   await erfGtinAufloesen();
-  erfNeuZeichnen();
+  if(ERF===E) erfNeuZeichnen();
 }
 /* Nach einer Wartezeit neu zeichnen, ohne zwischenzeitlich Getipptes zu
    verlieren: erst die Felder einlesen, dann zeichnen. */
@@ -502,20 +505,20 @@ function erfNeuZeichnen(){ if(!ERF) return; erfLesen(); erfZeichnen(); }
 /* GTIN steht fest: vorhanden? Hersteller aus dem Präfix? Nachschlagen. */
 async function erfGtinAufloesen(){
   if(!ERF || !ERF.gtin) return;
-  const g=ERF.gtin;
+  const E=ERF; const g=ERF.gtin;
   ERF.vorhanden = GTINDB[g] ? g : null;
   if(!ERF.vorhanden && typeof packungFinden==='function'){ const pk=packungFinden(GTINDB, g); if(pk && GTINDB[pk.id]) ERF.vorhanden=pk.id; }
   if(!ERF.hersteller){ const p=erfHerstellerAusGtin(GTINDB, g);
     if(p){ ERF.hersteller=p.hersteller; ERF.quelle.hersteller={ art:'praefix' }; } }
   if(typeof gtinAufloesen==='function' && !ERF.vorhanden){
     try{ const t=await gtinAufloesen(g);
-      if(t && ERF){
+      if(t && ERF===E){
         if(t.ref && !ERF.ref){ ERF.ref=t.ref; ERF.quelle.ref={ art:'nachschlag', text:t.quelle||'' }; }
         if(t.hersteller && !ERF.hersteller){ ERF.hersteller=erfHerstellerKanon(t.hersteller, erfHerstellerListe((typeof bezHersteller==='function')?bezHersteller():[], GTINDB)); ERF.quelle.hersteller={ art:'nachschlag', text:t.quelle||'' }; }
         if(t.name && !ERF.name){ ERF.nameVorschlagQuelle=t.name; }
       } }catch(e){}
   }
-  erfDublettenPruefen();
+  if(ERF===E) erfDublettenPruefen();
 }
 function erfDublettenPruefen(){
   if(!ERF) return;
@@ -541,15 +544,16 @@ function erfFoto(art){
 }
 async function erfBarcodeLesen(d){
   if(!ERF) return;
+  const E=ERF;
   ERF.busy='Barcode lesen …'; erfZeichnen();
   let code=null; try{ code=(typeof ocrBarcodeFromImage==='function')?await ocrBarcodeFromImage(d):null; }catch(e){}
-  if(!ERF) return;
+  if(ERF!==E) return;
   ERF.busy='';
   if(!code || !(code.gtin||code.itemRef)){ erfZeichnen(); toast('Kein Barcode erkannt. Näher heran, mehr Licht – oder die Nummer eintippen.', true); return; }
   erfBarcodeUebernehmen(code);
   ERF.fotos.push({ src:d, rolle:'etikett' });
   erfZeichnen();
-  await erfGtinAufloesen(); erfNeuZeichnen();
+  await erfGtinAufloesen(); if(ERF===E) erfNeuZeichnen();
 }
 function erfBarcodeUebernehmen(code){
   if(code.gtin){ ERF.gtin=(typeof gtinKey==='function')?gtinKey(code.gtin):code.gtin; ERF.quelle.gtin={ art:'barcode' }; ERF.ohneGtin=false; }
@@ -558,15 +562,16 @@ function erfBarcodeUebernehmen(code){
 async function erfEtikettLesen(d){
   if(!ERF) return;
   if(ERF.fotoErg.length>=ERF_MAX_FOTOS){ toast('Es werden höchstens '+ERF_MAX_FOTOS+' Etikettfotos ausgewertet.'); return; }
+  const E=ERF;
   ERF.busy='Etikett lesen …'; erfZeichnen();
   try{
-    const f=await ocrLeseFotoEinzeln(d, (t)=>{ if(ERF){ ERF.busy=t; erfZeichnen(); } });
-    if(!ERF) return;
+    const f=await ocrLeseFotoEinzeln(d, (t)=>{ if(ERF===E){ ERF.busy=t; erfZeichnen(); } });
+    if(ERF!==E) return;
     ERF.fotoErg.push(f); ERF.fotos.push({ src:d, rolle:'etikett' });
     erfAusErgebnis(ocrZusammenfuehren(ERF.fotoErg));
     if(ERF.gtin) await erfGtinAufloesen();
   }catch(e){ toast('Etikett konnte nicht gelesen werden: '+((e&&e.message)||e), true); }
-  if(!ERF) return;
+  if(ERF!==E) return;
   ERF.busy=''; erfZeichnen();
 }
 /* Ergebnis der Etikett-Erkennung übernehmen — NUR in leere bzw. nicht von

@@ -246,6 +246,20 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.evaluate(a => naStammZusammenfuehren('material', a.von, a.nach), { von: ids.bank, nach: neuId });
   r.check('Ersatz zeigt nach dem Zusammenführen auf den verbleibenden Eintrag', await p.evaluate(a => { const v = naHole('material', a.hahn).verknuepfungen; return v.some(x => x.art === 'ersatz' && x.ziel === a.neu && x.sorte === 'teuer') && !v.some(x => x.ziel === a.bank); }, { hahn: ids.hahn, bank: ids.bank, neu: neuId }));
 
+  /* ── 12b. Kategorien gehören dem Haus: Suchwörter ändern, Vorgabe zurückholen (A7) ── */
+  await p.evaluate(() => naGeh('#/liste/kategorien'));
+  await p.click('.na-eintrag:has-text("Infusion / Leitung / Hahn")');
+  r.check('Kategorie im Listen-Verzeichnis: „Suchwörter ändern" zeigt die Vorgabe', (await blattOffen(p, /Suchwörter ändern/)) && /hahn/i.test(await p.textContent('#naSheet')));
+  await p.click('#naSheet.show [data-wert="worte"]');
+  await p.fill('#naEingabeFeld', 'Discofix, Hahnbank, xy'); await p.click('#naSheet.show [data-na="eingabeOk"]');
+  r.check('eigene Suchwörter gespeichert (zu kurze verworfen)', await warte(p, () => JSON.stringify(naKatTpl().klassen.infusion.worte) === '["discofix","hahnbank"]'));
+  await p.evaluate(() => naGeh('#/material/neu')); await p.fill('input[data-f="name"]', 'Discofix C neu');
+  r.check('… und die Maske schlägt danach vor', await warte(p, () => NA_ENTWURF.obj.kategorie === 'infusion'));
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');
+  await p.evaluate(() => naGeh('#/liste/kategorien')); await p.click('.na-eintrag:has-text("Infusion / Leitung / Hahn")');
+  await p.click('#naSheet.show [data-wert="worteVorgabe"]');
+  r.check('Vorgabe zurückgeholt', await warte(p, () => !('worte' in (naKatTpl().klassen.infusion || {})) && naKat().klassen.find(k => k.id === 'infusion').worte.length > 2));
+
   /* ── 13. Register abschaltbar (Einstellungen, für alle Geräte) ── */
   await p.evaluate(() => naGeh('#/einstellungen'));
   await p.uncheck('input[data-na-wechsel="registerAn"]');
