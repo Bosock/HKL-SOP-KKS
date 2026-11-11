@@ -263,7 +263,8 @@ function naMaterialForm(){
   /* 2 · Das Wichtigste */
   h += naF('Name im Haus', naT('name',{ ph:'so, wie man es im Saal sucht' }), '<span id="naNameVor">'+naNameVorHtml()+'</span>');
   h += naF('Handelsname (freiwillig)', naT('handelsname',{ ph:'wie es auf der Packung steht' }));
-  h += naF('Hersteller', naW('hersteller','hersteller'), '<span id="naHerstVor">'+naHerstVorHtml(o)+'</span>');
+  h += naF('Hersteller', naW('hersteller','hersteller'), '<span id="naHerstVor">'+naHerstVorHtml(o)+'</span>'
+    + (!o.hersteller && E.ocr && E.ocr.herstellerNeu ? ' <button class="na-chip" data-na="herstellerAusEtikett">Vom Etikett: „'+esc(E.ocr.herstellerNeu)+'" übernehmen</button>' : ''));
   h += '<div class="na-zwei">' + naF('REF (Bestellnummer des Herstellers)', naT('ref',{ mono:true, ph:'genau wie auf dem Etikett' }))
     + naF('GTIN (Barcode-Nummer)', naT('gtin',{ mono:true, ph:'8–14 Ziffern — oder Text eines Handscanners' }), '<span id="naGtinStand">'+naGtinStand(o.gtin)+'</span>') + '</div>';
   h += naLagerortFeld();
@@ -450,6 +451,11 @@ naAkt('entwWahl', async d=>{
 });
 naAkt('lagerortZuletzt', d=>{ if(!NA_ENTWURF) return; NA_ENTWURF.obj.lagerort = d.id; naFormNeu(); });
 naAkt('katNehmen', d=>{ if(!NA_ENTWURF) return; NA_ENTWURF.obj.kategorie = d.id; NA_ENTWURF.katAuto = null; NA_ENTWURF.offen.kat = true; naFormNeu(); });
+/* Ein auf dem Etikett gelesener Hersteller, der noch nicht in der Liste steht:
+   erst nach ähnlichen Einträgen suchen (Kurzname, amtlicher Name), sonst anlegen. */
+naAkt('herstellerAusEtikett', ()=>{ const E = NA_ENTWURF; if(!E || !E.ocr || !E.ocr.herstellerNeu) return;
+  const id = naHerstellerAusRegister({ name:E.ocr.herstellerNeu }); if(!id) return;
+  E.obj.hersteller = id; E.ocr.herstellerNeu = ''; toast('Hersteller: '+naListeName('hersteller', id)); naFormNeu(); });
 naAkt('herstellerNehmen', d=>{ if(!NA_ENTWURF) return; NA_ENTWURF.obj.hersteller = d.id; naFormNeu(); });
 naAkt('refNehmen', d=>{ if(!NA_ENTWURF) return; NA_ENTWURF.obj.ref = d.ref; if(NA_ENTWURF.ocr) NA_ENTWURF.ocr.refVorschlaege = []; naFormNeu(); });
 naAkt('nameNehmen', d=>{ const E = NA_ENTWURF; if(!E) return; E.obj.name = d.n; naKatAuto(E); naFormNeu(); });
@@ -714,11 +720,18 @@ function naEtikettUebernehmen(E, erg){
   const f = erg.fields || {};
   if(f.ref && !o.ref){ o.ref = f.ref; neu.push('REF'); }
   E.ocr = Object.assign(E.ocr||{}, { refVorschlaege: (!o.ref && erg.refInfo && erg.refInfo.vorschlaege) ? erg.refInfo.vorschlaege.slice(0,4) : [] });
-  if(f.hersteller && !o.hersteller){
-    const tr = naAehnliche(f.hersteller, naListe('hersteller'));
-    const g = tr.find(t=>t.grad==='gleich') || tr[0];
-    if(g){ o.hersteller = g.item.id; neu.push('Hersteller'); }
-    else E.ocr.herstellerNeu = f.hersteller;
+  if(!o.hersteller){
+    /* Erst die Herstellerliste des Hauses im ganzen Text suchen (Fertigungsort,
+       Vertrieb und Bevollmächtigte zählen nicht) — kern.js naHerstellerImText. */
+    const h = naHerstellerImText(erg.text || '', naListe('hersteller', true));
+    if(h && h.id){ o.hersteller = h.id; neu.push('Hersteller'); }
+    else if(h && h.name) E.ocr.herstellerNeu = h.name;
+    else if(f.hersteller){
+      const tr = naAehnliche(f.hersteller, naListe('hersteller'));
+      const g = tr.find(t=>t.grad==='gleich') || tr[0];
+      if(g){ o.hersteller = g.item.id; neu.push('Hersteller'); }
+      else E.ocr.herstellerNeu = f.hersteller;
+    }
   }
   if(erg.text && typeof merkSammeln==='function'){
     const m = merkSammeln(erg.text, o.ref || f.ref || '', naKat(), o.kategorie);

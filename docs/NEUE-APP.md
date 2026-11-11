@@ -354,6 +354,22 @@ keine Bedienzeiten eines Menschen. Am 10.11.2026 abends antwortete EUDAMED
 „nicht erreichbar", der zweite 0,5 s (Pause für das ausgefallene Register);
 die GTIN war in beiden Fällen übernommen, die Maske blieb bedienbar.
 
+**Etikett lesen an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
+REF und Hersteller aus EUDAMED, bei zwei Produkten ohne Registereintrag vom
+Etikett abgelesen.
+
+| | REF sicher gelesen | REF als 1. Vorschlag | Hersteller richtig |
+|---|---|---|---|
+| Etikett-Erkennung der alten App (`ocr.js`) | 4 / 10 | weitere 4 | 4 / 10 |
+| dazu Herstellersuche der neuen App (`naHerstellerImText`) | 4 / 10 | weitere 4 | **7 / 10** |
+
+Der Herstellername stand in 8 der 10 gelesenen Texte. Vorher gewann zweimal
+der Lohnfertiger („Manufacturing Site: … Erwin Busch GmbH"). Jetzt zählen
+Zeilen über Fertigungsort, Vertrieb, Import und EU-Bevollmächtigte nicht,
+und ein Name aus der Herstellerliste des Hauses gewinnt. Steht der Hersteller
+noch nicht in der Liste, bietet die Maske „Vom Etikett: … übernehmen" an.
+Sicherer bleibt der Weg über den Barcode und das Register.
+
 ## 6. Was die neue App (noch) nicht hat — Entscheidung vor dem Umschalten
 
 Die neue App beginnt **leer** (Entscheidung G1). Diese Funktionen der alten App

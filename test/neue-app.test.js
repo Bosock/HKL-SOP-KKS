@@ -21,7 +21,7 @@ vm.runInContext(KERN + `
   naFotos, naHauptbild, naFotosSetzen, naFotoDazu, naFotoErsetzen, naFotoOriginal, naFotoEntfernen, naFotoAendern, NA_FOTO_ROLLEN,
   NA_ARTEN_VORGABE, NA_BEREICHE_VORGABE, NA_RUBRIKEN_VORGABE,
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
-  naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN };`, ctx);
+  naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
 
@@ -240,6 +240,23 @@ test('Hersteller-Kurzname und PZN-Prüfziffer', () => {
   assert.equal(K.naPznOk('PZN-' + gut), true);
   assert.equal(K.naPznOk(gut.slice(0, 7) + ((+gut[7] + 1) % 10)), false);
   assert.equal(K.naPznOk('12345'), false); assert.equal(K.naPznOk(''), false); assert.equal(K.naPznOk('abcdefgh'), false);
+});
+
+test('Hersteller im Etikett-Text: Lohnfertiger und Vertrieb zählen nicht, die Liste des Hauses gewinnt', () => {
+  /* Auszüge echter OCR-Texte (B.-Braun-Spritze, Asahi-Draht), 11.11.2026 */
+  const braun = 'Injekt Luer Solo\nManufacturing Site:  ALMO-Erzeugnisse\nErwin Busch GmbH, GroBe Allee 84, 34454\nB. Braun Melsungen AG\n34209 Melsungen, Germany\nBBRAUN';
+  const asahi = 'ASAHI INTECC PCI Guide Wire\nEmergo Europe BV.\n& ASAHI INTECC EUROPE B.V.\nod ASAHI INTECC CO.,, LTD.\nMade in PHILIPPINES';
+  const liste = [{ id:'b', name:'B. Braun Melsungen', amtlich:'B. Braun Melsungen AG' }, { id:'a', name:'Asahi Intecc', amtlich:'ASAHI INTECC CO., LTD.' }];
+  assert.deepEqual(plain(K.naHerstellerImText(braun, liste)), { id:'b', name:'B. Braun Melsungen', quelle:'liste' });
+  assert.equal(K.naHerstellerImText(asahi, liste).id, 'a');
+  /* ohne Liste: Firmenname mit Rechtsform, nicht der Lohnfertiger */
+  assert.deepEqual(plain(K.naHerstellerImText(braun, [])), { name:'B. Braun Melsungen AG', quelle:'text' });
+  /* eine schlecht geschriebene Listenzeile („B|BRAUN") wird trotzdem gefunden */
+  assert.equal(K.naHerstellerImText(braun, [{ id:'x', name:'B|BRAUN' }]).id, 'x');
+  /* Archivierte Einträge und Wörter in Fertigungsort-Zeilen zählen nicht */
+  assert.equal(K.naHerstellerImText('Manufacturing Site: Erwin Busch GmbH', [{ id:'e', name:'Erwin Busch' }]), null);
+  assert.equal(K.naHerstellerImText(braun, [{ id:'b', name:'B. Braun Melsungen', archiviert:true }]).quelle, 'text');
+  assert.equal(K.naHerstellerImText('', liste), null);
 });
 
 test('Registertreffer: füllt nur Leeres, merkt Quelle — und nichts ist „bestätigt"', () => {

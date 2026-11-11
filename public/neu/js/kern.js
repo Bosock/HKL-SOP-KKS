@@ -409,6 +409,49 @@ function naHerstellerKurz(amtlich){
   return s;
 }
 
+/* ── Hersteller im Etikett-Text finden ──
+   Gemessen an zehn echten Etiketten (11.11.2026): Der Herstellername stand in
+   8 von 10 gelesenen Texten, gewählt wurde er nur 4-mal — zweimal gewann der
+   Lohnfertiger („Manufacturing Site: … Erwin Busch GmbH") statt B. Braun.
+   Deshalb:
+     1. Zeilen über Fertigungsort, Vertrieb, Import und EU-Bevollmächtigte
+        zählen nicht.
+     2. Ein Name aus der Herstellerliste des Hauses (Kurzname, amtlicher Name)
+        schlägt alles — der längste Treffer gewinnt.
+     3. Sonst: ein Firmenname mit Rechtsform (AG, GmbH, Ltd. …); gewählt wird
+        der, dessen Kernwort im ganzen Text am häufigsten vorkommt (Logo,
+        Anschrift, Internetadresse).
+   Liefert { id, name, quelle:'liste' } · { name, quelle:'text' } · null. Rein. */
+const NA_HERST_NICHT=/(manufactur\w*\s*s[il]te|herstellungsort|fertigungsort|fabricado|distribu|vertrieb|vertreiber|importad|importer|importeur|authori[sz]ed\s+rep|bevollm|ec\s*rep|reg\.?\s*san|invima|registro|made\s+in|hergestellt\s+in)/i;
+const NA_HERST_ALLGEMEIN={ medical:1, medizin:1, medizintechnik:1, gmbh:1, group:1, europe:1, international:1, corporation:1, company:1, limited:1, industries:1, deutschland:1, germany:1, healthcare:1, scientific:0 };
+function naHerstellerImText(text, eintraege){
+  const zeilen=String(text||'').split(/\n/);
+  /* auch die Folgezeile eines „Manufacturing Site:"-Satzes gehört dazu, wenn sie dessen Firma fortsetzt */
+  const gilt=zeilen.map((z,i)=>!NA_HERST_NICHT.test(z) && !(i>0 && NA_HERST_NICHT.test(zeilen[i-1]) && !/\b(ag|gmbh|ltd|inc|b\.?v|s\.?a|llc|corp)\b\.?\s*,?\s*$/i.test(zeilen[i-1])));
+  const t=' '+naNorm(zeilen.filter((z,i)=>gilt[i]).join(' \n '))+' ';
+  const ganz=' '+naNorm(text)+' ';
+  let best=null, wert=0;
+  (eintraege||[]).forEach(e=>{ if(!e||e.archiviert) return;
+    [e.name, e.amtlich, e.amtlich ? naHerstellerKurz(e.amtlich) : ''].forEach(n=>{ const nn=naNorm(n);
+      if(nn.replace(/[^a-z]/g,'').length<4) return;
+      if(t.indexOf(' '+nn+' ')>=0 && nn.length>wert){ best=e; wert=nn.length; } });
+    /* Kernwort (≥ 5 Buchstaben, nicht allgemein) als ganzes Wort — schwächer als der ganze Name */
+    [e.name, e.amtlich].forEach(n=>naNorm(n).split(' ').forEach(w=>{ if(w.length<5 || NA_HERST_ALLGEMEIN[w]) return;
+      if(t.indexOf(' '+w+' ')>=0 && w.length/2>wert){ best=e; wert=w.length/2; } })); });
+  if(best) return { id:best.id, name:best.name, quelle:'liste' };
+  const form=/([A-Z0-9][A-Za-z0-9&.'\- ]{1,40}?)[ ,]+(AG|GmbH|Inc\.?|Ltd\.?|LTD\.?|B\.\s?V\.?|BV|S\.\s?A\.?|SAS|S\.p\.A\.?|Corp\.?|Corporation|LLC|SE|KG|Sdn\.?\s*Bhd\.?|CO\.,?\s*LTD\.?)(?![A-Za-z])/;
+  const kand={};
+  zeilen.forEach((z,i)=>{ if(!gilt[i]) return; const m=z.match(form); if(!m) return;
+    let n=(m[1]+' '+m[2]).replace(/^(?:[a-z]{1,3}\s+|[^A-Za-z0-9]+)+/,'').replace(/\s+/g,' ').replace(/[,.]+\s*(?=(?:AG|GmbH|Inc|Ltd|LTD)\b)/,' ').trim();
+    if(n.replace(/[^A-Za-z]/g,'').length<4) return;
+    const kern=naNorm(n).split(' ').filter(w=>w.length>=4 && !NA_HERST_ALLGEMEIN[w] && !/^(gmbh|corp|inc|ltd)$/.test(w)).sort((a,b)=>b.length-a.length)[0];
+    if(!kern) return;
+    const zahl=ganz.split(kern).length-1;
+    if(!kand[n] || kand[n]<zahl) kand[n]=zahl; });
+  const l=Object.keys(kand).sort((a,b)=>kand[b]-kand[a] || a.length-b.length);
+  return l.length ? { name:l[0], quelle:'text' } : null;
+}
+
 /* ── PZN (Pharmazentralnummer): 7- oder 8-stellig, Prüfziffer Modulo 11 ── */
 function naPznOk(p){
   const s=String(p==null?'':p).replace(/^pzn[\s:\-]*/i,'').replace(/\s/g,'');
