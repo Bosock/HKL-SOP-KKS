@@ -48,12 +48,14 @@ naAkt('listeEintrag', async d=>{
   const x = naListeEintrag(d.k, d.id); if(!x) return;
   const w = await naSheetAuf('<div class="sheet-title">'+esc(naListeWort(d.k))+'</div><div class="sheet-name">'+esc(x.name)+'</div>'
     + '<button class="sheet-act" data-na="sheetWert" data-wert="umbenennen"><span class="sa-ico">✎</span><span>Umbenennen<span class="sa-sub">wirkt überall, wo der Eintrag verwendet wird</span></span></button>'
+    + (d.k==='kategorien' ? naKatWorteKnopf(d.id) : '')
     + (d.k==='arten' ? '<button class="sheet-act" data-na="sheetWert" data-wert="symbol"><span class="sa-ico">'+esc(x.ico||'•')+'</span><span>Symbol ändern</span></button><button class="sheet-act" data-na="sheetWert" data-wert="haken"><span class="sa-ico">☑</span><span>'+(x.haken===false?'Wird abgehakt':'Wird nicht abgehakt (Hinweis)')+'</span></button>' : '')
     + (NA_LISTE_FELD[d.k] || ['arten','gruppen','kennzeichen'].indexOf(d.k)>=0 ? '<button class="sheet-act" data-na="sheetWert" data-wert="zusammen"><span class="sa-ico">⇉</span><span>Mit anderem Eintrag zusammenführen<span class="sa-sub">alle Verwendungen zeigen danach auf den anderen</span></span></button>' : '')
     + '<button class="sheet-act" data-na="sheetWert" data-wert="archiv"><span class="sa-ico">🗄</span><span>'+(x.archiviert?'Zurückholen':'Archivieren')+'<span class="sa-sub">wird nicht mehr angeboten; Vorhandenes bleibt</span></span></button>');
   if(!w) return;
   if(w==='umbenennen'){ const n = await naEingabe('Neuer Name', { wert:x.name }); if(n && n!==x.name) naListeUmbenennen(d.k, d.id, n); }
   if(w==='symbol'){ const s = await naEingabe('Symbol (ein Emoji)', { wert:x.ico||'' }); if(s) naListeSpeichern(d.k, naListe(d.k,true).map(y=>y.id===d.id?Object.assign({}, y, { ico:s.slice(0,4) }):y), 'Symbol geändert'); }
+  if(w==='worte' || w==='worteVorgabe') await naKatWorteAendern(d.id, w==='worteVorgabe');
   if(w==='haken') naListeSpeichern(d.k, naListe(d.k,true).map(y=>y.id===d.id?Object.assign({}, y, { haken: y.haken===false }):y), 'Abhaken geändert');
   if(w==='zusammen'){
     const ziel = await naAuswahl({ titel:'„'+x.name+'" zusammenführen mit …', items: naListe(d.k).filter(y=>y.id!==d.id).map(y=>({ id:y.id, name:y.name })) });
@@ -64,6 +66,32 @@ naAkt('listeEintrag', async d=>{
   if(w==='archiv') naListeArchivieren(d.k, d.id, !x.archiviert);
   naZeigen();
 });
+
+/* ── Suchwörter einer Kategorie (Grundsatz A7) ──
+   An ihnen erkennt die Maske die Kategorie im Namen eines Materials („Hahn" →
+   Infusion / Leitung / Hahn). Das Haus legt sie selbst fest; für eine
+   mitgelieferte Kategorie lässt sich die Vorgabe jederzeit zurückholen. */
+function naKatWorte(id){ const k = naKat().klassen.find(x=>x.id===id); return (k && k.worte) || []; }
+function naKatWorteKnopf(id){
+  const w = naKatWorte(id); const eigene = Array.isArray(((naKatTpl().klassen||{})[id]||{}).worte);
+  const k = naKat().klassen.find(x=>x.id===id) || {};
+  return '<button class="sheet-act" data-na="sheetWert" data-wert="worte"><span class="sa-ico">🔎</span><span>Suchwörter ändern<span class="sa-sub">'
+    + esc(w.length ? w.slice(0, 12).join(', ')+(w.length>12 ? ' …' : '') : 'keine — wird nie vorgeschlagen')+'</span></span></button>'
+    + (eigene && !k.eigen ? '<button class="sheet-act" data-na="sheetWert" data-wert="worteVorgabe"><span class="sa-ico">↺</span><span>Suchwörter der Vorgabe zurückholen</span></button>' : '');
+}
+async function naKatWorteAendern(id, vorgabe){
+  const tpl = JSON.parse(JSON.stringify(naKatTpl())); tpl.klassen = tpl.klassen || {};
+  const k = tpl.klassen[id] = Object.assign({}, tpl.klassen[id] || {});
+  const name = naListeName('kategorien', id);
+  if(vorgabe){ delete k.worte; naKatTplSpeichern(tpl, 'Suchwörter von „'+name+'" auf die Vorgabe zurückgesetzt'); toast('Vorgabe zurückgeholt'); return; }
+  const t = await naEingabe('Suchwörter: '+name, { wert: naKatWorte(id).join(', '), platzhalter:'z. B. hahn, dreiwegehahn, discofix',
+    hilfe:'Mit Komma trennen. Steht eines dieser Wörter im Namen eines Materials, wird diese Kategorie vorgeschlagen; das längste passende Wort gewinnt. Wörter unter 5 Zeichen zählen nur als ganzes Wort. Leer = nie vorschlagen.' });
+  if(t==null) return;
+  const liste = []; t.split(/[,;\n]/).map(x=>x.trim().toLowerCase()).filter(x=>x.length>=3).forEach(x=>{ if(liste.indexOf(x)<0) liste.push(x); });
+  k.worte = liste;
+  naKatTplSpeichern(tpl, 'Suchwörter von „'+name+'" geändert');
+  toast(liste.length ? liste.length+' Suchwörter gespeichert' : 'Keine Suchwörter — wird nicht mehr vorgeschlagen');
+}
 
 /* ── Meldungen (A2: gemeldet · weitergegeben · erledigt — keine Bestellung) ── */
 const NA_STUFEN = ['gemeldet','weitergegeben','erledigt'];

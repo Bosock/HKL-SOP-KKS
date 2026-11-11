@@ -218,6 +218,12 @@ test('Kategorie-Vorschlag: Register-Einordnung vor Wort; längstes Wort gewinnt;
   assert.equal(K.naKategorieVorschlag(KATNEU, { name:'xy' }), null);
   assert.equal(K.naKategorieVorschlag(KATNEU, { name:'Quarzuhr' }), null);
   /* Archivierte Kategorien werden nicht vorgeschlagen. */
+  /* Das Haus bestimmt die Suchwörter selbst (A7): sie ersetzen die Vorgabe. */
+  const eigen = K.naKatalog(KATNEU, { klassen:{ infusion:{ worte:['discofix'] }, k_eigen:{ neu:true, label:'Röntgenschutz', worte:['bleischürze'] } } });
+  assert.equal(K.naKategorieVorschlag(eigen, { name:'Discofix C' }).id, 'infusion');
+  assert.notEqual((K.naKategorieVorschlag(eigen, { name:'Dreiwegehahn' }) || {}).id, 'infusion');
+  assert.equal(K.naKategorieVorschlag(eigen, { name:'Bleischürze groß' }).id, 'k_eigen');
+  assert.equal(K.naKategorieVorschlag(K.naKatalog(KATNEU, { klassen:{ infusion:{ worte:[] } } }), { name:'x', einordnung:'A0703' }).id, 'infusion');   /* Register-Einordnung bleibt */
   const ohne = K.naKatalog(KATNEU, { klassen:{ infusion:{ archiviert:true } } });
   assert.equal(K.naKategorieVorschlag(ohne, { name:'x', einordnung:'A0703' }), null);
 });

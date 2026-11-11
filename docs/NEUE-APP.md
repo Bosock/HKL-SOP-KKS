@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 10.11.2026 · Cache-Version `v81` · Code: `public/neu/`
+**Stand:** 11.11.2026 · Cache-Version `v82` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -92,7 +92,11 @@ in der Hand hat — **eine** Maske, keine neuen Menüs:
    - *Kategorie und Merkmale.* Die Kategorie ist ein **Vorschlag** (aus der
      Einordnung im Register oder aus einem Wort im Namen), kein Tor mehr. Acht
      Kategorien für Verbrauchsmaterial kamen dazu
-     (`public/neu/daten/katalog-zusatz.json`).
+     (`public/neu/daten/katalog-zusatz.json`). Die Kategorien gehören dem
+     Haus (Grundsatz A7): Im Listen-Verzeichnis lassen sie sich umbenennen,
+     zusammenführen, archivieren, neu anlegen, und ihre **Suchwörter**
+     ändern (die Vorgabe ist zurückholbar); Felder kommen in der Maske mit
+     „＋ Feld zu dieser Kategorie" dazu.
    - *Steril · Einmal · Latex.*
    - *Packung und Preis* (Packungsgröße; „der Preis gilt für die ganze
      Packung" rechnet den Stückpreis).
@@ -221,6 +225,13 @@ Wiederverwendet, **ohne Änderung**:
 - Der Server braucht dafür ausgehenden Zugriff auf
   `api.datalake.sante.service.ec.europa.eu` und `accessgudid.nlm.nih.gov`.
   Ohne ihn arbeitet die Maske wie zuvor und sagt „nicht erreichbar".
+  Geprüft am 11.11.2026 auf sops.kardio.wiki: GUDID antwortet in 0,7 s, der
+  Zugang ist also offen; EUDAMED antwortete zu dieser Zeit niemandem.
+  **Selbst prüfen:** im Browser `https://sops.kardio.wiki/api/register?gtin=08714729841968`
+  öffnen — `"quelle":"GUDID"` heißt: der Server kommt hinaus. Für EUDAMED
+  dasselbe mit `?gtin=04022495787309` (`"quelle":"EUDAMED"`).
+  `REGISTER=0` in `~/hkl-sop-kks/.env` auf dem Server schaltet die Abfrage
+  ab (docker-compose.yml reicht den Wert durch).
 
 **Datenmodell** (geteilter Zustand des Raums Neuaufbau). Jedes Objekt ist ein
 eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
