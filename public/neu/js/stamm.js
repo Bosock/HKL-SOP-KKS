@@ -52,7 +52,11 @@ function naSichtVerzeichnis(typ){
   if(typ==='material' && naAdmin()){
     const kat = naKat(); const n = naAlle('material').filter(o=>naFehlt(o, kat).length).length;
     if(!n) NA_VZ_OFFEN = false;
-    else filter = '<div class="na-chips" style="margin-bottom:8px"><button class="na-chip'+(NA_VZ_OFFEN?' an':'')+'" data-na="vzOffen">unvollständig ('+n+')</button></div>';
+    const nach = naRegisterOffen().length;
+    if(n || nach) filter = '<div class="na-chips" style="margin-bottom:8px">'
+      + (n ? '<button class="na-chip'+(NA_VZ_OFFEN?' an':'')+'" data-na="vzOffen">unvollständig ('+n+')</button>' : '')
+      + (nach ? '<button class="na-chip" data-na="registerNachholen">'+(NA_NACHHOLEN ? '⏳ Register: '+NA_NACHHOLEN.fertig+' von '+NA_NACHHOLEN.n : '↻ Aus dem Register ergänzen ('+nach+')')+'</button>' : '')
+      + '</div>';
   }
   return { titel:T.mehr, pfad: naAlle(typ).length+' Einträge', tab:typ, plus: naAdmin() ? { na:'geh', ziel:NA_STAMM_FELDER[typ].neu } : null,
     html: '<input class="na-suche" type="search" id="naVzQ" placeholder="'+esc(T.mehr)+' suchen (Name, REF, GTIN, Ort …)" value="'+esc(NA_VZ_Q[typ])+'" data-na-ein="vzSuche" data-typ="'+typ+'">'
@@ -593,17 +597,58 @@ async function naBarcodeHolen(stand){
   }
   return erg.gtin ? erg : null;
 }
+/* ── Registerdaten nachholen (für alle, auf einmal) ──
+   Für Materialien mit gültiger GTIN, aber ohne Registerdaten — etwa weil das
+   Register beim Erfassen nicht antwortete. Füllt wie die Maske NUR leere
+   Felder; die Angaben bleiben „noch nicht bestätigt", bis jemand den Eintrag
+   in der Maske speichert (A5). Langsam genug für die Drosselung von EUDAMED. */
+let NA_NACHHOLEN = null;
+function naRegisterOffen(){
+  if(!naAdmin() || !naEinstellung('register', true)) return [];
+  return naAlle('material').filter(m=>m.gtin && naGtinPruefziffer(m.gtin) && !(m.register && m.register.quelle));
+}
+naAkt('registerNachholen', async ()=>{
+  if(NA_NACHHOLEN){ toast('Läuft schon: '+NA_NACHHOLEN.fertig+' von '+NA_NACHHOLEN.n); return; }
+  const liste = naRegisterOffen(); if(!liste.length) return;
+  const ok = await naFrage(liste.length+' Material(ien) im EU-Register nachschlagen?', { ja:'Nachschlagen',
+    mehr:'Gefüllt werden nur leere Felder (Hersteller, Handelsname, REF, steril, Latex, Einmal, Kategorie). Die Angaben gelten als „noch nicht bestätigt", bis der Eintrag in der Maske gespeichert wird. Dauer: etwa '+Math.max(1, Math.round(liste.length*5/60))+' Minute(n) — die App bleibt bedienbar.' });
+  if(!ok) return;
+  const L = NA_NACHHOLEN = { n:liste.length, fertig:0, treffer:0, felder:0, aus:0 };
+  const neuZeichnen = ()=>{ if(!NA_BEARBEITUNG && !naSheetOffen() && /^#\/material\/?$/.test(location.hash)){ const y = window.scrollY; naZeigen(); window.scrollTo(0, y); } };
+  neuZeichnen();
+  let fehlerFolge = 0;
+  for(const alt of liste){
+    if(NA_ENTWURF && NA_ENTWURF.obj.id===alt.id){ L.fertig++; continue; }   /* gerade in Bearbeitung: nicht dazwischenfunken */
+    const r = await naRegisterFragen(naGtinKey(alt.gtin));
+    L.fertig++;
+    const m = naHole('material', alt.id);
+    if(r.status==='treffer' && m && !(NA_ENTWURF && NA_ENTWURF.obj.id===m.id)){
+      const o = JSON.parse(JSON.stringify(m)); const neu = [];
+      if(r.treffer.hersteller && r.treffer.hersteller.name && !o.hersteller){ const id = naHerstellerAusRegister(r.treffer.hersteller); if(id){ o.hersteller = id; neu.push('Hersteller'); } }
+      naRegisterAnwenden(o, r.treffer).forEach(x=>neu.push(x)); o.register.gtin = naGtinKey(o.gtin);
+      if(!o.kategorie){ const v = naKatVorschlagFuer(o); if(v){ o.kategorie = v.id; neu.push('Kategorie'); } }
+      naSpeichern('material', o, 'aus dem Register ergänzt'+(neu.length ? ': '+neu.join(', ') : ''));
+      L.treffer++; L.felder += neu.length; fehlerFolge = 0;
+    } else if(r.status==='fehler' || r.status==='aus'){ L.aus++; if(++fehlerFolge>=2 || r.status==='aus') break; }
+    else fehlerFolge = 0;
+    neuZeichnen();
+    if(!r.ausCache && L.fertig<L.n) await new Promise(ok=>setTimeout(ok, 4500));   /* ≤ 15 je Minute */
+  }
+  NA_NACHHOLEN = null;
+  toast('Register: '+L.treffer+' von '+L.n+' gefunden, '+L.felder+' Angaben ergänzt'+(L.aus ? ' — Register zeitweise nicht erreichbar, später noch einmal versuchen' : '')+'.', !!L.aus);
+  neuZeichnen();
+});
 async function naRegisterFragen(gtin){
   let zeit = null;
   try{
     const ctl = (typeof AbortController==='function') ? new AbortController() : null;
-    if(ctl) zeit = setTimeout(()=>ctl.abort(), 15000);
+    if(ctl) zeit = setTimeout(()=>ctl.abort(), 35000);   /* Server: EUDAMED bis 20 s, dann GUDID bis 8 s */
     const r = await fetch('/api/register?gtin='+encodeURIComponent(gtin), { cache:'no-store', signal: ctl ? ctl.signal : undefined });
     if(r.status===503) return { status:'aus' };
     if(!r.ok) return { status:'fehler' };
     const j = await r.json();
-    if(j && j.treffer) return { status:'treffer', treffer:j.treffer };
-    return { status: (j && j.fehler) ? 'fehler' : 'nichts' };
+    if(j && j.treffer) return { status:'treffer', treffer:j.treffer, ausCache:!!j.ausCache };
+    return { status: (j && j.fehler) ? 'fehler' : 'nichts', ausCache:!!(j && j.ausCache) };
   }catch(e){ return { status:'fehler' }; }
   finally{ if(zeit) clearTimeout(zeit); }
 }
@@ -628,7 +673,7 @@ async function naMaskeRegister(E){
   const g = naGtinKey(E.obj.gtin);
   if(!g || !naGtinPruefziffer(E.obj.gtin)) return;
   if(!naEinstellung('register', true)){ naOcrStand('GTIN übernommen. Die Register-Abfrage ist in den Einstellungen abgeschaltet.'); return; }
-  naOcrStand('GTIN gelesen — das EU-Register wird gefragt …');
+  naOcrStand('GTIN gelesen — das EU-Register wird gefragt (meist 2–10 Sekunden; weitertippen geht) …');
   const r = await naRegisterFuellen(E.obj, ()=>NA_ENTWURF===E && naGtinKey(E.obj.gtin)===g);
   if(!r) return;
   naKatAuto(E);

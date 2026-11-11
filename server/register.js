@@ -21,8 +21,8 @@
    Mensch den Stammsatz speichert (Grundsatz A5).
 
    Abschalten: REGISTER=0 in der Umgebung. Die App arbeitet dann wie zuvor.
-   Zeitlimit je Register: REGISTER_TIMEOUT_MS (7 s). Pause nach einem
-   Ausfall: REGISTER_PAUSE_MS (5 min; 0 = keine).
+   Zeitlimit: REGISTER_TIMEOUT_MS (20 s für EUDAMED; GUDID höchstens 8 s).
+   Pause nach einem Ausfall: REGISTER_PAUSE_MS (2 min; 0 = keine).
    ───────────────────────────────────────────────────────────── */
 'use strict';
 const fs = require('fs');
@@ -33,7 +33,11 @@ const { STATE_DIR } = require('./config');
 const AN = process.env.REGISTER !== '0';
 const EUDAMED_URL = process.env.REGISTER_EUDAMED_URL || 'https://api.datalake.sante.service.ec.europa.eu/eudamed/udi';
 const GUDID_URL = process.env.REGISTER_GUDID_URL || 'https://accessgudid.nlm.nih.gov/api/v2/devices/lookup.json';
-const ZEITLIMIT_MS = parseInt(process.env.REGISTER_TIMEOUT_MS || '7000', 10);
+/* EUDAMED antwortet oft erst nach 2–9 s (gemessen 11.11.2026), GUDID in unter
+   einer Sekunde. Ein zu knappes Zeitlimit machte aus „langsam" „nicht
+   erreichbar" — und legte EUDAMED danach für alle Abfragen still. */
+const ZEITLIMIT_MS = parseInt(process.env.REGISTER_TIMEOUT_MS || '20000', 10);
+const ZEITLIMIT_GUDID_MS = Math.min(ZEITLIMIT_MS, 8000);
 const CACHE_DATEI = path.join(STATE_DIR, 'register-cache.json');
 const TREFFER_TAGE = 30;            /* ein Treffer gilt 30 Tage */
 const FEHLANZEIGE_STUNDEN = 24;     /* „nicht gefunden" nur einen Tag — die Register füllen sich */
@@ -45,7 +49,7 @@ const MAX_JE_MINUTE = 15;
 /* Antwortet ein Register nicht (am 10.11.2026 hing EUDAMED über eine Minute),
    wird es einige Minuten übersprungen — sonst wartete jeder Scan aufs Neue
    das volle Zeitlimit ab, bevor das zweite Register gefragt wird. */
-const pauseMs = () => parseInt(process.env.REGISTER_PAUSE_MS || '300000', 10);
+const pauseMs = () => parseInt(process.env.REGISTER_PAUSE_MS || '120000', 10);
 
 /* ── Reine Helfer (testbar) ── */
 function gtinOk(g) {
@@ -126,8 +130,8 @@ function cacheSchreiben() {
 }
 
 /* ── Abfrage ── */
-async function holen(url) {
-  const ctrl = new AbortController(); const zeit = setTimeout(() => ctrl.abort(), ZEITLIMIT_MS);
+async function holen(url, limitMs) {
+  const ctrl = new AbortController(); const zeit = setTimeout(() => ctrl.abort(), limitMs || ZEITLIMIT_MS);
   try {
     const r = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' }, signal: ctrl.signal });
     if (r.status === 404) return { status: 404, json: null };
@@ -163,7 +167,7 @@ async function abfragen(roh) {
     ]) {
       versuche++;
       if ((pauseBis[lesen.name] || 0) > Date.now()) { fehler++; continue; }
-      try { const a = await holen(url); treffer = a.json ? lesen(a.json) : null; }
+      try { const a = await holen(url, lesen === ausGudid ? ZEITLIMIT_GUDID_MS : ZEITLIMIT_MS); treffer = a.json ? lesen(a.json) : null; }
       catch (e) {
         fehler++; const warte = (e && e.warteMs) || pauseMs(); if (warte > 0) pauseBis[lesen.name] = Date.now() + warte;
         console.error('[register]', lesen.name, gtin, e && (e.name === 'AbortError' ? 'Zeitlimit' : e.message));

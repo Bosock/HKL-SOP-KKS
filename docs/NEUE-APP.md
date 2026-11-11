@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 11.11.2026 · Cache-Version `v82` · Code: `public/neu/`
+**Stand:** 11.11.2026 · Cache-Version `v83` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -220,12 +220,19 @@ Wiederverwendet, **ohne Änderung**:
   Absender-Adresse (Erfahrungswerte anderer Nutzer, Oktober 2026: etwa 20 je
   Minute, darüber HTTP 429); offiziell dokumentiert ist keine Zahl. Bei 429
   hält der Server die verlangte Wartezeit (`Retry-After`) ein.
-- Antwortet ein Register nicht, wird es fünf Minuten übersprungen (sonst
+- Zeitlimit: EUDAMED 20 s (antwortet oft erst nach 2–9 s, gemessen 11.11.2026),
+  GUDID 8 s.
+- Antwortet ein Register nicht, wird es zwei Minuten übersprungen (sonst
   wartete jeder Scan das Zeitlimit ab). Ein GUDID-Treffer während eines
   EUDAMED-Ausfalls gilt nur einen Tag. „Steht in keinem Register" heißt
   immer: beide haben geantwortet.
-- Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (7000),
-  `REGISTER_PAUSE_MS` (300000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+- Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (20000),
+  `REGISTER_PAUSE_MS` (120000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+- **Nachholen:** Im Material-Verzeichnis (Verwaltung) steht „↻ Aus dem
+  Register ergänzen (n)", solange Materialien eine gültige GTIN, aber noch
+  keine Registerdaten haben. Ein Tipp schlägt alle nacheinander nach (höchstens
+  15 je Minute), füllt nur leere Felder und lässt die Angaben „noch nicht
+  bestätigt".
 - Der Server braucht dafür ausgehenden Zugriff auf
   `api.datalake.sante.service.ec.europa.eu` und `accessgudid.nlm.nih.gov`.
   Ohne ihn arbeitet die Maske wie zuvor und sagt „nicht erreichbar".
