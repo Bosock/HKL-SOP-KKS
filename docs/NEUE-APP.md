@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 11.11.2026 · Cache-Version `v82` · Code: `public/neu/`
+**Stand:** 11.11.2026 · Cache-Version `v83` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -216,12 +216,23 @@ Wiederverwendet, **ohne Änderung**:
   AccessGUDID. Nur GET, nur Ziffern, feste Zieladressen.
 - Zwischenspeicher in `STATE_DIR/register-cache.json`: Treffer 30 Tage,
   „nicht gefunden" 24 Stunden, ein Ausfall gar nicht.
-- Antwortet ein Register nicht, wird es fünf Minuten übersprungen (sonst
+- Drosselung: höchstens 15 Abfragen je Minute. EUDAMED begrenzt je
+  Absender-Adresse (Erfahrungswerte anderer Nutzer, Oktober 2026: etwa 20 je
+  Minute, darüber HTTP 429); offiziell dokumentiert ist keine Zahl. Bei 429
+  hält der Server die verlangte Wartezeit (`Retry-After`) ein.
+- Zeitlimit: EUDAMED 20 s (antwortet oft erst nach 2–9 s, gemessen 11.11.2026),
+  GUDID 8 s.
+- Antwortet ein Register nicht, wird es zwei Minuten übersprungen (sonst
   wartete jeder Scan das Zeitlimit ab). Ein GUDID-Treffer während eines
   EUDAMED-Ausfalls gilt nur einen Tag. „Steht in keinem Register" heißt
   immer: beide haben geantwortet.
-- Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (7000),
-  `REGISTER_PAUSE_MS` (300000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+- Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (20000),
+  `REGISTER_PAUSE_MS` (120000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+- **Nachholen:** Im Material-Verzeichnis (Verwaltung) steht „↻ Aus dem
+  Register ergänzen (n)", solange Materialien eine gültige GTIN, aber noch
+  keine Registerdaten haben. Ein Tipp schlägt alle nacheinander nach (höchstens
+  15 je Minute), füllt nur leere Felder und lässt die Angaben „noch nicht
+  bestätigt".
 - Der Server braucht dafür ausgehenden Zugriff auf
   `api.datalake.sante.service.ec.europa.eu` und `accessgudid.nlm.nih.gov`.
   Ohne ihn arbeitet die Maske wie zuvor und sagt „nicht erreichbar".
@@ -342,6 +353,22 @@ keine Bedienzeiten eines Menschen. Am 10.11.2026 abends antwortete EUDAMED
 über eine Minute lang nicht: Der erste Scan wartete dann 7,8 s und meldete
 „nicht erreichbar", der zweite 0,5 s (Pause für das ausgefallene Register);
 die GTIN war in beiden Fällen übernommen, die Maske blieb bedienbar.
+
+**Etikett lesen an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
+REF und Hersteller aus EUDAMED, bei zwei Produkten ohne Registereintrag vom
+Etikett abgelesen.
+
+| | REF sicher gelesen | REF als 1. Vorschlag | Hersteller richtig |
+|---|---|---|---|
+| Etikett-Erkennung der alten App (`ocr.js`) | 4 / 10 | weitere 4 | 4 / 10 |
+| dazu Herstellersuche der neuen App (`naHerstellerImText`) | 4 / 10 | weitere 4 | **7 / 10** |
+
+Der Herstellername stand in 8 der 10 gelesenen Texte. Vorher gewann zweimal
+der Lohnfertiger („Manufacturing Site: … Erwin Busch GmbH"). Jetzt zählen
+Zeilen über Fertigungsort, Vertrieb, Import und EU-Bevollmächtigte nicht,
+und ein Name aus der Herstellerliste des Hauses gewinnt. Steht der Hersteller
+noch nicht in der Liste, bietet die Maske „Vom Etikett: … übernehmen" an.
+Sicherer bleibt der Weg über den Barcode und das Register.
 
 ## 6. Was die neue App (noch) nicht hat — Entscheidung vor dem Umschalten
 

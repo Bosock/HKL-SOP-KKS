@@ -23,7 +23,7 @@ const GUDID_ORION = { gudid: { device: { brandName: 'IntellaMap Orion', versionM
 
 const G_HAHN = '04022495787309', G_ORION = '08714729841968', G_NICHTS = '00884450456309', G_AUSFALL = '04012345678901';
 /* EUDAMED fällt aus, GUDID kennt das Produkt · und eine GTIN, die niemand kennt. */
-const G_HALB = '04012345678918', G_LEER = '04012345678925';
+const G_HALB = '04012345678918', G_LEER = '04012345678925', G_ZUVIEL = '04012345678932';
 const zaehler = { eudamed: 0, gudid: 0 };
 let attrappe, R, route;
 
@@ -36,6 +36,7 @@ test.before(async () => {
       const g = u.searchParams.get('PRIMARY_DI');
       if (u.searchParams.get('format') !== 'json' || u.searchParams.get('api-version') !== 'v1.0') return json(400, { message: 'Required parameter format missing.' });
       if (g === G_AUSFALL || g === G_HALB) return json(500, { message: 'Internal server error' });
+      if (g === G_ZUVIEL) { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '120' }); res.end('{}'); return; }
       return json(200, g === G_HAHN ? EUDAMED_HAHN : { value: [] });
     }
     if (u.pathname === '/gudid') {
@@ -152,6 +153,32 @@ test('Ausfall eines Registers: das zweite antwortet, der Treffer gilt nur vorlä
     await R.flush();
     assert.equal(JSON.parse(fs.readFileSync(R.CACHE_DATEI, 'utf8'))[G_LEER], undefined);   /* „nicht gefunden" ist nicht gesichert → nicht gemerkt */
   } finally { process.env.REGISTER_PAUSE_MS = '0'; R._reset(); }
+});
+
+test('429 von EUDAMED: die verlangte Wartezeit wird eingehalten, GUDID wird trotzdem gefragt', async () => {
+  assert.equal(R.gtinOk(G_ZUVIEL), true);
+  process.env.REGISTER_PAUSE_MS = '0';            /* ohne eigene Pause: nur Retry-After zählt */
+  try {
+    const a = await R.abfragen(G_ZUVIEL);
+    assert.equal(a.treffer, null); assert.equal(a.fehler, 'Register nicht erreichbar');
+    const v = Object.assign({}, zaehler);
+    await R.abfragen(G_LEER);
+    assert.equal(zaehler.eudamed, v.eudamed);      /* EUDAMED pausiert (Retry-After: 120 s) */
+    assert.equal(zaehler.gudid, v.gudid + 1);
+  } finally { R._reset(); }
+});
+
+test('Drosselung: höchstens 15 Abfragen je Minute', async () => {
+  R._reset();
+  const ergebnisse = [];
+  for (let i = 0; i < 16; i++) {
+    const g = '0401234' + String(500000 + i).padStart(6, '0'); const z = g.split('').map(Number); let s = 0;
+    z.slice().reverse().forEach((d, j) => { s += d * (j % 2 === 0 ? 3 : 1); });
+    ergebnisse.push(await R.abfragen(g + ((10 - (s % 10)) % 10)));
+  }
+  assert.equal(ergebnisse.slice(0, 15).every(e => !/zu viele/.test(e.fehler || '')), true);
+  assert.match(ergebnisse[15].fehler, /zu viele/);
+  R._reset();
 });
 
 test('Route: nur GET, nur gültige GTIN', async () => {

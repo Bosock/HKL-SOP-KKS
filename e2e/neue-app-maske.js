@@ -25,6 +25,7 @@ const E_HAHN = '4022495787309';                    /* echte GTIN (B. Braun Disco
 const E_ZWEI = ean13('401234567890');
 const E_FREMD = ean13('401234567891');             /* steht in keinem Register */
 const E_AUSFALL = ean13('401234567892');
+const E_ALT = ean13('401234567893');             /* steht in keinem Register (für „Nachholen") */
 const G = e => '0' + e;
 /* Strichfolge eines EAN-13 (95 Module). */
 function eanBits(code) {
@@ -259,6 +260,19 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.evaluate(() => naGeh('#/liste/kategorien')); await p.click('.na-eintrag:has-text("Infusion / Leitung / Hahn")');
   await p.click('#naSheet.show [data-wert="worteVorgabe"]');
   r.check('Vorgabe zurückgeholt', await warte(p, () => !('worte' in (naKatTpl().klassen.infusion || {})) && naKat().klassen.find(k => k.id === 'infusion').worte.length > 2));
+
+  /* ── 12c. Nachholen: Materialien, die ohne Registerdaten erfasst wurden (z. B. während eines Ausfalls) ── */
+  const nach = await p.evaluate(a => {
+    const x = naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Alt erfasst A', gtin: a.zwei, ref: 'EIGENE-REF' }));
+    const y = naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Alt erfasst B', gtin: a.fremd }));
+    naGeh('#/material'); return { x: x.id, y: y.id };
+  }, { zwei: G(E_ZWEI), fremd: G(E_ALT) });
+  r.check('Verzeichnis bietet „Aus dem Register ergänzen (2)"', /Aus dem Register ergänzen \(2\)/.test(await p.textContent('#naMain')));
+  await p.click('[data-na="registerNachholen"]'); await p.click('#naSheet.show button:has-text("Nachschlagen")');
+  r.check('nachgeholt: leere Felder gefüllt, eigene REF bleibt, Status „noch nicht bestätigt"', await warte(p, a => { const x = naHole('material', a.x);
+    return !NA_NACHHOLEN && x.handelsname === 'Hahnbank 3-fach' && x.ref === 'EIGENE-REF' && !!x.hersteller && x.kategorie === 'infusion' && x.register && x.register.quelle === 'EUDAMED' && !x.register.bestaetigt; }, nach, 30000));
+  r.check('… und ohne Treffer bleibt alles leer (nichts erfunden)', await p.evaluate(a => { const y = naHole('material', a.y); return !y.register && !y.hersteller && !y.ref; }, nach));
+  r.check('danach bietet das Verzeichnis nur noch den Rest an', /Aus dem Register ergänzen \(1\)/.test(await p.textContent('#naMain')));
 
   /* ── 13. Register abschaltbar (Einstellungen, für alle Geräte) ── */
   await p.evaluate(() => naGeh('#/einstellungen'));
