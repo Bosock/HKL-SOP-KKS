@@ -75,7 +75,7 @@ function naEingabe(titel, opt){
 naAkt('eingabeOk', ()=>naSheetZu(($('naEingabeFeld')||{}).value || ''));
 
 /* ── DAS Auswahlfeld ──
-   opt: { titel, liste:'<key>' | items:[{id,name,sub}], gewaehlt:id|[ids],
+   opt: { titel, liste:'<key>' | items:[{id,name,sub,such}], gewaehlt:id|[ids],
           mehrfach, neu:true (anlegen erlaubt), wo:'wo angelegt', anlegen:(name)=>id,
           leer:'— keine —' (Auswahl „nichts" anbieten) }
    Liefert die gewählte Kennung (oder Liste) — null = abgebrochen,
@@ -100,7 +100,7 @@ function naAuswahlZeichnen(){
   if(!NA_AUSW) return;
   const o = NA_AUSW.opt; const q = NA_AUSW.q; const nq = naNorm(q);
   const alle = naAuswahlItems();
-  const treffer = nq ? alle.filter(i=>naNorm(i.name+' '+(i.sub||'')).indexOf(nq)>=0) : alle;
+  const treffer = nq ? alle.filter(i=>naNorm(i.name+' '+(i.sub||'')+' '+(i.such||'')).indexOf(nq)>=0) : alle;
   let h = '';
   if(NA_AUSW.pruef){
     const pr = NA_AUSW.pruef;

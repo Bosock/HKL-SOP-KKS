@@ -43,12 +43,13 @@ function naSichtListe(key){
 naAkt('listeNeu', async d=>{ const n = await naEingabe('Neuer Eintrag: '+naListeWort(d.k)); if(!n) return;
   const tr = naAehnliche(n, naListe(d.k, true));
   if(tr.length && !(await naFrage('Ähnlich: '+tr.slice(0,3).map(t=>'„'+t.item.name+'"').join(', ')+'. Trotzdem neu anlegen?', { ja:'Neu anlegen' }))) return;
+  if(d.k==='kategorien'){ const id = await naKategorieAnlegen(n, 'Listen-Verzeichnis'); if(id) naGeh('#/liste/kategorien/'+encodeURIComponent(id)); return; }
   naListeNeu(d.k, n, 'Listen-Verzeichnis', d.k==='arten' ? { ico:'•', farbe:'#7f95ab', verweis:'', haken:true } : null); naZeigen(); });
 naAkt('listeEintrag', async d=>{
   const x = naListeEintrag(d.k, d.id); if(!x) return;
   const w = await naSheetAuf('<div class="sheet-title">'+esc(naListeWort(d.k))+'</div><div class="sheet-name">'+esc(x.name)+'</div>'
     + '<button class="sheet-act" data-na="sheetWert" data-wert="umbenennen"><span class="sa-ico">✎</span><span>Umbenennen<span class="sa-sub">wirkt überall, wo der Eintrag verwendet wird</span></span></button>'
-    + (d.k==='kategorien' ? naKatWorteKnopf(d.id) : '')
+    + (d.k==='kategorien' ? '<button class="sheet-act" data-na="geh" data-ziel="#/liste/kategorien/'+esc(encodeURIComponent(d.id))+'"><span class="sa-ico">▤</span><span>Merkmale dieser Kategorie<span class="sa-sub">'+esc(naKatMerkmaleSub(d.id))+'</span></span></button>' + naKatWorteKnopf(d.id) : '')
     + (d.k==='arten' ? '<button class="sheet-act" data-na="sheetWert" data-wert="symbol"><span class="sa-ico">'+esc(x.ico||'•')+'</span><span>Symbol ändern</span></button><button class="sheet-act" data-na="sheetWert" data-wert="haken"><span class="sa-ico">☑</span><span>'+(x.haken===false?'Wird abgehakt':'Wird nicht abgehakt (Hinweis)')+'</span></button>' : '')
     + (NA_LISTE_FELD[d.k] || ['arten','gruppen','kennzeichen'].indexOf(d.k)>=0 ? '<button class="sheet-act" data-na="sheetWert" data-wert="zusammen"><span class="sa-ico">⇉</span><span>Mit anderem Eintrag zusammenführen<span class="sa-sub">alle Verwendungen zeigen danach auf den anderen</span></span></button>' : '')
     + '<button class="sheet-act" data-na="sheetWert" data-wert="archiv"><span class="sa-ico">🗄</span><span>'+(x.archiviert?'Zurückholen':'Archivieren')+'<span class="sa-sub">wird nicht mehr angeboten; Vorhandenes bleibt</span></span></button>');
@@ -66,6 +67,72 @@ naAkt('listeEintrag', async d=>{
   if(w==='archiv') naListeArchivieren(d.k, d.id, !x.archiviert);
   naZeigen();
 });
+
+/* ── Merkmale einer Kategorie (Grundsatz A7) ──
+   Derselbe Inhalt wie in der Material-Maske, nur im Überblick: welche
+   Merkmale eine Kategorie hat, welche davon Kern (★) sind, wie oft sie
+   ausgefüllt werden. Hier wird nichts anders gespeichert als in der Maske. */
+function naKatMerkmaleSub(id){ const f = naFelder(naKat(), id); const n = f.diff.length + f.weitere.length;
+  return n ? n+' Merkmal'+(n===1?'':'e')+(f.diff.length ? ' · ★ '+f.diff.map(d=>d.label).slice(0,3).join(', ') : '') : 'noch keine'; }
+function naSichtKategorie(id){
+  if(!naAdmin()) return { titel:'Kategorie', html: naLeer('🔒','Nur in der Verwaltung','') };
+  const kat = naKat(); const k = kat.klassen.find(x=>x.id===id);
+  if(!k) return { titel:'Kategorie', zurueck:'#/liste/kategorien', html: naLeer('❓','Nicht gefunden','') };
+  const f = naFelder(kat, id); const nu = naMerkmalNutzung(naAlle('material'), id);
+  const zeile = (d, stern)=>{ const z = nu.zahl[d.id]||0;
+    return '<div class="na-eintrag" data-na="katMerkmal" data-k="'+esc(id)+'" data-mid="'+esc(d.id)+'"><span class="na-ico">'+(stern?'★':'▤')+'</span><div class="na-haupt"><div class="na-name">'+esc(d.label)+(d.einheit && d.typ!=='ja_nein' ? ' <span class="na-dim">('+esc(d.einheit)+')</span>' : '')+'</div>'
+      + ((d.such||[]).length ? '<div class="na-sub">auch: '+esc(d.such.slice(0,5).join(', '))+'</div>' : '')+'</div><div class="na-rechts">'+(nu.n ? z+' von '+nu.n : '')+'</div></div>'; };
+  const vor = naMerkmalVorschlaege(kat, naAlle('material'), id, NA_NICHT_ALS_MERKMAL);
+  let h = '<div class="na-info">Diese Merkmale erscheinen in der Maske jedes Materials der Kategorie „'+esc(k.label)+'" — alle freiwillig. ★ = Kern: steht oben und geht in den Namensvorschlag ein. Rechts: bei wie vielen Materialien ausgefüllt.</div>';
+  if(k.wie){ const v = kat.klassen.find(x=>x.id===k.wie); if(v) h += '<div class="na-dim" style="margin:-2px 4px 8px">Begonnen mit den Merkmalen von „'+esc(v.label)+'".</div>'; }
+  h += '<div class="na-h">Kern ★ ('+f.diff.length+')</div>' + (f.diff.length ? f.diff.map(d=>zeile(d, true)).join('') : '<div class="na-dim">Noch keines.</div>');
+  h += '<div class="na-h">Weitere ('+f.weitere.length+')</div>' + (f.weitere.length ? f.weitere.map(d=>zeile(d, false)).join('') : '<div class="na-dim">Keine.</div>');
+  vor.forEach(v=>{ h += '<div class="na-info">„'+esc(v.label)+'" ist bei '+v.zahl+' von '+v.n+' Materialien dieser Kategorie ausgefüllt, gehört aber nicht dazu.<div class="na-chips" style="margin-top:6px"><button class="na-chip" data-na="katMerkmalStufe" data-k="'+esc(id)+'" data-mid="'+esc(v.id)+'" data-s="weiter">Übernehmen</button><button class="na-chip" data-na="katMerkmalStumm" data-k="'+esc(id)+'" data-mid="'+esc(v.id)+'">Nicht mehr vorschlagen</button></div></div>'; });
+  h += '<div class="na-zeile" style="margin:12px 0"><button class="na-knopf pri" data-na="katMerkmalDazu" data-k="'+esc(id)+'">＋ Merkmal suchen oder anlegen</button></div>';
+  h += '<div class="na-dim">Für alle Kategorien gelten außerdem: '+esc(f.allgemein.map(d=>d.label).join(' · '))+'.</div>';
+  return { titel:k.label, pfad:'Merkmale der Kategorie', zurueck:'#/liste/kategorien', html:h };
+}
+naAkt('katMerkmal', async d=>{
+  const kat = naKat(); const def = kat.merkmale.find(x=>x.id===d.mid); const k = kat.klassen.find(x=>x.id===d.k); if(!def || !k) return;
+  const f = naFelder(kat, d.k); const kern = f.diff.some(x=>x.id===d.mid);
+  const w = await naSheetAuf('<div class="sheet-title">Merkmal in „'+esc(k.label)+'"</div><div class="sheet-name">'+esc(def.label)+'</div>'
+    + (kern ? '<button class="sheet-act" data-na="sheetWert" data-wert="weiter"><span class="sa-ico">▤</span><span>Kein Kern-Merkmal mehr<span class="sa-sub">bleibt in der Kategorie, steht aber nicht mehr oben</span></span></button>'
+            : '<button class="sheet-act" data-na="sheetWert" data-wert="kern"><span class="sa-ico">★</span><span>Als Kern-Merkmal<span class="sa-sub">steht oben in der Maske und geht in den Namensvorschlag ein</span></span></button>')
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="such"><span class="sa-ico">🔎</span><span>Suchwörter ändern<span class="sa-sub">'+esc((def.such||[]).length ? def.such.join(', ') : 'noch keine eigenen')+'</span></span></button>'
+    + '<button class="sheet-act danger" data-na="sheetWert" data-wert="aus"><span class="sa-ico">✕</span><span>Aus dieser Kategorie entfernen<span class="sa-sub">eingetragene Werte bleiben erhalten und erscheinen beim Material als „nur bei diesem Material"</span></span></button>');
+  if(!w) return;
+  if(w==='such'){ await naMerkmalSuchAendern(d.mid); naZeigen(); return; }
+  naMerkmalKategorieSetzen(d.k, d.mid, w); toast(w==='aus' ? 'Entfernt' : (w==='kern' ? 'Kern-Merkmal ★' : 'Weiteres Merkmal')); naZeigen();
+});
+naAkt('katMerkmalStufe', d=>{ naMerkmalKategorieSetzen(d.k, d.mid, d.s); toast('Übernommen'); naZeigen(); });
+naAkt('katMerkmalStumm', d=>{ naKatTplSpeichern(naTplStumm(naKatTpl(), d.k, d.mid), 'Vorschlag abgestellt'); naZeigen(); });
+naAkt('katMerkmalDazu', async d=>{
+  const kat = naKat(); const k = kat.klassen.find(x=>x.id===d.k); if(!k) return;
+  const f = naFelder(kat, d.k); const schon = f.diff.concat(f.weitere).map(x=>x.id).concat(NA_NICHT_ALS_MERKMAL);
+  const w = await naAuswahl({ titel:'Merkmal für „'+k.label+'"', items:naMerkmalItems(kat, d.k, schon), neu:true, wo:'Kategorie „'+k.label+'"',
+    anlegen: name=>{ naSheetZu({ neu:name }); return null; } });
+  if(!w) return;
+  let mid = w; if(typeof w==='object'){ mid = await naMerkmalAnlegen(w.neu); if(!mid) return; }
+  const def = naKat().merkmale.find(x=>x.id===mid) || { label:mid };
+  const stufe = await naMerkmalGiltFragen(def, k);
+  if(!stufe) return;
+  if(stufe!=='einzel') naMerkmalKategorieSetzen(d.k, mid, stufe);
+  naZeigen();
+});
+/* Suchwörter eines Merkmals: andere Wörter, unter denen man es sucht. */
+async function naMerkmalSuchAendern(mid){
+  const def = naKat().merkmale.find(x=>x.id===mid); if(!def) return;
+  const tpl = JSON.parse(JSON.stringify(naKatTpl())); tpl.such = tpl.such || {};
+  const t = await naEingabe('Suchwörter: '+def.label, { wert:(def.such||[]).join(', '), platzhalter:'z. B. resterilisation, zyklen',
+    hilfe:'Mit Komma trennen. Wer in der Maske „Merkmal suchen" tippt, findet das Merkmal auch unter diesen Wörtern.' });
+  if(t==null) return;
+  const liste = []; t.split(/[,;\n]/).map(x=>x.trim().toLowerCase()).filter(x=>x.length>=2).forEach(x=>{ if(liste.indexOf(x)<0) liste.push(x); });
+  /* Gespeichert wird, was über die mitgelieferten Suchwörter hinausgeht. */
+  const quelle = ((NA_MERKQUELLE && NA_MERKQUELLE.merkmale)||[]).find(x=>x.id===mid); const vorgabe = (quelle && quelle.such) || [];
+  const eigen = liste.filter(x=>vorgabe.indexOf(x)<0);
+  if(eigen.length) tpl.such[mid] = eigen; else delete tpl.such[mid];
+  naKatTplSpeichern(tpl, 'Suchwörter von „'+def.label+'" geändert'); toast('Suchwörter gespeichert');
+}
 
 /* ── Suchwörter einer Kategorie (Grundsatz A7) ──
    An ihnen erkennt die Maske die Kategorie im Namen eines Materials („Hahn" →

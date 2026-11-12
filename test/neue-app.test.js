@@ -21,7 +21,8 @@ vm.runInContext(KERN + `
   naFotos, naHauptbild, naFotosSetzen, naFotoDazu, naFotoErsetzen, naFotoOriginal, naFotoEntfernen, naFotoAendern, NA_FOTO_ROLLEN,
   NA_ARTEN_VORGABE, NA_BEREICHE_VORGABE, NA_RUBRIKEN_VORGABE,
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
-  naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText };`, ctx);
+  naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
+  naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
 
@@ -257,6 +258,81 @@ test('Hersteller im Etikett-Text: Lohnfertiger und Vertrieb zählen nicht, die L
   assert.equal(K.naHerstellerImText('Manufacturing Site: Erwin Busch GmbH', [{ id:'e', name:'Erwin Busch' }]), null);
   assert.equal(K.naHerstellerImText(braun, [{ id:'b', name:'B. Braun Melsungen', archiviert:true }]).quelle, 'text');
   assert.equal(K.naHerstellerImText('', liste), null);
+});
+
+test('Merkmale suchen: Suchwörter finden „Resterilisation" — auch eigene des Hauses', () => {
+  const finde = (kat, q) => kat.merkmale.filter(d => K.naMerkmalSuchtext(d).indexOf(K.naNorm(q)) >= 0).map(d => d.id);
+  assert.ok(finde(KATNEU, 'Resterilisation').includes('wiederverwendungen'));
+  assert.ok(finde(KATNEU, 'zyklen').includes('wiederverwendungen'));
+  assert.ok(finde(KATNEU, 'french').includes('ad_fr'));
+  const eigen = K.naKatalog(KATNEU, { such:{ wiederverwendungen:['autoklav'] }, merkmale:{ m_farbe:{ label:'Farbe', typ:'text' } } , klassen:{} });
+  assert.ok(finde(eigen, 'autoklav').includes('wiederverwendungen'));
+  assert.ok(finde(eigen, 'resterilisation').includes('wiederverwendungen'));     /* Vorgabe bleibt */
+  assert.deepEqual(finde(K.naKatalog(KATNEU, { such:{ m_farbe:['colour'] }, merkmale:{ m_farbe:{ label:'Farbe', typ:'text' } } }), 'colour'), ['m_farbe']);
+});
+
+test('Merkmale zuordnen: nur dieses Material · alle der Kategorie · Kern — und zurück', () => {
+  /* nicht mitgeliefertes Merkmal → Kabel, als Kern */
+  let tpl = K.naTplZuordnen({}, KATNEU, 'kabel', 'aufbereitung_zyklus', 'kern');
+  let kat = K.naKatalog(KATNEU, tpl); let f = K.naFelder(kat, 'kabel');
+  assert.ok(f.diff.some(d => d.id === 'aufbereitung_zyklus'));
+  assert.ok(f.diff.some(d => d.id === 'pin_zahl'));                            /* vorhandene Kern-Merkmale bleiben */
+  /* zurückstufen: bleibt in der Kategorie, nicht mehr Kern */
+  tpl = K.naTplZuordnen(tpl, KATNEU, 'kabel', 'aufbereitung_zyklus', 'weiter');
+  f = K.naFelder(K.naKatalog(KATNEU, tpl), 'kabel');
+  assert.ok(!f.diff.some(d => d.id === 'aufbereitung_zyklus') && f.weitere.some(d => d.id === 'aufbereitung_zyklus'));
+  /* mitgeliefertes Merkmal entfernen und wieder aufnehmen */
+  tpl = K.naTplZuordnen(tpl, KATNEU, 'kabel', 'kabel_laenge_cm', 'aus');
+  f = K.naFelder(K.naKatalog(KATNEU, tpl), 'kabel');
+  assert.ok(!f.diff.concat(f.weitere).some(d => d.id === 'kabel_laenge_cm'));
+  tpl = K.naTplZuordnen(tpl, KATNEU, 'kabel', 'kabel_laenge_cm', 'weiter');
+  f = K.naFelder(K.naKatalog(KATNEU, tpl), 'kabel');
+  assert.ok(f.weitere.some(d => d.id === 'kabel_laenge_cm'));
+  assert.equal(JSON.stringify(tpl.klassen.kabel.aus || []), '[]');
+  /* das alte Overlay bleibt unverändert (neues Objekt) */
+  const vorher = {}; K.naTplZuordnen(vorher, KATNEU, 'kabel', 'aufbereitung_zyklus', 'kern'); assert.deepEqual(plain(vorher), {});
+});
+
+test('Am Material: Merkmale außerhalb der Kategorie bleiben sichtbar („nur bei diesem Material")', () => {
+  const o = { kategorie:'kabel', merkmale:{ pin_zahl:'10', aufbereitung_zyklus:'3 von 10', kurvenform:'' } };
+  const f = K.naFelderMaterial(KATNEU, o, ['ballon_mm']);
+  assert.deepEqual(plain(f.einzel.map(d => d.id)).sort(), ['aufbereitung_zyklus', 'ballon_mm']);
+  assert.ok(!f.allgemein.some(d => d.id === 'aufbereitung_zyklus'));            /* nicht doppelt */
+  assert.ok(f.diff.some(d => d.id === 'pin_zahl'));
+  assert.deepEqual(plain(K.naFelderMaterial(KATNEU, { merkmale:{} }).einzel), []);
+});
+
+test('Die App lernt — als Vorschlag: ab 3 Materialien, bei mindestens der Hälfte ausgefüllt', () => {
+  const m = (z, extra) => Object.assign({ kategorie:'kabel', merkmale: z }, extra || {});
+  const zwei = [m({ aufbereitung_zyklus:'1' }), m({ aufbereitung_zyklus:'2' })];
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(KATNEU, zwei, 'kabel')), []);              /* zu wenige */
+  const vier = zwei.concat([m({}), m({ aufbereitung_zyklus:'4' }), m({ aufbereitung_zyklus:'9' }, { archiviert:true }), m({ aufbereitung_zyklus:'1' }, { kategorie:'ballon' })]);
+  assert.deepEqual(plain(K.naMerkmalNutzung(vier, 'kabel')), { n:4, zahl:{ aufbereitung_zyklus:3 } });
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(KATNEU, vier, 'kabel').map(v => [v.id, v.zahl, v.n])), [['aufbereitung_zyklus', 3, 4]]);
+  /* abgestellt, ausgeschlossen oder schon zugeordnet → kein Vorschlag */
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(K.naKatalog(KATNEU, K.naTplStumm({}, 'kabel', 'aufbereitung_zyklus')), vier, 'kabel')), []);
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(KATNEU, vier, 'kabel', ['aufbereitung_zyklus'])), []);
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(K.naKatalog(KATNEU, K.naTplZuordnen({}, KATNEU, 'kabel', 'aufbereitung_zyklus', 'weiter')), vier, 'kabel')), []);
+  /* nur eins von dreien → zu selten */
+  assert.deepEqual(plain(K.naMerkmalVorschlaege(KATNEU, [m({ aufbereitung_zyklus:'1' }), m({}), m({})], 'kabel')), []);
+});
+
+test('Neue Kategorie mit den Merkmalen einer anderen („EPU-Kabel" wie „Kabel") — Kopie, keine Vererbung', () => {
+  let tpl = { klassen:{ k_epu:{ neu:true, label:'EPU-Kabel', diff:[] } } };
+  tpl = K.naTplKategorieWie(tpl, KATNEU, 'k_epu', 'kabel');
+  const kat = K.naKatalog(KATNEU, tpl); const f = K.naFelder(kat, 'k_epu'); const fk = K.naFelder(kat, 'kabel');
+  assert.deepEqual(plain(f.diff.map(d => d.id)), plain(fk.diff.map(d => d.id)));
+  assert.deepEqual(plain(f.weitere.map(d => d.id)).sort(), plain(fk.weitere.map(d => d.id)).sort());
+  assert.equal(tpl.klassen.k_epu.wie, 'kabel');
+  /* danach unabhängig: ein Merkmal nur für EPU-Kabel ändert Kabel nicht */
+  const t2 = K.naTplZuordnen(tpl, KATNEU, 'k_epu', 'aufbereitung_zyklus', 'kern');
+  assert.ok(!K.naFelder(K.naKatalog(KATNEU, t2), 'kabel').diff.concat(K.naFelder(K.naKatalog(KATNEU, t2), 'kabel').weitere).some(d => d.id === 'aufbereitung_zyklus'));
+});
+
+test('Kategorie-Vorschlag: der Name im Haus schlägt den Text des Registers', () => {
+  /* Befund 12.11.2026: ein Verbindungskabel landete wegen des Registertexts bei „Ablationskatheter" */
+  assert.equal(K.naKategorieVorschlag(KATNEU, { name:'Blazer Verbindungskabel grau', bezeichnung:'Ablation catheter with tip electrode' }).id, 'kabel');
+  assert.equal(K.naKategorieVorschlag(KATNEU, { name:'Blazer', handelsname:'Blazer™', bezeichnung:'Steerable ablation catheter' }) && true, true);
 });
 
 test('Registertreffer: füllt nur Leeres, merkt Quelle — und nichts ist „bestätigt"', () => {

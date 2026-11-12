@@ -183,9 +183,10 @@ function naRuestliste(std, stamm, bereiche){
 
 /* ── Kategorien & Felder (Material): mitgelieferter Merkmalskatalog
    (data/merkmale.json) + Overlay des Hauses. Overlay:
-     { klassen:{ <id>:{ label?, neu?, dazu?, aus?, diff? } },
+     { klassen:{ <id>:{ label?, neu?, dazu?, aus?, diff?, stumm? } },
        merkmale:{ <mid>:{ label, typ, einheit?, werte?, anker? } },
-       werte:{ <mid>:[zusätzliche Werte] } }   ← D2: Werte an Ort und Stelle
+       werte:{ <mid>:[zusätzliche Werte] },   ← D2: Werte an Ort und Stelle
+       such:{ <mid>:[Suchwörter] } }          ← andere Wörter für ein Merkmal
    Die Quelle wird nie verändert. Rein. */
 function naMerkmalMuster(d){
   const esc2=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -197,7 +198,7 @@ function naMerkmalMuster(d){
 }
 function naKatalog(quelle, tpl){
   if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[] };
-  const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{};
+  const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{}, ss=t.such||{};
   const klassen=(quelle.klassen||[]).map(k=>{ const v=kl[k.id]; if(!v) return k; const n=Object.assign({},k);
     if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
     /* zusätzliche Suchwörter und Register-Einordnung für eine vorhandene Kategorie */
@@ -205,23 +206,28 @@ function naKatalog(quelle, tpl){
     /* vom Haus festgelegte Suchwörter ersetzen die Vorgabe (Grundsatz A7) */
     if(Array.isArray(v.worte)) n.worte=v.worte.slice();
     if(Array.isArray(v.emdn)) n.emdn=(k.emdn||[]).concat(v.emdn);
+    if(Array.isArray(v.stumm)) n.stumm=v.stumm.slice();
     return n; });
   Object.keys(kl).forEach(id=>{ const v=kl[id]; if(!v||!v.neu||klassen.some(k=>k.id===id)) return;
     klassen.push({ id, label:v.label||id, worte:(Array.isArray(v.worte)&&v.worte.length)?v.worte.slice():[String(v.label||id).toLowerCase()], emdn:Array.isArray(v.emdn)?v.emdn.slice():[],
-      leit:Array.isArray(v.diff)?v.diff.slice():[], eigen:!v.vorgabe, archiviert:!!v.archiviert, angelegt:v.angelegt||null, wo:v.wo||'' }); });
+      leit:Array.isArray(v.diff)?v.diff.slice():[], eigen:!v.vorgabe, archiviert:!!v.archiviert, angelegt:v.angelegt||null, wo:v.wo||'',
+      stumm:Array.isArray(v.stumm)?v.stumm.slice():[] }); });
   const inKlasse=(mid, orig)=>{ const s={}; (orig||[]).forEach(x=>{ s[x]=1; });
     Object.keys(kl).forEach(id=>{ const v=kl[id]||{};
       if(Array.isArray(v.dazu)&&v.dazu.indexOf(mid)>=0) s[id]=1;
       if(Array.isArray(v.aus)&&v.aus.indexOf(mid)>=0) delete s[id]; });
     return Object.keys(s); };
-  const merkmale=quelle.merkmale.map(d=>{ const ks=inKlasse(d.id,d.klassen); const extra=ww[d.id]||[];
-    if(ks.join('|')===(d.klassen||[]).join('|') && !extra.length) return d;
-    const n=Object.assign({},d,{ klassen:ks }); if(extra.length) n.werte=(d.werte||[]).concat(extra.filter(x=>(d.werte||[]).indexOf(x)<0)); return n; });
+  const merkmale=quelle.merkmale.map(d=>{ const ks=inKlasse(d.id,d.klassen); const extra=ww[d.id]||[]; const su=Array.isArray(ss[d.id])?ss[d.id]:[];
+    if(ks.join('|')===(d.klassen||[]).join('|') && !extra.length && !su.length) return d;
+    const n=Object.assign({},d,{ klassen:ks }); if(extra.length) n.werte=(d.werte||[]).concat(extra.filter(x=>(d.werte||[]).indexOf(x)<0));
+    /* Suchwörter: andere Wörter, unter denen man das Merkmal sucht („Resterilisation" → Zulässige Wiederverwendungen) */
+    if(su.length) n.such=(d.such||[]).concat(su.filter(x=>(d.such||[]).indexOf(x)<0)); return n; });
   Object.keys(mm).forEach(mid=>{ const v=mm[mid]; if(!v||!v.label||merkmale.some(d=>d.id===mid)) return;
     const anker=(Array.isArray(v.anker)&&v.anker.length?v.anker:[v.label]).map(a=>String(a).toLowerCase()).filter(Boolean);
     const d={ id:mid, label:v.label, kurz:v.label, typ:v.typ||'text', einheit:v.einheit||null, rang:35, eigen:true, klassen:inKlasse(mid,[]), anker };
     const w=(Array.isArray(v.werte)?v.werte:[]).concat(ww[mid]||[]); if(w.length) d.werte=w;
     Object.assign(d, naMerkmalMuster(Object.assign({},v,{anker:v.anker}))); if(d.typ!=='ja_nein') d.anker=anker;
+    if(Array.isArray(ss[mid]) && ss[mid].length) d.such=ss[mid].slice();
     merkmale.push(d); });
   return Object.assign({}, quelle, { klassen, merkmale });
 }
@@ -236,6 +242,78 @@ function naFelder(kat, klasseId){
     weitere:eigen.filter(d=>diff.indexOf(d.id)<0).sort((a,b)=>rang(a)-rang(b)),
     allgemein:alle.filter(d=>(d.klassen||[]).indexOf(klasseId)<0).sort((a,b)=>rang(a)-rang(b)) };
 }
+/* ── Merkmale finden und zuordnen (Konzept 12.11.2026) ──
+   Welche Merkmale eine Kategorie hat, ist Sache des Hauses: In der Maske wird
+   ein Merkmal GESUCHT (auch über Suchwörter) und dann zugeordnet — nur diesem
+   Material, allen der Kategorie, oder als Kern-Merkmal ★. Nichts wird Pflicht.
+   Alle Funktionen hier sind rein. */
+function naMerkmalSuchtext(d){ return naNorm([d.label, d.kurz, (d.anker||[]).join(' '), (d.such||[]).join(' '), d.einheit||''].join(' ')); }
+/* Felder, wie die Maske sie für EIN Material zeigt: die der Kategorie, dazu
+   „einzel" = Merkmale mit Wert (oder gerade hinzugefügt, `dazu`), die nicht
+   zur Kategorie gehören — sie blieben sonst unsichtbar. */
+function naFelderMaterial(kat, o, dazu){
+  const f=naFelder(kat, (o&&o.kategorie)||''); const m=(o&&o.merkmale)||{};
+  const voll=id=>!(m[id]==null||m[id]===''); const inK={}; f.diff.concat(f.weitere).forEach(d=>{ inK[d.id]=1; });
+  const einzel=((kat&&kat.merkmale)||[]).filter(d=>!inK[d.id] && (voll(d.id) || (dazu||[]).indexOf(d.id)>=0));
+  const ez={}; einzel.forEach(d=>{ ez[d.id]=1; });
+  return { diff:f.diff, weitere:f.weitere, einzel, allgemein:f.allgemein.filter(d=>!ez[d.id]) };
+}
+/* Wie oft ist welches Merkmal in einer Kategorie ausgefüllt? { n, zahl:{mid:n} } */
+function naMerkmalNutzung(material, klasseId){
+  const zahl={}; let n=0;
+  (material||[]).forEach(o=>{ if(!o||o.archiviert||(o.kategorie||'')!==klasseId) return; n++;
+    const m=o.merkmale||{}; Object.keys(m).forEach(id=>{ if(!(m[id]==null||m[id]===''||m[id]===false)) zahl[id]=(zahl[id]||0)+1; }); });
+  return { n, zahl };
+}
+/* „Die App lernt" — als Vorschlag, nie von selbst: Merkmale, die bei
+   mindestens der Hälfte (und mindestens zwei) der Materialien einer Kategorie
+   ausgefüllt sind, aber nicht zu ihr gehören. Erst ab drei Materialien.
+   `ohne` = Kennungen, die nie vorgeschlagen werden. */
+function naMerkmalVorschlaege(kat, material, klasseId, ohne){
+  if(!klasseId) return [];
+  const nu=naMerkmalNutzung(material, klasseId); if(nu.n<3) return [];
+  const f=naFelder(kat, klasseId); const inK={}; f.diff.concat(f.weitere).forEach(d=>{ inK[d.id]=1; });
+  const k=((kat&&kat.klassen)||[]).find(x=>x.id===klasseId)||{}; const nicht={}; (ohne||[]).concat(k.stumm||[]).forEach(x=>{ nicht[x]=1; });
+  return ((kat&&kat.merkmale)||[]).filter(d=>!inK[d.id] && !nicht[d.id] && (nu.zahl[d.id]||0)>=2 && nu.zahl[d.id]*2>=nu.n)
+    .map(d=>({ id:d.id, label:d.label, zahl:nu.zahl[d.id], n:nu.n })).sort((a,b)=>b.zahl-a.zahl || a.label.localeCompare(b.label,'de'));
+}
+/* Ein Merkmal einer Kategorie zuordnen. stufe: 'kern' (★) · 'weiter' · 'aus'.
+   quelle = Katalog OHNE das Overlay des Hauses (daran erkennt die Funktion,
+   was mitgeliefert ist). Liefert ein NEUES Overlay; das alte bleibt. */
+function naTplZuordnen(tpl, quelle, klasseId, mid, stufe){
+  const t=JSON.parse(JSON.stringify(tpl||{})); t.klassen=t.klassen||{};
+  const k=t.klassen[klasseId]=Object.assign({}, t.klassen[klasseId]||{});
+  const kq=((quelle&&quelle.klassen)||[]).find(x=>x.id===klasseId);
+  const dq=((quelle&&quelle.merkmale)||[]).find(x=>x.id===mid);
+  const mitgeliefert=!!(dq && (dq.klassen||[]).indexOf(klasseId)>=0);
+  const leit=Array.isArray(k.diff) ? k.diff.slice() : ((kq&&kq.leit)||[]).slice();
+  const ohne=l=>(l||[]).filter(x=>x!==mid);
+  let neuLeit;
+  if(stufe==='aus'){ k.dazu=ohne(k.dazu); if(mitgeliefert) k.aus=ohne(k.aus).concat([mid]); neuLeit=ohne(leit); }
+  else { k.aus=ohne(k.aus); if(!mitgeliefert) k.dazu=ohne(k.dazu).concat([mid]); neuLeit = stufe==='kern' ? ohne(leit).concat([mid]) : ohne(leit); }
+  if(Array.isArray(k.diff) || JSON.stringify(neuLeit)!==JSON.stringify(leit)) k.diff=neuLeit;
+  k.stumm=ohne(k.stumm);
+  ['dazu','aus','stumm'].forEach(f=>{ if(k[f] && !k[f].length) delete k[f]; });
+  return t;
+}
+/* Einen Vorschlag aus der Nutzung für diese Kategorie abstellen. */
+function naTplStumm(tpl, klasseId, mid){
+  const t=JSON.parse(JSON.stringify(tpl||{})); t.klassen=t.klassen||{};
+  const k=t.klassen[klasseId]=Object.assign({}, t.klassen[klasseId]||{});
+  k.stumm=(k.stumm||[]).filter(x=>x!==mid).concat([mid]); return t;
+}
+/* Neue Kategorie mit den Merkmalen einer anderen beginnen („EPU-Kabel" wie
+   „Kabel"). Eine Kopie, keine Vererbung: Danach sind beide unabhängig. */
+function naTplKategorieWie(tpl, kat, neuId, vonId){
+  const t=JSON.parse(JSON.stringify(tpl||{})); t.klassen=t.klassen||{};
+  const k=t.klassen[neuId]=Object.assign({}, t.klassen[neuId]||{});
+  const von=((kat&&kat.klassen)||[]).find(x=>x.id===vonId); if(!von) return t;
+  k.dazu=((kat&&kat.merkmale)||[]).filter(d=>(d.klassen||[]).indexOf(vonId)>=0).map(d=>d.id);
+  k.diff=(von.leit||[]).filter(id=>k.dazu.indexOf(id)>=0);
+  k.wie=vonId;
+  return t;
+}
+
 /* Hersteller aus dem GTIN-Präfix (eindeutige Nachbarn, ≥ 7 Stellen). Rein. */
 function naHerstellerAusGtin(material, gtin){
   const kern=s=>{ s=String(s||'').replace(/\D/g,''); return s.length===14?s.slice(1):(s.length===13?s:''); };
@@ -386,14 +464,20 @@ function naKategorieVorschlag(kat, a){
   if(code){ let best=null, len=0;
     klassen.forEach(k=>(k.emdn||[]).forEach(p=>{ p=String(p).toUpperCase(); if(p && code.indexOf(p)===0 && p.length>len){ best=k; len=p.length; } }));
     if(best) return { id:best.id, grund:'einordnung', wort:code }; }
-  const text=' '+naNorm([a.name,a.handelsname,a.bezeichnung].filter(Boolean).join(' '))+' ';
-  if(text.trim().length<3) return null;
-  let best=null, len=0, wort='';
-  klassen.forEach(k=>(k.worte||[]).forEach(w=>{ const n=naNorm(w); if(n.length<3) return;
-    /* kurze Wörter nur als ganzes Wort (sonst träfe „kit" in „Kittel") */
-    const trifft = n.length<5 ? text.indexOf(' '+n+' ')>=0 : text.indexOf(n)>=0;
-    if(trifft && n.length>len){ best=k; len=n.length; wort=w; } }));
-  return best ? { id:best.id, grund:'wort', wort } : null;
+  /* Der Name im Haus schlägt den Handelsnamen, der den Text des Registers:
+     Ein „Verbindungskabel" bleibt ein Kabel, auch wenn das Register den
+     Ablationskatheter nennt, zu dem es gehört (Befund 12.11.2026). */
+  for(const teil of [a.name, a.handelsname, a.bezeichnung]){
+    const text=' '+naNorm(teil)+' ';
+    if(text.trim().length<3) continue;
+    let best=null, len=0, wort='';
+    klassen.forEach(k=>(k.worte||[]).forEach(w=>{ const n=naNorm(w); if(n.length<3) return;
+      /* kurze Wörter nur als ganzes Wort (sonst träfe „kit" in „Kittel") */
+      const trifft = n.length<5 ? text.indexOf(' '+n+' ')>=0 : text.indexOf(n)>=0;
+      if(trifft && n.length>len){ best=k; len=n.length; wort=w; } }));
+    if(best) return { id:best.id, grund:'wort', wort };
+  }
+  return null;
 }
 
 /* ── Hersteller: Kurzname fürs Haus aus dem amtlichen Namen ──
