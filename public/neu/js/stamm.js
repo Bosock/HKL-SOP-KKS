@@ -186,8 +186,9 @@ function naW(f, liste, opt){ opt = opt||{}; const v = naWert(NA_ENTWURF.obj, f);
   const name = liste==='kategorien' ? ((naKat().klassen.find(k=>k.id===v)||{}).label || '') : (liste==='lagerorte' ? naLagerortName(NA_ENTWURF.obj) : naListeName(liste, v));
   return '<button class="na-wahl" data-na="entwWahl" data-f="'+f+'" data-liste="'+liste+'">'+(name ? esc(name) : '<span class="na-leer">'+esc(opt.ph||'wählen …')+'</span>')+'</button>'; }
 /* Ein aufklappbarer Abschnitt unter „Mehr Angaben". */
-function naAb(id, titel, stand, inhalt){
-  return '<details class="na-ab" data-ab="'+id+'"'+(NA_ENTWURF.offen[id]?' open':'')+'><summary><span>'+esc(titel)+'</span><span class="na-ab-n">'+esc(stand||'')+'</span></summary><div class="na-ab-in">'+inhalt+'</div></details>';
+function naAb(id, titel, stand, inhalt, vorgabeOffen){
+  const E = NA_ENTWURF; const offen = (id in E.offen) ? E.offen[id] : !!vorgabeOffen;
+  return '<details class="na-ab" data-ab="'+id+'"'+(offen?' open':'')+'><summary><span>'+esc(titel)+'</span><span class="na-ab-n">'+esc(stand||'')+'</span></summary><div class="na-ab-in">'+inhalt+'</div></details>';
 }
 
 /* Lagerort: EINE Liste (kein Freitext mehr), an Ort und Stelle erweiterbar. */
@@ -261,7 +262,7 @@ function naMaterialForm(){
     + (E.ocr && E.ocr.refVorschlaege && E.ocr.refVorschlaege.length ? '<div class="na-warn">REF unsicher gelesen — bitte die richtige antippen oder selbst eintragen:<div class="na-chips" style="margin-top:6px">'+E.ocr.refVorschlaege.map(r=>'<button class="na-chip" data-na="refNehmen" data-ref="'+esc(r)+'">'+esc(r)+'</button>').join('')+'</div></div>' : '')
     + naRegisterHtml(o) + '</div>';
   /* 2 · Das Wichtigste */
-  h += naF('Name im Haus', naT('name',{ ph:'so, wie man es im Saal sucht' }), '<span id="naNameVor">'+naNameVorHtml()+'</span>');
+  h += naF('Name im Haus', naT('name',{ ph:'so, wie man es im Saal sucht' }), '<span id="naNameVor">'+naNameVorHtml()+'</span><div id="naKatZeile">'+naKatZeileHtml()+'</div>');
   h += naF('Handelsname (freiwillig)', naT('handelsname',{ ph:'wie es auf der Packung steht' }));
   h += naF('Hersteller', naW('hersteller','hersteller'), '<span id="naHerstVor">'+naHerstVorHtml(o)+'</span>'
     + (!o.hersteller && E.ocr && E.ocr.herstellerNeu ? ' <button class="na-chip" data-na="herstellerAusEtikett">Vom Etikett: „'+esc(E.ocr.herstellerNeu)+'" übernehmen</button>' : ''));
@@ -343,25 +344,43 @@ function naKatAuto(E){
   o.kategorie = v ? v.id : ''; E.katAuto = v;
   return alt!==o.kategorie;
 }
+/* Die Kategorie steht sichtbar beim Namen — ein falscher Vorschlag soll auffallen. */
+function naKatZeileHtml(){
+  const E = NA_ENTWURF, o = E.obj; if(E.typ!=='material' || !o.kategorie) return '';
+  const k = naKat().klassen.find(x=>x.id===o.kategorie); if(!k) return '';
+  return '<span class="na-katzeile">Kategorie: <b>'+esc(k.label)+'</b>'+(E.katAuto ? ' (Vorschlag)' : '')+' <button class="na-chip" data-na="katAendern">ändern</button></span>';
+}
 function naAbKategorie(){
   const E = NA_ENTWURF, o = E.obj; const kat = naKat();
-  const k = kat.klassen.find(x=>x.id===o.kategorie); const f = naFelder(kat, o.kategorie);
+  const k = kat.klassen.find(x=>x.id===o.kategorie); const f = naFelderMaterial(kat, o, E.einzel);
   const ohne = d=>NA_NICHT_ALS_MERKMAL.indexOf(d.id)<0;
-  const diff = f.diff.filter(ohne), weitere = f.weitere.filter(ohne), allg = f.allgemein.filter(ohne);
+  const diff = f.diff.filter(ohne), weitere = f.weitere.filter(ohne), einzel = f.einzel.filter(ohne), allg = f.allgemein.filter(ohne);
   const voll = d=>{ const v = (o.merkmale||{})[d.id]; return !(v==null || v===''); };
-  let hilfe = 'Freiwillig. Die Kategorie bestimmt, welche Merkmal-Felder erscheinen.';
-  if(E.katAuto) hilfe = 'Vorschlag '+(E.katAuto.grund==='einordnung' ? 'aus der Einordnung im Register' : 'wegen „'+esc(E.katAuto.wort)+'" im Namen')+' — antippen, um eine andere zu wählen.';
+  let hilfe = 'Freiwillig. Die Kategorie bestimmt, welche Merkmale erscheinen.';
+  if(E.katAuto) hilfe = 'Vorschlag '+(E.katAuto.grund==='einordnung' ? 'aus der Einordnung im Register' : 'wegen „'+esc(E.katAuto.wort)+'"')+' — antippen, um eine andere zu wählen.';
   else if(!o.kategorie){ const v = naKatVorschlagFuer(o); const vk = v && kat.klassen.find(x=>x.id===v.id);
     if(vk) hilfe = '<button class="na-chip" data-na="katNehmen" data-id="'+esc(vk.id)+'">Vorschlag: '+esc(vk.label)+' übernehmen</button>'; }
   let h = naF('Kategorie', naW('kategorie','kategorien',{ ph:'wählen …' }), hilfe);
   if(o.kategorie){
-    if(!diff.length && !weitere.length) h += '<div class="na-dim" style="margin-bottom:8px">Diese Kategorie hat noch keine eigenen Felder.</div>';
-    h += diff.map(d=>naMerkFeld(d, true)).join('') + weitere.map(d=>naMerkFeld(d, false)).join('');
-    h += '<button class="na-knopf klein" data-na="merkNeu">＋ Feld zu dieser Kategorie</button>';
+    if(!diff.length && !weitere.length) h += '<div class="na-dim" style="margin-bottom:8px">Diese Kategorie hat noch keine eigenen Merkmale — unten „Merkmal suchen" und für die Kategorie übernehmen.</div>';
+    /* Kern-Merkmale ★ stehen offen da; von den weiteren nur die ausgefüllten. */
+    h += diff.map(d=>naMerkFeld(d, true)).join('') + weitere.filter(voll).map(d=>naMerkFeld(d, false)).join('');
+    const leer = weitere.filter(d=>!voll(d));
+    if(leer.length) h += '<details class="na-unter" data-ab="weit"'+(E.offen.weit?' open':'')+'><summary>Weitere Merkmale dieser Kategorie ('+leer.length+')</summary>'+leer.map(d=>naMerkFeld(d, false)).join('')+'</details>';
   }
-  if(allg.length) h += '<details class="na-unter" data-ab="allg"'+(E.offen.allg?' open':'')+'><summary>Seltene Angaben ('+allg.filter(voll).length+' von '+allg.length+')</summary>'+allg.map(d=>naMerkFeld(d, false)).join('')+'</details>';
+  if(einzel.length){
+    h += '<div class="na-l" style="margin-top:12px">Nur bei diesem Material</div>';
+    h += einzel.map(d=>naMerkFeld(d, false) + (o.kategorie && k ? '<div class="na-chips na-nachfeld"><button class="na-chip" data-na="merkGilt" data-mid="'+esc(d.id)+'">für alle „'+esc(k.label)+'" übernehmen …</button></div>' : '')).join('');
+  }
+  /* „Die App lernt" — als Vorschlag: was bei den anderen Materialien der Kategorie meist ausgefüllt ist. */
+  if(o.kategorie && k) naMerkmalVorschlaege(kat, naAlle('material'), o.kategorie, NA_NICHT_ALS_MERKMAL).filter(v=>!einzel.some(d=>d.id===v.id)).slice(0, 3).forEach(v=>{
+    h += '<div class="na-info">„'+esc(v.label)+'" ist bei '+v.zahl+' von '+v.n+' Materialien dieser Kategorie ausgefüllt.<div class="na-chips" style="margin-top:6px">'
+      + '<button class="na-chip" data-na="merkVorschlagNehmen" data-mid="'+esc(v.id)+'">Für alle „'+esc(k.label)+'" übernehmen</button>'
+      + '<button class="na-chip" data-na="merkVorschlagStumm" data-mid="'+esc(v.id)+'">Nicht mehr vorschlagen</button></div></div>'; });
+  h += '<button class="na-knopf klein" data-na="merkSuchen">＋ Merkmal suchen oder anlegen</button>';
+  if(allg.length) h += '<details class="na-unter" data-ab="allg"'+(E.offen.allg?' open':'')+'><summary>Seltene Angaben ('+allg.length+')</summary>'+allg.map(d=>naMerkFeld(d, false)).join('')+'</details>';
   const stand = (k ? k.label : 'keine')+(diff.length ? ' · ★ '+diff.filter(voll).length+'/'+diff.length : '');
-  return naAb('kat', 'Kategorie und Merkmale', stand, h);
+  return naAb('kat', 'Kategorie und Merkmale', stand, h, !!o.kategorie);
 }
 function naAbSteril(){
   const o = NA_ENTWURF.obj; const defs = naKat().merkmale || []; const m = o.merkmale || {};
@@ -417,7 +436,7 @@ naEin('entw', (v, d)=>{
   }
   if(d.f==='name' || d.f==='handelsname'){
     if(d.f==='name'){ const n = $('naNameVor'); if(n) n.innerHTML = naNameVorHtml(); }
-    if(naKatAuto(E)){ const w = $('naAbKatW'); if(w) w.innerHTML = naAbKategorie(); }
+    if(naKatAuto(E)){ const w = $('naAbKatW'); if(w) w.innerHTML = naAbKategorie(); const z = $('naKatZeile'); if(z) z.innerHTML = naKatZeileHtml(); }
   }
   if(d.f.indexOf('merkmale.')===0){ const f = naFelder(naKat(), E.obj.kategorie); const mid = d.f.slice(9);
     if(f.diff.concat(f.weitere).some(x=>x.id===mid)) E.katAuto = null;   /* wer Felder der Kategorie füllt, hat sie angenommen */
@@ -442,7 +461,8 @@ function naFormNeu(){
 naAkt('entwWahl', async d=>{
   if(!NA_ENTWURF) return;
   const E = NA_ENTWURF; const T = NA_TYPEN[E.typ];
-  const w = await naAuswahl({ titel: naListeWort(d.liste), liste:d.liste, gewaehlt: naWert(E.obj, d.f), neu:true, wo: T.wort+': '+(E.obj.name||'neu'), leer: d.f==='kategorie' ? null : '— keine Angabe —' });
+  if(d.liste==='kategorien'){ await naKategorieWaehlen(E); return; }
+  const w = await naAuswahl({ titel: naListeWort(d.liste), liste:d.liste, gewaehlt: naWert(E.obj, d.f), neu:true, wo: T.wort+': '+(E.obj.name||'neu'), leer: '— keine Angabe —' });
   if(w==null || NA_ENTWURF!==E) return;
   naWertSetzen(E.obj, d.f, w);
   if(d.f==='kategorie') E.katAuto = null;
@@ -480,21 +500,113 @@ naAkt('merkWahl', async d=>{
   if(NA_STERIL_IDS.indexOf(d.mid)<0) E.katAuto = null;
   naFormNeu();
 });
-naAkt('merkNeu', async ()=>{
-  const E = NA_ENTWURF; if(!E || !E.obj.kategorie) return;
-  const label = await naEingabe('Neues Feld für diese Kategorie', { platzhalter:'z. B. Kurvenform', hilfe:'Das Feld gilt danach für alle Materialien dieser Kategorie.' });
-  if(!label) return;
-  const vorhanden = (naKat().merkmale||[]).find(m=>naNorm(m.label)===naNorm(label));
-  const tpl = JSON.parse(JSON.stringify(naKatTpl())); tpl.klassen = tpl.klassen || {}; tpl.merkmale = tpl.merkmale || {};
-  const mid = vorhanden ? vorhanden.id : ('m_'+naNorm(label).replace(/\s+/g,'_').slice(0,20)+'_'+naId('').slice(-4));
-  if(!vorhanden) tpl.merkmale[mid] = { label, typ:'text', angelegt:naJetzt() };
-  const k = tpl.klassen[E.obj.kategorie] = Object.assign({}, tpl.klassen[E.obj.kategorie] || {});
-  k.dazu = (k.dazu||[]).filter(x=>x!==mid).concat([mid]);
-  naKatTplSpeichern(tpl, 'Feld „'+label+'" zur Kategorie');
-  E.katAuto = null;
-  toast(vorhanden ? 'Vorhandenes Feld „'+vorhanden.label+'" zugeordnet' : 'Feld „'+label+'" angelegt');
-  naFormNeu();
+/* ── Kategorie wählen oder anlegen ──
+   Eine neue Kategorie kann mit den Merkmalen einer vorhandenen beginnen
+   („EPU-Kabel" wie „Kabel") — als Kopie, danach unabhängig. */
+async function naKategorieAnlegen(name, wo, vonVorschlag){
+  const kat = naKat();
+  const items = kat.klassen.filter(k=>k.id!=='allgemein' && !k.archiviert).map(k=>{ const f = naFelder(kat, k.id);
+    return { id:k.id, name:k.label, sub: (f.diff.length+f.weitere.length)+' Merkmale'+(f.diff.length ? ' · ★ '+f.diff.map(d=>d.label).slice(0,3).join(', ') : '') }; });
+  const nah = naAehnliche(name, items).map(t=>t.item.id);
+  items.sort((a,b)=>((a.id===vonVorschlag?0:1)-(b.id===vonVorschlag?0:1)) || ((nah.indexOf(a.id)<0?1:0)-(nah.indexOf(b.id)<0?1:0)));
+  const von = await naAuswahl({ titel:'„'+name+'": Merkmale übernehmen von …', items, leer:'— leer beginnen —' });
+  if(von==null) return null;
+  const id = naListeNeu('kategorien', name, wo); if(!id) return null;
+  if(von){ const k = kat.klassen.find(x=>x.id===von);
+    naKatTplSpeichern(naTplKategorieWie(naKatTpl(), naKat(), id, von), 'Kategorie „'+name+'" mit den Merkmalen von „'+(k ? k.label : von)+'"'); }
+  return id;
+}
+async function naKategorieWaehlen(E){
+  const w = await naAuswahl({ titel:'Kategorie', liste:'kategorien', gewaehlt:E.obj.kategorie, neu:true, wo:'Material: '+(E.obj.name||'neu'),
+    anlegen: name=>{ naSheetZu({ neu:name }); return null; } });
+  if(w==null || w==='' || NA_ENTWURF!==E) return;
+  let id = w;
+  if(typeof w==='object'){ id = await naKategorieAnlegen(w.neu, 'Material: '+(E.obj.name||'neu'), E.obj.kategorie); if(!id || NA_ENTWURF!==E) return; toast('Kategorie „'+w.neu+'" angelegt'); }
+  E.obj.kategorie = id; E.katAuto = null; E.offen.kat = true; naFormNeu();
+}
+naAkt('katAendern', async ()=>{ const E = NA_ENTWURF; if(E && E.typ==='material') await naKategorieWaehlen(E); });
+
+/* ── Merkmal suchen, anlegen, zuordnen ──
+   EIN Knopf in der Maske, DAS Auswahlfeld der App: Es durchsucht alle
+   Merkmale — auch über Suchwörter („Resterilisation" findet „Zulässige
+   Wiederverwendungen") — und legt Fehlendes an Ort und Stelle an. Danach
+   fragt die Maske einmal, für wen das Merkmal gilt. So lernt die App, welche
+   Kategorie welche Merkmale braucht: durch eine Entscheidung, nie still. */
+function naMerkmalItems(kat, klasseId, ohneIds){
+  const kl = {}; kat.klassen.forEach(k=>{ kl[k.id] = k.label; });
+  return (kat.merkmale||[]).filter(d=>(ohneIds||[]).indexOf(d.id)<0).map(d=>{ const ks = (d.klassen||[]);
+    const andere = ks.filter(x=>x!=='allgemein' && x!==klasseId).map(x=>kl[x]||x);
+    const wo = ks.indexOf(klasseId)>=0 && klasseId ? 'gehört zu dieser Kategorie' : (ks.indexOf('allgemein')>=0 ? 'für alle Kategorien' : (andere.length ? 'bei: '+andere.slice(0,3).join(', ')+(andere.length>3 ? ' …' : '') : 'noch keiner Kategorie zugeordnet'));
+    return { id:d.id, name:d.label+(d.einheit && d.typ!=='ja_nein' && String(d.label).indexOf('('+d.einheit+')')<0 ? ' ('+d.einheit+')' : ''), sub:wo, such:naMerkmalSuchtext(d) }; })
+    .sort((a,b)=>a.name.localeCompare(b.name, 'de', { sensitivity:'base' }));
+}
+/* Neues Merkmal: nur der Name und die Art. Liefert die Kennung oder null. */
+async function naMerkmalAnlegen(label){
+  label = String(label||'').trim(); if(!label) return null;
+  const typ = await naSheetAuf('<div class="sheet-title">Neues Merkmal</div><div class="sheet-name">'+esc(label)+'</div>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="text"><span class="sa-ico">✎</span><span>Text<span class="sa-sub">z. B. Kurvenform, Farbe</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="zahl"><span class="sa-ico">#</span><span>Zahl<span class="sa-sub">z. B. Anzahl, Zyklen — die Einheit gehört in den Namen: „Länge (cm)"</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="ja_nein"><span class="sa-ico">☑</span><span>Ja / Nein<span class="sa-sub">ein Häkchen</span></span></button>'
+    + '<button class="btn btn-sec" style="width:100%" data-na="sheetZu">Abbrechen</button>');
+  if(!typ) return null;
+  const tpl = JSON.parse(JSON.stringify(naKatTpl())); tpl.merkmale = tpl.merkmale || {};
+  const mid = 'm_'+naNorm(label).replace(/\s+/g,'_').slice(0,20)+'_'+naId('').slice(-4);
+  tpl.merkmale[mid] = { label, typ, angelegt:naJetzt() };
+  naKatTplSpeichern(tpl, 'Merkmal „'+label+'" angelegt');
+  return mid;
+}
+/* „Gilt für …" — liefert 'einzel' · 'weiter' · 'kern' oder null (abgebrochen). */
+function naMerkmalGiltFragen(d, k){
+  const n = naAlle('material').filter(m=>m.kategorie===k.id).length;
+  return naSheetAuf('<div class="sheet-title">Gilt für …</div><div class="sheet-name">'+esc(d.label)+'</div>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="einzel"><span class="sa-ico">1</span><span>nur dieses Material</span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="weiter"><span class="sa-ico">▤</span><span>alle „'+esc(k.label)+'"<span class="sa-sub">erscheint künftig in jeder Maske dieser Kategorie'+(n ? ' ('+n+' Material'+(n===1?'':'ien')+')' : '')+' — darf leer bleiben</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="kern"><span class="sa-ico">★</span><span>alle „'+esc(k.label)+'", als Kern-Merkmal<span class="sa-sub">steht oben in der Maske und geht in den Namensvorschlag ein</span></span></button>'
+    + '<div class="na-dim">Lässt sich jederzeit ändern: Mehr → Listen-Verzeichnis → Material-Kategorien.</div>');
+}
+function naMerkmalZeigen(mid){
+  setTimeout(()=>{ const f = Array.from(document.querySelectorAll('#naMain [data-f], #naMain [data-mid]')).find(x=>x.getAttribute('data-f')==='merkmale.'+mid || (x.getAttribute('data-na')==='merkWahl' && x.getAttribute('data-mid')===mid));
+    if(f){ try{ f.scrollIntoView({ block:'center' }); f.focus({ preventScroll:true }); }catch(e){} } }, 60);
+}
+function naMerkmalKategorieSetzen(klasseId, mid, stufe){
+  const kat = naKat(); const d = kat.merkmale.find(x=>x.id===mid) || { label:mid }; const k = kat.klassen.find(x=>x.id===klasseId) || { label:klasseId };
+  naKatTplSpeichern(naTplZuordnen(naKatTpl(), NA_MERKQUELLE, klasseId, mid, stufe),
+    stufe==='aus' ? 'Merkmal „'+d.label+'" aus der Kategorie „'+k.label+'" entfernt' : 'Merkmal „'+d.label+'" → Kategorie „'+k.label+'"'+(stufe==='kern' ? ' (Kern ★)' : ''));
+}
+async function naMerkmalInMaske(E, mid){
+  if(NA_STERIL_IDS.indexOf(mid)>=0){ E.offen.steril = true; naFormNeu(); naMerkmalZeigen(mid); toast('Steht unter „Steril · Einmal · Latex".'); return; }
+  if(mid==='stueck_packung'){ E.offen.pack = true; naFormNeu(); toast('Steht unter „Packung und Preis" als Packungsgröße.'); return; }
+  const kat = naKat(); const d = kat.merkmale.find(x=>x.id===mid); if(!d) return;
+  const k = kat.klassen.find(x=>x.id===E.obj.kategorie); const f = naFelder(kat, E.obj.kategorie);
+  E.offen.kat = true;
+  if(f.diff.concat(f.weitere).some(x=>x.id===mid)){ E.offen.weit = true; naFormNeu(); naMerkmalZeigen(mid); return; }
+  let stufe = 'einzel';
+  if(k){ stufe = await naMerkmalGiltFragen(d, k); if(!stufe || NA_ENTWURF!==E) return; }
+  if(stufe==='einzel') E.einzel = (E.einzel||[]).filter(x=>x!==mid).concat([mid]);
+  else { naMerkmalKategorieSetzen(k.id, mid, stufe); E.einzel = (E.einzel||[]).filter(x=>x!==mid); E.katAuto = null; E.offen.weit = true;
+    toast('„'+d.label+'" gilt jetzt für alle „'+k.label+'"'+(stufe==='kern' ? ' (Kern ★)' : '')+'.'); }
+  naFormNeu(); naMerkmalZeigen(mid);
+}
+naAkt('merkSuchen', async ()=>{
+  const E = NA_ENTWURF; if(!E || E.typ!=='material') return;
+  const w = await naAuswahl({ titel:'Merkmal suchen', items:naMerkmalItems(naKat(), E.obj.kategorie), neu:true, wo:'Material-Maske',
+    anlegen: name=>{ naSheetZu({ neu:name }); return null; } });
+  if(!w || NA_ENTWURF!==E) return;
+  let mid = w;
+  if(typeof w==='object'){ mid = await naMerkmalAnlegen(w.neu); if(!mid || NA_ENTWURF!==E) return; }
+  await naMerkmalInMaske(E, mid);
 });
+naAkt('merkGilt', async d=>{
+  const E = NA_ENTWURF; if(!E || !E.obj.kategorie) return;
+  const kat = naKat(); const def = kat.merkmale.find(x=>x.id===d.mid); const k = kat.klassen.find(x=>x.id===E.obj.kategorie); if(!def || !k) return;
+  const stufe = await naMerkmalGiltFragen(def, k); if(!stufe || stufe==='einzel' || NA_ENTWURF!==E) return;
+  naMerkmalKategorieSetzen(k.id, d.mid, stufe); E.einzel = (E.einzel||[]).filter(x=>x!==d.mid); E.katAuto = null;
+  toast('„'+def.label+'" gilt jetzt für alle „'+k.label+'"'+(stufe==='kern' ? ' (Kern ★)' : '')+'.'); naFormNeu(); naMerkmalZeigen(d.mid);
+});
+naAkt('merkVorschlagNehmen', d=>{ const E = NA_ENTWURF; if(!E || !E.obj.kategorie) return;
+  naMerkmalKategorieSetzen(E.obj.kategorie, d.mid, 'weiter'); E.katAuto = null; E.offen.weit = true; toast('Für die Kategorie übernommen'); naFormNeu(); naMerkmalZeigen(d.mid); });
+naAkt('merkVorschlagStumm', d=>{ const E = NA_ENTWURF; if(!E || !E.obj.kategorie) return;
+  naKatTplSpeichern(naTplStumm(naKatTpl(), E.obj.kategorie, d.mid), 'Vorschlag abgestellt'); naFormNeu(); });
 /* ── Bilder am Stammsatz ──
    EIN Feld in der Maske (kein eigenes Menü), für Material, Gerät und
    Medikament dasselbe: aufnehmen oder aus den Fotos wählen, gleich

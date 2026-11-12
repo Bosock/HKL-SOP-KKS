@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 11.11.2026 · Cache-Version `v83` · Code: `public/neu/`
+**Stand:** 11.11.2026 · Cache-Version `v84` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -95,8 +95,8 @@ in der Hand hat — **eine** Maske, keine neuen Menüs:
      (`public/neu/daten/katalog-zusatz.json`). Die Kategorien gehören dem
      Haus (Grundsatz A7): Im Listen-Verzeichnis lassen sie sich umbenennen,
      zusammenführen, archivieren, neu anlegen, und ihre **Suchwörter**
-     ändern (die Vorgabe ist zurückholbar); Felder kommen in der Maske mit
-     „＋ Feld zu dieser Kategorie" dazu.
+     ändern (die Vorgabe ist zurückholbar). Welche Merkmale eine
+     Kategorie hat, legt das Haus fest (siehe „Merkmale" unten).
    - *Steril · Einmal · Latex.*
    - *Packung und Preis* (Packungsgröße; „der Preis gilt für die ganze
      Packung" rechnet den Stückpreis).
@@ -115,6 +115,39 @@ in der Hand hat — **eine** Maske, keine neuen Menüs:
    „Zurück" des Geräts, Abbrechen), wird gefragt.
 7. Danach wie bisher: „Verwendet in", Dublette zusammenführen, archivieren,
    Papierkorb.
+
+**Merkmale suchen, zuordnen, vorschlagen** (seit 12.11.2026). Kein eigenes
+Menü: alles in der Maske und im Listen-Verzeichnis.
+
+- **Suchen.** „＋ Merkmal suchen oder anlegen" öffnet DAS Auswahlfeld. Es
+  durchsucht alle Merkmale, auch über Suchwörter: „Resterilisation" findet
+  „Zulässige Wiederverwendungen", „Aufbereitungs-Zyklus" und
+  „Resterilisierbar". Fehlt eines, wird es dort angelegt (Text, Zahl oder
+  Ja/Nein), mit der üblichen Warnung vor Doppelungen.
+- **Zuordnen.** Danach fragt die Maske einmal: gilt für *nur dieses
+  Material* · *alle der Kategorie* · *alle der Kategorie, als Kern-Merkmal ★*.
+  Die Masken aller Materialien der Kategorie passen sich sofort an. Nichts
+  wird Pflicht. Die Zuordnung gilt sofort (auch wenn das Material danach
+  verworfen wird) und steht im Verlauf.
+- **Nur bei diesem Material.** Ein ausgefülltes Merkmal außerhalb der
+  Kategorie bleibt am Material sichtbar und lässt sich dort später „für alle
+  übernehmen".
+- **Die App lernt — als Vorschlag.** Ist ein Merkmal bei mindestens der Hälfte
+  der Materialien einer Kategorie ausgefüllt (mindestens 2, ab 3 Materialien),
+  gehört aber nicht zu ihr, fragt die Maske: „Für alle übernehmen" oder „Nicht
+  mehr vorschlagen".
+- **Kategorie sichtbar.** Die vorgeschlagene Kategorie steht beim Namen (mit
+  „ändern"); der Name im Haus schlägt beim Vorschlag den Text des Registers
+  (ein „Verbindungskabel" bleibt ein Kabel).
+- **Neue Kategorie wie eine andere.** Beim Anlegen (in der Maske oder im
+  Listen-Verzeichnis) lassen sich die Merkmale einer vorhandenen Kategorie
+  übernehmen („EPU-Kabel" wie „Kabel") — als Kopie, danach unabhängig.
+- **Überblick.** Mehr → Listen-Verzeichnis → Material-Kategorien → Kategorie
+  → „Merkmale dieser Kategorie": Kern ★ und weitere, je mit „bei n von m
+  Materialien ausgefüllt"; antippen: Kern an/aus, Suchwörter, entfernen
+  (eingetragene Werte bleiben).
+- Gespeichert wird alles im Overlay `na_l_kategorien.tpl` (klassen.dazu/aus/
+  diff/stumm/wie, merkmale, such); `data/merkmale.json` bleibt unverändert.
 
 **Registerdaten (Grundsatz A5).** Was aus EUDAMED oder GUDID kommt, trägt in
 der Maske Quelle, Abrufzeit und den Status „noch nicht bestätigt". Bestätigt
@@ -254,7 +287,7 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
 | `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage}]}]}] |
 | `na_b_<id>` | Baustein: name, positionen[] |
-| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen, merkmale, werte} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
+| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
 | `na_ml_<id>` | Meldung: ref, was, notiz, stufe, schritte[] |
 | `na_pk_<id>` | Papierkorb: typ, daten, geloescht, von |
 | `na_vl_<JJJJ-MM>_<gerät>` | Verlauf (je Monat und Gerät, höchstens 500 Einträge) |

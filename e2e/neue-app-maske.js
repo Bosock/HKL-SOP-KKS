@@ -274,6 +274,51 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   r.check('… und ohne Treffer bleibt alles leer (nichts erfunden)', await p.evaluate(a => { const y = naHole('material', a.y); return !y.register && !y.hersteller && !y.ref; }, nach));
   r.check('danach bietet das Verzeichnis nur noch den Rest an', /Aus dem Register ergänzen \(1\)/.test(await p.textContent('#naMain')));
 
+  /* ── 12d. Merkmale suchen und zuordnen — das Beispiel vom 12.11.2026: ein Kabel und seine Resterilisation ── */
+  await p.evaluate(() => naGeh('#/material/neu'));
+  await p.fill('input[data-f="name"]', 'Inquiry 1910-SA Verbindungskabel');
+  r.check('Kategorie steht sichtbar beim Namen (Vorschlag „Kabel")', await warte(p, () => /Kategorie: Kabel/.test(document.getElementById('naKatZeile').textContent) && NA_ENTWURF.obj.kategorie === 'kabel'));
+  await p.evaluate(() => { NA_ENTWURF.offen.kat = true; naFormNeu(); });
+  await p.click('[data-na="merkSuchen"]'); await p.fill('#naAuswQ', 'Resterilisation');
+  const gefunden = await p.$$eval('#naAuswListe .sheet-act', l => l.map(b => b.textContent));
+  r.check('„Resterilisation" findet die passenden Merkmale über Suchwörter (' + gefunden.length + ')', ['Aufbereitungs-Zyklus', 'Zulässige Wiederverwendungen', 'Resterilisierbar'].every(w => gefunden.some(t => t.indexOf(w) >= 0)));
+  await p.click('#naAuswListe .sheet-act:has-text("Aufbereitungs-Zyklus")');
+  r.check('danach die Frage „Gilt für …" mit drei Stufen', (await blattOffen(p, /Gilt für/)) && (await p.locator('#naSheet.show .sheet-act').count()) === 3);
+  await p.click('#naSheet.show .sheet-act:has-text("als Kern-Merkmal")');
+  r.check('gilt jetzt für alle Kabel als Kern ★ — und steht in der Maske', await warte(p, () => naFelder(naKat(), 'kabel').diff.some(d => d.id === 'aufbereitung_zyklus') && !!document.querySelector('input[data-f="merkmale.aufbereitung_zyklus"]')));
+  await p.fill('input[data-f="merkmale.aufbereitung_zyklus"]', '3 von 20');
+  /* nur dieses Material */
+  await p.click('[data-na="merkSuchen"]'); await p.fill('#naAuswQ', 'Herstellungsland'); await p.click('#naAuswListe .sheet-act:has-text("Herstellungsland")');
+  await p.click('#naSheet.show .sheet-act:has-text("nur dieses Material")');
+  r.check('„nur dieses Material": Feld erscheint unter „Nur bei diesem Material", die Kategorie bleibt unverändert', await warte(p, () => !!document.querySelector('input[data-f="merkmale.herkunftsland"]') && /Nur bei diesem Material/.test(document.getElementById('naMain').textContent) && !naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'herkunftsland')));
+  await p.fill('input[data-f="merkmale.herkunftsland"]', 'Costa Rica');
+  /* ein ganz neues Merkmal */
+  await p.click('[data-na="merkSuchen"]'); await p.fill('#naAuswQ', 'Steckerfarbe'); await p.click('#naAuswListe >> text=„Steckerfarbe" neu anlegen');
+  await p.click('#naSheet.show .sheet-act:has-text("Text")'); await p.click('#naSheet.show [data-wert="weiter"]');
+  const neuMid = await p.evaluate(() => (naKat().merkmale.find(d => d.label === 'Steckerfarbe') || {}).id);
+  r.check('neues Merkmal angelegt und allen Kabeln zugeordnet', !!neuMid && await p.evaluate(mid => naFelder(naKat(), 'kabel').weitere.some(d => d.id === mid) && !!document.querySelector('input[data-f="merkmale.' + mid + '"]'), neuMid));
+  await p.click('[data-na="entwSpeichern"]');
+  await warte(p, () => location.hash === '#/material');
+  const kabelId = await p.evaluate(() => naAlle('material').find(m => /Inquiry/.test(m.name)).id);
+  await p.evaluate(id => naGeh('#/material/' + id), kabelId);
+  r.check('nach dem Speichern: der Einzelwert bleibt sichtbar, die Kategorie-Merkmale auch', await warte(p, () => !!document.querySelector('input[data-f="merkmale.herkunftsland"]') && document.querySelector('input[data-f="merkmale.aufbereitung_zyklus"]').value === '3 von 20'));
+  await p.click('[data-na="entwAbbrechen"]');
+  /* Überblick im Listen-Verzeichnis: dieselben Daten */
+  await p.evaluate(() => naGeh('#/liste/kategorien'));
+  await p.click('.na-eintrag:has-text("Kabel / Verbindung")'); await p.click('#naSheet.show .sheet-act:has-text("Merkmale dieser Kategorie")');
+  r.check('Listen-Verzeichnis zeigt die Merkmale der Kategorie mit Kern ★ und Nutzung', await warte(p, () => /Kern ★/.test(document.getElementById('naMain').textContent) && /Aufbereitungs-Zyklus/.test(document.getElementById('naMain').textContent) && /1 von 1/.test(document.getElementById('naMain').textContent)));
+  await p.click('.na-eintrag:has-text("Aufbereitungs-Zyklus")'); await p.click('#naSheet.show .sheet-act:has-text("Kein Kern-Merkmal mehr")');
+  r.check('… und dort zurückstufen', await warte(p, () => !naFelder(naKat(), 'kabel').diff.some(d => d.id === 'aufbereitung_zyklus') && naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'aufbereitung_zyklus')));
+  await p.click('.na-eintrag:has-text("Aufbereitungs-Zyklus")'); await p.click('#naSheet.show .sheet-act:has-text("Suchwörter ändern")');
+  await p.fill('#naEingabeFeld', 'zyklus, resterilisation, autoklav'); await p.click('#naSheet.show [data-na="eingabeOk"]');
+  r.check('eigene Suchwörter für ein Merkmal', await warte(p, () => (naKat().merkmale.find(d => d.id === 'aufbereitung_zyklus').such || []).indexOf('autoklav') >= 0));
+  /* Neue Kategorie mit den Merkmalen einer anderen */
+  await p.evaluate(() => naGeh('#/liste/kategorien'));
+  await p.click('[data-na="listeNeu"]'); await p.fill('#naEingabeFeld', 'EPU-Kabel'); await p.click('#naSheet.show [data-na="eingabeOk"]');
+  await p.fill('#naAuswQ', 'Kabel'); await p.click('#naAuswListe .sheet-act:has-text("Kabel / Verbindung")');
+  r.check('„EPU-Kabel" beginnt mit den Merkmalen von „Kabel" (eine Kopie)', await warte(p, () => { const k = naKat().klassen.find(x => x.label === 'EPU-Kabel'); if (!k) return false;
+    const a = naFelder(naKat(), k.id), b = naFelder(naKat(), 'kabel'); return a.diff.length === b.diff.length && a.weitere.length === b.weitere.length && /\/liste\/kategorien\//.test(location.hash); }));
+
   /* ── 13. Register abschaltbar (Einstellungen, für alle Geräte) ── */
   await p.evaluate(() => naGeh('#/einstellungen'));
   await p.uncheck('input[data-na-wechsel="registerAn"]');
