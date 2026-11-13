@@ -26,6 +26,7 @@ const E_ZWEI = ean13('401234567890');
 const E_FREMD = ean13('401234567891');             /* steht in keinem Register */
 const E_AUSFALL = ean13('401234567892');
 const E_ALT = ean13('401234567893');             /* steht in keinem Register (für „Nachholen") */
+const E_STOER = ean13('401234567894');           /* steht in EUDAMED — wird während einer Störung gefragt */
 const G = e => '0' + e;
 /* Strichfolge eines EAN-13 (95 Module). */
 function eanBits(code) {
@@ -42,6 +43,7 @@ function eanBits(code) {
 const EUDAMED = {
   [G(E_HAHN)]: { TRADE_NAME: 'Discofix® C', REFERENCE: '16494C', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, BASIC_UDI: '40392390000030642E', DEVICE_NAME: 'Discofix C Stopcocks and Manifolds Gamma', NOMENCLATURE_CODE: ' A0703', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
   [G(E_ZWEI)]: { TRADE_NAME: 'Hahnbank 3-fach', REFERENCE: 'HB-3', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, NOMENCLATURE_CODE: 'A0703', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
+  [G(E_STOER)]: { TRADE_NAME: 'Injekt® Luer Solo', REFERENCE: '4606051V', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, NOMENCLATURE_CODE: 'A020102010102', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
 };
 async function json(base, p) { return (await fetch(base + p, { cache: 'no-store' })).json(); }
 async function warte(page, fn, arg, ms) { try { await page.waitForFunction(fn, arg, { timeout: ms || 8000 }); return true; } catch (e) { return false; } }
@@ -52,17 +54,24 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
 (async () => {
   const r = reporter('neue-app-maske');
   const zaehler = { eudamed: 0, gudid: 0 };
+  /* ausfall: E_AUSFALL bringt beide Register zum Fehler (Schritt 9) · stoerung: EUDAMED meldet für
+     JEDES Produkt „404 Data not found" — so gemessen am 13.11.2026 (Schritt 12e). */
+  const lage = { ausfall: true, stoerung: false };
   const attrappe = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'); const antwort = (c, o) => { res.writeHead(c, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+    const nichtGefunden = () => { res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(' Data not found '); };   /* wie die echte Schnittstelle */
     if (u.pathname === '/eudamed') { zaehler.eudamed++; const g = u.searchParams.get('PRIMARY_DI');
-      if (g === G(E_AUSFALL)) return antwort(500, { message: 'Internal server error' });
-      return antwort(200, { value: EUDAMED[g] ? [EUDAMED[g]] : [] }); }
-    if (u.pathname === '/gudid') { zaehler.gudid++; if (u.searchParams.get('di') === G(E_AUSFALL)) return antwort(500, {}); return antwort(404, { error: 'No device found' }); }
+      if (lage.stoerung) return nichtGefunden();
+      if (lage.ausfall && g === G(E_AUSFALL)) return antwort(500, { message: 'Internal server error' });
+      return EUDAMED[g] ? antwort(200, { value: [EUDAMED[g]] }) : nichtGefunden(); }
+    if (u.pathname === '/gudid') { zaehler.gudid++; if (lage.ausfall && u.searchParams.get('di') === G(E_AUSFALL)) return antwort(500, {}); return antwort(404, { error: 'No device found' }); }
     antwort(404, {});
   });
   await new Promise(ok => attrappe.listen(0, '127.0.0.1', ok));
   const reg = 'http://127.0.0.1:' + attrappe.address().port;
-  const srv = await startServer({ REGISTER_EUDAMED_URL: reg + '/eudamed', REGISTER_GUDID_URL: reg + '/gudid' });
+  /* Gegenprobe mit dem Hahn (den die Attrappe kennt); keine Pausen; selbsttätiges Nachfragen erst nach
+     10 Stunden — es sei denn, das Register meldet sich zurück (Schritt 12e). */
+  const srv = await startServer({ REGISTER_EUDAMED_URL: reg + '/eudamed', REGISTER_GUDID_URL: reg + '/gudid', REGISTER_PRUEF_GTIN: G(E_HAHN), REGISTER_PAUSE_MS: '0', REGISTER_NACHFASSEN_MIN: '600' });
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const p = await ctx.newPage(); const errs = [];
@@ -206,7 +215,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.evaluate(() => { const f = document.querySelector('input[data-f="name"]'); f.setSelectionRange(3, 3); naFormNeu(); });
   r.check('Neuzeichnen lässt Cursor und Feld, in dem getippt wird', await p.evaluate(() => { const a = document.activeElement; return a && a.getAttribute('data-f') === 'name' && a.selectionStart === 3; }));
   await p.fill('input[data-f="gtin"]', G(E_AUSFALL)); await p.click('[data-na="registerHolen"]');
-  r.check('Register nicht erreichbar: gesagt, GTIN bleibt', await warte(p, () => /nicht erreichbar/.test(document.getElementById('naOcrStand').textContent)) && (await entwurf()).gtin === G(E_AUSFALL));
+  r.check('Register antwortet nicht: gesagt (mit „der Server fragt von selbst weiter"), GTIN bleibt', await warte(p, () => /antwortet gerade nicht[\s\S]*fragt von selbst weiter/.test(document.getElementById('naOcrStand').textContent)) && (await entwurf()).gtin === G(E_AUSFALL));
+  lage.ausfall = false;
 
   /* Kamera nicht freigegeben → das Fenster bietet das Foto an. */
   await p.fill('input[data-f="gtin"]', ''); await kamera('nein');
@@ -318,6 +328,28 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.fill('#naAuswQ', 'Kabel'); await p.click('#naAuswListe .sheet-act:has-text("Kabel / Verbindung")');
   r.check('„EPU-Kabel" beginnt mit den Merkmalen von „Kabel" (eine Kopie)', await warte(p, () => { const k = naKat().klassen.find(x => x.label === 'EPU-Kabel'); if (!k) return false;
     const a = naFelder(naKat(), k.id), b = naFelder(naKat(), 'kabel'); return a.diff.length === b.diff.length && a.weitere.length === b.weitere.length && /\/liste\/kategorien\//.test(location.hash); }));
+
+  /* ── 12e. Störung der EU-Schnittstelle (13.11.2026): Sie meldet für JEDES Produkt „nicht gefunden" ── */
+  lage.stoerung = true;
+  await p.evaluate(() => naGeh('#/material/neu'));
+  await p.fill('input[data-f="gtin"]', G(E_STOER)); await p.click('[data-na="registerHolen"]');
+  r.check('Störung: „antwortet gerade nicht", NICHT „steht dazu nichts" — nichts wird erfunden', await warte(p, () => { const t = document.getElementById('naOcrStand').textContent;
+    return /antwortet gerade nicht[\s\S]*fragt von selbst weiter/.test(t) && !/steht dazu nichts/.test(t); }, null, 15000) && !(await entwurf()).register);
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');
+  await p.evaluate(() => naGeh('#/einstellungen'));
+  r.check('Einstellungen zeigen: EUDAMED gestört, mit Grund; offene Abfragen holt der Server nach', await warte(p, () => { const n = document.getElementById('naRegStand'); const t = n ? n.textContent : '';
+    return /EUDAMED \(EU\) ist gestört/.test(t) && /nicht gefunden.*auch für Produkte/.test(t) && /Abfragen? offen/.test(t) && /fragt von selbst weiter/.test(t); }, null, 10000));
+  await foto(p, '12-register-gestoert');
+  lage.stoerung = false;
+  await p.click('[data-na="registerPruefen"]');
+  r.check('„Jetzt prüfen": EUDAMED antwortet wieder', await warte(p, () => /✓ EUDAMED \(EU\) antwortet/.test(document.getElementById('naRegStand').textContent), null, 20000));
+  /* Das Register ist zurück → der Server fragt von selbst nach, was liegen blieb. */
+  let nachgeholt = false;
+  for (let i = 0; i < 80 && !nachgeholt; i++) { nachgeholt = (await json(srv.base, '/api/register/zustand')).offen === 0; if (!nachgeholt) await new Promise(ok => setTimeout(ok, 500)); }
+  const vorS = zaehler.eudamed + zaehler.gudid;
+  const st = await json(srv.base, '/api/register?gtin=' + G(E_STOER));
+  r.check('der Server hat von selbst nachgefragt: Der Treffer liegt bereit, ohne neue Anfrage', nachgeholt && st.ausCache === true && !!st.treffer && st.treffer.ref === '4606051V' && zaehler.eudamed + zaehler.gudid === vorS);
+  await foto(p, '12-register-wieder-da');
 
   /* ── 13. Register abschaltbar (Einstellungen, für alle Geräte) ── */
   await p.evaluate(() => naGeh('#/einstellungen'));

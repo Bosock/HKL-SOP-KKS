@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 11.11.2026 · Cache-Version `v84` · Code: `public/neu/`
+**Stand:** 13.11.2026 · Cache-Version `v85` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -247,35 +247,62 @@ Wiederverwendet, **ohne Änderung**:
 
 - Reihenfolge: EUDAMED (offizielle Schnittstelle der EU-Kommission), dann
   AccessGUDID. Nur GET, nur Ziffern, feste Zieladressen.
-- Zwischenspeicher in `STATE_DIR/register-cache.json`: Treffer 30 Tage,
-  „nicht gefunden" 24 Stunden, ein Ausfall gar nicht.
-- Drosselung: höchstens 15 Abfragen je Minute. EUDAMED begrenzt je
-  Absender-Adresse (Erfahrungswerte anderer Nutzer, Oktober 2026: etwa 20 je
-  Minute, darüber HTTP 429); offiziell dokumentiert ist keine Zahl. Bei 429
-  hält der Server die verlangte Wartezeit (`Retry-After`) ein.
-- Zeitlimit: EUDAMED 20 s (antwortet oft erst nach 2–9 s, gemessen 11.11.2026),
-  GUDID 8 s.
-- Antwortet ein Register nicht, wird es zwei Minuten übersprungen (sonst
-  wartete jeder Scan das Zeitlimit ab). Ein GUDID-Treffer während eines
-  EUDAMED-Ausfalls gilt nur einen Tag. „Steht in keinem Register" heißt
-  immer: beide haben geantwortet.
+- **Die EU-Schnittstelle ist nicht verlässlich.** Gemessen am 10., 11. und
+  13.11.2026, vier Störungen:
+
+  | Störung | Was die App tut |
+  |---|---|
+  | langsam (2–9 s) | Zeitlimit 20 s (GUDID 8 s), insgesamt höchstens 30 s |
+  | hängt (keine Antwort in 40 s) | Zeitlimit, dann Pause 2 min (wächst bis 5 min) |
+  | „429 — zu viele Abfragen" (Grenze laut Antwortkopf: 500 je Minute) | verlangte Wartezeit einhalten; die App fragt höchstens 15-mal je Minute nach |
+  | antwortet prompt „Data not found" — auch für Produkte, die sie führt (13.11.2026, über eine Stunde) | **Gegenprobe**, siehe unten |
+
+- **Gegenprobe:** Auf jedes „nicht gefunden" von EUDAMED fragt der Server
+  sofort nach einem Produkt, das EUDAMED nachweislich führt (zuerst eines, das
+  er selbst dort schon gefunden hat; sonst eines aus `REGISTER_PRUEF_GTIN`).
+  Kennt EUDAMED auch das nicht, ist es gestört — die Antwort zählt als
+  Ausfall, nicht als Fehlanzeige. Kosten: eine zusätzliche Anfrage.
+- **Drei Regeln, die daraus folgen:**
+  1. Ein Treffer geht nie verloren. „Nicht gefunden" ersetzt ihn nicht, und
+     nach Ablauf (30 Tage) wird er weiter ausgeliefert, wenn das Auffrischen
+     scheitert.
+  2. „Steht in keinem Register" wird nur gemerkt (24 Stunden), wenn beide
+     Register geantwortet haben und EUDAMED die Gegenprobe bestanden hat.
+     Ältere, ungesicherte Fehlanzeigen im Zwischenspeicher gelten nicht mehr —
+     falsche Einträge aus einer Störung heilen so von selbst.
+  3. **Der Server fragt von selbst nach.** Bleibt eine GTIN offen (Ausfall,
+     oder GUDID-Treffer während EUDAMED fehlt), versucht er es nach 2, 5, 15,
+     30, 60, 120, 240 Minuten und dann alle 6 Stunden, höchstens 20-mal.
+     Meldet sich das Register zurück, kommt alles Offene sofort dran. Eine
+     gesicherte Fehlanzeige wird nach einer Stunde einmal überprüft.
+- Zwischenspeicher in `STATE_DIR/register-cache.json`, auch das Offene steht
+  dort und übersteht einen Neustart.
+- **Zustand sehen:** Einstellungen → „EU-Register" zeigt je Register
+  „antwortet" oder „gestört seit … : Grund", die Zahl offener Abfragen und
+  den Knopf „↻ Jetzt prüfen" (fragt beide Register mit einem bekannten
+  Produkt). Dasselbe ohne App: `https://sops.kardio.wiki/api/register/zustand`
+  (mit `?pruefen=1` wird vorher geprüft, höchstens alle 20 s). Die Antwort
+  enthält Zeiten, Zähler und den Grund — keine GTIN.
 - Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (20000),
-  `REGISTER_PAUSE_MS` (120000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+  `REGISTER_PAUSE_MS` (120000), `REGISTER_NACHFASSEN=0` (kein selbsttätiges
+  Nachfragen), `REGISTER_NACHFASSEN_MIN` (Abstände), `REGISTER_PRUEF_GTIN`,
+  `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
 - **Nachholen:** Im Material-Verzeichnis (Verwaltung) steht „↻ Aus dem
   Register ergänzen (n)", solange Materialien eine gültige GTIN, aber noch
   keine Registerdaten haben. Ein Tipp schlägt alle nacheinander nach (höchstens
   15 je Minute), füllt nur leere Felder und lässt die Angaben „noch nicht
-  bestätigt".
+  bestätigt". Während einer Störung nennt der Tipp dem Server alle GTINs; er
+  holt sie von selbst, und der nächste Tipp findet sie fertig vor.
 - Der Server braucht dafür ausgehenden Zugriff auf
   `api.datalake.sante.service.ec.europa.eu` und `accessgudid.nlm.nih.gov`.
-  Ohne ihn arbeitet die Maske wie zuvor und sagt „nicht erreichbar".
-  Geprüft am 11.11.2026 auf sops.kardio.wiki: GUDID antwortet in 0,7 s, der
-  Zugang ist also offen; EUDAMED antwortete zu dieser Zeit niemandem.
-  **Selbst prüfen:** im Browser `https://sops.kardio.wiki/api/register?gtin=08714729841968`
-  öffnen — `"quelle":"GUDID"` heißt: der Server kommt hinaus. Für EUDAMED
-  dasselbe mit `?gtin=04022495787309` (`"quelle":"EUDAMED"`).
-  `REGISTER=0` in `~/hkl-sop-kks/.env` auf dem Server schaltet die Abfrage
-  ab (docker-compose.yml reicht den Wert durch).
+  Geprüft am 11. und 13.11.2026 auf sops.kardio.wiki: Der Zugang ist offen
+  (GUDID antwortet in unter einer Sekunde). `REGISTER=0` in
+  `~/hkl-sop-kks/.env` auf dem Server schaltet die Abfrage ab
+  (docker-compose.yml reicht den Wert durch).
+- **Was die App nicht kann:** Solange EUDAMED gestört ist, gibt es für
+  Produkte, die nur dort stehen, keine Registerdaten — auch nicht über einen
+  Umweg. Die öffentliche EUDAMED-Webseite weist automatische Abfragen ab und
+  verweist auf diese Schnittstelle (geprüft 10.11.2026).
 
 **Datenmodell** (geteilter Zustand des Raums Neuaufbau). Jedes Objekt ist ein
 eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
@@ -318,10 +345,11 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1126 Tests grün, davon 21 in `test/neue-app.test.js` (Logik,
+- `npm test`: 1141 Tests grün, davon 28 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
-  Umleitung nur im Neuaufbau) und 8 in `test/register.test.js`
-  (Register-Abfrage gegen eine Attrappe — der Test geht nie ins Internet).
+  Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
+  (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
+  der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
 - `npm run check`: grün, und die Prüfungen gelten jetzt auch für `public/neu`.
 - `node e2e/neue-app.js` prüft 59 Punkte. Dabei ist die Anmeldung getippt, und
   jede Aktion läuft über sichtbare Schaltflächen. Abgedeckt sind:
@@ -333,7 +361,7 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-maske.js` prüft 60 Punkte an der Material-Maske: Scan
+- `node e2e/neue-app-maske.js` prüft 83 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,

@@ -273,13 +273,15 @@ naAkt('einspielen', async d=>{
 /* ── Einstellungen ── */
 function naSichtEinstellungen(){
   const a = naAdmin(); const live = raumLiveGemerkt();
+  if(a && naEinstellung('register', true) && !NA_REGSTAND.laedt && Date.now()-(NA_REGSTAND.geholt||0) > 30000) naRegisterStandHolen(false);
   let h = '<div class="na-karte"><h3>Ansicht</h3><button class="na-knopf" data-na="thema">◐ Hell / Dunkel</button></div>';
   h += '<div class="na-karte"><h3>Dieses Gerät</h3>'+naF('Name des Geräts (für Verlauf und Papierkorb)', '<input type="text" value="'+esc(naGeraet().name)+'" placeholder="z. B. Saal 2 Tablet" data-na-wechsel="geraetName">', 'Kein Personenname nötig — es geht um das Gerät.')+'</div>';
   if(a) h += '<div class="na-karte"><h3>Passwort der Verwaltung (neue App)</h3>'
     + naF('Neues Passwort', '<input type="password" id="naPw1" autocomplete="new-password">') + naF('Noch einmal', '<input type="password" id="naPw2" autocomplete="new-password">')
     + '<button class="na-knopf" data-na="pwSetzen">Passwort ändern</button><div class="na-dim" style="margin-top:6px">Gilt auf allen Geräten. Komfort, keine Sicherheit (Grundsatz A9).</div></div>';
   if(a) h += '<div class="na-karte"><h3>EU-Register</h3><div class="na-feld"><label><input type="checkbox" data-na-wechsel="registerAn"'+(naEinstellung('register', true)?' checked':'')+'> Beim Scannen eines Barcodes das Register fragen</label></div>'
-    + '<div class="na-dim">Der Server der App fragt mit der GTIN bei EUDAMED (EU) und, wenn dort nichts steht, bei GUDID (USA) nach Hersteller, Handelsname und REF. Übertragen wird nur die GTIN — keine Daten des Hauses. Die Angaben gelten erst nach dem Speichern als bestätigt. Gilt für alle Geräte.</div></div>';
+    + '<div class="na-dim">Der Server der App fragt mit der GTIN bei EUDAMED (EU) und, wenn dort nichts steht, bei GUDID (USA) nach Hersteller, Handelsname und REF. Übertragen wird nur die GTIN — keine Daten des Hauses. Die Angaben gelten erst nach dem Speichern als bestätigt. Gilt für alle Geräte.</div>'
+    + '<div id="naRegStand" style="margin-top:10px">'+naRegisterStandHtml()+'</div></div>';
   h += '<div class="na-karte"><h3>Raum</h3><div class="na-dim">Diese App ist der <b>Neuaufbau</b>. '+(live==='neuaufbau' ? 'Er ist <b>live</b> — alle Geräte ohne eigene Wahl arbeiten hier.' : 'Live (im Labor) ist der <b>Bestand</b>; er bleibt hiervon unberührt.')+'</div>'
     + '<div style="margin-top:8px"><button class="na-knopf" data-na="zumBestand">'+(live==='neuaufbau' ? '↩ Alten Bestand ansehen' : '↩ Zurück zum Bestand')+'</button></div></div>';
   if(a) h += '<div class="na-karte"><h3>Live schalten</h3><div class="na-dim">Schaltet ALLE Geräte ohne eigene Raumwahl um. Daten werden nicht bewegt; Zurückschalten ist dieselbe Handbewegung. '
@@ -290,6 +292,48 @@ function naSichtEinstellungen(){
   h += '<div class="na-dim">Abgleich: '+esc(naAbgleich.status().text||'—')+(naAbgleich.offen()?' · '+naAbgleich.offen()+' warten':'')+'</div>';
   return { titel:'Einstellungen', zurueck:'#/mehr', html:h };
 }
+/* Zustand der Register — damit sichtbar ist, OB es gerade geht und WARUM nicht
+   (server/register.js: zustand, pruefen). Gezeichnet wird nur dieser Kasten neu,
+   damit getippte Passwörter in derselben Ansicht stehen bleiben. */
+let NA_REGSTAND = { stand:null, geholt:0, laedt:false };
+function naUhrzeit(iso){ if(!iso) return ''; const d = new Date(iso); if(isNaN(d)) return ''; const z = n=>String(n).padStart(2,'0');
+  const heute = new Date().toDateString()===d.toDateString(); return (heute ? '' : naDatum(iso)+', ')+z(d.getHours())+':'+z(d.getMinutes())+' Uhr'; }
+function naRegisterStandText(r){
+  const name = r.name==='EUDAMED' ? 'EUDAMED (EU)' : (r.name==='GUDID' ? 'GUDID (USA)' : r.name);
+  if(r.zustand==='ok') return { art:'ok', text:'✓ '+name+' antwortet'+(r.erfolg ? ' — zuletzt '+naUhrzeit(r.erfolg) : '')+'.' };
+  if(r.zustand==='gestoert') return { art:'warn', text:'⚠ '+name+' ist gestört'+(r.seit ? ' seit '+naUhrzeit(r.seit) : '')+': '+(r.grund||'antwortet nicht')+'.'+(r.pauseBis ? ' Nächster Versuch '+naUhrzeit(r.pauseBis)+'.' : '') };
+  return { art:'', text:name+': seit dem Start des Servers noch nicht gefragt.' };
+}
+function naRegisterStandHtml(){
+  const R = NA_REGSTAND; const z = R.stand;
+  const knopf = '<div style="margin-top:8px"><button class="na-knopf" data-na="registerPruefen"'+(R.laedt==='pruefen'?' disabled':'')+'>'+(R.laedt==='pruefen' ? '⏳ Die Register werden gefragt (bis 30 Sekunden) …' : '↻ Jetzt prüfen')+'</button></div>';
+  if(!z) return '<div class="na-dim">'+(R.laedt ? 'Zustand der Register wird geholt …' : 'Zustand der Register: noch nicht abgerufen.')+'</div>'+knopf;
+  if(z.fehler) return '<div class="na-info na-offen">Der Zustand der Register ist gerade nicht abrufbar — der Server der App antwortet nicht (Gerät offline?).</div>'+knopf;
+  if(!z.an) return '<div class="na-info">Die Register-Abfrage ist auf dem Server abgeschaltet (REGISTER=0).</div>';
+  const zeilen = (z.register||[]).map(naRegisterStandText);
+  const gestoert = zeilen.some(x=>x.art==='warn');
+  let h = '<div class="na-info'+(gestoert?' na-offen':'')+'">'+zeilen.map(x=>esc(x.text)).join('<br>');
+  if(z.offen) h += '<br><b>'+z.offen+' Abfrage'+(z.offen===1?'':'n')+' offen</b> — '+(z.nachfassen ? 'der Server fragt von selbst weiter'+(z.naechstes ? ' (nächster Versuch '+esc(naUhrzeit(z.naechstes))+')' : '')+'.' : 'das selbsttätige Nachfragen ist auf dem Server abgeschaltet.');
+  h += '<br><span class="na-dim">Gemerkt: '+((z.gemerkt&&z.gemerkt.treffer)||0)+' Produkte mit Registerdaten'+((z.gemerkt&&z.gemerkt.nichts) ? ', '+z.gemerkt.nichts+' ohne Eintrag' : '')+'.</span>';
+  if(gestoert) h += '<br><span class="na-dim">Eine Störung liegt beim Register, nicht an der App oder am WLAN. Solange einfach ohne Registerdaten erfassen — nachgeholt wird mit „↻ Aus dem Register ergänzen" im Material-Verzeichnis.</span>';
+  return h+'</div>'+knopf;
+}
+async function naRegisterStandHolen(pruefen){
+  const R = NA_REGSTAND; if(R.laedt) return;
+  R.laedt = pruefen ? 'pruefen' : true;
+  const neu = ()=>{ const n = document.getElementById('naRegStand'); if(n) n.innerHTML = naRegisterStandHtml(); };
+  neu();
+  let zeit = null;
+  try{
+    const ctl = (typeof AbortController==='function') ? new AbortController() : null;
+    if(ctl) zeit = setTimeout(()=>ctl.abort(), 45000);
+    const r = await fetch('/api/register/zustand'+(pruefen ? '?pruefen=1' : ''), { cache:'no-store', signal: ctl ? ctl.signal : undefined });
+    R.stand = r.ok ? await r.json() : { fehler:true };
+  }catch(e){ R.stand = { fehler:true }; }
+  finally{ if(zeit) clearTimeout(zeit); }
+  R.geholt = Date.now(); R.laedt = false; neu();
+}
+naAkt('registerPruefen', ()=>{ if(naAdmin()) naRegisterStandHolen(true); });
 naEin('registerAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('register', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Register-Abfrage '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Register-Abfrage eingeschaltet' : 'Register-Abfrage ausgeschaltet'); });
 naAkt('thema', ()=>{ const n = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', n); store.set('hkl_theme', n); });
 naEin('geraetName', v=>{ const g = naGeraet(); g.name = String(v||'').trim().slice(0,40); store.set('nalokal_geraet', JSON.stringify(g)); toast('Gerätename gespeichert'); });
