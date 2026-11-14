@@ -26,7 +26,14 @@ function naSichtListen(){
   if(!naAdmin()) return { titel:'Listen', html: naLeer('🔒','Nur in der Verwaltung','') };
   return { titel:'Listen-Verzeichnis', zurueck:'#/mehr', html:
     '<div class="na-info">Jede Auswahlliste der App steht hier — und jede lässt sich auch dort erweitern, wo sie gebraucht wird (im Auswahlfeld: tippen, „neu anlegen").</div>'
-    + NA_LISTEN.map(l=>'<div class="na-eintrag" data-na="geh" data-ziel="#/liste/'+l.key+'"><span class="na-ico">🗂</span><div class="na-haupt"><div class="na-name">'+esc(l.wort)+'</div><div class="na-sub">'+naListe(l.key).length+' Einträge'+(naListe(l.key,true).length>naListe(l.key).length?' · '+(naListe(l.key,true).length-naListe(l.key).length)+' archiviert':'')+'</div></div><span class="chev">›</span></div>').join('') };
+    + NA_LISTEN.map(l=>'<div class="na-eintrag" data-na="geh" data-ziel="#/liste/'+l.key+'"><span class="na-ico">🗂</span><div class="na-haupt"><div class="na-name">'+esc(l.wort)+'</div><div class="na-sub">'+naListe(l.key).length+' Einträge'+(naListe(l.key,true).length>naListe(l.key).length?' · '+(naListe(l.key,true).length-naListe(l.key).length)+' archiviert':'')+'</div></div><span class="chev">›</span></div>'
+        + (l.key==='kategorien' ? naMerkmaleZeile() : '')).join('') };
+}
+/* Die Merkmale stehen im Verzeichnis gleich unter den Kategorien, zu denen sie gehören. */
+function naMerkmaleZeile(){
+  const z = naMerkmalZeilen(); const eig = z.filter(x=>x.eigen && !x.archiviert).length, arch = z.filter(x=>x.archiviert).length, ge = z.filter(x=>!x.archiviert && x.geaendert.length).length;
+  return '<div class="na-eintrag" data-na="geh" data-ziel="#/liste/merkmale"><span class="na-ico">▤</span><div class="na-haupt"><div class="na-name">Merkmale (Material)</div><div class="na-sub">'+z.filter(x=>!x.archiviert).length+' Merkmale'
+    + (eig ? ' · '+eig+' eigene' : '')+(ge ? ' · '+ge+' geändert' : '')+(arch ? ' · '+arch+' archiviert' : '')+' — ansehen, suchen, ändern, Kategorien zuordnen</div></div><span class="chev">›</span></div>';
 }
 function naSichtListe(key){
   if(!naAdmin()) return { titel:'Liste', html: naLeer('🔒','Nur in der Verwaltung','') };
@@ -99,6 +106,9 @@ naAkt('katMerkmal', async d=>{
     + (kern ? '<button class="sheet-act" data-na="sheetWert" data-wert="weiter"><span class="sa-ico">▤</span><span>Kein Kern-Merkmal mehr<span class="sa-sub">bleibt in der Kategorie, steht aber nicht mehr oben</span></span></button>'
             : '<button class="sheet-act" data-na="sheetWert" data-wert="kern"><span class="sa-ico">★</span><span>Als Kern-Merkmal<span class="sa-sub">steht oben in der Maske und geht in den Namensvorschlag ein</span></span></button>')
     + '<button class="sheet-act" data-na="sheetWert" data-wert="such"><span class="sa-ico">🔎</span><span>Suchwörter ändern<span class="sa-sub">'+esc((def.such||[]).length ? def.such.join(', ') : 'noch keine eigenen')+'</span></span></button>'
+    + (/^#\/liste\/merkmale\//.test(location.hash)
+        ? '<button class="sheet-act" data-na="geh" data-ziel="#/liste/kategorien/'+esc(encodeURIComponent(d.k))+'"><span class="sa-ico">🗂</span><span>Kategorie ansehen<span class="sa-sub">alle Merkmale von „'+esc(k.label)+'"</span></span></button>'
+        : '<button class="sheet-act" data-na="geh" data-ziel="#/liste/merkmale/'+esc(encodeURIComponent(d.mid))+'"><span class="sa-ico">▤</span><span>Merkmal ansehen und ändern<span class="sa-sub">Name, Hinweis, Auswahlwerte, alle Kategorien</span></span></button>')
     + '<button class="sheet-act danger" data-na="sheetWert" data-wert="aus"><span class="sa-ico">✕</span><span>Aus dieser Kategorie entfernen<span class="sa-sub">eingetragene Werte bleiben erhalten und erscheinen beim Material als „nur bei diesem Material"</span></span></button>');
   if(!w) return;
   if(w==='such'){ await naMerkmalSuchAendern(d.mid); naZeigen(); return; }
@@ -133,6 +143,200 @@ async function naMerkmalSuchAendern(mid){
   if(eigen.length) tpl.such[mid] = eigen; else delete tpl.such[mid];
   naKatTplSpeichern(tpl, 'Suchwörter von „'+def.label+'" geändert'); toast('Suchwörter gespeichert');
 }
+
+/* ── Merkmale (Listen-Verzeichnis, Grundsatz A7) ──
+   ALLE Merkmale an einer Stelle: sehen, suchen, pflegen. Dieselben Merkmale
+   wie in der Material-Maske und in „Merkmale dieser Kategorie" — hier nur von
+   der anderen Seite: nicht „was hat diese Kategorie?", sondern „was gibt es,
+   und wo gilt es?". Gespeichert wird wie überall nur die Abweichung des
+   Hauses (naKatTpl); die mitgelieferte Liste bleibt und lässt sich je Merkmal
+   zurückholen. */
+const NA_MERKMAL_ICO = { mass:'📏', zahl:'#', liste:'☰', text:'✎', ja_nein:'☑' };
+const NA_MERKMAL_KURZ = { mass:'Maß', zahl:'Zahl', liste:'Auswahl', text:'Text', ja_nein:'Ja / Nein' };
+let NA_ML = { q:'', f:'alle' };
+const NA_ML_FILTER = [
+  { id:'alle',      wort:'alle',           ok:z=>!z.archiviert },
+  { id:'genutzt',   wort:'ausgefüllt',     ok:z=>!z.archiviert && z.zahl>0 },
+  { id:'ohne',      wort:'ohne Kategorie', ok:z=>!z.archiviert && !z.allgemein && !z.kategorien.length },
+  { id:'eigen',     wort:'eigene',         ok:z=>!z.archiviert && z.eigen },
+  { id:'geaendert', wort:'geändert',       ok:z=>!z.archiviert && z.geaendert.length>0 },
+  { id:'archiv',    wort:'archiviert',     ok:z=>z.archiviert },
+];
+function naMerkmalZeilen(){ return naMerkmalListe(naKat(), NA_MERKQUELLE, naKatTpl(), naAlle('material')); }
+function naMerkmalDef(mid){ return naKat().merkmale.find(x=>x.id===mid) || null; }
+function naMerkmalArtKurz(z){ return (NA_MERKMAL_KURZ[z.typ]||'Text')+(z.einheit ? ' ('+z.einheit+')' : ''); }
+function naMerkmalWo(z){
+  const n = z.kategorien.length; const namen = z.kategorien.slice(0,3).map(k=>(k.kern?'★ ':'')+k.label).join(', ')+(n>3 ? ' … (+'+(n-3)+')' : '');
+  if(z.allgemein) return 'für alle Kategorien'+(n ? ' · eigens bei: '+namen : '');
+  return n ? namen : 'keiner Kategorie zugeordnet';
+}
+function naMerkmalListeHtml(z){
+  const q = naNorm(NA_ML.q); const f = NA_ML_FILTER.find(x=>x.id===NA_ML.f) || NA_ML_FILTER[0];
+  let t = z.filter(f.ok); if(q) t = t.filter(x=>x.such.indexOf(q)>=0);
+  if(!t.length) return naLeer('🔎', 'Nichts gefunden', q ? 'Andere Schreibweise versuchen — oder das Merkmal mit „＋ Neues Merkmal" anlegen.' : 'Kein Merkmal in dieser Auswahl.');
+  return t.map(x=>'<div class="na-eintrag'+(x.archiviert?' archiv':'')+'" data-na="geh" data-ziel="#/liste/merkmale/'+esc(encodeURIComponent(x.id))+'"><span class="na-ico">'+(NA_MERKMAL_ICO[x.typ]||'▤')+'</span>'
+    + '<div class="na-haupt"><div class="na-name">'+esc(x.label)+(x.archiviert?' · archiviert':'')+'</div>'
+    + '<div class="na-sub">'+esc(naMerkmalArtKurz(x))+' · '+esc(naMerkmalWo(x))+'</div>'
+    + (x.eigen || x.geaendert.length ? '<div class="na-sub">'+esc(x.eigen ? 'eigenes Merkmal des Hauses' : 'vom Haus geändert: '+x.geaendert.join(', '))+'</div>' : '')
+    + '</div><div class="na-rechts">'+(x.zahl ? x.zahl+'× ausgefüllt' : '')+'</div></div>').join('');
+}
+function naSichtMerkmale(){
+  if(!naAdmin()) return { titel:'Merkmale', html: naLeer('🔒','Nur in der Verwaltung','') };
+  const z = naMerkmalZeilen();
+  if(!NA_ML_FILTER.some(f=>f.id===NA_ML.f && (f.id==='alle' || z.some(f.ok)))) NA_ML.f = 'alle';
+  const chips = NA_ML_FILTER.map(f=>{ const n = z.filter(f.ok).length;
+    return (n || f.id==='alle') ? '<button class="na-chip'+(NA_ML.f===f.id?' an':'')+'" data-na="mlFilter" data-f="'+f.id+'">'+esc(f.wort)+' ('+n+')</button>' : ''; }).join('');
+  const h = '<div class="na-info">Alle Merkmale, die ein Material haben kann. Welche davon eine Maske zeigt, bestimmt die Kategorie des Materials (★ = Kern-Merkmal). Antippen: ansehen und ändern — Name, Hinweis, Auswahlwerte, Suchwörter, Kategorien.</div>'
+    + '<div class="na-zeile" style="margin-bottom:8px"><button class="na-knopf pri" data-na="mlNeu">＋ Neues Merkmal</button></div>'
+    + '<input class="na-suche" type="search" id="naMlQ" placeholder="Suchen: Name, Suchwort, Kategorie …" value="'+esc(NA_ML.q)+'" data-na-ein="mlSuche" autocomplete="off">'
+    + '<div class="na-chips" style="margin-bottom:8px">'+chips+'</div>'
+    + '<div id="naMlListe">'+naMerkmalListeHtml(z)+'</div>';
+  return { titel:'Merkmale', pfad:z.filter(x=>!x.archiviert).length+' Merkmale', zurueck:'#/listen', html:h };
+}
+naEin('mlSuche', v=>{ NA_ML.q = v; const l = $('naMlListe'); if(l) l.innerHTML = naMerkmalListeHtml(naMerkmalZeilen()); });
+naAkt('mlFilter', d=>{ NA_ML.f = d.f; const y = window.scrollY; naZeigen(); window.scrollTo(0, y); });
+naAkt('mlNeu', async ()=>{
+  const n = await naEingabe('Neues Merkmal: Name', { wert:NA_ML.q.trim(), platzhalter:'z. B. Kabellänge', hilfe:'Erst suchen lohnt sich: Viele Merkmale gibt es schon unter einem anderen Namen.' });
+  if(!n) return;
+  const tr = naAehnliche(n, naKat().merkmale.map(d=>({ id:d.id, name:d.label })));
+  if(tr.length && !(await naFrage('Ähnlich: '+tr.slice(0,3).map(t=>'„'+t.item.name+'"').join(', ')+'. Trotzdem neu anlegen?', { ja:'Neu anlegen' }))) return;
+  const mid = await naMerkmalAnlegen(n); if(mid) naGeh('#/liste/merkmale/'+encodeURIComponent(mid));
+});
+
+/* Die Seite EINES Merkmals. */
+function naSichtMerkmal(mid){
+  if(!naAdmin()) return { titel:'Merkmal', html: naLeer('🔒','Nur in der Verwaltung','') };
+  const d = naMerkmalDef(mid); const z = d ? naMerkmalZeilen().find(x=>x.id===mid) : null;
+  if(!d || !z) return { titel:'Merkmal', zurueck:'#/liste/merkmale', html: naLeer('❓','Nicht gefunden','Dieses Merkmal gibt es nicht (mehr).') };
+  const eigen = z.eigen; const tpl = naKatTpl(); const mat = naAlle('material'); const nu = naMerkmalNutzungAlle(mat); const zw = nu.werte[mid] || {};
+  const m = esc(mid); const leer = t=>'<span class="na-leer">'+t+'</span>';
+  const feld = (name, wert, akt, sub)=>'<div class="na-eintrag'+(akt?'':' fest')+'"'+(akt ? ' data-na="'+akt+'" data-mid="'+m+'"' : '')+'><div class="na-haupt"><div class="na-sub">'+esc(name)+'</div><div class="na-name">'+wert+'</div>'
+    + (sub ? '<div class="na-sub">'+sub+'</div>' : '')+'</div>'+(akt ? '<span class="chev">✎</span>' : '')+'</div>';
+  const fest = 'fest — die Etikett-Erkennung rechnet damit';
+  let h = '';
+  if(d.archiviert) h += '<div class="na-info na-offen"><b>Archiviert.</b> Das Merkmal wird nicht mehr angeboten — weder in der Suche noch in einer Maske. Eingetragene Werte bleiben beim Material sichtbar.</div>';
+  h += '<div class="na-info">'+(eigen ? 'Eigenes Merkmal des Hauses'+(d.angelegt ? ', angelegt '+esc(naDatum(d.angelegt)) : '')+'.' : 'Mitgeliefertes Merkmal'+(z.geaendert.length ? ' — vom Haus geändert: '+esc(z.geaendert.join(', ')) : '')+'.')
+    + ' '+(z.zahl ? 'Bei <b>'+z.zahl+'</b> Material'+(z.zahl===1?'':'ien')+' ausgefüllt.' : 'Noch bei keinem Material ausgefüllt.')+'</div>';
+  if(NA_NICHT_ALS_MERKMAL.indexOf(mid)>=0) h += '<div class="na-info">Steht in der Material-Maske an eigener Stelle: '+(mid==='stueck_packung' ? '„Packung und Preis" (Packungsgröße)' : '„Steril · Einmal · Latex"')+'.</div>';
+
+  h += '<div class="na-h">Angaben</div>';
+  h += feld('Name', esc(d.label), 'mmName', d.vorgabeLabel ? 'Vorgabe: '+esc(d.vorgabeLabel) : '');
+  h += feld('Art', esc(NA_MERKMAL_ARTEN[d.typ]||d.typ||'Text'), eigen ? 'mmArt' : '', eigen ? '' : fest);
+  if(d.typ==='mass' || d.typ==='zahl') h += feld('Einheit', d.einheit ? esc(d.einheit) : leer('keine'), eigen ? 'mmEinheit' : '', eigen ? 'steht hinter dem Namen des Felds und hinter dem Wert' : fest);
+  h += feld('Hinweis unter dem Feld', d.hinweis ? esc(d.hinweis) : leer('keiner'), 'mmHinweis', '');
+  h += feld('Suchwörter', (d.such||[]).length ? esc(d.such.join(', ')) : leer('keine'), 'mmSuch', 'andere Wörter, unter denen man das Merkmal findet');
+
+  if(d.typ==='liste'){
+    const w = d.werte || []; const aus = ((tpl.werteAus||{})[mid]) || [];
+    h += '<div class="na-h">Auswahlwerte ('+w.length+')</div>';
+    h += w.length ? w.map(x=>'<div class="na-eintrag" data-na="mmWert" data-mid="'+m+'" data-w="'+esc(x)+'"><span class="na-ico">○</span><div class="na-haupt"><div class="na-name">'+esc(x)+'</div></div><div class="na-rechts">'+(zw[x] ? zw[x]+'×' : '')+'</div></div>').join('')
+                  : '<div class="na-dim">Noch keine — Werte lassen sich auch beim Ausfüllen in der Maske anlegen.</div>';
+    h += aus.map(x=>'<div class="na-eintrag archiv" data-na="mmWert" data-mid="'+m+'" data-w="'+esc(x)+'" data-aus="1"><span class="na-ico">○</span><div class="na-haupt"><div class="na-name">'+esc(x)+'</div><div class="na-sub">Wert der Vorgabe — wird nicht mehr angeboten</div></div><div class="na-rechts">'+(zw[x] ? zw[x]+'×' : '')+'</div></div>').join('');
+    const fremd = Object.keys(zw).filter(x=>w.indexOf(x)<0 && aus.indexOf(x)<0);
+    if(fremd.length) h += '<div class="na-dim" style="margin:4px">Eingetragen, aber nicht in der Liste: '+esc(fremd.map(x=>x+' ('+zw[x]+'×)').join(', '))+'</div>';
+    h += '<div class="na-zeile" style="margin:8px 0"><button class="na-knopf" data-na="mmWertNeu" data-mid="'+m+'">＋ Wert</button></div>';
+  } else if(d.typ!=='ja_nein' && z.zahl){
+    const top = Object.keys(zw).sort((a,b)=>zw[b]-zw[a] || a.localeCompare(b, 'de', { numeric:true }));
+    h += '<div class="na-h">Eingetragene Werte ('+top.length+')</div><div class="na-chips" style="margin:0 4px 8px">'
+      + top.slice(0, 20).map(x=>'<span class="na-chip ersatz">'+esc(x+(d.einheit ? ' '+d.einheit : ''))+(zw[x]>1 ? ' · '+zw[x]+'×' : '')+'</span>').join('')+(top.length>20 ? '<span class="na-dim">… und '+(top.length-20)+' weitere</span>' : '')+'</div>';
+  }
+
+  h += '<div class="na-h">Kategorien ('+z.kategorien.length+')</div>';
+  if(z.allgemein) h += '<div class="na-info">Gilt für <b>alle Kategorien</b>: steht in jeder Material-Maske unter „Seltene Angaben".</div>';
+  h += z.kategorien.map(k=>{ const nk = naMerkmalNutzung(mat, k.id);
+    return '<div class="na-eintrag" data-na="katMerkmal" data-k="'+esc(k.id)+'" data-mid="'+m+'"><span class="na-ico">'+(k.kern?'★':'▤')+'</span><div class="na-haupt"><div class="na-name">'+esc(k.label)+'</div>'
+      + '<div class="na-sub">'+(k.kern ? 'Kern-Merkmal: steht oben in der Maske und geht in den Namensvorschlag ein' : 'weiteres Merkmal')+'</div></div><div class="na-rechts">'+(nk.n ? (nk.zahl[mid]||0)+' von '+nk.n : '')+'</div></div>'; }).join('');
+  if(!z.kategorien.length && !z.allgemein) h += '<div class="na-dim" style="margin:4px">Noch keiner Kategorie zugeordnet: Das Merkmal erscheint in keiner Maske von selbst, lässt sich dort aber über „＋ Merkmal suchen oder anlegen" hinzufügen.</div>';
+  if(!d.archiviert) h += '<div class="na-zeile" style="margin:8px 0"><button class="na-knopf" data-na="mmKatDazu" data-mid="'+m+'">＋ Kategorie zuordnen</button></div>';
+
+  const mit = mat.filter(o=>{ const v = (o.merkmale||{})[mid]; return !(v==null || v==='' || v===false); });
+  h += '<div class="na-h">Ausgefüllt bei ('+mit.length+')</div>';
+  h += mit.length ? mit.slice(0, 12).map(o=>{ const v = o.merkmale[mid];
+      return '<div class="na-eintrag" data-na="geh" data-ziel="#/material/'+esc(o.id)+'"><span class="na-ico">📦</span><div class="na-haupt"><div class="na-name">'+esc(o.name||'(ohne Namen)')+'</div><div class="na-sub">'+esc(String(v===true?'ja':v)+(d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : ''))+'</div></div><span class="chev">›</span></div>'; }).join('')
+      + (mit.length>12 ? '<div class="na-dim" style="margin:4px">… und '+(mit.length-12)+' weitere.</div>' : '')
+    : '<div class="na-dim" style="margin:4px">Bei keinem Material.</div>';
+
+  if(!eigen){ const an = (d.anker||[]).filter(Boolean);
+    h += '<details class="na-ab" style="margin-top:14px"><summary><span>Etikett-Erkennung</span><span class="na-ab-n">fest</span></summary><div class="na-ab-in"><div class="na-dim">Daran erkennt die App das Merkmal im Text eines Etiketts. Diese Angaben sind mitgeliefert und hier nicht änderbar.</div>'
+      + '<div style="margin-top:6px">Stichwörter: '+(an.length ? esc(an.join(', ')) : '—')+'</div>'
+      + (Array.isArray(d.fenster) && d.fenster.length===2 ? '<div>Plausibler Bereich: '+esc(String(d.fenster[0]).replace('.', ','))+' bis '+esc(String(d.fenster[1]).replace('.', ','))+(d.einheit ? ' '+esc(d.einheit) : '')+'</div>' : '')
+      + '<div>Eigene Schreibmuster: '+((d.muster||[]).length ? 'ja ('+d.muster.length+')' : 'nein')+'</div></div></details>'; }
+
+  const zurueck = z.geaendert.filter(x=>x!=='Kategorien');
+  h += '<div class="na-zeile" style="margin:14px 0;flex-wrap:wrap">'
+    + (!eigen && zurueck.length ? '<button class="na-knopf" data-na="mmVorgabe" data-mid="'+m+'">↺ Vorgabe zurückholen</button>' : '')
+    + '<button class="na-knopf" data-na="mmArchiv" data-mid="'+m+'">'+(d.archiviert ? '↩ Zurückholen' : '🗄 Archivieren')+'</button>'
+    + (eigen && !z.zahl ? '<button class="na-knopf weg" data-na="mmLoeschen" data-mid="'+m+'">Löschen</button>' : '')+'</div>';
+  h += '<div class="na-dim">Kennung: <span class="na-mono">'+m+'</span></div>';
+  return { titel:d.label, pfad:'Merkmal · '+naMerkmalArtKurz(z), zurueck:'#/liste/merkmale', html:h };
+}
+function naMerkmalAendern(mid, feld, wert, was){ naKatTplSpeichern(naTplMerkmalSetzen(naKatTpl(), NA_MERKQUELLE, mid, feld, wert), was); }
+naAkt('mmName', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  const n = await naEingabe('Name des Merkmals', { wert:def.label, hilfe: def.vorgabeLabel ? 'Vorgabe: „'+def.vorgabeLabel+'". Leer lassen holt sie zurück.' : 'So heißt das Feld in jeder Maske. Eingetragene Werte bleiben, wie sie sind.' });
+  if(n==null || n===def.label || (!n && !def.vorgabeLabel)) return;
+  const doppelt = n && naKat().merkmale.find(x=>x.id!==d.mid && !x.archiviert && naNorm(x.label)===naNorm(n));
+  if(doppelt && !(await naFrage('„'+doppelt.label+'" gibt es schon. Trotzdem so nennen?', { ja:'So nennen', mehr:'Zwei Merkmale mit demselben Namen lassen sich in der Suche nicht unterscheiden.' }))) return;
+  naMerkmalAendern(d.mid, 'label', n, 'Merkmal „'+def.label+'" heißt jetzt „'+(n || def.vorgabeLabel)+'"'); toast(n ? 'Umbenannt' : 'Name der Vorgabe zurückgeholt'); naZeigen(); });
+naAkt('mmHinweis', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  const t = await naEingabe('Hinweis unter dem Feld: '+def.label, { wert:def.hinweis||'', platzhalter:'z. B. laut Aufbereitungsanweisung des Herstellers', hilfe:'Ein kurzer Satz, der in der Maske unter dem Feld steht. Leer = kein Hinweis.' });
+  if(t==null || t===(def.hinweis||'')) return;
+  naMerkmalAendern(d.mid, 'hinweis', t, 'Hinweis von „'+def.label+'" geändert'); toast(t ? 'Hinweis gespeichert' : 'Hinweis entfernt'); naZeigen(); });
+naAkt('mmEinheit', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen) return;
+  const t = await naEingabe('Einheit: '+def.label, { wert:def.einheit||'', platzhalter:'z. B. cm, mm, F, ml, Stück', hilfe:'Steht hinter dem Namen des Felds und hinter dem Wert. Leer = keine Einheit.' });
+  if(t==null || t===(def.einheit||'')) return;
+  naMerkmalAendern(d.mid, 'einheit', t, 'Einheit von „'+def.label+'": '+(t||'keine')); toast('Einheit gespeichert'); naZeigen(); });
+naAkt('mmArt', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen) return;
+  const n = (naMerkmalNutzungAlle(naAlle('material')).zahl[d.mid]) || 0;
+  const art = (id, ico, name, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+(def.typ===id ? '●' : ico)+'</span><span>'+name+'<span class="sa-sub">'+sub+'</span></span></button>';
+  const w = await naSheetAuf('<div class="sheet-title">Art des Merkmals</div><div class="sheet-name">'+esc(def.label)+'</div>'
+    + art('text', '✎', 'Text', 'frei getippt') + art('zahl', '#', 'Zahl', 'mit oder ohne Einheit') + art('liste', '☰', 'Auswahl', 'feste Werte zum Antippen') + art('ja_nein', '☑', 'Ja / Nein', 'ein Häkchen')
+    + (n ? '<div class="na-dim">Bei '+n+' Material'+(n===1?'':'ien')+' ausgefüllt — die eingetragenen Werte bleiben, wie sie sind.</div>' : ''));
+  if(!w || w===def.typ) return;
+  naMerkmalAendern(d.mid, 'typ', w, 'Art von „'+def.label+'": '+NA_MERKMAL_KURZ[w]); toast('Art geändert'); naZeigen(); });
+naAkt('mmSuch', async d=>{ await naMerkmalSuchAendern(d.mid); naZeigen(); });
+naAkt('mmWertNeu', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  const w = await naEingabe('Neuer Wert: '+def.label, { hilfe:'Erscheint in der Maske zur Auswahl.' }); if(!w) return;
+  if((def.werte||[]).some(x=>naNorm(x)===naNorm(w))){ toast('Diesen Wert gibt es schon.', true); return; }
+  naKatTplSpeichern(naTplWert(naKatTpl(), NA_MERKQUELLE, d.mid, 'dazu', w), 'Wert „'+w+'" bei „'+def.label+'" angelegt'); naZeigen(); });
+naAkt('mmWert', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return; const alt = d.w;
+  const betroffen = naAlle('material', true).filter(o=>(o.merkmale||{})[d.mid]===alt); const n = betroffen.length;
+  const bei = n ? 'bei '+n+' Material'+(n===1?'':'ien')+' eingetragen' : 'bei keinem Material eingetragen';
+  const w = await naSheetAuf('<div class="sheet-title">Wert von „'+esc(def.label)+'"</div><div class="sheet-name">'+esc(alt)+'</div>'
+    + (d.aus ? '<button class="sheet-act" data-na="sheetWert" data-wert="zurueck"><span class="sa-ico">↩</span><span>Wieder anbieten<span class="sa-sub">'+bei+'</span></span></button>'
+      : '<button class="sheet-act" data-na="sheetWert" data-wert="um"><span class="sa-ico">✎</span><span>Umbenennen<span class="sa-sub">'+(n ? 'ändert den Wert auch dort, wo er eingetragen ist ('+n+'×)' : bei)+'</span></span></button>'
+      + '<button class="sheet-act danger" data-na="sheetWert" data-wert="weg"><span class="sa-ico">✕</span><span>Nicht mehr anbieten<span class="sa-sub">'+(n ? bei+' — dort bleibt er stehen' : bei)+'</span></span></button>'));
+  if(!w) return;
+  if(w==='um'){
+    const neu = await naEingabe('Wert umbenennen', { wert:alt }); if(!neu || neu===alt) return;
+    naKatTplSpeichern(naTplWert(naKatTpl(), NA_MERKQUELLE, d.mid, 'um', alt, neu), 'Wert „'+alt+'" → „'+neu+'" bei „'+def.label+'"');
+    betroffen.forEach(o=>{ const c = JSON.parse(JSON.stringify(o)); c.merkmale[d.mid] = neu; naSpeichern('material', c, def.label+': „'+alt+'" → „'+neu+'"'); });
+    toast('Umbenannt'+(n ? ' — '+n+' Material'+(n===1?'':'ien')+' angepasst' : ''));
+  } else {
+    naKatTplSpeichern(naTplWert(naKatTpl(), NA_MERKQUELLE, d.mid, w, alt), 'Wert „'+alt+'" bei „'+def.label+'" '+(w==='weg' ? 'wird nicht mehr angeboten' : 'wird wieder angeboten'));
+  }
+  naZeigen(); });
+naAkt('mmKatDazu', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return; const kat = naKat();
+  const frei = kat.klassen.filter(k=>k.id!=='allgemein' && !k.archiviert && (def.klassen||[]).indexOf(k.id)<0);
+  const kid = await naAuswahl({ titel:'„'+def.label+'" zuordnen zu …', items: frei.map(k=>({ id:k.id, name:k.label, sub:naKatMerkmaleSub(k.id) })) });
+  if(!kid || typeof kid!=='string') return; const k = kat.klassen.find(x=>x.id===kid); if(!k) return;
+  const n = naAlle('material').filter(o=>o.kategorie===kid).length;
+  const stufe = await naSheetAuf('<div class="sheet-title">„'+esc(def.label)+'" in „'+esc(k.label)+'"</div>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="weiter"><span class="sa-ico">▤</span><span>Weiteres Merkmal<span class="sa-sub">erscheint künftig in jeder Maske dieser Kategorie'+(n ? ' ('+n+' Material'+(n===1?'':'ien')+')' : '')+' — darf leer bleiben</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="kern"><span class="sa-ico">★</span><span>Kern-Merkmal<span class="sa-sub">steht oben in der Maske und geht in den Namensvorschlag ein</span></span></button>');
+  if(!stufe) return;
+  naMerkmalKategorieSetzen(kid, d.mid, stufe); toast('„'+def.label+'" gilt jetzt für alle „'+k.label+'"'+(stufe==='kern' ? ' (Kern ★)' : '')+'.'); naZeigen(); });
+naAkt('mmVorgabe', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  const was = naMerkmalGeaendert(naKatTpl(), d.mid);
+  if(!(await naFrage('Vorgabe von „'+(def.vorgabeLabel || def.label)+'" zurückholen?', { ja:'Zurückholen', mehr:'Verworfen wird, was das Haus selbst festgelegt hat: '+esc(was.join(', '))+'. Die Zuordnung zu Kategorien und alle eingetragenen Werte bleiben.' }))) return;
+  naKatTplSpeichern(naTplMerkmalZurueck(naKatTpl(), d.mid), 'Merkmal „'+def.label+'": Vorgabe zurückgeholt'); toast('Vorgabe zurückgeholt'); naZeigen(); });
+naAkt('mmArchiv', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  if(!def.archiviert){ const n = (naMerkmalNutzungAlle(naAlle('material')).zahl[d.mid]) || 0;
+    if(!(await naFrage('„'+def.label+'" archivieren?', { ja:'Archivieren', mehr:'Das Merkmal wird nicht mehr angeboten — weder in der Suche noch in einer Maske.'+(n ? ' Bei '+n+' Material'+(n===1?'':'ien')+' bleibt der eingetragene Wert sichtbar.' : '')+' Zurückholen: in der Merkmal-Liste unter „archiviert".' }))) return; }
+  naMerkmalAendern(d.mid, 'archiviert', !def.archiviert, 'Merkmal „'+def.label+'" '+(def.archiviert ? 'zurückgeholt' : 'archiviert')); toast(def.archiviert ? 'Zurückgeholt' : 'Archiviert'); naZeigen(); });
+naAkt('mmLoeschen', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen) return;
+  if(naMerkmalNutzungAlle(naAlle('material', true)).zahl[d.mid]){ toast('Das Merkmal ist bei einem Material ausgefüllt — archivieren statt löschen.', true); return; }
+  if(!(await naFrage('„'+def.label+'" löschen?', { ja:'Löschen', mehr:'Das eigene Merkmal verschwindet samt seiner Zuordnung zu Kategorien. Es ist bei keinem Material ausgefüllt.' }))) return;
+  naKatTplSpeichern(naTplMerkmalLoeschen(naKatTpl(), d.mid), 'Merkmal „'+def.label+'" gelöscht'); toast('Gelöscht'); naGeh('#/liste/merkmale'); });
 
 /* ── Suchwörter einer Kategorie (Grundsatz A7) ──
    An ihnen erkennt die Maske die Kategorie im Namen eines Materials („Hahn" →

@@ -329,6 +329,97 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   r.check('„EPU-Kabel" beginnt mit den Merkmalen von „Kabel" (eine Kopie)', await warte(p, () => { const k = naKat().klassen.find(x => x.label === 'EPU-Kabel'); if (!k) return false;
     const a = naFelder(naKat(), k.id), b = naFelder(naKat(), 'kabel'); return a.diff.length === b.diff.length && a.weitere.length === b.weitere.length && /\/liste\/kategorien\//.test(location.hash); }));
 
+  /* ── 12f. Merkmale im Listen-Verzeichnis: alle sehen, suchen, ändern (13.11.2026) ── */
+  const eingabe = async t => { await p.fill('#naEingabeFeld', t); await p.click('#naSheet.show [data-na="eingabeOk"]'); };
+  const merkmal = id => p.evaluate(i => { const d = naKat().merkmale.find(x => x.id === i); return d ? JSON.parse(JSON.stringify(d)) : null; }, id);
+  const seite = async id => { await p.evaluate(i => naGeh('#/liste/merkmale/' + encodeURIComponent(i)), id); await p.waitForTimeout(150); };
+  await p.evaluate(() => naGeh('#/listen'));
+  r.check('Listen-Verzeichnis: Zeile „Merkmale (Material)" mit Anzahl, gleich unter den Kategorien', await warte(p, () => { const z = Array.from(document.querySelectorAll('#naMain .na-eintrag')); const i = z.findIndex(x => /Material-Kategorien/.test(x.textContent));
+    return i >= 0 && z[i + 1] && /Merkmale \(Material\)/.test(z[i + 1].textContent) && /\d{2,3} Merkmale/.test(z[i + 1].textContent); }));
+  await p.click('[data-ziel="#/liste/merkmale"]');
+  const anzahl = await p.evaluate(() => naKat().merkmale.filter(d => !d.archiviert).length);
+  r.check('Liste zeigt alle Merkmale (' + anzahl + ') mit Art und Kategorien', anzahl >= 100 && (await p.locator('#naMlListe .na-eintrag').count()) === anzahl
+    && /Maß \(F\)[\s\S]*★ Diagnostikkatheter/.test(await p.textContent('#naMlListe .na-eintrag[data-ziel="#/liste/merkmale/ad_fr"]')));
+  await p.fill('#naMlQ', 'resteril');
+  r.check('Suche findet über Suchwörter („resteril" → Zulässige Wiederverwendungen)', await warte(p, () => { const n = Array.from(document.querySelectorAll('#naMlListe .na-name')).map(x => x.textContent);
+    return n.length > 0 && n.length < 10 && n.some(t => /Zulässige Wiederverwendungen/.test(t)); }));
+  await p.fill('#naMlQ', 'kurven'); await p.click('#naMlListe .na-eintrag[data-ziel="#/liste/merkmale/kurve_groesse"]');
+  r.check('Seite des Merkmals: Angaben, Auswahlwerte, Kategorien, Etikett-Erkennung', await warte(p, () => { const t = document.getElementById('naMain').textContent;
+    return /Mitgeliefertes Merkmal/.test(t) && /Auswahlwerte \(6\)/.test(t) && /Kategorien \(2\)/.test(t) && /Etikett-Erkennung/.test(t) && /fest — die Etikett-Erkennung/.test(t); }));
+  await foto(p, '13-merkmal');
+  /* Name ändern → wirkt in der Maske; unter dem alten Namen weiter zu finden; Vorgabe zurückholen */
+  await p.click('[data-na="mmName"]'); await eingabe('Krümmung');
+  r.check('umbenannt: Katalog trägt den neuen Namen, die Vorgabe bleibt bekannt', await warte(p, () => { const d = naKat().merkmale.find(x => x.id === 'kurve_groesse'); return d.label === 'Krümmung' && d.vorgabeLabel === 'Kurvengröße' && /Vorgabe: Kurvengröße/.test(document.getElementById('naMain').textContent); }));
+  await p.click('[data-na="mmHinweis"]'); await eingabe('wie auf dem Etikett');
+  await p.click('[data-na="mmWertNeu"]'); await eingabe('XXL');
+  await p.click('[data-na="mmWert"][data-w="SMALL"]'); await p.click('#naSheet.show [data-wert="weg"]');
+  r.check('Hinweis, neuer Wert, ausgeblendeter Wert der Vorgabe', await warte(p, () => { const d = naKat().merkmale.find(x => x.id === 'kurve_groesse');
+    return d.hinweis === 'wie auf dem Etikett' && d.werte.indexOf('XXL') >= 0 && d.werte.indexOf('SMALL') < 0 && /wird nicht mehr angeboten/.test(document.getElementById('naMain').textContent); }));
+  /* Kategorie zuordnen — von der Seite des Merkmals aus */
+  await p.click('[data-na="mmKatDazu"]'); await p.fill('#naAuswQ', 'Kabel'); await p.click('#naAuswListe .sheet-act:has-text("Kabel / Verbindung")');
+  await p.click('#naSheet.show [data-wert="weiter"]');
+  r.check('Kategorie zugeordnet: „Kabel" führt das Merkmal jetzt', await warte(p, () => naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'kurve_groesse') && /Kategorien \(3\)/.test(document.getElementById('naMain').textContent)));
+  /* … und in der Maske eines Kabels: neuer Name, Hinweis, Werte */
+  const probeKabel = await p.evaluate(() => naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Probe-Kabel', kategorie: 'kabel', merkmale: { kurve_groesse: 'LARGE' } })).id);
+  await p.evaluate(i => naGeh('#/material/' + i), probeKabel);
+  await warte(p, () => !!NA_ENTWURF && NA_ENTWURF.obj.name === 'Probe-Kabel');
+  await p.evaluate(() => { NA_ENTWURF.offen.kat = true; NA_ENTWURF.offen.weit = true; naFormNeu(); });
+  r.check('Maske: Feld heißt „Krümmung", zeigt den Hinweis', await warte(p, () => { const b = document.querySelector('[data-na="merkWahl"][data-mid="kurve_groesse"]'); const f = b && b.closest('.na-feld');
+    return !!f && /Krümmung/.test(f.textContent) && /wie auf dem Etikett/.test(f.textContent) && !/Kurvengröße/.test(f.textContent); }));
+  await p.click('[data-na="merkWahl"][data-mid="kurve_groesse"]');
+  const angeboten = await p.$$eval('#naAuswListe .sheet-act', l => l.map(b => b.textContent.trim()));
+  r.check('Maske: Auswahl bietet XXL an, SMALL nicht mehr', angeboten.some(t => /XXL/.test(t)) && !angeboten.some(t => /^.?\s*SMALL/.test(t)) && angeboten.some(t => /MEDIUM/.test(t)));
+  await p.click('#naSheet.show [data-na="sheetZu"]').catch(() => {}); await p.keyboard.press('Escape').catch(() => {});
+  await p.evaluate(() => { if (document.getElementById('naSheet').classList.contains('show')) naSheetZu(null); });
+  await p.click('[data-na="entwAbbrechen"]'); if (await p.isVisible('#naSheet.show button:has-text("Verwerfen")')) await p.click('#naSheet.show button:has-text("Verwerfen")');
+  /* Wert umbenennen: ändert auch das Material, bei dem er eingetragen ist */
+  await seite('kurve_groesse');
+  await p.click('[data-na="mmWert"][data-w="LARGE"]');
+  r.check('Blatt des Werts sagt, bei wie vielen Materialien er steht', /1×/.test(await p.textContent('#naSheet.show')));
+  await p.click('#naSheet.show [data-wert="um"]'); await eingabe('GROSS');
+  r.check('Wert umbenannt — auch beim Material', await warte(p, i => naHole('material', i).merkmale.kurve_groesse === 'GROSS' && naKat().merkmale.find(x => x.id === 'kurve_groesse').werte.indexOf('GROSS') >= 0
+    && naKat().merkmale.find(x => x.id === 'kurve_groesse').werte.indexOf('LARGE') < 0, probeKabel));
+  /* Archivieren: weg aus Maske und Suche, der Wert am Material bleibt sichtbar; zurückholen */
+  await p.click('[data-na="mmArchiv"]'); await p.click('#naSheet.show button:has-text("Archivieren")');
+  r.check('archiviert: nicht mehr in der Kategorie, nicht mehr in der Merkmal-Suche — der Wert am Material bleibt', await warte(p, i => { const kat = naKat(); const f = naFelder(kat, 'kabel');
+    return !f.diff.concat(f.weitere).some(d => d.id === 'kurve_groesse') && !naMerkmalItems(kat, 'kabel').some(x => x.id === 'kurve_groesse')
+      && naFelderMaterial(kat, naHole('material', i)).einzel.some(d => d.id === 'kurve_groesse') && /Archiviert\./.test(document.getElementById('naMain').textContent); }, probeKabel));
+  await p.evaluate(() => naGeh('#/liste/merkmale')); await p.fill('#naMlQ', '');
+  r.check('Liste: Filter „archiviert (1)" erscheint', await warte(p, () => /archiviert \(1\)/.test(document.querySelector('#naMain .na-chips').textContent) && /geändert \(\d+\)/.test(document.querySelector('#naMain .na-chips').textContent)));
+  await p.click('[data-na="mlFilter"][data-f="archiv"]'); await p.click('#naMlListe .na-eintrag:has-text("Krümmung")');
+  await p.click('[data-na="mmArchiv"]');
+  r.check('zurückgeholt: wieder in der Kategorie', await warte(p, () => naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'kurve_groesse')));
+  /* Vorgabe zurückholen: Name, Hinweis, Werte wie geliefert — die Kategorie bleibt */
+  await p.click('[data-na="mmVorgabe"]');
+  r.check('Rückfrage nennt, was verworfen wird', /Name, Hinweis, Werte/.test(await p.textContent('#naSheet.show')));
+  await p.click('#naSheet.show button:has-text("Zurückholen")');
+  const zurueck = await merkmal('kurve_groesse');
+  r.check('Vorgabe zurück: Name, Hinweis, Werte wie geliefert — die Zuordnung zu „Kabel" bleibt', zurueck.label === 'Kurvengröße' && !zurueck.hinweis && zurueck.werte.indexOf('SMALL') >= 0 && zurueck.werte.indexOf('XXL') < 0
+    && zurueck.klassen.indexOf('kabel') >= 0 && !(await p.isVisible('[data-na="mmVorgabe"]')));
+  /* Neues Merkmal aus der Liste: Auswahl; danach Art, Einheit, Löschen */
+  await p.evaluate(() => naGeh('#/liste/merkmale'));
+  await p.click('[data-na="mlNeu"]'); await eingabe('Steckerfarbe');
+  r.check('Doppelung: „Steckerfarbe" gibt es schon (aus Schritt 12d) — die App fragt nach, statt still doppelt anzulegen', await blattOffen(p, /Ähnlich: „Steckerfarbe"/));
+  await p.click('#naSheet.show [data-na="sheetZu"]');
+  await p.click('[data-na="mlNeu"]'); await eingabe('Zugentlastung');
+  r.check('Neues Merkmal: vier Arten zur Wahl, darunter „Auswahl"', (await blattOffen(p, /Neues Merkmal/)) && (await p.locator('#naSheet.show .sheet-act').count()) === 4);
+  await p.click('#naSheet.show [data-wert="liste"]');
+  r.check('angelegt und gleich auf seiner Seite: eigenes Merkmal, noch ohne Kategorie', await warte(p, () => /^#\/liste\/merkmale\/m_/.test(location.hash) && /Eigenes Merkmal des Hauses/.test(document.getElementById('naMain').textContent)
+    && /Noch keiner Kategorie zugeordnet/.test(document.getElementById('naMain').textContent) && !!document.querySelector('[data-na="mmLoeschen"]')));
+  const eigenId = await p.evaluate(() => decodeURIComponent(location.hash.split('/').pop()));
+  await p.click('[data-na="mmArt"]'); await p.click('#naSheet.show [data-wert="zahl"]');
+  await warte(p, () => !!document.querySelector('[data-na="mmEinheit"]'));
+  await p.click('[data-na="mmEinheit"]'); await eingabe('cm');
+  r.check('eigenes Merkmal: Art und Einheit änderbar', await warte(p, i => { const d = naKat().merkmale.find(x => x.id === i); return !!d && d.typ === 'zahl' && d.einheit === 'cm'; }, eigenId));
+  await p.click('[data-na="mmLoeschen"]'); await p.click('#naSheet.show button:has-text("Löschen")');
+  r.check('gelöscht (unbenutzt): weg aus dem Katalog, zurück in der Liste', await warte(p, i => !naKat().merkmale.some(x => x.id === i) && location.hash === '#/liste/merkmale', eigenId));
+  /* Querverweis aus der Kategorie */
+  await p.evaluate(() => naGeh('#/liste/kategorien/kabel'));
+  await p.click('#naMain .na-eintrag[data-na="katMerkmal"][data-mid="kurve_groesse"]'); await p.click('#naSheet.show .sheet-act:has-text("Merkmal ansehen und ändern")');
+  r.check('aus der Kategorie führt ein Tipp zur Seite des Merkmals', await warte(p, () => location.hash === '#/liste/merkmale/kurve_groesse' && !document.getElementById('naSheet').classList.contains('show')));
+  /* aufräumen: die Probe-Zuordnung und das Probe-Material wieder weg */
+  await p.evaluate(i => { naMerkmalKategorieSetzen('kabel', 'kurve_groesse', 'aus'); naLoeschen('material', i); }, probeKabel);
+
   /* ── 12e. Störung der EU-Schnittstelle (13.11.2026): Sie meldet für JEDES Produkt „nicht gefunden" ── */
   lage.stoerung = true;
   await p.evaluate(() => naGeh('#/material/neu'));

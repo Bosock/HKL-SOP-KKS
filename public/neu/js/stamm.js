@@ -329,8 +329,8 @@ function naGtinStand(g){
 function naMerkFeld(d, stern){
   const o = NA_ENTWURF.obj; const v = (o.merkmale||{})[d.id];
   const lab = (stern ? '★ ' : '')+d.label+(d.einheit && d.typ!=='ja_nein' && String(d.label).indexOf('('+d.einheit+')')<0 ? ' ('+d.einheit+')' : '');
-  if(d.typ==='ja_nein') return '<div class="na-feld"><label><input type="checkbox" data-na-wechsel="entwHaken" data-f="merkmale.'+esc(d.id)+'"'+(v===true||v==='ja'?' checked':'')+'> '+esc(lab)+'</label></div>';
-  if(d.typ==='liste') return naF(lab, '<button class="na-wahl" data-na="merkWahl" data-mid="'+esc(d.id)+'">'+(v ? esc(v) : '<span class="na-leer">wählen …</span>')+'</button>');
+  if(d.typ==='ja_nein') return '<div class="na-feld"><label><input type="checkbox" data-na-wechsel="entwHaken" data-f="merkmale.'+esc(d.id)+'"'+(v===true||v==='ja'?' checked':'')+'> '+esc(lab)+'</label>'+(d.hinweis ? '<div class="na-hilfe">'+esc(d.hinweis)+'</div>' : '')+'</div>';
+  if(d.typ==='liste') return naF(lab, '<button class="na-wahl" data-na="merkWahl" data-mid="'+esc(d.id)+'">'+(v ? esc(v) : '<span class="na-leer">wählen …</span>')+'</button>', d.hinweis ? esc(d.hinweis) : '');
   return naF(lab, naT('merkmale.'+d.id, { extra: (d.typ==='mass'||d.typ==='zahl') ? ' inputmode="decimal"' : '' }), d.hinweis ? esc(d.hinweis) : '');
 }
 function naKatVorschlagFuer(o){ return naKategorieVorschlag(naKat(), { name:o.name, handelsname:o.handelsname, bezeichnung:o.register && o.register.bezeichnung, einordnung:o.register && o.register.einordnung }); }
@@ -534,7 +534,7 @@ naAkt('katAendern', async ()=>{ const E = NA_ENTWURF; if(E && E.typ==='material'
    Kategorie welche Merkmale braucht: durch eine Entscheidung, nie still. */
 function naMerkmalItems(kat, klasseId, ohneIds){
   const kl = {}; kat.klassen.forEach(k=>{ kl[k.id] = k.label; });
-  return (kat.merkmale||[]).filter(d=>(ohneIds||[]).indexOf(d.id)<0).map(d=>{ const ks = (d.klassen||[]);
+  return (kat.merkmale||[]).filter(d=>!d.archiviert && (ohneIds||[]).indexOf(d.id)<0).map(d=>{ const ks = (d.klassen||[]);
     const andere = ks.filter(x=>x!=='allgemein' && x!==klasseId).map(x=>kl[x]||x);
     const wo = ks.indexOf(klasseId)>=0 && klasseId ? 'gehört zu dieser Kategorie' : (ks.indexOf('allgemein')>=0 ? 'für alle Kategorien' : (andere.length ? 'bei: '+andere.slice(0,3).join(', ')+(andere.length>3 ? ' …' : '') : 'noch keiner Kategorie zugeordnet'));
     return { id:d.id, name:d.label+(d.einheit && d.typ!=='ja_nein' && String(d.label).indexOf('('+d.einheit+')')<0 ? ' ('+d.einheit+')' : ''), sub:wo, such:naMerkmalSuchtext(d) }; })
@@ -545,7 +545,8 @@ async function naMerkmalAnlegen(label){
   label = String(label||'').trim(); if(!label) return null;
   const typ = await naSheetAuf('<div class="sheet-title">Neues Merkmal</div><div class="sheet-name">'+esc(label)+'</div>'
     + '<button class="sheet-act" data-na="sheetWert" data-wert="text"><span class="sa-ico">✎</span><span>Text<span class="sa-sub">z. B. Kurvenform, Farbe</span></span></button>'
-    + '<button class="sheet-act" data-na="sheetWert" data-wert="zahl"><span class="sa-ico">#</span><span>Zahl<span class="sa-sub">z. B. Anzahl, Zyklen — die Einheit gehört in den Namen: „Länge (cm)"</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="zahl"><span class="sa-ico">#</span><span>Zahl<span class="sa-sub">z. B. Anzahl, Zyklen, Länge — die Einheit lässt sich danach im Listen-Verzeichnis unter „Merkmale" eintragen</span></span></button>'
+    + '<button class="sheet-act" data-na="sheetWert" data-wert="liste"><span class="sa-ico">☰</span><span>Auswahl<span class="sa-sub">feste Werte zum Antippen — neue Werte lassen sich beim Ausfüllen anlegen</span></span></button>'
     + '<button class="sheet-act" data-na="sheetWert" data-wert="ja_nein"><span class="sa-ico">☑</span><span>Ja / Nein<span class="sa-sub">ein Häkchen</span></span></button>'
     + '<button class="btn btn-sec" style="width:100%" data-na="sheetZu">Abbrechen</button>');
   if(!typ) return null;
@@ -565,7 +566,9 @@ function naMerkmalGiltFragen(d, k){
     + '<div class="na-dim">Lässt sich jederzeit ändern: Mehr → Listen-Verzeichnis → Material-Kategorien.</div>');
 }
 function naMerkmalZeigen(mid){
-  setTimeout(()=>{ const f = Array.from(document.querySelectorAll('#naMain [data-f], #naMain [data-mid]')).find(x=>x.getAttribute('data-f')==='merkmale.'+mid || (x.getAttribute('data-na')==='merkWahl' && x.getAttribute('data-mid')===mid));
+  /* Nie den Cursor hinter ein offenes Blatt setzen: Wer inzwischen ein
+     Auswahlfeld geöffnet hat, tippt sonst in das Feld darunter. */
+  setTimeout(()=>{ if(naSheetOffen()) return; const f = Array.from(document.querySelectorAll('#naMain [data-f], #naMain [data-mid]')).find(x=>x.getAttribute('data-f')==='merkmale.'+mid || (x.getAttribute('data-na')==='merkWahl' && x.getAttribute('data-mid')===mid));
     if(f){ try{ f.scrollIntoView({ block:'center' }); f.focus({ preventScroll:true }); }catch(e){} } }, 60);
 }
 function naMerkmalKategorieSetzen(klasseId, mid, stufe){
@@ -852,7 +855,8 @@ function naEtikettUebernehmen(E, erg){
   if(erg.text && typeof merkSammeln==='function'){
     const m = merkSammeln(erg.text, o.ref || f.ref || '', naKat(), o.kategorie);
     o.merkmale = o.merkmale || {};
-    (m.merkmale||[]).forEach(x=>{
+    const archiv = {}; naKat().merkmale.forEach(d=>{ if(d.archiviert) archiv[d.id] = 1; });   /* archiviert = wird auch nicht mehr vom Etikett gefüllt */
+    (m.merkmale||[]).filter(x=>!archiv[x.id]).forEach(x=>{
       if(x.id==='stueck_packung'){ if(!o.packung && x.wert!=null && x.wert!==''){ o.packung = String(x.wert); neu.push('Packungsgröße'); } return; }
       if(o.merkmale[x.id]==null || o.merkmale[x.id]===''){ o.merkmale[x.id] = x.wert; neu.push(x.kurz||x.label||x.id); } });
   }

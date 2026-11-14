@@ -149,6 +149,52 @@ Menü: alles in der Maske und im Listen-Verzeichnis.
 - Gespeichert wird alles im Overlay `na_l_kategorien.tpl` (klassen.dazu/aus/
   diff/stumm/wie, merkmale, such); `data/merkmale.json` bleibt unverändert.
 
+**Alle Merkmale an einer Stelle** (seit 13.11.2026). Mehr → Listen-Verzeichnis
+→ **„Merkmale (Material)"**, gleich unter den Kategorien. Kein neues Menü: eine
+weitere Liste im Verzeichnis, mit denselben Bedienmustern.
+
+- **Liste.** Alle 100 mitgelieferten Merkmale und die eigenen des Hauses, nach
+  Namen sortiert. Je Zeile: Art (Maß mit Einheit · Zahl · Auswahl · Text ·
+  Ja/Nein), die Kategorien (★ = Kern) und „n× ausgefüllt". Die Suche geht über
+  Name, Suchwörter, Einheit und Kategorie. Filter: alle · ausgefüllt · ohne
+  Kategorie · eigene · geändert · archiviert (nur, was es gibt).
+- **Seite eines Merkmals.** Angaben (Name, Art, Einheit, Hinweis unter dem
+  Feld, Suchwörter), Auswahlwerte, Kategorien, „Ausgefüllt bei", darunter
+  zum Nachlesen die Etikett-Erkennung.
+- **Was sich ändern lässt:**
+
+  | Angabe | mitgeliefertes Merkmal | eigenes Merkmal |
+  |---|---|---|
+  | Name | ja — unter dem alten Namen bleibt es auffindbar | ja |
+  | Hinweis unter dem Feld | ja (auch leeren) | ja |
+  | Suchwörter | ja | ja |
+  | Auswahlwerte | anlegen, umbenennen, ausblenden, zurückholen | anlegen, umbenennen, entfernen |
+  | Kategorien (Kern ★ / weiteres / entfernen) | ja | ja |
+  | Art, Einheit | **nein** — die Etikett-Erkennung rechnet damit | ja |
+  | Archivieren / zurückholen | ja | ja |
+  | Löschen | nein | nur, solange es bei keinem Material ausgefüllt ist |
+
+- **Wert umbenennen** ändert den Wert auch bei den Materialien, bei denen er
+  eingetragen ist (das Blatt nennt die Zahl vorher).
+- **Archiviert** heißt: nicht mehr in der Suche, in keiner Maske, kein
+  Vorschlag, wird vom Etikett nicht mehr gefüllt. Ein eingetragener Wert bleibt
+  beim Material sichtbar („Nur bei diesem Material").
+- **„↺ Vorgabe zurückholen"** verwirft je Merkmal, was das Haus selbst
+  festgelegt hat (Name, Hinweis, Werte, Suchwörter). Die Zuordnung zu
+  Kategorien und alle eingetragenen Werte bleiben.
+- **„＋ Neues Merkmal"** fragt bei ähnlichem Namen nach, dann die Art (Text ·
+  Zahl · Auswahl · Ja/Nein) — dieselbe Frage wie in der Maske.
+- Querverweise: Im Blatt „Merkmal in Kategorie" führt ein Tipp zur Seite des
+  Merkmals und umgekehrt zur Kategorie.
+- Gespeichert wird weiter nur die Abweichung des Hauses, im selben Overlay:
+  `tpl.merkmale[<Kennung>]` trägt bei einer mitgelieferten Kennung
+  `{label?, hinweis?, archiviert?}`, bei einer eigenen das ganze Merkmal;
+  neu ist `tpl.werteAus` (ausgeblendete Werte der Vorgabe).
+- **Grenze:** Mehrfachwerte, Umrechnungen und die Schreibmuster der
+  Etikett-Erkennung sind mitgeliefert und hier nur zu lesen. Die Einteilung der
+  Merkmale in feste Gruppen ist noch nicht entschieden und deshalb nicht
+  gebaut.
+
 **Registerdaten (Grundsatz A5).** Was aus EUDAMED oder GUDID kommt, trägt in
 der Maske Quelle, Abrufzeit und den Status „noch nicht bestätigt". Bestätigt
 ist es erst, wenn ein Mensch den Stammsatz speichert. Der Mensch schlägt das
@@ -314,7 +360,7 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
 | `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage}]}]}] |
 | `na_b_<id>` | Baustein: name, positionen[] |
-| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
+| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
 | `na_ml_<id>` | Meldung: ref, was, notiz, stufe, schritte[] |
 | `na_pk_<id>` | Papierkorb: typ, daten, geloescht, von |
 | `na_vl_<JJJJ-MM>_<gerät>` | Verlauf (je Monat und Gerät, höchstens 500 Einträge) |
@@ -345,7 +391,7 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1141 Tests grün, davon 28 in `test/neue-app.test.js` (Logik,
+- `npm test`: 1146 Tests grün, davon 33 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
@@ -361,7 +407,7 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-maske.js` prüft 83 Punkte an der Material-Maske: Scan
+- `node e2e/neue-app-maske.js` prüft 105 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,
