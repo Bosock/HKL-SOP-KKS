@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 11.11.2026 · Cache-Version `v84` · Code: `public/neu/`
+**Stand:** 13.11.2026 · Cache-Version `v85` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -149,6 +149,52 @@ Menü: alles in der Maske und im Listen-Verzeichnis.
 - Gespeichert wird alles im Overlay `na_l_kategorien.tpl` (klassen.dazu/aus/
   diff/stumm/wie, merkmale, such); `data/merkmale.json` bleibt unverändert.
 
+**Alle Merkmale an einer Stelle** (seit 13.11.2026). Mehr → Listen-Verzeichnis
+→ **„Merkmale (Material)"**, gleich unter den Kategorien. Kein neues Menü: eine
+weitere Liste im Verzeichnis, mit denselben Bedienmustern.
+
+- **Liste.** Alle 100 mitgelieferten Merkmale und die eigenen des Hauses, nach
+  Namen sortiert. Je Zeile: Art (Maß mit Einheit · Zahl · Auswahl · Text ·
+  Ja/Nein), die Kategorien (★ = Kern) und „n× ausgefüllt". Die Suche geht über
+  Name, Suchwörter, Einheit und Kategorie. Filter: alle · ausgefüllt · ohne
+  Kategorie · eigene · geändert · archiviert (nur, was es gibt).
+- **Seite eines Merkmals.** Angaben (Name, Art, Einheit, Hinweis unter dem
+  Feld, Suchwörter), Auswahlwerte, Kategorien, „Ausgefüllt bei", darunter
+  zum Nachlesen die Etikett-Erkennung.
+- **Was sich ändern lässt:**
+
+  | Angabe | mitgeliefertes Merkmal | eigenes Merkmal |
+  |---|---|---|
+  | Name | ja — unter dem alten Namen bleibt es auffindbar | ja |
+  | Hinweis unter dem Feld | ja (auch leeren) | ja |
+  | Suchwörter | ja | ja |
+  | Auswahlwerte | anlegen, umbenennen, ausblenden, zurückholen | anlegen, umbenennen, entfernen |
+  | Kategorien (Kern ★ / weiteres / entfernen) | ja | ja |
+  | Art, Einheit | **nein** — die Etikett-Erkennung rechnet damit | ja |
+  | Archivieren / zurückholen | ja | ja |
+  | Löschen | nein | nur, solange es bei keinem Material ausgefüllt ist |
+
+- **Wert umbenennen** ändert den Wert auch bei den Materialien, bei denen er
+  eingetragen ist (das Blatt nennt die Zahl vorher).
+- **Archiviert** heißt: nicht mehr in der Suche, in keiner Maske, kein
+  Vorschlag, wird vom Etikett nicht mehr gefüllt. Ein eingetragener Wert bleibt
+  beim Material sichtbar („Nur bei diesem Material").
+- **„↺ Vorgabe zurückholen"** verwirft je Merkmal, was das Haus selbst
+  festgelegt hat (Name, Hinweis, Werte, Suchwörter). Die Zuordnung zu
+  Kategorien und alle eingetragenen Werte bleiben.
+- **„＋ Neues Merkmal"** fragt bei ähnlichem Namen nach, dann die Art (Text ·
+  Zahl · Auswahl · Ja/Nein) — dieselbe Frage wie in der Maske.
+- Querverweise: Im Blatt „Merkmal in Kategorie" führt ein Tipp zur Seite des
+  Merkmals und umgekehrt zur Kategorie.
+- Gespeichert wird weiter nur die Abweichung des Hauses, im selben Overlay:
+  `tpl.merkmale[<Kennung>]` trägt bei einer mitgelieferten Kennung
+  `{label?, hinweis?, archiviert?}`, bei einer eigenen das ganze Merkmal;
+  neu ist `tpl.werteAus` (ausgeblendete Werte der Vorgabe).
+- **Grenze:** Mehrfachwerte, Umrechnungen und die Schreibmuster der
+  Etikett-Erkennung sind mitgeliefert und hier nur zu lesen. Die Einteilung der
+  Merkmale in feste Gruppen ist noch nicht entschieden und deshalb nicht
+  gebaut.
+
 **Registerdaten (Grundsatz A5).** Was aus EUDAMED oder GUDID kommt, trägt in
 der Maske Quelle, Abrufzeit und den Status „noch nicht bestätigt". Bestätigt
 ist es erst, wenn ein Mensch den Stammsatz speichert. Der Mensch schlägt das
@@ -247,35 +293,62 @@ Wiederverwendet, **ohne Änderung**:
 
 - Reihenfolge: EUDAMED (offizielle Schnittstelle der EU-Kommission), dann
   AccessGUDID. Nur GET, nur Ziffern, feste Zieladressen.
-- Zwischenspeicher in `STATE_DIR/register-cache.json`: Treffer 30 Tage,
-  „nicht gefunden" 24 Stunden, ein Ausfall gar nicht.
-- Drosselung: höchstens 15 Abfragen je Minute. EUDAMED begrenzt je
-  Absender-Adresse (Erfahrungswerte anderer Nutzer, Oktober 2026: etwa 20 je
-  Minute, darüber HTTP 429); offiziell dokumentiert ist keine Zahl. Bei 429
-  hält der Server die verlangte Wartezeit (`Retry-After`) ein.
-- Zeitlimit: EUDAMED 20 s (antwortet oft erst nach 2–9 s, gemessen 11.11.2026),
-  GUDID 8 s.
-- Antwortet ein Register nicht, wird es zwei Minuten übersprungen (sonst
-  wartete jeder Scan das Zeitlimit ab). Ein GUDID-Treffer während eines
-  EUDAMED-Ausfalls gilt nur einen Tag. „Steht in keinem Register" heißt
-  immer: beide haben geantwortet.
+- **Die EU-Schnittstelle ist nicht verlässlich.** Gemessen am 10., 11. und
+  13.11.2026, vier Störungen:
+
+  | Störung | Was die App tut |
+  |---|---|
+  | langsam (2–9 s) | Zeitlimit 20 s (GUDID 8 s), insgesamt höchstens 30 s |
+  | hängt (keine Antwort in 40 s) | Zeitlimit, dann Pause 2 min (wächst bis 5 min) |
+  | „429 — zu viele Abfragen" (Grenze laut Antwortkopf: 500 je Minute) | verlangte Wartezeit einhalten; die App fragt höchstens 15-mal je Minute nach |
+  | antwortet prompt „Data not found" — auch für Produkte, die sie führt (13.11.2026, über eine Stunde) | **Gegenprobe**, siehe unten |
+
+- **Gegenprobe:** Auf jedes „nicht gefunden" von EUDAMED fragt der Server
+  sofort nach einem Produkt, das EUDAMED nachweislich führt (zuerst eines, das
+  er selbst dort schon gefunden hat; sonst eines aus `REGISTER_PRUEF_GTIN`).
+  Kennt EUDAMED auch das nicht, ist es gestört — die Antwort zählt als
+  Ausfall, nicht als Fehlanzeige. Kosten: eine zusätzliche Anfrage.
+- **Drei Regeln, die daraus folgen:**
+  1. Ein Treffer geht nie verloren. „Nicht gefunden" ersetzt ihn nicht, und
+     nach Ablauf (30 Tage) wird er weiter ausgeliefert, wenn das Auffrischen
+     scheitert.
+  2. „Steht in keinem Register" wird nur gemerkt (24 Stunden), wenn beide
+     Register geantwortet haben und EUDAMED die Gegenprobe bestanden hat.
+     Ältere, ungesicherte Fehlanzeigen im Zwischenspeicher gelten nicht mehr —
+     falsche Einträge aus einer Störung heilen so von selbst.
+  3. **Der Server fragt von selbst nach.** Bleibt eine GTIN offen (Ausfall,
+     oder GUDID-Treffer während EUDAMED fehlt), versucht er es nach 2, 5, 15,
+     30, 60, 120, 240 Minuten und dann alle 6 Stunden, höchstens 20-mal.
+     Meldet sich das Register zurück, kommt alles Offene sofort dran. Eine
+     gesicherte Fehlanzeige wird nach einer Stunde einmal überprüft.
+- Zwischenspeicher in `STATE_DIR/register-cache.json`, auch das Offene steht
+  dort und übersteht einen Neustart.
+- **Zustand sehen:** Einstellungen → „EU-Register" zeigt je Register
+  „antwortet" oder „gestört seit … : Grund", die Zahl offener Abfragen und
+  den Knopf „↻ Jetzt prüfen" (fragt beide Register mit einem bekannten
+  Produkt). Dasselbe ohne App: `https://sops.kardio.wiki/api/register/zustand`
+  (mit `?pruefen=1` wird vorher geprüft, höchstens alle 20 s). Die Antwort
+  enthält Zeiten, Zähler und den Grund — keine GTIN.
 - Umgebung: `REGISTER=0` (aus), `REGISTER_TIMEOUT_MS` (20000),
-  `REGISTER_PAUSE_MS` (120000), `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
+  `REGISTER_PAUSE_MS` (120000), `REGISTER_NACHFASSEN=0` (kein selbsttätiges
+  Nachfragen), `REGISTER_NACHFASSEN_MIN` (Abstände), `REGISTER_PRUEF_GTIN`,
+  `REGISTER_EUDAMED_URL`, `REGISTER_GUDID_URL`.
 - **Nachholen:** Im Material-Verzeichnis (Verwaltung) steht „↻ Aus dem
   Register ergänzen (n)", solange Materialien eine gültige GTIN, aber noch
   keine Registerdaten haben. Ein Tipp schlägt alle nacheinander nach (höchstens
   15 je Minute), füllt nur leere Felder und lässt die Angaben „noch nicht
-  bestätigt".
+  bestätigt". Während einer Störung nennt der Tipp dem Server alle GTINs; er
+  holt sie von selbst, und der nächste Tipp findet sie fertig vor.
 - Der Server braucht dafür ausgehenden Zugriff auf
   `api.datalake.sante.service.ec.europa.eu` und `accessgudid.nlm.nih.gov`.
-  Ohne ihn arbeitet die Maske wie zuvor und sagt „nicht erreichbar".
-  Geprüft am 11.11.2026 auf sops.kardio.wiki: GUDID antwortet in 0,7 s, der
-  Zugang ist also offen; EUDAMED antwortete zu dieser Zeit niemandem.
-  **Selbst prüfen:** im Browser `https://sops.kardio.wiki/api/register?gtin=08714729841968`
-  öffnen — `"quelle":"GUDID"` heißt: der Server kommt hinaus. Für EUDAMED
-  dasselbe mit `?gtin=04022495787309` (`"quelle":"EUDAMED"`).
-  `REGISTER=0` in `~/hkl-sop-kks/.env` auf dem Server schaltet die Abfrage
-  ab (docker-compose.yml reicht den Wert durch).
+  Geprüft am 11. und 13.11.2026 auf sops.kardio.wiki: Der Zugang ist offen
+  (GUDID antwortet in unter einer Sekunde). `REGISTER=0` in
+  `~/hkl-sop-kks/.env` auf dem Server schaltet die Abfrage ab
+  (docker-compose.yml reicht den Wert durch).
+- **Was die App nicht kann:** Solange EUDAMED gestört ist, gibt es für
+  Produkte, die nur dort stehen, keine Registerdaten — auch nicht über einen
+  Umweg. Die öffentliche EUDAMED-Webseite weist automatische Abfragen ab und
+  verweist auf diese Schnittstelle (geprüft 10.11.2026).
 
 **Datenmodell** (geteilter Zustand des Raums Neuaufbau). Jedes Objekt ist ein
 eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
@@ -287,7 +360,7 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
 | `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage}]}]}] |
 | `na_b_<id>` | Baustein: name, positionen[] |
-| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
+| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
 | `na_ml_<id>` | Meldung: ref, was, notiz, stufe, schritte[] |
 | `na_pk_<id>` | Papierkorb: typ, daten, geloescht, von |
 | `na_vl_<JJJJ-MM>_<gerät>` | Verlauf (je Monat und Gerät, höchstens 500 Einträge) |
@@ -318,10 +391,11 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1126 Tests grün, davon 21 in `test/neue-app.test.js` (Logik,
+- `npm test`: 1146 Tests grün, davon 33 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
-  Umleitung nur im Neuaufbau) und 8 in `test/register.test.js`
-  (Register-Abfrage gegen eine Attrappe — der Test geht nie ins Internet).
+  Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
+  (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
+  der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
 - `npm run check`: grün, und die Prüfungen gelten jetzt auch für `public/neu`.
 - `node e2e/neue-app.js` prüft 59 Punkte. Dabei ist die Anmeldung getippt, und
   jede Aktion läuft über sichtbare Schaltflächen. Abgedeckt sind:
@@ -333,7 +407,7 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-maske.js` prüft 60 Punkte an der Material-Maske: Scan
+- `node e2e/neue-app-maske.js` prüft 105 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,
