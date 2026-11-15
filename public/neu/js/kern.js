@@ -184,8 +184,11 @@ function naRuestliste(std, stamm, bereiche){
 /* ── Kategorien & Felder (Material): mitgelieferter Merkmalskatalog
    (data/merkmale.json) + Overlay des Hauses. Overlay:
      { klassen:{ <id>:{ label?, neu?, dazu?, aus?, diff?, stumm? } },
-       merkmale:{ <mid>:{ label, typ, einheit?, werte?, anker? } },
+       merkmale:{ <mid>:{ label, typ, einheit?, werte?, anker?, hinweis?, archiviert? } },
+                 ↑ eigenes Merkmal — ODER, bei einer mitgelieferten Kennung, nur
+                   die Abweichung des Hauses: { label?, hinweis?, archiviert? }
        werte:{ <mid>:[zusätzliche Werte] },   ← D2: Werte an Ort und Stelle
+       werteAus:{ <mid>:[ausgeblendete Werte der Vorgabe] },
        such:{ <mid>:[Suchwörter] } }          ← andere Wörter für ein Merkmal
    Die Quelle wird nie verändert. Rein. */
 function naMerkmalMuster(d){
@@ -198,7 +201,7 @@ function naMerkmalMuster(d){
 }
 function naKatalog(quelle, tpl){
   if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[] };
-  const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{}, ss=t.such||{};
+  const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{}, ss=t.such||{}, wa=t.werteAus||{};
   const klassen=(quelle.klassen||[]).map(k=>{ const v=kl[k.id]; if(!v) return k; const n=Object.assign({},k);
     if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
     /* zusätzliche Suchwörter und Register-Einordnung für eine vorhandene Kategorie */
@@ -218,14 +221,24 @@ function naKatalog(quelle, tpl){
       if(Array.isArray(v.aus)&&v.aus.indexOf(mid)>=0) delete s[id]; });
     return Object.keys(s); };
   const merkmale=quelle.merkmale.map(d=>{ const ks=inKlasse(d.id,d.klassen); const extra=ww[d.id]||[]; const su=Array.isArray(ss[d.id])?ss[d.id]:[];
-    if(ks.join('|')===(d.klassen||[]).join('|') && !extra.length && !su.length) return d;
-    const n=Object.assign({},d,{ klassen:ks }); if(extra.length) n.werte=(d.werte||[]).concat(extra.filter(x=>(d.werte||[]).indexOf(x)<0));
+    const aus=Array.isArray(wa[d.id])?wa[d.id]:[]; const v=mm[d.id]||null;
+    const abw=!!(v && ((v.label && v.label!==d.label) || typeof v.hinweis==='string' || v.archiviert));
+    if(ks.join('|')===(d.klassen||[]).join('|') && !extra.length && !su.length && !aus.length && !abw) return d;
+    const n=Object.assign({},d,{ klassen:ks });
+    if(extra.length || aus.length) n.werte=(d.werte||[]).filter(x=>aus.indexOf(x)<0).concat(extra.filter(x=>(d.werte||[]).indexOf(x)<0));
     /* Suchwörter: andere Wörter, unter denen man das Merkmal sucht („Resterilisation" → Zulässige Wiederverwendungen) */
-    if(su.length) n.such=(d.such||[]).concat(su.filter(x=>(d.such||[]).indexOf(x)<0)); return n; });
+    if(su.length) n.such=(d.such||[]).concat(su.filter(x=>(d.such||[]).indexOf(x)<0));
+    /* Abweichungen des Hauses an einem mitgelieferten Merkmal: Name, Hinweis,
+       archiviert. Art und Einheit bleiben — die Etikett-Erkennung rechnet damit. */
+    if(abw){ if(v.label && v.label!==d.label){ n.label=v.label; n.vorgabeLabel=d.label; }
+      if(typeof v.hinweis==='string'){ if(v.hinweis) n.hinweis=v.hinweis; else delete n.hinweis; }
+      if(v.archiviert) n.archiviert=true; }
+    return n; });
   Object.keys(mm).forEach(mid=>{ const v=mm[mid]; if(!v||!v.label||merkmale.some(d=>d.id===mid)) return;
     const anker=(Array.isArray(v.anker)&&v.anker.length?v.anker:[v.label]).map(a=>String(a).toLowerCase()).filter(Boolean);
     const d={ id:mid, label:v.label, kurz:v.label, typ:v.typ||'text', einheit:v.einheit||null, rang:35, eigen:true, klassen:inKlasse(mid,[]), anker };
-    const w=(Array.isArray(v.werte)?v.werte:[]).concat(ww[mid]||[]); if(w.length) d.werte=w;
+    const w=[]; (Array.isArray(v.werte)?v.werte:[]).concat(ww[mid]||[]).forEach(x=>{ if(w.indexOf(x)<0) w.push(x); }); if(w.length) d.werte=w;
+    if(v.hinweis) d.hinweis=v.hinweis; if(v.archiviert) d.archiviert=true; if(v.angelegt) d.angelegt=v.angelegt;
     Object.assign(d, naMerkmalMuster(Object.assign({},v,{anker:v.anker}))); if(d.typ!=='ja_nein') d.anker=anker;
     if(Array.isArray(ss[mid]) && ss[mid].length) d.such=ss[mid].slice();
     merkmale.push(d); });
@@ -235,7 +248,9 @@ function naKatalog(quelle, tpl){
 function naFelder(kat, klasseId){
   const k=((kat&&kat.klassen)||[]).find(x=>x.id===klasseId)||{ leit:[] };
   const diff=Array.isArray(k.leit)?k.leit:[];
-  const alle=((kat&&kat.merkmale)||[]).filter(d=>(d.klassen||[]).indexOf(klasseId)>=0||(d.klassen||[]).indexOf('allgemein')>=0);
+  /* Archivierte Merkmale werden nicht mehr angeboten; ein eingetragener Wert
+     bleibt beim Material sichtbar („nur bei diesem Material"). */
+  const alle=((kat&&kat.merkmale)||[]).filter(d=>!d.archiviert && ((d.klassen||[]).indexOf(klasseId)>=0||(d.klassen||[]).indexOf('allgemein')>=0));
   const eigen=alle.filter(d=>(d.klassen||[]).indexOf(klasseId)>=0);
   const rang=d=>(d.rang||99);
   return { diff:diff.map(id=>eigen.find(d=>d.id===id)).filter(Boolean),
@@ -247,7 +262,7 @@ function naFelder(kat, klasseId){
    ein Merkmal GESUCHT (auch über Suchwörter) und dann zugeordnet — nur diesem
    Material, allen der Kategorie, oder als Kern-Merkmal ★. Nichts wird Pflicht.
    Alle Funktionen hier sind rein. */
-function naMerkmalSuchtext(d){ return naNorm([d.label, d.kurz, (d.anker||[]).join(' '), (d.such||[]).join(' '), d.einheit||''].join(' ')); }
+function naMerkmalSuchtext(d){ return naNorm([d.label, d.vorgabeLabel||'', d.kurz, (d.anker||[]).join(' '), (d.such||[]).join(' '), d.einheit||''].join(' ')); }
 /* Felder, wie die Maske sie für EIN Material zeigt: die der Kategorie, dazu
    „einzel" = Merkmale mit Wert (oder gerade hinzugefügt, `dazu`), die nicht
    zur Kategorie gehören — sie blieben sonst unsichtbar. */
@@ -274,7 +289,7 @@ function naMerkmalVorschlaege(kat, material, klasseId, ohne){
   const nu=naMerkmalNutzung(material, klasseId); if(nu.n<3) return [];
   const f=naFelder(kat, klasseId); const inK={}; f.diff.concat(f.weitere).forEach(d=>{ inK[d.id]=1; });
   const k=((kat&&kat.klassen)||[]).find(x=>x.id===klasseId)||{}; const nicht={}; (ohne||[]).concat(k.stumm||[]).forEach(x=>{ nicht[x]=1; });
-  return ((kat&&kat.merkmale)||[]).filter(d=>!inK[d.id] && !nicht[d.id] && (nu.zahl[d.id]||0)>=2 && nu.zahl[d.id]*2>=nu.n)
+  return ((kat&&kat.merkmale)||[]).filter(d=>!d.archiviert && !inK[d.id] && !nicht[d.id] && (nu.zahl[d.id]||0)>=2 && nu.zahl[d.id]*2>=nu.n)
     .map(d=>({ id:d.id, label:d.label, zahl:nu.zahl[d.id], n:nu.n })).sort((a,b)=>b.zahl-a.zahl || a.label.localeCompare(b.label,'de'));
 }
 /* Ein Merkmal einer Kategorie zuordnen. stufe: 'kern' (★) · 'weiter' · 'aus'.
@@ -311,6 +326,100 @@ function naTplKategorieWie(tpl, kat, neuId, vonId){
   k.dazu=((kat&&kat.merkmale)||[]).filter(d=>(d.klassen||[]).indexOf(vonId)>=0).map(d=>d.id);
   k.diff=(von.leit||[]).filter(id=>k.dazu.indexOf(id)>=0);
   k.wie=vonId;
+  return t;
+}
+
+/* ── Merkmale als Liste (Listen-Verzeichnis, 13.11.2026) ──
+   Alle Merkmale an EINER Stelle sehen und pflegen. Gespeichert wird wie
+   überall nur die Abweichung des Hauses; die mitgelieferte Liste bleibt, und
+   „Vorgabe zurückholen" führt jederzeit zu ihr zurück. Alles hier ist rein. */
+const NA_MERKMAL_ARTEN = { mass:'Maß (Zahl mit Einheit)', zahl:'Zahl', liste:'Auswahl', text:'Text', ja_nein:'Ja / Nein' };
+/* Wie oft ist welches Merkmal ausgefüllt — über ALLE Materialien, mit der
+   Verteilung der Werte: { zahl:{mid:n}, werte:{mid:{wert:n}} } */
+function naMerkmalNutzungAlle(material){
+  const zahl={}, werte={};
+  (material||[]).forEach(o=>{ if(!o||o.archiviert) return; const m=o.merkmale||{};
+    Object.keys(m).forEach(id=>{ const v=m[id]; if(v==null||v===''||v===false) return; zahl[id]=(zahl[id]||0)+1;
+      const w=werte[id]=werte[id]||{}; const t=v===true?'ja':String(v); w[t]=(w[t]||0)+1; }); });
+  return { zahl, werte };
+}
+/* Was hat das Haus an einem Merkmal selbst festgelegt? → ['Name','Hinweis','Werte','Suchwörter'] */
+function naMerkmalGeaendert(tpl, mid){
+  const t=tpl||{}; const v=(t.merkmale||{})[mid]||{}; const l=[];
+  if(v.label) l.push('Name'); if(typeof v.hinweis==='string') l.push('Hinweis');
+  if(((t.werte||{})[mid]||[]).length || ((t.werteAus||{})[mid]||[]).length) l.push('Werte');
+  if(((t.such||{})[mid]||[]).length) l.push('Suchwörter');
+  return l;
+}
+/* Zeilen der Merkmal-Liste: Art, Kategorien (mit ★), Nutzung, Stand.
+   quelle = Katalog OHNE das Overlay des Hauses. */
+function naMerkmalListe(kat, quelle, tpl, material){
+  const nu=naMerkmalNutzungAlle(material); const kl={}; ((kat&&kat.klassen)||[]).forEach(k=>{ kl[k.id]=k; });
+  const q={}; ((quelle&&quelle.merkmale)||[]).forEach(d=>{ q[d.id]=d; });
+  return ((kat&&kat.merkmale)||[]).map(d=>{ const ks=d.klassen||[]; const dq=q[d.id]||null;
+    const kats=ks.filter(x=>x!=='allgemein' && kl[x] && !kl[x].archiviert).map(x=>({ id:x, label:kl[x].label, kern:(kl[x].leit||[]).indexOf(d.id)>=0 }))
+      .sort((a,b)=>a.label.localeCompare(b.label,'de',{ sensitivity:'base' }));
+    const ge=dq ? naMerkmalGeaendert(tpl, d.id) : [];
+    if(dq && (dq.klassen||[]).slice().sort().join('|')!==ks.slice().sort().join('|')) ge.push('Kategorien');
+    return { id:d.id, label:d.label, typ:d.typ, einheit:(d.typ!=='ja_nein' && d.einheit) || '', eigen:!dq, archiviert:!!d.archiviert,
+      allgemein:ks.indexOf('allgemein')>=0, kategorien:kats, zahl:nu.zahl[d.id]||0, geaendert:ge,
+      such:naMerkmalSuchtext(d)+' '+naNorm(kats.map(k=>k.label).join(' ')) };
+  }).sort((a,b)=>a.label.localeCompare(b.label,'de',{ sensitivity:'base' }));
+}
+/* Eine Angabe eines Merkmals setzen. feld: label · hinweis · archiviert —
+   bei EIGENEN Merkmalen auch typ · einheit. Liefert ein NEUES Overlay. */
+function naTplMerkmalSetzen(tpl, quelle, mid, feld, wert){
+  const t=JSON.parse(JSON.stringify(tpl||{})); t.merkmale=t.merkmale||{};
+  const dq=((quelle&&quelle.merkmale)||[]).find(x=>x.id===mid);
+  const vorher=t.merkmale[mid]; const v=Object.assign({}, vorher||{});
+  const text=String(wert==null?'':wert).trim();
+  if(dq){   /* mitgeliefert: nur die Abweichung merken */
+    if(feld==='label'){ if(text && text!==dq.label) v.label=text; else delete v.label; }
+    else if(feld==='hinweis'){ if(text!==(dq.hinweis||'')) v.hinweis=text; else delete v.hinweis; }
+    else if(feld==='archiviert'){ if(wert) v.archiviert=true; else delete v.archiviert; }
+    if(Object.keys(v).length) t.merkmale[mid]=v; else delete t.merkmale[mid];
+    return t;
+  }
+  if(!vorher || !vorher.label) return t;   /* unbekannte Kennung: nichts tun */
+  if(feld==='label'){ if(text) v.label=text; }
+  else if(feld==='hinweis' || feld==='einheit'){ if(text) v[feld]=text; else delete v[feld]; }
+  else if(feld==='typ'){ if(NA_MERKMAL_ARTEN[wert]){ v.typ=wert; if(wert==='ja_nein'||wert==='text'||wert==='liste') delete v.einheit; } }
+  else if(feld==='archiviert'){ if(wert) v.archiviert=true; else delete v.archiviert; }
+  t.merkmale[mid]=v; return t;
+}
+/* Vorgabe zurückholen: alles, was das Haus an einem Merkmal selbst festgelegt
+   hat — außer der Zuordnung zu Kategorien (die gehört der Kategorie). */
+function naTplMerkmalZurueck(tpl, mid){
+  const t=JSON.parse(JSON.stringify(tpl||{}));
+  const archiviert=!!(t.merkmale && t.merkmale[mid] && t.merkmale[mid].archiviert);   /* „archiviert" ist keine Abweichung im Inhalt */
+  ['merkmale','werte','werteAus','such'].forEach(f=>{ if(t[f]){ delete t[f][mid]; if(f==='werteAus' && !Object.keys(t[f]).length) delete t[f]; } });
+  if(archiviert){ t.merkmale=t.merkmale||{}; t.merkmale[mid]={ archiviert:true }; }
+  return t;
+}
+/* Ein EIGENES Merkmal ganz entfernen — samt seinen Zuordnungen. */
+function naTplMerkmalLoeschen(tpl, mid){
+  const t=naTplMerkmalZurueck(tpl, mid); if(t.merkmale) delete t.merkmale[mid];
+  Object.keys(t.klassen||{}).forEach(id=>{ const k=t.klassen[id]; if(!k) return;
+    ['dazu','aus','diff','stumm'].forEach(f=>{ if(!Array.isArray(k[f])) return; k[f]=k[f].filter(x=>x!==mid); if(!k[f].length && f!=='diff') delete k[f]; }); });
+  return t;
+}
+/* Auswahlwerte: 'dazu' · 'weg' · 'zurueck' (ausgeblendeten Wert der Vorgabe
+   wieder zeigen) · 'um' (umbenennen: wert → neu). Werte der Vorgabe werden
+   ausgeblendet, nie gelöscht. Liefert ein NEUES Overlay. */
+function naTplWert(tpl, quelle, mid, aktion, wert, neu){
+  const t=JSON.parse(JSON.stringify(tpl||{})); t.werte=t.werte||{};
+  const dq=((quelle&&quelle.merkmale)||[]).find(x=>x.id===mid); const vorgabe=(dq&&dq.werte)||[];
+  const eig=(!dq && t.merkmale && t.merkmale[mid]) || null;   /* eigenes Merkmal: Werte stehen (auch) dort */
+  let dazu=(t.werte[mid]||[]).slice(), aus=((t.werteAus||{})[mid]||[]).slice();
+  const ohne=(l,x)=>l.filter(y=>y!==x);
+  const hat=x=>vorgabe.indexOf(x)>=0 || dazu.indexOf(x)>=0 || !!(eig && Array.isArray(eig.werte) && eig.werte.indexOf(x)>=0);
+  const rein=x=>{ x=String(x==null?'':x).trim(); if(!x) return; aus=ohne(aus,x); if(!hat(x)) dazu.push(x); };
+  const raus=x=>{ dazu=ohne(dazu,x); if(eig && Array.isArray(eig.werte)) eig.werte=ohne(eig.werte,x); if(vorgabe.indexOf(x)>=0 && aus.indexOf(x)<0) aus.push(x); };
+  if(aktion==='dazu' || aktion==='zurueck') rein(wert);
+  else if(aktion==='weg') raus(wert);
+  else if(aktion==='um' && String(neu==null?'':neu).trim()){ raus(wert); rein(neu); }
+  if(dazu.length) t.werte[mid]=dazu; else delete t.werte[mid];
+  if(aus.length){ t.werteAus=t.werteAus||{}; t.werteAus[mid]=aus; } else if(t.werteAus){ delete t.werteAus[mid]; if(!Object.keys(t.werteAus).length) delete t.werteAus; }
   return t;
 }
 

@@ -22,7 +22,8 @@ vm.runInContext(KERN + `
   NA_ARTEN_VORGABE, NA_BEREICHE_VORGABE, NA_RUBRIKEN_VORGABE,
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
-  naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie };`, ctx);
+  naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
+  NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
 
@@ -414,4 +415,120 @@ test('store.js: Neuaufbau → /neu/, außer dort selbst oder mit hkl_neu_alt', (
   assert.deepEqual(storeLaden({ hkl_liveraum:'neuaufbau' }, '/index.html'), ['http://h/neu/']);
   assert.deepEqual(storeLaden({ hkl_raumwahl:'neuaufbau' }, '/neu/'), []);
   assert.deepEqual(storeLaden({ hkl_raumwahl:'neuaufbau', hkl_neu_alt:'1' }, '/'), []);
+});
+
+
+/* ── Merkmale als Liste im Listen-Verzeichnis (13.11.2026) ── */
+test('Merkmal-Liste: alle Merkmale mit Art, Kategorien (★), Nutzung und Stand', () => {
+  const mat = [{ id:'a', kategorie:'kabel', merkmale:{ aufbereitung_zyklus:'10', kurve_groesse:'LARGE' } }, { id:'b', kategorie:'kabel', merkmale:{ aufbereitung_zyklus:'10', seitenloecher:true } },
+    { id:'c', archiviert:true, merkmale:{ aufbereitung_zyklus:'5' } }, { id:'d', merkmale:{ kurve_groesse:'', seitenloecher:false } }];
+  const nu = plain(K.naMerkmalNutzungAlle(mat));
+  assert.deepEqual(nu.zahl, { aufbereitung_zyklus:2, kurve_groesse:1, seitenloecher:1 });          /* Archiviertes und Leeres zählt nicht */
+  assert.deepEqual(nu.werte.aufbereitung_zyklus, { '10':2 }); assert.deepEqual(nu.werte.seitenloecher, { ja:1 });
+
+  const tpl = K.naTplZuordnen({ merkmale:{ m_eig:{ label:'Steckerfarbe', typ:'liste', werte:['rot'] } } }, KAT, 'kabel', 'aufbereitung_zyklus', 'kern');
+  const z = plain(K.naMerkmalListe(K.naKatalog(KAT, tpl), KAT, tpl, mat));
+  assert.equal(z.length, KAT.merkmale.length + 1);                                              /* alle mitgelieferten + das eigene */
+  assert.deepEqual(z.map(x=>x.label), z.map(x=>x.label).slice().sort((a,b)=>a.localeCompare(b,'de',{ sensitivity:'base' })));
+  const zy = z.find(x=>x.id==='aufbereitung_zyklus');
+  assert.equal(zy.zahl, 2); assert.equal(zy.allgemein, true); assert.equal(zy.eigen, false);
+  assert.deepEqual(zy.kategorien.filter(k=>k.id==='kabel'), [{ id:'kabel', label:'Kabel / Verbindung', kern:true }]);
+  assert.deepEqual(zy.geaendert, ['Kategorien']);                                               /* das Haus hat es einer Kategorie zugeordnet */
+  const eig = z.find(x=>x.id==='m_eig');
+  assert.equal(eig.eigen, true); assert.equal(eig.typ, 'liste'); assert.deepEqual(eig.geaendert, []); assert.deepEqual(eig.kategorien, []);
+  const ad = z.find(x=>x.id==='ad_fr');
+  assert.equal(ad.einheit, 'F'); assert.equal(ad.zahl, 0); assert.ok(ad.kategorien.length >= 5); assert.deepEqual(ad.geaendert, []);
+  assert.ok(ad.such.indexOf(K.naNorm('Führungskatheter'))>=0);                                  /* über die Kategorie auffindbar */
+  assert.deepEqual(Object.keys(plain(K.NA_MERKMAL_ARTEN)).sort(), ['ja_nein','liste','mass','text','zahl']);
+});
+
+test('Merkmal ändern: Name und Hinweis als Abweichung, Vorgabe zurückholen, Art und Einheit der Vorgabe bleiben', () => {
+  let tpl = K.naTplMerkmalSetzen({}, KAT, 'ad_fr', 'label', 'Außen-Ø');
+  assert.deepEqual(plain(tpl.merkmale), { ad_fr:{ label:'Außen-Ø' } });
+  let d = K.naKatalog(KAT, tpl).merkmale.find(x=>x.id==='ad_fr');
+  assert.equal(d.label, 'Außen-Ø'); assert.equal(d.vorgabeLabel, 'Außendurchmesser'); assert.equal(d.typ, 'mass'); assert.equal(d.einheit, 'F');
+  assert.ok(K.naMerkmalSuchtext(d).indexOf(K.naNorm('Außendurchmesser'))>=0);                    /* unter dem alten Namen weiter zu finden */
+  assert.equal(K.naKatalog(KAT, tpl).merkmale.length, KAT.merkmale.length);                      /* kein zweites Merkmal entstanden */
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'ad_fr', 'hinweis', 'außen am Schaft gemessen');
+  assert.equal(K.naKatalog(KAT, tpl).merkmale.find(x=>x.id==='ad_fr').hinweis, 'außen am Schaft gemessen');
+  assert.deepEqual(plain(K.naMerkmalGeaendert(tpl, 'ad_fr')), ['Name', 'Hinweis']);
+  /* Art und Einheit eines mitgelieferten Merkmals lassen sich nicht überschreiben. */
+  tpl = K.naTplMerkmalSetzen(K.naTplMerkmalSetzen(tpl, KAT, 'ad_fr', 'typ', 'text'), KAT, 'ad_fr', 'einheit', 'mm');
+  d = K.naKatalog(KAT, tpl).merkmale.find(x=>x.id==='ad_fr'); assert.equal(d.typ, 'mass'); assert.equal(d.einheit, 'F');
+  /* Den Hinweis der Vorgabe ausblenden (leer) ist eine Abweichung; derselbe Text wie die Vorgabe ist keine. */
+  const mitHinweis = KAT.merkmale.find(x=>x.hinweis);
+  let t2 = K.naTplMerkmalSetzen({}, KAT, mitHinweis.id, 'hinweis', '');
+  assert.equal(K.naKatalog(KAT, t2).merkmale.find(x=>x.id===mitHinweis.id).hinweis, undefined);
+  t2 = K.naTplMerkmalSetzen(t2, KAT, mitHinweis.id, 'hinweis', mitHinweis.hinweis);
+  assert.deepEqual(plain(t2.merkmale), {});
+  /* Name zurück auf die Vorgabe = keine Abweichung mehr. */
+  assert.deepEqual(plain(K.naTplMerkmalSetzen(K.naTplMerkmalSetzen({}, KAT, 'ad_fr', 'label', 'X'), KAT, 'ad_fr', 'label', '').merkmale), {});
+  /* Vorgabe zurückholen: Name, Hinweis, Werte, Suchwörter weg — die Kategorie-Zuordnung und „archiviert" bleiben. */
+  tpl = K.naTplZuordnen(tpl, KAT, 'kabel', 'ad_fr', 'weiter'); tpl.such = { ad_fr:['dicke'] };
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'ad_fr', 'archiviert', true);
+  const zur = plain(K.naTplMerkmalZurueck(tpl, 'ad_fr'));
+  assert.deepEqual(zur.merkmale, { ad_fr:{ archiviert:true } }); assert.deepEqual(zur.such, {}); assert.deepEqual(zur.klassen.kabel.dazu, ['ad_fr']);
+  assert.deepEqual(plain(tpl.merkmale.ad_fr), { label:'Außen-Ø', hinweis:'außen am Schaft gemessen', archiviert:true });   /* das alte Overlay bleibt unberührt */
+});
+
+test('Eigenes Merkmal: Art, Einheit, Hinweis ändern; löschen entfernt auch die Zuordnungen', () => {
+  let tpl = { merkmale:{ m_len:{ label:'Kabellänge', typ:'zahl' } } };
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'm_len', 'einheit', 'cm');
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'm_len', 'hinweis', 'ohne Stecker');
+  let d = K.naKatalog(KAT, tpl).merkmale.find(x=>x.id==='m_len');
+  assert.equal(d.einheit, 'cm'); assert.equal(d.hinweis, 'ohne Stecker'); assert.equal(d.eigen, true);
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'm_len', 'typ', 'liste');
+  assert.equal(tpl.merkmale.m_len.typ, 'liste'); assert.equal(tpl.merkmale.m_len.einheit, undefined);   /* eine Auswahl hat keine Einheit */
+  assert.equal(K.naTplMerkmalSetzen(tpl, KAT, 'm_len', 'typ', 'unsinn').merkmale.m_len.typ, 'liste');
+  assert.equal(K.naTplMerkmalSetzen(tpl, KAT, 'm_len', 'label', '').merkmale.m_len.label, 'Kabellänge');  /* ein eigenes Merkmal braucht einen Namen */
+  assert.deepEqual(plain(K.naTplMerkmalSetzen({}, KAT, 'gibt_es_nicht', 'hinweis', 'x').merkmale), {});
+  tpl = K.naTplZuordnen(tpl, KAT, 'kabel', 'm_len', 'kern'); tpl.werte = { m_len:['200'] };
+  assert.ok(K.naFelder(K.naKatalog(KAT, tpl), 'kabel').diff.some(x=>x.id==='m_len'));
+  const weg = plain(K.naTplMerkmalLoeschen(tpl, 'm_len'));
+  assert.deepEqual(weg.merkmale, {}); assert.deepEqual(weg.werte, {});
+  assert.equal((weg.klassen.kabel.dazu||[]).indexOf('m_len'), -1); assert.equal((weg.klassen.kabel.diff||[]).indexOf('m_len'), -1);
+  assert.equal(K.naKatalog(KAT, weg).merkmale.some(x=>x.id==='m_len'), false);
+});
+
+test('Archiviertes Merkmal: nicht mehr in Maske, Suche und Vorschlägen — ein eingetragener Wert bleibt sichtbar', () => {
+  const tpl = K.naTplMerkmalSetzen(K.naTplZuordnen({}, KAT, 'kabel', 'kurve_groesse', 'kern'), KAT, 'kurve_groesse', 'archiviert', true);
+  const kat = K.naKatalog(KAT, tpl);
+  assert.equal(kat.merkmale.find(x=>x.id==='kurve_groesse').archiviert, true);                 /* bleibt im Katalog: der Name wird für alte Werte gebraucht */
+  const f = K.naFelder(kat, 'kabel');
+  assert.equal(f.diff.concat(f.weitere, f.allgemein).some(x=>x.id==='kurve_groesse'), false);
+  const fm = K.naFelderMaterial(kat, { kategorie:'kabel', merkmale:{ kurve_groesse:'LARGE' } });
+  assert.deepEqual(fm.einzel.map(x=>x.id), ['kurve_groesse']);
+  const mat = [1,2,3].map(i=>({ id:'x'+i, kategorie:'schleuse', merkmale:{ kurve_groesse:'LARGE' } }));
+  assert.equal(K.naMerkmalVorschlaege(kat, mat, 'schleuse').some(v=>v.id==='kurve_groesse'), false);
+  assert.equal(K.naMerkmalVorschlaege(K.naKatalog(KAT, {}), mat, 'schleuse').some(v=>v.id==='kurve_groesse'), true);
+  /* Zurückholen: wieder da, als Kern. */
+  const zur = K.naKatalog(KAT, K.naTplMerkmalSetzen(tpl, KAT, 'kurve_groesse', 'archiviert', false));
+  assert.ok(K.naFelder(zur, 'kabel').diff.some(x=>x.id==='kurve_groesse'));
+});
+
+test('Auswahlwerte: anlegen, ausblenden (Vorgabe bleibt), zurückholen, umbenennen', () => {
+  const vorgabe = KAT.merkmale.find(x=>x.id==='kurve_groesse').werte;
+  assert.ok(vorgabe.indexOf('LARGE')>=0);
+  let tpl = K.naTplWert({}, KAT, 'kurve_groesse', 'dazu', 'XXL');
+  assert.deepEqual(plain(tpl.werte), { kurve_groesse:['XXL'] });
+  assert.deepEqual(plain(K.naTplWert(tpl, KAT, 'kurve_groesse', 'dazu', 'LARGE').werte), { kurve_groesse:['XXL'] });   /* gibt es schon: nichts doppelt */
+  tpl = K.naTplWert(tpl, KAT, 'kurve_groesse', 'weg', 'LARGE');
+  assert.deepEqual(plain(tpl.werteAus), { kurve_groesse:['LARGE'] });
+  let w = K.naKatalog(KAT, tpl).merkmale.find(x=>x.id==='kurve_groesse').werte;
+  assert.equal(w.indexOf('LARGE'), -1); assert.ok(w.indexOf('XXL')>=0); assert.equal(w.length, vorgabe.length);
+  assert.deepEqual(plain(K.naMerkmalGeaendert(tpl, 'kurve_groesse')), ['Werte']);
+  tpl = K.naTplWert(tpl, KAT, 'kurve_groesse', 'zurueck', 'LARGE');
+  assert.equal(tpl.werteAus, undefined);
+  /* Umbenennen eines eigenen Werts ersetzt ihn; eines Werts der Vorgabe: ausblenden + neuer Wert. */
+  tpl = K.naTplWert(tpl, KAT, 'kurve_groesse', 'um', 'XXL', 'SEHR GROSS');
+  assert.deepEqual(plain(tpl.werte), { kurve_groesse:['SEHR GROSS'] });
+  tpl = K.naTplWert(tpl, KAT, 'kurve_groesse', 'um', 'SMALL', 'KLEIN');
+  assert.deepEqual(plain(tpl.werteAus), { kurve_groesse:['SMALL'] }); assert.deepEqual(plain(tpl.werte.kurve_groesse), ['SEHR GROSS', 'KLEIN']);
+  assert.deepEqual(plain(K.naTplWert(tpl, KAT, 'kurve_groesse', 'um', 'KLEIN', ' ').werte.kurve_groesse), ['SEHR GROSS', 'KLEIN']);   /* leerer neuer Name: nichts */
+  /* Eigenes Merkmal: Werte aus der Anlage und später angelegte; entfernen wirkt auf beide. */
+  let e = { merkmale:{ m_f:{ label:'Farbe', typ:'liste', werte:['rot', 'blau'] } }, werte:{ m_f:['grün'] } };
+  assert.deepEqual(plain(K.naKatalog(KAT, e).merkmale.find(x=>x.id==='m_f').werte), ['rot', 'blau', 'grün']);
+  e = K.naTplWert(K.naTplWert(e, KAT, 'm_f', 'weg', 'rot'), KAT, 'm_f', 'weg', 'grün');
+  assert.deepEqual(plain(K.naKatalog(KAT, e).merkmale.find(x=>x.id==='m_f').werte), ['blau']);
+  assert.equal(e.werteAus, undefined);
 });

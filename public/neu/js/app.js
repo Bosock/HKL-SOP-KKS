@@ -42,7 +42,7 @@ function naSichtFuer(r){
     case 'b': return naSichtBaustein(b);
     case 'mehr': return naSichtMehr();
     case 'listen': return naSichtListen();
-    case 'liste': return (b==='kategorien' && c) ? naSichtKategorie(c) : naSichtListe(b);
+    case 'liste': return (b==='kategorien' && c) ? naSichtKategorie(c) : (b==='merkmale' ? (c ? naSichtMerkmal(c) : naSichtMerkmale()) : naSichtListe(b));
     case 'meldungen': return naSichtMeldungen();
     case 'verlauf': return naSichtVerlauf();
     case 'papierkorb': return naSichtPapierkorb();

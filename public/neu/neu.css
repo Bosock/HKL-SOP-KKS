@@ -34,6 +34,10 @@ main#naMain { padding-bottom:96px; }
 .na-eintrag .na-sub { font-size:12px; color:var(--text-faint); margin-top:2px; overflow-wrap:anywhere; }
 .na-eintrag .na-rechts { font-size:12px; color:var(--text-dim); flex:0 0 auto; text-align:right; }
 .na-eintrag.archiv { opacity:.55; }
+/* Angabe ohne Aktion (z. B. die feste Art eines mitgelieferten Merkmals) */
+.na-eintrag.fest { cursor:default; background:transparent; }
+.na-eintrag.fest:active { border-color:var(--line); }
+.na-eintrag .na-leer { color:var(--text-faint); font-weight:500; }
 .na-bild { width:44px; height:44px; flex:0 0 44px; border-radius:9px; object-fit:cover; background:var(--surface-2); }
 
 .na-feld { margin-bottom:12px; }

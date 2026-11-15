@@ -26,6 +26,7 @@ const E_ZWEI = ean13('401234567890');
 const E_FREMD = ean13('401234567891');             /* steht in keinem Register */
 const E_AUSFALL = ean13('401234567892');
 const E_ALT = ean13('401234567893');             /* steht in keinem Register (für „Nachholen") */
+const E_STOER = ean13('401234567894');           /* steht in EUDAMED — wird während einer Störung gefragt */
 const G = e => '0' + e;
 /* Strichfolge eines EAN-13 (95 Module). */
 function eanBits(code) {
@@ -42,6 +43,7 @@ function eanBits(code) {
 const EUDAMED = {
   [G(E_HAHN)]: { TRADE_NAME: 'Discofix® C', REFERENCE: '16494C', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, BASIC_UDI: '40392390000030642E', DEVICE_NAME: 'Discofix C Stopcocks and Manifolds Gamma', NOMENCLATURE_CODE: ' A0703', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
   [G(E_ZWEI)]: { TRADE_NAME: 'Hahnbank 3-fach', REFERENCE: 'HB-3', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, NOMENCLATURE_CODE: 'A0703', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
+  [G(E_STOER)]: { TRADE_NAME: 'Injekt® Luer Solo', REFERENCE: '4606051V', LATEX: 0.0, STERILE: 1.0, REUSABLE: 0.0, NOMENCLATURE_CODE: 'A020102010102', MF_SRN: 'DE-MF-000000201', MF_NAME: 'B. Braun Melsungen AG' },
 };
 async function json(base, p) { return (await fetch(base + p, { cache: 'no-store' })).json(); }
 async function warte(page, fn, arg, ms) { try { await page.waitForFunction(fn, arg, { timeout: ms || 8000 }); return true; } catch (e) { return false; } }
@@ -52,17 +54,24 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
 (async () => {
   const r = reporter('neue-app-maske');
   const zaehler = { eudamed: 0, gudid: 0 };
+  /* ausfall: E_AUSFALL bringt beide Register zum Fehler (Schritt 9) · stoerung: EUDAMED meldet für
+     JEDES Produkt „404 Data not found" — so gemessen am 13.11.2026 (Schritt 12e). */
+  const lage = { ausfall: true, stoerung: false };
   const attrappe = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://x'); const antwort = (c, o) => { res.writeHead(c, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+    const nichtGefunden = () => { res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(' Data not found '); };   /* wie die echte Schnittstelle */
     if (u.pathname === '/eudamed') { zaehler.eudamed++; const g = u.searchParams.get('PRIMARY_DI');
-      if (g === G(E_AUSFALL)) return antwort(500, { message: 'Internal server error' });
-      return antwort(200, { value: EUDAMED[g] ? [EUDAMED[g]] : [] }); }
-    if (u.pathname === '/gudid') { zaehler.gudid++; if (u.searchParams.get('di') === G(E_AUSFALL)) return antwort(500, {}); return antwort(404, { error: 'No device found' }); }
+      if (lage.stoerung) return nichtGefunden();
+      if (lage.ausfall && g === G(E_AUSFALL)) return antwort(500, { message: 'Internal server error' });
+      return EUDAMED[g] ? antwort(200, { value: [EUDAMED[g]] }) : nichtGefunden(); }
+    if (u.pathname === '/gudid') { zaehler.gudid++; if (lage.ausfall && u.searchParams.get('di') === G(E_AUSFALL)) return antwort(500, {}); return antwort(404, { error: 'No device found' }); }
     antwort(404, {});
   });
   await new Promise(ok => attrappe.listen(0, '127.0.0.1', ok));
   const reg = 'http://127.0.0.1:' + attrappe.address().port;
-  const srv = await startServer({ REGISTER_EUDAMED_URL: reg + '/eudamed', REGISTER_GUDID_URL: reg + '/gudid' });
+  /* Gegenprobe mit dem Hahn (den die Attrappe kennt); keine Pausen; selbsttätiges Nachfragen erst nach
+     10 Stunden — es sei denn, das Register meldet sich zurück (Schritt 12e). */
+  const srv = await startServer({ REGISTER_EUDAMED_URL: reg + '/eudamed', REGISTER_GUDID_URL: reg + '/gudid', REGISTER_PRUEF_GTIN: G(E_HAHN), REGISTER_PAUSE_MS: '0', REGISTER_NACHFASSEN_MIN: '600' });
   const browser = await launchBrowser();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const p = await ctx.newPage(); const errs = [];
@@ -206,7 +215,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.evaluate(() => { const f = document.querySelector('input[data-f="name"]'); f.setSelectionRange(3, 3); naFormNeu(); });
   r.check('Neuzeichnen lässt Cursor und Feld, in dem getippt wird', await p.evaluate(() => { const a = document.activeElement; return a && a.getAttribute('data-f') === 'name' && a.selectionStart === 3; }));
   await p.fill('input[data-f="gtin"]', G(E_AUSFALL)); await p.click('[data-na="registerHolen"]');
-  r.check('Register nicht erreichbar: gesagt, GTIN bleibt', await warte(p, () => /nicht erreichbar/.test(document.getElementById('naOcrStand').textContent)) && (await entwurf()).gtin === G(E_AUSFALL));
+  r.check('Register antwortet nicht: gesagt (mit „der Server fragt von selbst weiter"), GTIN bleibt', await warte(p, () => /antwortet gerade nicht[\s\S]*fragt von selbst weiter/.test(document.getElementById('naOcrStand').textContent)) && (await entwurf()).gtin === G(E_AUSFALL));
+  lage.ausfall = false;
 
   /* Kamera nicht freigegeben → das Fenster bietet das Foto an. */
   await p.fill('input[data-f="gtin"]', ''); await kamera('nein');
@@ -318,6 +328,119 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.fill('#naAuswQ', 'Kabel'); await p.click('#naAuswListe .sheet-act:has-text("Kabel / Verbindung")');
   r.check('„EPU-Kabel" beginnt mit den Merkmalen von „Kabel" (eine Kopie)', await warte(p, () => { const k = naKat().klassen.find(x => x.label === 'EPU-Kabel'); if (!k) return false;
     const a = naFelder(naKat(), k.id), b = naFelder(naKat(), 'kabel'); return a.diff.length === b.diff.length && a.weitere.length === b.weitere.length && /\/liste\/kategorien\//.test(location.hash); }));
+
+  /* ── 12f. Merkmale im Listen-Verzeichnis: alle sehen, suchen, ändern (13.11.2026) ── */
+  const eingabe = async t => { await p.fill('#naEingabeFeld', t); await p.click('#naSheet.show [data-na="eingabeOk"]'); };
+  const merkmal = id => p.evaluate(i => { const d = naKat().merkmale.find(x => x.id === i); return d ? JSON.parse(JSON.stringify(d)) : null; }, id);
+  const seite = async id => { await p.evaluate(i => naGeh('#/liste/merkmale/' + encodeURIComponent(i)), id); await p.waitForTimeout(150); };
+  await p.evaluate(() => naGeh('#/listen'));
+  r.check('Listen-Verzeichnis: Zeile „Merkmale (Material)" mit Anzahl, gleich unter den Kategorien', await warte(p, () => { const z = Array.from(document.querySelectorAll('#naMain .na-eintrag')); const i = z.findIndex(x => /Material-Kategorien/.test(x.textContent));
+    return i >= 0 && z[i + 1] && /Merkmale \(Material\)/.test(z[i + 1].textContent) && /\d{2,3} Merkmale/.test(z[i + 1].textContent); }));
+  await p.click('[data-ziel="#/liste/merkmale"]');
+  const anzahl = await p.evaluate(() => naKat().merkmale.filter(d => !d.archiviert).length);
+  r.check('Liste zeigt alle Merkmale (' + anzahl + ') mit Art und Kategorien', anzahl >= 100 && (await p.locator('#naMlListe .na-eintrag').count()) === anzahl
+    && /Maß \(F\)[\s\S]*★ Diagnostikkatheter/.test(await p.textContent('#naMlListe .na-eintrag[data-ziel="#/liste/merkmale/ad_fr"]')));
+  await p.fill('#naMlQ', 'resteril');
+  r.check('Suche findet über Suchwörter („resteril" → Zulässige Wiederverwendungen)', await warte(p, () => { const n = Array.from(document.querySelectorAll('#naMlListe .na-name')).map(x => x.textContent);
+    return n.length > 0 && n.length < 10 && n.some(t => /Zulässige Wiederverwendungen/.test(t)); }));
+  await p.fill('#naMlQ', 'kurven'); await p.click('#naMlListe .na-eintrag[data-ziel="#/liste/merkmale/kurve_groesse"]');
+  r.check('Seite des Merkmals: Angaben, Auswahlwerte, Kategorien, Etikett-Erkennung', await warte(p, () => { const t = document.getElementById('naMain').textContent;
+    return /Mitgeliefertes Merkmal/.test(t) && /Auswahlwerte \(6\)/.test(t) && /Kategorien \(2\)/.test(t) && /Etikett-Erkennung/.test(t) && /fest — die Etikett-Erkennung/.test(t); }));
+  await foto(p, '13-merkmal');
+  /* Name ändern → wirkt in der Maske; unter dem alten Namen weiter zu finden; Vorgabe zurückholen */
+  await p.click('[data-na="mmName"]'); await eingabe('Krümmung');
+  r.check('umbenannt: Katalog trägt den neuen Namen, die Vorgabe bleibt bekannt', await warte(p, () => { const d = naKat().merkmale.find(x => x.id === 'kurve_groesse'); return d.label === 'Krümmung' && d.vorgabeLabel === 'Kurvengröße' && /Vorgabe: Kurvengröße/.test(document.getElementById('naMain').textContent); }));
+  await p.click('[data-na="mmHinweis"]'); await eingabe('wie auf dem Etikett');
+  await p.click('[data-na="mmWertNeu"]'); await eingabe('XXL');
+  await p.click('[data-na="mmWert"][data-w="SMALL"]'); await p.click('#naSheet.show [data-wert="weg"]');
+  r.check('Hinweis, neuer Wert, ausgeblendeter Wert der Vorgabe', await warte(p, () => { const d = naKat().merkmale.find(x => x.id === 'kurve_groesse');
+    return d.hinweis === 'wie auf dem Etikett' && d.werte.indexOf('XXL') >= 0 && d.werte.indexOf('SMALL') < 0 && /wird nicht mehr angeboten/.test(document.getElementById('naMain').textContent); }));
+  /* Kategorie zuordnen — von der Seite des Merkmals aus */
+  await p.click('[data-na="mmKatDazu"]'); await p.fill('#naAuswQ', 'Kabel'); await p.click('#naAuswListe .sheet-act:has-text("Kabel / Verbindung")');
+  await p.click('#naSheet.show [data-wert="weiter"]');
+  r.check('Kategorie zugeordnet: „Kabel" führt das Merkmal jetzt', await warte(p, () => naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'kurve_groesse') && /Kategorien \(3\)/.test(document.getElementById('naMain').textContent)));
+  /* … und in der Maske eines Kabels: neuer Name, Hinweis, Werte */
+  const probeKabel = await p.evaluate(() => naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Probe-Kabel', kategorie: 'kabel', merkmale: { kurve_groesse: 'LARGE' } })).id);
+  await p.evaluate(i => naGeh('#/material/' + i), probeKabel);
+  await warte(p, () => !!NA_ENTWURF && NA_ENTWURF.obj.name === 'Probe-Kabel');
+  await p.evaluate(() => { NA_ENTWURF.offen.kat = true; NA_ENTWURF.offen.weit = true; naFormNeu(); });
+  r.check('Maske: Feld heißt „Krümmung", zeigt den Hinweis', await warte(p, () => { const b = document.querySelector('[data-na="merkWahl"][data-mid="kurve_groesse"]'); const f = b && b.closest('.na-feld');
+    return !!f && /Krümmung/.test(f.textContent) && /wie auf dem Etikett/.test(f.textContent) && !/Kurvengröße/.test(f.textContent); }));
+  await p.click('[data-na="merkWahl"][data-mid="kurve_groesse"]');
+  const angeboten = await p.$$eval('#naAuswListe .sheet-act', l => l.map(b => b.textContent.trim()));
+  r.check('Maske: Auswahl bietet XXL an, SMALL nicht mehr', angeboten.some(t => /XXL/.test(t)) && !angeboten.some(t => /^.?\s*SMALL/.test(t)) && angeboten.some(t => /MEDIUM/.test(t)));
+  await p.click('#naSheet.show [data-na="sheetZu"]').catch(() => {}); await p.keyboard.press('Escape').catch(() => {});
+  await p.evaluate(() => { if (document.getElementById('naSheet').classList.contains('show')) naSheetZu(null); });
+  await p.click('[data-na="entwAbbrechen"]'); if (await p.isVisible('#naSheet.show button:has-text("Verwerfen")')) await p.click('#naSheet.show button:has-text("Verwerfen")');
+  /* Wert umbenennen: ändert auch das Material, bei dem er eingetragen ist */
+  await seite('kurve_groesse');
+  await p.click('[data-na="mmWert"][data-w="LARGE"]');
+  r.check('Blatt des Werts sagt, bei wie vielen Materialien er steht', /1×/.test(await p.textContent('#naSheet.show')));
+  await p.click('#naSheet.show [data-wert="um"]'); await eingabe('GROSS');
+  r.check('Wert umbenannt — auch beim Material', await warte(p, i => naHole('material', i).merkmale.kurve_groesse === 'GROSS' && naKat().merkmale.find(x => x.id === 'kurve_groesse').werte.indexOf('GROSS') >= 0
+    && naKat().merkmale.find(x => x.id === 'kurve_groesse').werte.indexOf('LARGE') < 0, probeKabel));
+  /* Archivieren: weg aus Maske und Suche, der Wert am Material bleibt sichtbar; zurückholen */
+  await p.click('[data-na="mmArchiv"]'); await p.click('#naSheet.show button:has-text("Archivieren")');
+  r.check('archiviert: nicht mehr in der Kategorie, nicht mehr in der Merkmal-Suche — der Wert am Material bleibt', await warte(p, i => { const kat = naKat(); const f = naFelder(kat, 'kabel');
+    return !f.diff.concat(f.weitere).some(d => d.id === 'kurve_groesse') && !naMerkmalItems(kat, 'kabel').some(x => x.id === 'kurve_groesse')
+      && naFelderMaterial(kat, naHole('material', i)).einzel.some(d => d.id === 'kurve_groesse') && /Archiviert\./.test(document.getElementById('naMain').textContent); }, probeKabel));
+  await p.evaluate(() => naGeh('#/liste/merkmale')); await p.fill('#naMlQ', '');
+  r.check('Liste: Filter „archiviert (1)" erscheint', await warte(p, () => /archiviert \(1\)/.test(document.querySelector('#naMain .na-chips').textContent) && /geändert \(\d+\)/.test(document.querySelector('#naMain .na-chips').textContent)));
+  await p.click('[data-na="mlFilter"][data-f="archiv"]'); await p.click('#naMlListe .na-eintrag:has-text("Krümmung")');
+  await p.click('[data-na="mmArchiv"]');
+  r.check('zurückgeholt: wieder in der Kategorie', await warte(p, () => naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'kurve_groesse')));
+  /* Vorgabe zurückholen: Name, Hinweis, Werte wie geliefert — die Kategorie bleibt */
+  await p.click('[data-na="mmVorgabe"]');
+  r.check('Rückfrage nennt, was verworfen wird', /Name, Hinweis, Werte/.test(await p.textContent('#naSheet.show')));
+  await p.click('#naSheet.show button:has-text("Zurückholen")');
+  const zurueck = await merkmal('kurve_groesse');
+  r.check('Vorgabe zurück: Name, Hinweis, Werte wie geliefert — die Zuordnung zu „Kabel" bleibt', zurueck.label === 'Kurvengröße' && !zurueck.hinweis && zurueck.werte.indexOf('SMALL') >= 0 && zurueck.werte.indexOf('XXL') < 0
+    && zurueck.klassen.indexOf('kabel') >= 0 && !(await p.isVisible('[data-na="mmVorgabe"]')));
+  /* Neues Merkmal aus der Liste: Auswahl; danach Art, Einheit, Löschen */
+  await p.evaluate(() => naGeh('#/liste/merkmale'));
+  await p.click('[data-na="mlNeu"]'); await eingabe('Steckerfarbe');
+  r.check('Doppelung: „Steckerfarbe" gibt es schon (aus Schritt 12d) — die App fragt nach, statt still doppelt anzulegen', await blattOffen(p, /Ähnlich: „Steckerfarbe"/));
+  await p.click('#naSheet.show [data-na="sheetZu"]');
+  await p.click('[data-na="mlNeu"]'); await eingabe('Zugentlastung');
+  r.check('Neues Merkmal: vier Arten zur Wahl, darunter „Auswahl"', (await blattOffen(p, /Neues Merkmal/)) && (await p.locator('#naSheet.show .sheet-act').count()) === 4);
+  await p.click('#naSheet.show [data-wert="liste"]');
+  r.check('angelegt und gleich auf seiner Seite: eigenes Merkmal, noch ohne Kategorie', await warte(p, () => /^#\/liste\/merkmale\/m_/.test(location.hash) && /Eigenes Merkmal des Hauses/.test(document.getElementById('naMain').textContent)
+    && /Noch keiner Kategorie zugeordnet/.test(document.getElementById('naMain').textContent) && !!document.querySelector('[data-na="mmLoeschen"]')));
+  const eigenId = await p.evaluate(() => decodeURIComponent(location.hash.split('/').pop()));
+  await p.click('[data-na="mmArt"]'); await p.click('#naSheet.show [data-wert="zahl"]');
+  await warte(p, () => !!document.querySelector('[data-na="mmEinheit"]'));
+  await p.click('[data-na="mmEinheit"]'); await eingabe('cm');
+  r.check('eigenes Merkmal: Art und Einheit änderbar', await warte(p, i => { const d = naKat().merkmale.find(x => x.id === i); return !!d && d.typ === 'zahl' && d.einheit === 'cm'; }, eigenId));
+  await p.click('[data-na="mmLoeschen"]'); await p.click('#naSheet.show button:has-text("Löschen")');
+  r.check('gelöscht (unbenutzt): weg aus dem Katalog, zurück in der Liste', await warte(p, i => !naKat().merkmale.some(x => x.id === i) && location.hash === '#/liste/merkmale', eigenId));
+  /* Querverweis aus der Kategorie */
+  await p.evaluate(() => naGeh('#/liste/kategorien/kabel'));
+  await p.click('#naMain .na-eintrag[data-na="katMerkmal"][data-mid="kurve_groesse"]'); await p.click('#naSheet.show .sheet-act:has-text("Merkmal ansehen und ändern")');
+  r.check('aus der Kategorie führt ein Tipp zur Seite des Merkmals', await warte(p, () => location.hash === '#/liste/merkmale/kurve_groesse' && !document.getElementById('naSheet').classList.contains('show')));
+  /* aufräumen: die Probe-Zuordnung und das Probe-Material wieder weg */
+  await p.evaluate(i => { naMerkmalKategorieSetzen('kabel', 'kurve_groesse', 'aus'); naLoeschen('material', i); }, probeKabel);
+
+  /* ── 12e. Störung der EU-Schnittstelle (13.11.2026): Sie meldet für JEDES Produkt „nicht gefunden" ── */
+  lage.stoerung = true;
+  await p.evaluate(() => naGeh('#/material/neu'));
+  await p.fill('input[data-f="gtin"]', G(E_STOER)); await p.click('[data-na="registerHolen"]');
+  r.check('Störung: „antwortet gerade nicht", NICHT „steht dazu nichts" — nichts wird erfunden', await warte(p, () => { const t = document.getElementById('naOcrStand').textContent;
+    return /antwortet gerade nicht[\s\S]*fragt von selbst weiter/.test(t) && !/steht dazu nichts/.test(t); }, null, 15000) && !(await entwurf()).register);
+  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');
+  await p.evaluate(() => naGeh('#/einstellungen'));
+  r.check('Einstellungen zeigen: EUDAMED gestört, mit Grund; offene Abfragen holt der Server nach', await warte(p, () => { const n = document.getElementById('naRegStand'); const t = n ? n.textContent : '';
+    return /EUDAMED \(EU\) ist gestört/.test(t) && /nicht gefunden.*auch für Produkte/.test(t) && /Abfragen? offen/.test(t) && /fragt von selbst weiter/.test(t); }, null, 10000));
+  await foto(p, '12-register-gestoert');
+  lage.stoerung = false;
+  await p.click('[data-na="registerPruefen"]');
+  r.check('„Jetzt prüfen": EUDAMED antwortet wieder', await warte(p, () => /✓ EUDAMED \(EU\) antwortet/.test(document.getElementById('naRegStand').textContent), null, 20000));
+  /* Das Register ist zurück → der Server fragt von selbst nach, was liegen blieb. */
+  let nachgeholt = false;
+  for (let i = 0; i < 80 && !nachgeholt; i++) { nachgeholt = (await json(srv.base, '/api/register/zustand')).offen === 0; if (!nachgeholt) await new Promise(ok => setTimeout(ok, 500)); }
+  const vorS = zaehler.eudamed + zaehler.gudid;
+  const st = await json(srv.base, '/api/register?gtin=' + G(E_STOER));
+  r.check('der Server hat von selbst nachgefragt: Der Treffer liegt bereit, ohne neue Anfrage', nachgeholt && st.ausCache === true && !!st.treffer && st.treffer.ref === '4606051V' && zaehler.eudamed + zaehler.gudid === vorS);
+  await foto(p, '12-register-wieder-da');
 
   /* ── 13. Register abschaltbar (Einstellungen, für alle Geräte) ── */
   await p.evaluate(() => naGeh('#/einstellungen'));
