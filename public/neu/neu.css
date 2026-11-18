@@ -156,3 +156,52 @@ button.na-vk-haupt { cursor:pointer; }
 @media (min-width:900px){
   :root { --maxw:900px; }
 }
+
+/* ── Aufbau aus dem Bestand: geteilter Bildschirm, nur am PC (aufbau.js) ──
+   Links bleibt die App, wie sie ist; rechts steht der Bestand als Quelle. */
+:root { --qb:min(46vw, 760px); }
+#naQuelle { display:none; }
+body.na-geteilt .app { max-width:none; margin:0 var(--qb) 0 0; }
+body.na-geteilt .na-tabs { max-width:none; margin:0; right:var(--qb); }
+body.na-geteilt #naQuelle { display:flex; flex-direction:column; position:fixed; top:0; right:0; bottom:0; width:var(--qb); z-index:58;
+  background:var(--surface); border-left:1px solid var(--line); }
+.na-q-kopf { display:flex; gap:8px; align-items:flex-start; padding:12px 14px 8px; border-bottom:1px solid var(--line-soft); }
+.na-q-such { padding:10px 14px 0; }
+.na-q-such .na-suche { margin-bottom:6px; }
+.na-q-filter { padding:0 14px; }
+.na-q-filter .na-chips { margin-bottom:6px; flex-wrap:wrap; }
+#naQListe { flex:1; overflow:auto; padding:6px 14px 40px; }
+.na-q-gruppe { font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); margin:14px 2px 6px; }
+.na-q-std, .na-q-rub, .na-q-abs { display:flex; gap:8px; align-items:center; border-radius:9px; padding:7px 9px; margin-bottom:4px; font-size:13.5px; }
+.na-q-std { background:var(--surface-2); border:1px solid var(--line-soft); cursor:pointer; font-weight:620; }
+.na-q-std.auf { border-color:var(--accent); }
+.na-q-rub { background:var(--surface-3); cursor:grab; margin-top:8px; }
+.na-q-rub.material { opacity:.75; }
+.na-q-abs { color:var(--text-dim); font-weight:700; font-size:12.5px; cursor:grab; margin-top:6px; padding:4px 9px; }
+.na-q-pfeil { width:14px; color:var(--text-faint); }
+.na-q-in { margin:0 0 8px 14px; }
+.na-q-zeile { display:flex; gap:8px; align-items:flex-start; padding:6px 9px; margin-bottom:4px; border:1px solid var(--line-soft); border-radius:9px; background:var(--surface); font-size:13.5px; cursor:grab; }
+.na-q-zeile:hover, .na-q-rub:hover, .na-q-abs:hover { border-color:var(--accent); }
+.na-q-zeile.gesperrt { opacity:.45; cursor:not-allowed; border-style:dashed; }
+.na-q-zeile.gesperrt:hover { border-color:var(--line-soft); }
+.na-q-zeile.notiz { background:var(--surface-2); }
+.na-q-zeile .na-griff, .na-q-rub .na-griff, .na-q-abs .na-griff { color:var(--text-faint); user-select:none; flex:0 0 auto; }
+.na-q-text { flex:1; min-width:0; overflow-wrap:anywhere; }
+.na-q-ort { font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+.na-q-zus { font-size:12px; color:var(--text-dim); margin-top:2px; }
+.na-q-wort { font-size:11.5px; color:var(--text-faint); margin-top:3px; padding:2px 6px; border-left:2px solid var(--line); cursor:grab; }
+.na-q-wort:hover { color:var(--text); border-left-color:var(--accent); }
+.na-q-mark { flex:0 0 auto; font-size:12px; font-weight:700; padding:1px 6px; border-radius:10px; }
+.na-q-mark.hier { color:#06210f; background:var(--ok); }
+.na-q-mark.anders { color:var(--text-dim); background:var(--surface-3); }
+.na-q-ok { color:var(--ok); }
+.zieh { opacity:.45; }
+/* Wohin es kommt: eine Linie davor/danach, ein Rahmen „hinein". */
+.drop-vor { box-shadow:0 -3px 0 0 var(--accent); }
+.drop-nach { box-shadow:0 3px 0 0 var(--accent); }
+.drop-in { outline:2px dashed var(--accent); outline-offset:3px; border-radius:10px; }
+.na-rubblock, .na-absblock { border-radius:10px; }
+.na-drop-ende { display:none; margin:14px 0 4px; padding:18px 14px; border:2px dashed var(--line); border-radius:12px; text-align:center; color:var(--text-dim); font-size:13.5px; }
+/* Im geteilten Bildschirm immer sichtbar — so findet man die Ablage, bevor man zieht. */
+body.na-geteilt .na-drop-ende, body.na-zieht .na-drop-ende { display:block; }
+body.na-zieht .na-drop-ende { border-color:var(--accent); color:var(--text); }

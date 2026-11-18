@@ -486,6 +486,8 @@ function naSichtEinstellungen(){
   if(a) h += '<div class="na-karte"><h3>EU-Register</h3><div class="na-feld"><label><input type="checkbox" data-na-wechsel="registerAn"'+(naEinstellung('register', true)?' checked':'')+'> Beim Scannen eines Barcodes das Register fragen</label></div>'
     + '<div class="na-dim">Der Server der App fragt mit der GTIN bei EUDAMED (EU) und, wenn dort nichts steht, bei GUDID (USA) nach Hersteller, Handelsname und REF. Übertragen wird nur die GTIN — keine Daten des Hauses. Die Angaben gelten erst nach dem Speichern als bestätigt. Gilt für alle Geräte.</div>'
     + '<div id="naRegStand" style="margin-top:10px">'+naRegisterStandHtml()+'</div></div>';
+  if(a) h += '<div class="na-karte"><h3>Aufbau aus dem Bestand</h3><div class="na-feld"><label><input type="checkbox" data-na-wechsel="aufbauAn"'+(naAbAn()?' checked':'')+'> „Neuer Standard" öffnet den geteilten Bildschirm mit dem Bestand als Quelle</label></div>'
+    + '<div class="na-dim">Nur am PC (ab '+NA_AB_BREIT+' px Breite). Rechts stehen alle Standards des Bestands mit Volltextsuche; was gebraucht wird, wird mit der Maus herübergezogen. Material-Rubriken bleiben draußen (nur ihre Hülle). Der Bestand wird nur gelesen. Ausgeschaltet öffnet sich die rechte Seite nicht mehr von selbst — im Editor bleibt der Knopf „📚 Bestand". Gilt für alle Geräte.</div></div>';
   h += '<div class="na-karte"><h3>Raum</h3><div class="na-dim">Diese App ist der <b>Neuaufbau</b>. '+(live==='neuaufbau' ? 'Er ist <b>live</b> — alle Geräte ohne eigene Wahl arbeiten hier.' : 'Live (im Labor) ist der <b>Bestand</b>; er bleibt hiervon unberührt.')+'</div>'
     + '<div style="margin-top:8px"><button class="na-knopf" data-na="zumBestand">'+(live==='neuaufbau' ? '↩ Alten Bestand ansehen' : '↩ Zurück zum Bestand')+'</button></div></div>';
   if(a) h += '<div class="na-karte"><h3>Live schalten</h3><div class="na-dim">Schaltet ALLE Geräte ohne eigene Raumwahl um. Daten werden nicht bewegt; Zurückschalten ist dieselbe Handbewegung. '
@@ -538,6 +540,7 @@ async function naRegisterStandHolen(pruefen){
   R.geholt = Date.now(); R.laedt = false; neu();
 }
 naAkt('registerPruefen', ()=>{ if(naAdmin()) naRegisterStandHolen(true); });
+naEin('aufbauAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('aufbau', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Aufbau aus dem Bestand '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Aufbau aus dem Bestand eingeschaltet' : 'Aufbau aus dem Bestand ausgeschaltet'); });
 naEin('registerAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('register', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Register-Abfrage '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Register-Abfrage eingeschaltet' : 'Register-Abfrage ausgeschaltet'); });
 naAkt('thema', ()=>{ const n = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', n); store.set('hkl_theme', n); });
 naEin('geraetName', v=>{ const g = naGeraet(); g.name = String(v||'').trim().slice(0,40); store.set('nalokal_geraet', JSON.stringify(g)); toast('Gerätename gespeichert'); });
