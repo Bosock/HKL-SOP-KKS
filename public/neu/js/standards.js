@@ -46,6 +46,13 @@ async function naStandardAnlegen(){
   if(!titel) return;
   const tr = naAehnliche(titel, naAlle('standard', true).map(s=>({ id:s.id, name:s.titel })));
   if(tr.length && !(await naFrage('Ähnlich: '+tr.slice(0,3).map(t=>'„'+t.item.name+'"').join(', ')+'. Trotzdem neu anlegen?', { ja:'Neu anlegen' }))) return;
+  /* Aufbau aus dem Bestand (aufbau.js): sofort der geteilte Bildschirm — links
+     der leere neue Standard, rechts der Bestand zum Herüberziehen. */
+  if(naAbAn() && naAbBreit()){
+    const neu = naStandardNeu(titel, '', []);
+    naSpeichern('standard', neu, 'angelegt (Aufbau aus dem Bestand)'); naAbOeffnen();
+    naGeh('#/s/'+neu.id+'/bearbeiten'); return;
+  }
   const alle = naAlle('standard');
   const wie = await naSheetAuf('<div class="sheet-title">Womit beginnen?</div><div class="sheet-name">'+esc(titel)+'</div>'
     + '<button class="sheet-act" data-na="sheetWert" data-wert="geruest"><span class="sa-ico">▤</span><span>Mit den üblichen Rubriken<span class="sa-sub">'+esc(naListe('rubriken').map(r=>r.name).join(' · '))+'</span></span></button>'
@@ -142,24 +149,26 @@ function naSichtEditor(id){
     + naF('Titel', '<input type="text" value="'+esc(s.titel)+'" data-na-wechsel="edTitel">')
     + '<div class="na-zwei">'+naF('Gruppe', '<button class="na-wahl" data-na="edGruppe">'+(s.gruppe ? esc(naListeName('gruppen', s.gruppe)) : '<span class="na-leer">— keine —</span>')+'</button>')
     + naF('Kennzeichen', '<button class="na-wahl" data-na="edKz">'+((s.kennzeichen||[]).length ? esc(s.kennzeichen.map(k=>naListeName('kennzeichen',k)).join(', ')) : '<span class="na-leer">— keine —</span>')+'</button>')+'</div>'
-    + '<div class="na-zeile"><button class="na-knopf" data-na="geh" data-ziel="#/s/'+esc(s.id)+'">👁 Ansehen</button><button class="na-knopf" data-na="edKopie">⧉ Kopieren</button><button class="na-knopf weg" data-na="edLoeschen">In den Papierkorb</button></div></div>';
+    + '<div class="na-zeile"><button class="na-knopf" data-na="geh" data-ziel="#/s/'+esc(s.id)+'">👁 Ansehen</button><button class="na-knopf" data-na="edKopie">⧉ Kopieren</button>'+naAbEditorKnopf()+'<button class="na-knopf weg" data-na="edLoeschen">In den Papierkorb</button></div></div>';
   (s.rubriken||[]).forEach((r, ri)=>{
-    h += '<div class="na-rub"><h2>'+esc(r.name||'(Rubrik ohne Namen)')+'</h2>'
+    h += '<div class="na-rubblock" data-rub-block="'+esc(r.id)+'"><div class="na-rub"><h2>'+esc(r.name||'(Rubrik ohne Namen)')+'</h2>'
       + '<button class="na-knopf klein" data-na="rubName" data-r="'+esc(r.id)+'" aria-label="Umbenennen">✎</button>'
       + '<button class="na-knopf klein" data-na="rubSchieb" data-r="'+esc(r.id)+'" data-d="-1"'+(ri===0?' disabled':'')+' aria-label="nach oben">↑</button>'
       + '<button class="na-knopf klein" data-na="rubSchieb" data-r="'+esc(r.id)+'" data-d="1"'+(ri===s.rubriken.length-1?' disabled':'')+' aria-label="nach unten">↓</button>'
       + '<button class="na-knopf klein weg" data-na="rubWeg" data-r="'+esc(r.id)+'" aria-label="Rubrik löschen">×</button></div>';
     (r.abschnitte||[]).forEach(a=>{
-      h += '<div class="na-abs na-zeile" data-abs-ziel="'+esc(a.id)+'"><span style="flex:1">'+(a.name ? esc(a.name) : '<span class="na-leer">Abschnitt</span>')+'</span>'
+      h += '<div class="na-absblock" data-abs-block="'+esc(a.id)+'"><div class="na-abs na-zeile" data-abs-ziel="'+esc(a.id)+'"><span style="flex:1">'+(a.name ? esc(a.name) : '<span class="na-leer">Abschnitt</span>')+'</span>'
         + '<button class="na-knopf klein" data-na="absName" data-a="'+esc(a.id)+'">✎</button>'
         + ((r.abschnitte.length>1 || !(a.positionen||[]).length) ? '<button class="na-knopf klein weg" data-na="absWeg" data-a="'+esc(a.id)+'" aria-label="Abschnitt löschen">×</button>' : '')+'</div>';
       h += (a.positionen||[]).map(p=>naPosZeile(s, p, null, true)).join('');
-      h += '<div class="na-zeile" style="margin:4px 0 10px"><button class="na-knopf pri" data-na="neuAnlegen" data-a="'+esc(a.id)+'">＋ Neu anlegen</button><button class="na-knopf" data-na="bausteinRein" data-a="'+esc(a.id)+'">🧩 Baustein</button></div>';
+      h += '<div class="na-zeile" style="margin:4px 0 10px"><button class="na-knopf pri" data-na="neuAnlegen" data-a="'+esc(a.id)+'">＋ Neu anlegen</button><button class="na-knopf" data-na="bausteinRein" data-a="'+esc(a.id)+'">🧩 Baustein</button></div></div>';
     });
-    h += '<button class="na-knopf klein" data-na="absNeu" data-r="'+esc(r.id)+'">＋ Abschnitt</button>';
+    h += '<button class="na-knopf klein" data-na="absNeu" data-r="'+esc(r.id)+'">＋ Abschnitt</button></div>';
   });
+  /* Ablage für das Ziehen aus dem Bestand (aufbau.js): ans Ende, als neue Rubrik. */
+  h += '<div class="na-drop-ende'+((s.rubriken||[]).length ? '' : ' immer')+'" data-drop-ende>'+((s.rubriken||[]).length ? 'Hierher ziehen: als neue Rubrik ans Ende' : 'Aus dem Bestand rechts hierher ziehen — eine Rubrik, einen Abschnitt oder eine Zeile')+'</div>';
   h += '<div style="margin:16px 0"><button class="na-knopf" data-na="rubNeu">＋ Rubrik</button></div>';
-  return { titel:s.titel, pfad:'Bearbeiten', zurueck:'#/s/'+s.id, bearbeitung:true, html:h, nachher: naZiehenAn };
+  return { titel:s.titel, pfad:'Bearbeiten', zurueck:'#/s/'+s.id, bearbeitung:true, html:h };
 }
 naEin('edTitel', v=>{ const s = naEdObj(); v = String(v||'').trim(); if(!s || !v || v===s.titel) return; s.titel = v; naEdSpeichern('Titel geändert'); });
 naAkt('edGruppe', async ()=>{ const s = naEdObj(); if(!s) return;
@@ -201,26 +210,8 @@ naAkt('posSchieb', d=>{ const s = naEdObj(); const x = naPosFinden(s, d.pos); if
   const j = x.i+(+d.r); if(j<0 || j>=x.liste.length) return;
   const t = x.liste[x.i]; x.liste[x.i] = x.liste[j]; x.liste[j] = t; naEdSpeichern('Position verschoben'); });
 
-/* Ziehen am PC: Position auf eine andere Position (davor) oder auf eine
-   Abschnittszeile (ans Ende) ziehen. */
-function naZiehenAn(){
-  let von = null;
-  document.querySelectorAll('#naMain [data-pos-id]').forEach(el=>{
-    el.addEventListener('dragstart', ev=>{ von = el.getAttribute('data-pos-id'); el.classList.add('zieh'); try{ ev.dataTransfer.setData('text/plain', von); }catch(e){} });
-    el.addEventListener('dragend', ()=>{ el.classList.remove('zieh'); });
-  });
-  document.querySelectorAll('#naMain [data-pos-id], #naMain [data-abs-ziel]').forEach(el=>{
-    el.addEventListener('dragover', ev=>{ if(von) ev.preventDefault(); });
-    el.addEventListener('drop', ev=>{ ev.preventDefault(); if(!von) return; const s = naEdObj(); if(!s) return;
-      const q = naPosFinden(s, von); if(!q) return;
-      const zielPos = el.getAttribute('data-pos-id'); const zielAbs = el.getAttribute('data-abs-ziel');
-      if(zielPos===von) return;
-      const [pos] = q.liste.splice(q.i, 1);
-      if(zielPos){ const z = naPosFinden(s, zielPos); if(z) z.liste.splice(z.i, 0, pos); else q.liste.splice(q.i, 0, pos); }
-      else { const z = naAbschnittFinden(s, zielAbs); (z ? z.a.positionen : q.liste).push(pos); }
-      von = null; naEdSpeichern('Position verschoben'); });
-  });
-}
+/* Ziehen am PC: aufbau.js — eine Zeile im Editor verschieben und Stücke aus
+   dem Bestand übernehmen laufen über dieselben Ziele. */
 
 /* ── Position bearbeiten (gilt nur hier) ── */
 naAkt('posBearb', async d=>{
@@ -229,6 +220,7 @@ naAkt('posBearb', async d=>{
   const vorgabeBereich = st && st.bereich ? naListeName('bereiche', st.bereich) : '';
   const w = await naSheetAuf('<div class="sheet-title">Position — gilt nur in diesem '+(NA_ED.typ==='baustein'?'Baustein':'Standard')+'</div>'
     + '<div class="sheet-name">'+esc(naPosText(p))+'</div>'
+    + (p.herkunft && p.herkunft.q==='bestand' ? '<div class="na-dim" style="margin:-4px 2px 8px">Übernommen aus dem Bestand: „'+esc(p.herkunft.titel||p.herkunft.std||'')+'"'+(p.herkunft.t && p.herkunft.t!==p.text ? ' · damals: „'+esc(p.herkunft.t)+'"' : '')+'</div>' : '')
     + (p.ref ? '<div class="na-info">Name, Lagerort und Fotos gehören zum Stammsatz und gelten überall. '+(st ? '<a href="#/'+p.ref.typ+'/'+esc(st.id)+'">Stammsatz öffnen</a>' : '')+'</div>'
       : naF('Text', '<textarea id="naPosText">'+esc(p.text||'')+'</textarea>'))
     + '<div class="na-zwei">'+naF('Menge', '<input type="text" id="naPosMenge" value="'+esc(p.menge||'')+'" placeholder="z. B. 2x">', 'Unklare Mengen (z. B. „1–2") zählen in den Kosten nicht.')
@@ -362,7 +354,7 @@ function naSichtBaustein(id){
     + (b.positionen||[]).map(p=>naPosZeile(b, p, null, true)).join('')
     + '<div class="na-zeile" style="margin:8px 0"><button class="na-knopf pri" data-na="neuAnlegen" data-a="">＋ Neu anlegen</button><button class="na-knopf weg" data-na="bsWeg">In den Papierkorb</button></div>'
     + '<div class="na-dim">Eingefügt (als Kopie) in '+naStandards().filter(x=>naPositionen(x).some(y=>y.pos.ausBaustein===b.id)).length+' Standard(s). Spätere Änderungen hier ändern diese Kopien nicht.</div>';
-  return { titel:b.name, pfad:'Baustein', zurueck:'#/bausteine', bearbeitung:true, html:h, nachher:naZiehenAn };
+  return { titel:b.name, pfad:'Baustein', zurueck:'#/bausteine', bearbeitung:true, html:h };
 }
 naEin('bsName', v=>{ const b = naEdObj(); v = String(v||'').trim(); if(!b || !v) return; b.name = v; naEdSpeichern('umbenannt'); });
 naAkt('bsWeg', async ()=>{ const b = naEdObj(); if(!b) return; if(!(await naFrage('Baustein „'+b.name+'" in den Papierkorb?', { ja:'In den Papierkorb', gefahr:true, mehr:'Bereits eingefügte Kopien bleiben in den Standards.' }))) return;

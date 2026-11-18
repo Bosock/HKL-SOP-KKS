@@ -71,6 +71,8 @@ function naZeigen(){
   naLeisteZeigen();
   NA_BEARBEITUNG = !!v.bearbeitung;
   if(v.nachher) try{ v.nachher(); }catch(e){ console.error(e); }
+  /* Aufbau aus dem Bestand: rechte Seite ein- oder ausblenden (aufbau.js). */
+  if(typeof naAbNachZeigen==='function') try{ naAbNachZeigen(); }catch(e){ console.error(e); }
 }
 function naLeisteZeigen(){
   const l = $('naLeiste'); if(!l) return;

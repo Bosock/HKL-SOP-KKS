@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 13.11.2026 · Cache-Version `v85` · Code: `public/neu/`
+**Stand:** 18.11.2026 · Cache-Version `v86` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -195,6 +195,60 @@ weitere Liste im Verzeichnis, mit denselben Bedienmustern.
   Merkmale in feste Gruppen ist noch nicht entschieden und deshalb nicht
   gebaut.
 
+**Aufbau aus dem Bestand** (seit 18.11.2026, nur am PC). Solange der Schalter
+unter Einstellungen → „Aufbau aus dem Bestand" an ist (Vorgabe: an), öffnet
+„Neuer Standard" nach dem Titel sofort einen **geteilten Bildschirm**: links
+der neue, leere Standard im gewohnten Editor, rechts der Bestand als Quelle.
+Übernommen wird nur, was mit der Maus herübergezogen wird — nichts kommt von
+selbst. Beim Bearbeiten eines Standards ist die rechte Seite ebenfalls da;
+✕ klappt sie zu (das Gerät merkt es sich), „📚 Bestand" im Editor öffnet sie.
+
+- **Was rechts steht:** alle Standards des Bestands **so, wie das Labor sie
+  heute sieht** — die eingelesenen Word-Standards plus alles, was die alte App
+  darüberlegt: im Labor angelegte Standards und Zeilen, Textkorrekturen,
+  ausgeblendete und umsortierte Rubriken und Zeilen, verschobene Zeilen,
+  Regeln, eigene Abschnitte, Notizen. Dazu die Bausteine des Neuaufbaus.
+  Gelesen wird beim Öffnen frisch vom Server (`GET /api/state` ohne Raum =
+  Bestand); „↻" liest neu. **Der Bestand wird nie beschrieben.**
+- **Suche** über alle Formulierungen, Word-Wortlaute, Zusätze, Abschnitts-
+  und Rubriknamen und Standard-Titel. Gleiche Formulierungen stehen einmal da
+  („Druckableitung vorbereiten — in 16 Standards"); ▸ zeigt alle Fundstellen
+  als Standard › Rubrik › Abschnitt. Filter nach Gruppe und Rubrik.
+- **Blättern** ohne Suche: Gruppe › Standard › Rubrik › Abschnitt › Zeilen.
+- **Ziehen:**
+
+  | gezogen | entsteht im neuen Standard |
+  |---|---|
+  | Zeile oder Formulierung | eine Zeile — vor oder nach der Zeile, auf die man sie fallen lässt (obere/untere Hälfte), ans Ende eines Abschnitts oder einer Rubrik, oder auf der Ablage unten als neue Rubrik |
+  | „Word: …" unter einer Zeile | dieselbe Zeile mit dem Wortlaut der Word-Datei |
+  | Notiz | eine Hinweis-Zeile |
+  | Abschnitt | ein Abschnitt mit allen Zeilen, vor oder nach einem Abschnitt, ans Ende einer Rubrik oder als neue Rubrik |
+  | Rubrik | eine Rubrik mit allen Abschnitten (die Notiz der Rubrik steht vorn) |
+  | Baustein | seine Zeilen, als Kopie |
+
+  Zeilen mit Kästchen 🔲 werden „Arbeitsschritt", die übrigen „Hinweis" —
+  ein Vorschlag, änderbar über ✎. Menge und Zusätze (Spezifikation, „für …")
+  kommen mit, was schon im Text steht, nicht doppelt. Neue Rubrik- und
+  Abschnittsnamen landen in ihren Listen. Zeilen im Editor lassen sich auf
+  denselben Wegen verschieben.
+- **Material bleibt draußen:** Rubriken der Art „Material" (Materialien,
+  Notfallmaterial) sind grau; ihre Zeilen lassen sich nicht ziehen und werden
+  nicht durchsucht. Zieht man die ganze Rubrik, kommt nur die **Hülle**
+  (Name und Abschnittsnamen, keine Zeile). Arbeitsschritte, die ein Material
+  nennen („Wischdesinfektion mit Softasept"), stehen in anderen Rubriken und
+  sind ziehbar.
+- **Herkunft:** Jede übernommene Zeile merkt sich Standard, Stelle und
+  Wortlaut (`herkunft`). Rechts trägt sie dann ✓ („in diesem Standard") oder
+  ✓n („in n anderen neuen Standards"); jeder Standard zeigt „✓ x von y
+  Zeilen". Das Positions-Blatt nennt die Herkunft. Die Zeile ist eine
+  eigenständige Kopie: Spätere Änderungen im Bestand ändern sie nicht.
+- **Nicht dabei**, weil es im Neuaufbau noch kein Gegenstück gibt:
+  Arzt-Varianten, Verfahrenszweige, Anleitungen, Freigabe und Fassungen,
+  Bilder des Bestands.
+- **Nur am PC:** ab 1100 px Breite. Darunter steht im Editor ein Hinweis.
+- **Ausgeschaltet** fragt „Neuer Standard" wieder „Womit beginnen?", und die
+  rechte Seite öffnet sich nur über „📚 Bestand".
+
 **Registerdaten (Grundsatz A5).** Was aus EUDAMED oder GUDID kommt, trägt in
 der Maske Quelle, Abrufzeit und den Status „noch nicht bestätigt". Bestätigt
 ist es erst, wenn ein Mensch den Stammsatz speichert. Der Mensch schlägt das
@@ -263,6 +317,8 @@ Komfort, keine Sicherheit (A9).
 public/neu/index.html     eigene Seite; nutzt ../css/app.css (gleiches Aussehen)
 public/neu/neu.css        nur Ergänzungen
 public/neu/js/kern.js     reine Logik, ohne DOM/Speicher → test/neue-app.test.js
+public/neu/js/bestand.js  der Bestand als Quelle: so aufbereitet, wie die alte App ihn
+                          zeigt; Suche; Einfügen (rein) → test/aufbau.test.js
 public/neu/js/barcode.js  Barcode lesen: Kamera (live) oder Foto; eingebauter Leser oder zxing
 public/neu/daten/         katalog-zusatz.json (Kategorien für Verbrauchsmaterial, Suchwörter,
                           Register-Einordnung) · material-namen.json (Namensvorschläge;
@@ -276,6 +332,7 @@ public/neu/js/ui.js       Klick-Verteiler (data-na), Blätter, Rückfragen, DAS 
 public/neu/js/stamm.js    Material · Geräte · Medikamente
 public/neu/js/standards.js Standards, Editor, Neu anlegen, Bausteine, Rüstliste, Kosten
 public/neu/js/werkzeuge.js Mehr: Listen, Meldungen, Verlauf, Papierkorb, Kosten, Sicherung, Einstellungen
+public/neu/js/aufbau.js   Aufbau aus dem Bestand: rechte Seite, Ziehen (auch Zeilen im Editor)
 public/neu/js/app.js      Start, Raumschutz, Navigation (#/…), Anmeldung
 ```
 
@@ -358,9 +415,9 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 | `na_m_<id>` | Material: name, handelsname, kategorie, gtin, ref, pzn, hersteller (Kennung), merkmale{}, lagerort (Kennung der Liste `lagerorte`), bereich, packung, verwendung, suchwoerter, verknuepfungen[{art, ziel, sorte, grund}], register{quelle, abgerufen, bestaetigt, hersteller, srn, bezeichnung, einordnung, basisUdi, gtin}, varianteVon, fotos[{k, v, rolle, titel, orig, origV}], hauptbild, preis{betrag, bezugsmenge}, notiz, archiviert |
 | `na_g_<id>` | Gerätetyp: name, kategorie, hersteller, modell, lagerort, bereich, fotos[], hinweis |
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
-| `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage}]}]}] |
+| `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage, herkunft{q:'bestand', std, titel, z, t}}]}]}] |
 | `na_b_<id>` | Baustein: name, positionen[] |
-| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register} |
+| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register, aufbau} |
 | `na_ml_<id>` | Meldung: ref, was, notiz, stufe, schritte[] |
 | `na_pk_<id>` | Papierkorb: typ, daten, geloescht, von |
 | `na_vl_<JJJJ-MM>_<gerät>` | Verlauf (je Monat und Gerät, höchstens 500 Einträge) |
@@ -391,7 +448,9 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1146 Tests grün, davon 33 in `test/neue-app.test.js` (Logik,
+- `npm test`: 1152 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+  Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
+  Material nur als Hülle, ✓ „schon übernommen"), 33 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
@@ -413,6 +472,14 @@ das.
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,
   Variante, Filter „unvollständig", Zubehör-Frage und Ersatz im Standard,
   Register abschaltbar, Bestand unverändert.
+- `node e2e/neue-app-aufbau.js` prüft 29 Punkte am PC (1440 × 900). **Treue:**
+  Der Bestand bekommt Änderungen wie im Labor; die alte App zeigt jeden
+  Standard, und die rechte Seite ergibt für alle 47 dieselben Rubriken,
+  Abschnitte und Zeilen. Dann alle Zieh-Wege, Material gesperrt, Zuklappen,
+  schmaler Bildschirm, Schalter aus — und der Bestand Byte für Byte gleich.
+  Zusätzlich geprüft am 18.11.2026 mit einer Kopie des echten Laborstands
+  (lokal; der Live-Server wurde nur gelesen): 49 Standards, 300 Rubriken,
+  4.286 Zeilen — gleich.
 - Die älteren Suiten, die den Neuaufbau betreten (`neuaufbau`, `liveschalter`,
   `editor`, `produkt`, `erfassung`), sind grün.
 - **Messung** (`node e2e/messen-aufgaben.js`): zehn Alltagsaufgaben, gezählt in
@@ -484,7 +551,7 @@ gibt es in ihr **nicht**:
 
 | Funktion der alten App | Stand |
 |---|---|
-| die 47 eingelesenen Word-Standards, Referenzkatalog, Material des Bestands | bewusst nicht übernommen (G1). Aufbau von Hand oder späterer Import. |
+| die 47 eingelesenen Word-Standards, Referenzkatalog, Material des Bestands | bewusst nicht übernommen (G1). Aufbau von Hand — seit 18.11.2026 mit dem Bestand als Quelle daneben (Ziehen, ohne Material). |
 | Austauschgruppen (E2) | **vorhanden** seit 10.11.2026 als Verknüpfungen am Material (Ersatz, Zubehör, Aufbereitung) |
 | Arzt-Varianten, Verfahrenszweige (E3) | Rückstand |
 | Freigabe + Fassungen (E4) | Rückstand |
