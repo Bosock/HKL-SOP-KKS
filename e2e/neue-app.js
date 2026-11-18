@@ -70,14 +70,11 @@ async function wahl(page, such, text) {
   await p.fill('#naAnmeldePw', 'abcdefg'); await p.click('#naSheet >> text=Anmelden');
   r.check('Passwort „abcdefg" meldet an', await p.evaluate(() => naAdmin()));
 
-  /* ── 2. Material: alles Wichtige sofort da, Kategorie freiwillig; GTIN mit Prüfziffer, Hersteller an Ort und Stelle ── */
+  /* ── 2. Material: erst die Pflichtangaben (GTIN, Hersteller, REF), dann der Rest; GTIN mit Prüfziffer, Hersteller an Ort und Stelle ── */
   await p.click('.na-tab:has-text("Material")'); await p.click('.na-plus');
-  r.check('Name, GTIN, Hersteller und Lagerort sind sofort da — die Kategorie ist kein Tor', (await p.isVisible('input[data-f="name"]')) && (await p.isVisible('input[data-f="gtin"]'))
-    && (await p.isVisible('button[data-f="hersteller"]')) && (await p.isVisible('button[data-f="lagerort"]')) && !(await p.isVisible('button[data-f="kategorie"]')));
-  r.check('„fehlt noch" nennt die fünf Kern-Angaben', /Hersteller · GTIN oder REF · Lagerort · Produktbild · Kategorie/.test(await p.textContent('#naFehltZeile')));
-  await p.click('details[data-ab="kat"] > summary');
-  await p.click('button[data-f="kategorie"]'); await wahl(p, 'Schleuse', 'Schleuse / Introducer');
-  r.check('Abschnitt bleibt nach der Wahl aufgeklappt', await p.isVisible('button[data-f="kategorie"]'));
+  r.check('Pflichtangaben zuerst: GTIN, Hersteller, REF sichtbar — Name, Lagerort, Kategorie und Speichern noch gesperrt', (await p.isVisible('input[data-f="gtin"]'))
+    && (await p.isVisible('button[data-f="hersteller"]')) && (await p.isVisible('input[data-f="ref"]')) && !(await p.isVisible('input[data-f="name"]'))
+    && !(await p.isVisible('button[data-f="lagerort"]')) && !(await p.isVisible('[data-na="entwSpeichern"]')) && /Noch offen: GTIN · Hersteller · REF/.test(await p.textContent('#naSperre')));
   await p.fill('input[data-f="gtin"]', GTIN_FALSCH);
   r.check('falsche Prüfziffer sofort angezeigt', /Prüfziffer stimmt nicht/.test(await p.textContent('#naGtinStand')));
   await p.fill('input[data-f="gtin"]', GTIN);
@@ -85,6 +82,11 @@ async function wahl(page, such, text) {
   await p.fill('input[data-f="ref"]', 'RSS601');
   await p.click('button[data-f="hersteller"]'); await p.fill('#naAuswQ', 'Terumo');
   await p.click('#naAuswListe >> text=„Terumo" neu anlegen');
+  r.check('alle drei beantwortet → Name, Lagerort, Speichern sind da', await warte(p, () => !!document.querySelector('input[data-f="name"]') && !!document.querySelector('button[data-f="lagerort"]') && !!document.querySelector('[data-na="entwSpeichern"]') && !document.getElementById('naSperre')));
+  r.check('„fehlt noch" nennt die übrigen Kern-Angaben', /Lagerort · Produktbild · Kategorie/.test(await p.textContent('#naFehltZeile')));
+  await p.click('details[data-ab="kat"] > summary');
+  await p.click('button[data-f="kategorie"]'); await wahl(p, 'Schleuse', 'Schleuse / Introducer');
+  r.check('Abschnitt bleibt nach der Wahl aufgeklappt', await p.isVisible('button[data-f="kategorie"]'));
   const diff = await p.evaluate(() => naFelder(naKat(), 'schleuse').diff.map(d => d.id));
   await p.fill('input[data-f="merkmale.' + diff[0] + '"]', '6');
   await p.fill('input[data-f="merkmale.' + diff[1] + '"]', '11');
@@ -101,6 +103,8 @@ async function wahl(page, such, text) {
   r.check('Stückpreis gerechnet', /12,00/.test(await p.textContent('#naStueckpreis')));
   await foto(p, 'handy-material-maske');
   await p.click('[data-na="entwSpeichern"]');
+  r.check('vor dem Speichern gefragt: Produktname des Herstellers und Produktfoto fehlen (keine Pflicht)', await warte(p, () => { const s = document.getElementById('naSheet'); return s.classList.contains('show') && /Produktname des Herstellers · Produktfoto/.test(s.textContent) && !/Hersteller \(/.test(s.textContent); }));
+  await p.click('#naSheet.show [data-wert="speichern"]');
   r.check('Material gespeichert', await warte(p, () => location.hash === '#/material' && naAlle('material').length === 1));
   const mat = await p.evaluate(() => naAlle('material')[0]);
   r.check('… mit GTIN, REF, Hersteller-Kennung, Merkmalen, Preis', mat.gtin === GTIN && mat.ref === 'RSS601' && /^he/.test(mat.hersteller) && Object.keys(mat.merkmale).length >= 2 && mat.preis.bezugsmenge === 10);
@@ -109,6 +113,7 @@ async function wahl(page, such, text) {
   await p.click('.na-plus');
   await p.fill('input[data-f="gtin"]', GTIN);
   r.check('doppelte GTIN wird benannt', /schon/.test(await p.textContent('#naGtinStand')));
+  await p.click('[data-na="pflichtAusweg"][data-k="hersteller"][data-a="nachtragen"]'); await p.click('[data-na="pflichtAusweg"][data-k="ref"][data-a="unbekannt"]');
   await p.fill('input[data-f="name"]', 'Zweite Schleuse'); await p.click('[data-na="entwSpeichern"]');
   await p.waitForTimeout(300);
   r.check('… und nicht gespeichert', await p.evaluate(() => naAlle('material').length === 1));

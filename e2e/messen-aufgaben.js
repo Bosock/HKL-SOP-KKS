@@ -47,6 +47,8 @@ const AUFGABEN = [
   }, gtin('0401234567890'));
 
   let n = 0; const tipp = async sel => { n++; await p.click(sel); };
+  /* „Vor dem Speichern": fehlen Produktname, Produktfoto oder Hersteller, fragt die Maske einmal nach (keine Pflicht). Gezählt. */
+  const erinnerung = async () => { if (await p.waitForSelector('#naSheet.show [data-wert="speichern"]', { timeout:1500 }).then(() => true, () => false)) await tipp('#naSheet.show [data-wert="speichern"]'); };
   const erg = [];
   async function aufgabe(nr, fn, pruef){
     await p.evaluate(() => naGeh('#/standards')); n = 0;
@@ -62,7 +64,7 @@ const AUFGABEN = [
     /* Die Kategorie wird aus dem Namen vorgeschlagen — kein Tippen mehr nötig. */
     await p.fill('input[data-f="gtin"]', gtin('0401234567111')); await p.fill('input[data-f="ref"]', 'RF-GA35');
     await tipp('[data-na="herstellerNehmen"]');   /* Vorschlag aus dem GTIN-Präfix */
-    await tipp('[data-na="entwSpeichern"]');
+    await tipp('[data-na="entwSpeichern"]'); await erinnerung();
   }, () => p.evaluate(id => naPositionen(naHole('standard', id)).some(x => x.pos.ref && (naStamm(x.pos.ref)||{}).ref === 'RF-GA35'), ids.s));
 
   await aufgabe(2, async () => {
@@ -73,7 +75,7 @@ const AUFGABEN = [
 
   await aufgabe(3, async () => {
     await tipp('.na-tab:has-text("Material")'); await tipp('.na-eintrag:has-text("Schleuse 6F")');
-    await p.fill('input[data-f="name"]', 'Radialschleuse 6F'); await tipp('[data-na="entwSpeichern"]');
+    await p.fill('input[data-f="name"]', 'Radialschleuse 6F'); await tipp('[data-na="entwSpeichern"]'); await erinnerung();
     if (await p.isVisible('#naSheet.show button:has-text("Überall übernehmen")')) await tipp('#naSheet.show button:has-text("Überall übernehmen")');
   }, () => p.evaluate(id => naHole('material', id).name === 'Radialschleuse 6F', ids.m1));
 
@@ -82,7 +84,7 @@ const AUFGABEN = [
     const fc = p.waitForEvent('filechooser'); await tipp('[data-na="fotoAuf"]');
     await (await fc).setFiles({ name:'f.png', mimeType:'image/png', buffer:Buffer.from(PNG, 'base64') });
     await p.waitForSelector('#photoEditOv'); await tipp('#peApply');   /* zuschneiden/drehen: hier nur bestätigen */
-    await p.waitForSelector('.na-foto'); await tipp('[data-na="entwSpeichern"]');
+    await p.waitForSelector('.na-foto'); await tipp('[data-na="entwSpeichern"]'); await erinnerung();
     if (await p.isVisible('#naSheet.show button:has-text("Überall übernehmen")')) await tipp('#naSheet.show button:has-text("Überall übernehmen")');
   }, () => p.evaluate(id => (naHole('material', id).fotos||[]).length === 1, ids.m1));
 

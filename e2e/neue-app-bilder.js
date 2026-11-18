@@ -38,6 +38,11 @@ const marke = page => page.evaluate(() => { const l = [...document.querySelector
   await p.goto(srv.base + '/', { waitUntil: 'networkidle' });
   await p.evaluate(() => { localStorage.setItem('hkl_raumwahl', 'neuaufbau'); localStorage.setItem('raum:neuaufbau:hkl_authuntil', String(Date.now() + 3600000)); });
   await p.goto(srv.base + '/neu/#/material/neu', { waitUntil: 'networkidle' });
+  /* Pflichtangaben (GTIN, Hersteller, REF) beantworten — sonst bleibt der Rest der Maske gesperrt. */
+  const pflicht = async () => { for (const k of ['gtin', 'hersteller', 'ref']) { const b = p.locator('[data-na="pflichtAusweg"][data-k="' + k + '"][data-a="nachtragen"]'); if (await b.count()) await b.click(); } };
+  const speichern = async () => { await p.click('[data-na="entwSpeichern"]'); await p.waitForTimeout(150);
+    if (await p.isVisible('#naSheet.show [data-wert="speichern"]')) await p.click('#naSheet.show [data-wert="speichern"]'); };
+  await pflicht();
   await p.click('details[data-ab="kat"] > summary');
   await p.click('button[data-f="kategorie"]'); await p.fill('#naAuswQ', 'Schleuse'); await p.click('#naAuswListe .sheet-act:has-text("Schleuse / Introducer")');
   await p.fill('input[data-f="name"]', 'Schleuse 6F');
@@ -93,7 +98,7 @@ const marke = page => page.evaluate(() => { const l = [...document.querySelector
 
   /* ── 6. Speichern: Stammsatz, Liste, Server ── */
   e = await entwurf(p);
-  await p.click('[data-na="entwSpeichern"]');
+  await speichern();
   r.check('gespeichert', await warte(p, () => location.hash === '#/material' && naAlle('material').length === 1));
   const mat = await p.evaluate(() => naAlle('material')[0]);
   r.check('Stammsatz: 3 Bilder, Anzeigebild, Unterschrift, Rollen', mat.fotos.length === 3 && mat.hauptbild === e.fotos[1].k && mat.fotos[1].titel === 'Ansicht von oben' && mat.fotos[0].rolle === 'etikett');
@@ -140,8 +145,9 @@ const marke = page => page.evaluate(() => { const l = [...document.querySelector
   /* ── 10. Ältere Einträge (bloße Kennungen) bleiben lesbar und werden beim Wählen umgestellt ── */
   await p.evaluate(m => { store.set('hkl_authuntil', String(Date.now() + 3600000));
     naSpeichern('material', { id: 'alt1', name: 'Alt-Eintrag', kategorie: 'schleuse', gtin: '', ref: '', hersteller: '', merkmale: {}, fotos: [m.fotos[0].k, m.fotos[2].k] }); naGeh('#/material/alt1'); }, mat);
+  await pflicht();
   r.check('alter Eintrag: zwei Kacheln, die erste ist Anzeigebild', await p.locator('.na-foto').count() === 2 && await marke(p) === 0);
-  await p.click('.na-foto >> nth=1'); await p.click('#naSheet [data-na="fotoHaupt"]'); await p.click('#naSheet >> text=Fertig'); await p.click('[data-na="entwSpeichern"]');
+  await p.click('.na-foto >> nth=1'); await p.click('#naSheet [data-na="fotoHaupt"]'); await p.click('#naSheet >> text=Fertig'); await speichern();
   r.check('… nach der Wahl gespeichert in der neuen Form', await warte(p, k => { const o = naHole('material', 'alt1'); return o && o.hauptbild === k && typeof o.fotos[0] === 'object'; }, mat.fotos[2].k));
 
   /* ── 11. Etikett lesen: das Etikettfoto wird Bild mit Rolle „Etikett", nicht Anzeigebild ── */

@@ -166,6 +166,7 @@ function naMerkmalZeilen(){ return naMerkmalListe(naKat(), NA_MERKQUELLE, naKatT
 function naMerkmalDef(mid){ return naKat().merkmale.find(x=>x.id===mid) || null; }
 function naMerkmalArtKurz(z){ return (NA_MERKMAL_KURZ[z.typ]||'Text')+(z.einheit ? ' ('+z.einheit+')' : ''); }
 function naMerkmalWo(z){
+  if(z.global) return 'für alle Produkte'+(z.global==='pflicht' ? ' — Pflichtangabe' : ' — freiwillig');
   const n = z.kategorien.length; const namen = z.kategorien.slice(0,3).map(k=>(k.kern?'★ ':'')+k.label).join(', ')+(n>3 ? ' … (+'+(n-3)+')' : '');
   if(z.allgemein) return 'für alle Kategorien'+(n ? ' · eigens bei: '+namen : '');
   return n ? namen : 'keiner Kategorie zugeordnet';
@@ -225,6 +226,8 @@ function naSichtMerkmal(mid){
   if(d.typ==='mass' || d.typ==='zahl') h += feld('Einheit', d.einheit ? esc(d.einheit) : leer('keine'), eigen ? 'mmEinheit' : '', eigen ? 'steht hinter dem Namen des Felds und hinter dem Wert' : fest);
   h += feld('Hinweis unter dem Feld', d.hinweis ? esc(d.hinweis) : leer('keiner'), 'mmHinweis', '');
   h += feld('Suchwörter', (d.such||[]).length ? esc(d.such.join(', ')) : leer('keine'), 'mmSuch', 'andere Wörter, unter denen man das Merkmal findet');
+  h += feld('Platz in der Material-Maske', z.global==='pflicht' ? 'Pflichtangaben zum Produkt — für alle Produkte, muss beantwortet werden' : (z.global==='freiwillig' ? 'Weitere Produktangaben — für alle Produkte, freiwillig' : 'je nach Kategorie (unter „Mehr Angaben")'),
+    d.archiviert ? '' : 'mmPlatz', '');
 
   if(d.typ==='liste'){
     const w = d.werte || []; const aus = ((tpl.werteAus||{})[mid]) || [];
@@ -294,6 +297,16 @@ naAkt('mmArt', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen
   if(!w || w===def.typ) return;
   naMerkmalAendern(d.mid, 'typ', w, 'Art von „'+def.label+'": '+NA_MERKMAL_KURZ[w]); toast('Art geändert'); naZeigen(); });
 naAkt('mmSuch', async d=>{ await naMerkmalSuchAendern(d.mid); naZeigen(); });
+naAkt('mmPlatz', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
+  const z = naMerkmalZeilen().find(x=>x.id===d.mid) || {};
+  const opt = (id, ico, name, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+((z.global||'aus')===id ? '●' : ico)+'</span><span>'+name+'<span class="sa-sub">'+sub+'</span></span></button>';
+  const w = await naSheetAuf('<div class="sheet-title">Platz in der Material-Maske</div><div class="sheet-name">'+esc(def.label)+'</div>'
+    + opt('pflicht', '*', 'Pflichtangabe für alle Produkte', 'steht oben bei GTIN, Hersteller, REF — muss beantwortet werden (auch „gibt es nicht", „unbekannt", „nachtragen")')
+    + opt('freiwillig', '▤', 'Für alle Produkte, freiwillig', 'steht bei „Weitere Produktangaben"')
+    + opt('aus', '▸', 'Je nach Kategorie', 'erscheint nur bei Materialien der Kategorien, denen es zugeordnet ist'));
+  if(!w || w===(z.global||'aus')) return;
+  naKatTplSpeichern(naTplGlobal(naKatTpl(), d.mid, w), 'Merkmal „'+def.label+'": '+(w==='pflicht' ? 'Pflichtangabe für alle Produkte' : (w==='freiwillig' ? 'für alle Produkte, freiwillig' : 'je nach Kategorie')));
+  toast('Übernommen'); naZeigen(); });
 naAkt('mmWertNeu', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
   const w = await naEingabe('Neuer Wert: '+def.label, { hilfe:'Erscheint in der Maske zur Auswahl.' }); if(!w) return;
   if((def.werte||[]).some(x=>naNorm(x)===naNorm(w))){ toast('Diesen Wert gibt es schon.', true); return; }

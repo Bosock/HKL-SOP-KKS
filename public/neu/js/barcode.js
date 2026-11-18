@@ -68,6 +68,8 @@ function naBarcodeDeuten(texte){
   for(const t of (texte||[])){
     const s = naParseScan(t);
     if((s.kind==='gs1' || s.kind==='gtin') && naGtinPruefziffer(s.gtin)) return { gtin:s.gtin, itemRef:s.itemRef||'', roh:t };
+    /* HIBC: keine GTIN, aber die REF — besser als nichts, eine GTIN gewinnt trotzdem */
+    if(s.kind==='hibc' && (!erst || !erst.itemRef)) erst = { gtin:'', itemRef:s.itemRef, roh:t, hibc:true };
     if(!erst) erst = { gtin:'', itemRef:'', roh:t };
   }
   return erst;
@@ -138,7 +140,7 @@ function naBarcodeScannen(){
       try{
         if(video.videoWidth){
           const d = naBarcodeDeuten(await naBarcodeRoh(naBildAufCanvas(video, 1600, 1)));
-          if(d && d.gtin){ try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){} schliessen(d); return; }
+          if(d && (d.gtin || d.hibc)){ try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){} schliessen(d); return; }
           if(d && d.roh && ++n===8) stand('Code erkannt, aber ohne GTIN. Bitte den Code mit „(01)" oder den Strichcode zeigen.');
         }
       }catch(e){ stand('Leser nicht bereit: '+e.message); }
