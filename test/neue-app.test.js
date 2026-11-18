@@ -23,7 +23,7 @@ vm.runInContext(KERN + `
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
   naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
-  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen,
+  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ,
   NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -409,13 +409,13 @@ test('Pflichtangaben: GTIN, Hersteller, REF — eintragen oder „gibt es nicht"
   assert.deepEqual(plain(o.pflicht), { hersteller:'nachtragen', ref:'unbekannt' });
   const leer = { pflicht:{ gtin:'gibtsnicht' }, gtin:'4006' }; K.naPflichtAufraeumen(leer, kat); assert.equal(leer.pflicht, undefined);
   /* ein Feld der Verwaltung für alle Produkte — als Pflicht */
-  let tpl = K.naTplGlobal({}, 'steril', 'pflicht');
+  let tpl = K.naTplGlobal({}, 'herkunftsland', 'pflicht');
   const kg = K.naKatalog(KAT, tpl);
   assert.ok(kg.global.length === 1 && kg.global[0].pflicht);
   assert.deepEqual(plain(K.naPflichtOffen({ gtin:'1', hersteller:'h', ref:'r' }, kg)).length, 1);
-  assert.deepEqual(plain(K.naPflichtOffen({ gtin:'1', hersteller:'h', ref:'r', pflicht:{ steril:'unbekannt' } }, kg)), []);
-  tpl = K.naTplGlobal(tpl, 'steril', 'freiwillig'); assert.equal(K.naKatalog(KAT, tpl).global[0].pflicht, false);
-  assert.equal(K.naTplGlobal(tpl, 'steril', 'aus').global, undefined);
+  assert.deepEqual(plain(K.naPflichtOffen({ gtin:'1', hersteller:'h', ref:'r', pflicht:{ herkunftsland:'unbekannt' } }, kg)), []);
+  tpl = K.naTplGlobal(tpl, 'herkunftsland', 'freiwillig'); assert.equal(K.naKatalog(KAT, tpl).global[0].pflicht, false);
+  assert.equal(K.naTplGlobal(tpl, 'herkunftsland', 'aus').global, undefined);
   assert.deepEqual(plain(K.naKatalog(KAT, { global:[{ mid:'gibt_es_nicht', pflicht:true }] }).global), []);   /* unbekannte Felder fallen weg */
 });
 
@@ -437,6 +437,30 @@ test('HIBC-Code: REF aus dem Code, Prüfzeichen geprüft; GS1 gewinnt', () => {
   assert.equal(K.naParseHIBC('*' + code + '*').ref, 'BJC5D6E7');                                         /* Start-/Stoppzeichen eines Code-39-Lesers */
   assert.equal(K.naParseHIBC(mit('+$$3271231LOT77')), null);                                              /* nur Sekundärdaten */
   assert.equal(K.naParseScan('(01)04022495787309(240)REF-77').kind, 'gs1');
+});
+
+test('Durchsicht 18.11.: Leerzeichen als HIBC-Prüfzeichen, Katalog ohne Quelle, Ja/Nein und feste Felder nie Pflicht', () => {
+  /* Ein gültiger HIBC, dessen Prüfzeichen ein Leerzeichen ist (Wert 38) */
+  const ZZ = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'; let rumpf = '';
+  for (const a of ZZ) for (const c of ZZ) { const r = '+A123' + a + c + '1'; if (!rumpf && K.naHibcPruefzeichen(r) === ' ') rumpf = r; }
+  assert.ok(rumpf, 'Probe gefunden');
+  assert.equal(K.naParseHIBC(rumpf + ' ').ref, rumpf.slice(5, -1));
+  assert.equal(K.naParseHIBC(rumpf + ' \r\n').ref, rumpf.slice(5, -1));                           /* Zeilenende des Handscanners */
+  assert.equal(K.naParseScan(rumpf + ' ').kind, 'hibc');
+  /* Ohne Katalog (offline) hat der Katalog trotzdem „global" — die Maske stürzt nicht */
+  assert.deepEqual(plain(K.naKatalog(null, {}).global), []);
+  /* Ja/Nein und Felder mit festem Platz: nie Pflicht bzw. nie global */
+  const kat = K.naKatalog(KAT, { global:[{ mid:'dehp', pflicht:true }, { mid:'steril', pflicht:true }, { mid:'herkunftsland', pflicht:true }, { mid:'herkunftsland', pflicht:false }] });
+  const dehp = kat.merkmale.find(d => d.id === 'dehp');
+  if (dehp) { assert.equal(dehp.typ, 'ja_nein'); assert.deepEqual(plain(kat.global.find(g => g.mid === 'dehp')), { mid:'dehp', pflicht:false }); assert.equal(K.naDarfPflicht(dehp), false); }
+  assert.equal(kat.global.some(g => g.mid === 'steril'), false);
+  assert.deepEqual(plain(kat.global.filter(g => g.mid === 'herkunftsland')), [{ mid:'herkunftsland', pflicht:true }]);   /* doppelt → einmal */
+  assert.ok(K.NA_FESTER_PLATZ.indexOf('stueck_packung') >= 0);
+  /* Ausweg umschalten; SAP zählen */
+  const o = {}; K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.deepEqual(plain(o.pflicht), { ref:'unbekannt' });
+  K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.equal('pflicht' in o, false);
+  const z = K.naSapZaehlen([{ sap:'000123' }, { sap:'123' }, { sap:'9' }, {}]);
+  assert.equal(z.get('123'), 2); assert.equal(z.get('9'), 1); assert.equal(z.size, 2);
 });
 
 test('Variante: Familie bleibt, Nummern/Bilder/Verknüpfungen nicht; Lagerorte sind eine Liste', () => {

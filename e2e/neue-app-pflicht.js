@@ -112,7 +112,9 @@ const blattZu = p => warte(p, () => !document.getElementById('naSheet').classLis
   const lang = await material('Ablaufschlauch lang');
   await p.evaluate(id => naGeh('#/material/' + id), lang.id);
   r.check('am zweiten steht „auch bei Ablaufschlauch"', await warte(p, () => /schon bei: Ablaufschlauch/.test((document.getElementById('naSapStand') || {}).textContent || '')));
-  await p.click('[data-na="entwAbbrechen"]'); await warte(p, () => location.hash === '#/material');
+  await p.fill('input[data-f="handelsname"]', 'Schlauch L'); await p.click('[data-na="entwSpeichern"]');
+  r.check('später speichern, SAP-Nummer unverändert: keine SAP-Frage mehr, nur die Erinnerung', (await blattOffen(p, /Vor dem Speichern/)) && !/steht schon bei/.test(await p.textContent('#naSheet')));
+  await p.click('#naSheet.show [data-wert="speichern"]'); await warte(p, () => location.hash === '#/material');
 
   /* ── 4. Alte Materialien ohne Pflichtangaben ── */
   const altId = await p.evaluate(() => { const x = naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Altbestand Draht' })); naGeh('#/material'); return x.id; });
@@ -140,9 +142,12 @@ const blattZu = p => warte(p, () => !document.getElementById('naSheet').classLis
   /* ── 5. HIBC-Code aus dem Handscanner ── */
   await p.evaluate(() => naGeh('#/material/neu'));
   await p.fill('input[data-f="gtin"]', HIBC);
-  r.check('HIBC erkannt: REF übernommen, keine GTIN erfunden, Hinweis', await warte(p, () => NA_ENTWURF.obj.ref === 'ABC123' && NA_ENTWURF.obj.gtin === '' && /HIBC-Code erkannt/.test(document.getElementById('naOcrStand').textContent)));
+  r.check('HIBC erkannt: REF übernommen, keine GTIN erfunden, Hinweis', await warte(p, () => NA_ENTWURF.obj.ref === 'ABC123' && NA_ENTWURF.obj.gtin === '' && /HIBC-Code gelesen: REF ABC123 übernommen\. Dieser Code trägt keine GTIN/.test(document.getElementById('naOcrStand').textContent)));
   r.check('… offen bleiben GTIN · Hersteller', (await sperre()) === 'GTIN · Hersteller');
-  await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")'); await warte(p, () => location.hash === '#/material');
+  await ausweg('gtin', 'gibtsnicht'); await ausweg('hersteller', 'gibtsnicht'); await p.fill('input[data-f="name"]', 'Eigenbau-Adapter');
+  await p.click('[data-na="entwSpeichern"]');
+  r.check('Hersteller „gibt es nicht": die Erinnerung fragt nicht nach dem Hersteller', (await blattOffen(p, /Vor dem Speichern[\s\S]*Produktname des Herstellers · Produktfoto/)) && !/Hersteller \(/.test(await p.textContent('#naSheet')));
+  await p.click('#naSheet.show [data-wert="speichern"]'); await warte(p, () => location.hash === '#/material');
 
   /* ── 6. „＋ Feld für alle Produkte": ein eigenes Pflichtfeld des Hauses ── */
   await p.evaluate(() => naGeh('#/material/neu'));
@@ -161,20 +166,27 @@ const blattZu = p => warte(p, () => !document.getElementById('naSheet').classLis
   await p.fill('input[data-f="name"]', 'Mapping-Katheter');
   await p.click('details[data-ab="verkn"] > summary'); await p.click('[data-na="verknNeu"]');
   await p.click('#naSheet.show .sheet-act:has-text("Braucht dazu")'); await p.click('#naAuswListe .sheet-act:has-text("Neues Material erfassen")');
-  await p.fill('#naKurzName', 'Verbindungskabel kurz'); await p.fill('#naKurzInhalt input[data-f="sap"]', 'S-77');
+  await p.fill('#naKurzName', 'Verbindungskabel kurz'); await p.fill('#naKurzInhalt input[data-f="sap"]', '123456');
   for (const k of ['gtin', 'ref', 'hersteller']) await p.click('#naSheet.show [data-na="kurzAusweg"][data-k="' + k + '"][data-a="nachtragen"]');
+  await p.fill('#naKurzInhalt input[data-f="ref"]', 'K-1');   /* erst „nachtragen", dann doch die REF */
+  r.check('Kurzerfassung: REF eingetragen → ihre Auswege verschwinden', !(await p.isVisible('#naKAw-ref')));
   await p.click('[data-na="kurzOk"]');
   r.check('Kurzerfassung verlangt auch „Herstellungsland"', /Erst die Pflichtangaben beantworten: Herstellungsland/.test(await p.textContent('#naKurzStand')));
   await foto(p, 'pflicht-7-kurzerfassung');
   await p.click('#naSheet.show [data-na="kurzAusweg"][data-k="herkunftsland"][data-a="unbekannt"]'); await p.click('[data-na="kurzOk"]');
+  r.check('Kurzerfassung: SAP-Nummer schon vergeben → gesagt, noch nichts angelegt', /SAP-Nummer 123456 steht schon bei[\s\S]*Noch einmal „Anlegen"/.test(await p.textContent('#naKurzStand'))
+    && await p.evaluate(() => !naAlle('material').some(x => x.name === 'Verbindungskabel kurz')));
+  await p.click('[data-na="kurzOk"]');
   const kabel = await (async () => { await warte(p, () => naAlle('material').some(x => x.name === 'Verbindungskabel kurz')); return material('Verbindungskabel kurz'); })();
-  r.check('kurz erfasst: SAP-Nummer und Antworten gespeichert, verknüpft', !!kabel && kabel.sap === 'S-77' && kabel.pflicht.herkunftsland === 'unbekannt' && kabel.pflicht.gtin === 'nachtragen'
+  r.check('kurz erfasst (zweiter Tipp): SAP-Nummer, REF und Antworten gespeichert — kein Ausweg neben der REF, verknüpft', !!kabel && kabel.sap === '123456' && kabel.ref === 'K-1' && !('ref' in kabel.pflicht)
+    && kabel.pflicht.herkunftsland === 'unbekannt' && kabel.pflicht.gtin === 'nachtragen'
     && await p.evaluate(id => (NA_ENTWURF.obj.verknuepfungen || []).some(v => v.ziel === id), kabel.id));
   await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")'); await warte(p, () => location.hash === '#/material');
-  r.check('Verzeichnis: alle anderen müssen das neue Pflichtfeld nachtragen (4)', /Pflichtangaben nachtragen \(4\)/.test(await chips()));
+  r.check('Verzeichnis: alle anderen müssen das neue Pflichtfeld nachtragen (5)', /Pflichtangaben nachtragen \(5\)/.test(await chips()));
   /* Ansicht (ohne Anmeldung): Pflichtangaben mit dem Ausweg-Wort */
   const ansicht = await p.evaluate(id => { const d = document.createElement('div'); d.innerHTML = naStammAnsicht('material', naHole('material', id)); return d.textContent; }, kabel.id);
-  r.check('Ansicht zeigt die Antworten („nachtragen", „unbekannt") und die SAP-Nummer', /GTIN[\s\S]*nachtragen/.test(ansicht) && /Herstellungsland[\s\S]*unbekannt/.test(ansicht) && /SAP-Nummer[\s\S]*S-77/.test(ansicht));
+  if (process.env.PFLICHT_DEBUG) console.log(ansicht);
+  r.check('Ansicht zeigt die Antworten („nachtragen", „unbekannt") und die SAP-Nummer', /GTIN[\s\S]*nachtragen/.test(ansicht) && /Herstellungsland[\s\S]*unbekannt/.test(ansicht) && /SAP-Nummer:\s*123456/.test(ansicht) && /REF:\s*K-1/.test(ansicht));
   /* zurück über die Seite des Merkmals */
   await p.evaluate(() => naGeh('#/liste/merkmale/herkunftsland'));
   r.check('Seite des Merkmals: „Platz in der Material-Maske" — Pflichtangabe', await warte(p, () => /Platz in der Material-Maske[\s\S]*Pflichtangabe/.test(document.getElementById('naMain').textContent)));
@@ -182,11 +194,26 @@ const blattZu = p => warte(p, () => !document.getElementById('naSheet').classLis
   r.check('„Je nach Kategorie": wieder nur bei den Kategorien — die Arbeitsliste schrumpft', await warte(p, () => !naKat().global.some(g => g.mid === 'herkunftsland'))
     && await p.evaluate(() => naAlle('material').filter(o => naPflichtNachtragen(o, naKat()).length).length === 3));
 
+  await p.evaluate(() => naGeh('#/liste/merkmale/steril'));
+  r.check('„Steril" hat einen festen Platz — nicht für alle Produkte umstellbar', await warte(p, () => /fester Platz/.test(document.getElementById('naMain').textContent) && !document.querySelector('[data-na="mmPlatz"]')));
+  await p.evaluate(() => naGeh('#/liste/merkmale/roentgenfaden'));
+  await p.click('[data-na="mmPlatz"]');
+  r.check('Ja/Nein-Merkmal: nur freiwillig für alle Produkte, nie Pflicht (leeres Häkchen ≠ „nein")', (await blattOffen(p, /Ja\/Nein-Merkmale nur freiwillig/)) && (await p.locator('#naSheet.show [data-wert="pflicht"]').count()) === 0);
+  await p.evaluate(() => naSheetZu(null));
+
   /* ── 7. Abgleich und die wichtigste Zusage ── */
   await warte(p, () => naAbgleich.offen() === 0, null, 10000);
   const neu = (await json(srv.base, '/api/state?raum=neuaufbau')).state;
   r.check('Server (Neuaufbau): SAP-Nummer und Antworten angekommen', neu['na_m_' + m.id] && neu['na_m_' + m.id].sap === '000123456' && neu['na_m_' + m.id].pflicht.gtin === 'gibtsnicht');
   r.check('Server (Bestand): Byte für Byte unverändert', JSON.stringify((await json(srv.base, '/api/state')).state) === bestandVorher);
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } }); const p2 = await ctx2.newPage(); const errs2 = [];
+  p2.on('pageerror', e => errs2.push(e.message));
+  await p2.route('**/data/merkmale.json', rt => rt.abort());
+  await p2.goto(srv.base + '/', { waitUntil: 'networkidle' });
+  await p2.evaluate(() => { localStorage.setItem('hkl_raumwahl', 'neuaufbau'); localStorage.setItem('raum:neuaufbau:hkl_authuntil', String(Date.now() + 3600000)); });
+  await p2.goto(srv.base + '/neu/#/material/neu', { waitUntil: 'networkidle' });
+  r.check('ohne Merkmal-Katalog (offline, Serverfehler): die Maske baut sich trotzdem auf', await warte(p2, () => !!document.querySelector('.na-pflicht') && !document.querySelector('.na-fehler')) && errs2.length === 0);
+  await ctx2.close();
   const fehler = errs.filter(x => !/favicon|ERR_ABORTED|Failed to load resource/.test(x));
   r.check('keine Fehler in der Konsole' + (fehler.length ? ': ' + fehler.slice(0, 3).join(' | ') : ''), fehler.length === 0);
   attrappe.close();

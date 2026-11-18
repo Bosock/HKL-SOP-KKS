@@ -18,8 +18,9 @@
    Übernommen werden nur GTIN (01) und REF (240). Charge und Verfall stehen
    im Code, werden aber verworfen (Grundsatz A2, kern.js naParseGS1).
    ───────────────────────────────────────────────────────────── */
-const NA_BC_NATIV = ['data_matrix','code_128','ean_13','ean_8','itf','qr_code','upc_a','upc_e'];
-const NA_BC_ZXING = ['DataMatrix','Code128','EAN-13','EAN-8','ITF','QRCode','UPC-A','UPC-E','DataBar','DataBarExpanded'];
+/* Code 39: die klassische Strichcode-Form des HIBC (viele ältere Etiketten). */
+const NA_BC_NATIV = ['data_matrix','code_128','code_39','ean_13','ean_8','itf','qr_code','upc_a','upc_e'];
+const NA_BC_ZXING = ['DataMatrix','Code128','Code39','EAN-13','EAN-8','ITF','QRCode','UPC-A','UPC-E','DataBar','DataBarExpanded'];
 const NA_ZXING_PFAD = '/vendor/zxing/';
 
 let naZxingLaedt = null;
@@ -92,7 +93,7 @@ async function naBarcodeAusBild(quelle){
   for(const [kante, faktor] of laeufe){
     const d = naBarcodeDeuten(await naBarcodeRoh(naBildAufCanvas(bild, kante, faktor)));
     if(d && d.gtin) return d;
-    if(d && !erst) erst = d;
+    if(d && (!erst || (!erst.itemRef && d.itemRef))) erst = d;   /* ein HIBC (mit REF) schlägt einen Code ohne alles */
   }
   return erst;
 }
@@ -134,13 +135,17 @@ function naBarcodeScannen(){
     const video = ov.querySelector('#naScanVideo'); video.srcObject = strom;
     try{ await video.play(); }catch(e){}
     stand('Code ins Bild halten — er wird von selbst erkannt.');
-    let n = 0;
+    let n = 0, hibc = null, hibcSeit = 0;
+    const treffer = d=>{ try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){} schliessen(d); };
     const runde = async ()=>{
       if(zu) return;
       try{
         if(video.videoWidth){
           const d = naBarcodeDeuten(await naBarcodeRoh(naBildAufCanvas(video, 1600, 1)));
-          if(d && (d.gtin || d.hibc)){ try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){} schliessen(d); return; }
+          if(d && d.gtin){ if(!d.itemRef && hibc) d.itemRef = hibc.itemRef; treffer(d); return; }
+          /* HIBC (nur REF): noch kurz weitersuchen — trägt das Etikett auch eine GTIN, gewinnt sie. */
+          if(d && d.hibc && !hibc){ hibc = d; hibcSeit = Date.now(); stand('HIBC-Code erkannt — einen Augenblick, vielleicht steht auch eine GTIN auf dem Etikett …'); }
+          if(hibc && Date.now()-hibcSeit > 1200){ treffer(hibc); return; }
           if(d && d.roh && ++n===8) stand('Code erkannt, aber ohne GTIN. Bitte den Code mit „(01)" oder den Strichcode zeigen.');
         }
       }catch(e){ stand('Leser nicht bereit: '+e.message); }

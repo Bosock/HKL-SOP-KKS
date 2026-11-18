@@ -138,8 +138,11 @@ egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
   Blatt, mit dem man aus „Verknüpfungen" heraus ein zweites Material anlegt,
   ohne die Maske zu verlassen) und für alte Einträge — wer ein Material ohne
   Antworten öffnet, beantwortet sie einmal.
-- **HIBC-Codes** (Barcodes mit „+" am Anfang, ohne GTIN): Kamera, Foto und
-  Handscanner lesen daraus die REF; die GTIN bleibt offen.
+- **HIBC-Codes** (Barcodes mit „+" am Anfang, ohne GTIN; Code 128, Code 39
+  oder DataMatrix): Kamera, Foto und Handscanner lesen daraus die REF — nur in
+  ein leeres REF-Feld; die GTIN bleibt offen. Der Live-Scan sucht nach einem
+  HIBC noch gut eine Sekunde weiter: Trägt das Etikett auch eine GTIN, gewinnt
+  sie.
 - **Vor dem Speichern** fragt die Maske **einmal** nach, wenn Hersteller (nur
   mit Ausweg beantwortet), Produktname des Herstellers oder ein Produktfoto
   fehlen: „Jetzt ergänzen" springt zum Feld, „Trotzdem speichern" speichert.
@@ -148,7 +151,9 @@ egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
   einem anderen Material (führende Nullen und Leerzeichen zählen nicht), zeigt
   das Feld es sofort mit Verweis. Beim Speichern kommt die Frage „Trotzdem
   anlegen" / „Zurück zur Maske" — gewollt ist es z. B. bei Einzelstück und
-  Karton mit verschiedenen GTINs.
+  Karton mit verschiedenen GTINs. Gefragt wird nur, wenn die Nummer neu ist
+  oder sich geändert hat. In der Kurzerfassung: Hinweis, ein zweiter Tipp auf
+  „Anlegen" legt trotzdem an.
 - **Arbeitslisten im Verzeichnis:** „Pflichtangaben nachtragen" (offen oder
   „nachtragen"), „SAP-Nummer fehlt", „doppelte SAP-Nummer" — jeweils mit
   Anzahl, nur sichtbar, wenn es etwas zu tun gibt.
@@ -158,6 +163,9 @@ egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
   Produktangaben"). Zurück geht es auf der Seite des Merkmals: „Platz in der
   Material-Maske" → Pflicht / freiwillig / je nach Kategorie. Jede weitere
   Pflichtangabe kostet bei jedem Material Zeit — sparsam verwenden.
+  Ja/Nein-Merkmale gehen nur freiwillig (ein leeres Häkchen hieße sonst
+  „nicht beantwortet" statt „nein"); Steril · Einmal · Latex und die
+  Packungsgröße haben ihren festen Platz.
 
 **Merkmale suchen, zuordnen, vorschlagen** (seit 12.11.2026). Kein eigenes
 Menü: alles in der Maske und im Listen-Verzeichnis.
@@ -491,9 +499,9 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1155 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1156 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 36 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 37 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
   Pflichtangaben, SAP-Nummer, HIBC,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
@@ -510,12 +518,14 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-pflicht.js` prüft 43 Punkte an den Pflichtangaben:
+- `node e2e/neue-app-pflicht.js` prüft 50 Punkte an den Pflichtangaben:
   Sperre und drei Auswege, Wiederöffnen und -schließen, Erinnerung vor dem
   Speichern (einmal je Maske), SAP-Nummer doppelt („Zurück zur Maske" /
   „Trotzdem anlegen"), Arbeitslisten im Verzeichnis, alte Einträge ohne
   Antworten, HIBC aus dem Handscanner, „＋ Feld für alle Produkte" bis in die
-  Kurzerfassung und zurück über die Seite des Merkmals, Bestand unverändert.
+  Kurzerfassung und zurück über die Seite des Merkmals, Ja/Nein und feste
+  Felder nie Pflicht, Maske ohne Merkmal-Katalog (offline), Bestand
+  unverändert.
 - `node e2e/neue-app-maske.js` prüft 108 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,

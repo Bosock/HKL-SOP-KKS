@@ -89,7 +89,7 @@ function naSichtKategorie(id){
   const zeile = (d, stern)=>{ const z = nu.zahl[d.id]||0;
     return '<div class="na-eintrag" data-na="katMerkmal" data-k="'+esc(id)+'" data-mid="'+esc(d.id)+'"><span class="na-ico">'+(stern?'★':'▤')+'</span><div class="na-haupt"><div class="na-name">'+esc(d.label)+(d.einheit && d.typ!=='ja_nein' ? ' <span class="na-dim">('+esc(d.einheit)+')</span>' : '')+'</div>'
       + ((d.such||[]).length ? '<div class="na-sub">auch: '+esc(d.such.slice(0,5).join(', '))+'</div>' : '')+'</div><div class="na-rechts">'+(nu.n ? z+' von '+nu.n : '')+'</div></div>'; };
-  const vor = naMerkmalVorschlaege(kat, naAlle('material'), id, NA_NICHT_ALS_MERKMAL);
+  const vor = naMerkmalVorschlaege(kat, naAlle('material'), id, NA_NICHT_ALS_MERKMAL.concat(kat.global.map(g=>g.mid)));
   let h = '<div class="na-info">Diese Merkmale erscheinen in der Maske jedes Materials der Kategorie „'+esc(k.label)+'" — alle freiwillig. ★ = Kern: steht oben und geht in den Namensvorschlag ein. Rechts: bei wie vielen Materialien ausgefüllt.</div>';
   if(k.wie){ const v = kat.klassen.find(x=>x.id===k.wie); if(v) h += '<div class="na-dim" style="margin:-2px 4px 8px">Begonnen mit den Merkmalen von „'+esc(v.label)+'".</div>'; }
   h += '<div class="na-h">Kern ★ ('+f.diff.length+')</div>' + (f.diff.length ? f.diff.map(d=>zeile(d, true)).join('') : '<div class="na-dim">Noch keines.</div>');
@@ -157,7 +157,7 @@ let NA_ML = { q:'', f:'alle' };
 const NA_ML_FILTER = [
   { id:'alle',      wort:'alle',           ok:z=>!z.archiviert },
   { id:'genutzt',   wort:'ausgefüllt',     ok:z=>!z.archiviert && z.zahl>0 },
-  { id:'ohne',      wort:'ohne Kategorie', ok:z=>!z.archiviert && !z.allgemein && !z.kategorien.length },
+  { id:'ohne',      wort:'ohne Kategorie', ok:z=>!z.archiviert && !z.allgemein && !z.kategorien.length && !z.global },
   { id:'eigen',     wort:'eigene',         ok:z=>!z.archiviert && z.eigen },
   { id:'geaendert', wort:'geändert',       ok:z=>!z.archiviert && z.geaendert.length>0 },
   { id:'archiv',    wort:'archiviert',     ok:z=>z.archiviert },
@@ -226,8 +226,9 @@ function naSichtMerkmal(mid){
   if(d.typ==='mass' || d.typ==='zahl') h += feld('Einheit', d.einheit ? esc(d.einheit) : leer('keine'), eigen ? 'mmEinheit' : '', eigen ? 'steht hinter dem Namen des Felds und hinter dem Wert' : fest);
   h += feld('Hinweis unter dem Feld', d.hinweis ? esc(d.hinweis) : leer('keiner'), 'mmHinweis', '');
   h += feld('Suchwörter', (d.such||[]).length ? esc(d.such.join(', ')) : leer('keine'), 'mmSuch', 'andere Wörter, unter denen man das Merkmal findet');
-  h += feld('Platz in der Material-Maske', z.global==='pflicht' ? 'Pflichtangaben zum Produkt — für alle Produkte, muss beantwortet werden' : (z.global==='freiwillig' ? 'Weitere Produktangaben — für alle Produkte, freiwillig' : 'je nach Kategorie (unter „Mehr Angaben")'),
-    d.archiviert ? '' : 'mmPlatz', '');
+  const festerPlatz = NA_FESTER_PLATZ.indexOf(d.id)>=0;
+  h += feld('Platz in der Material-Maske', festerPlatz ? 'fester Platz (Steril · Einmal · Latex bzw. Packung)' : (z.global==='pflicht' ? 'Pflichtangaben zum Produkt — für alle Produkte, muss beantwortet werden' : (z.global==='freiwillig' ? 'Weitere Produktangaben — für alle Produkte, freiwillig' : 'je nach Kategorie (unter „Mehr Angaben")')),
+    (d.archiviert || festerPlatz) ? '' : 'mmPlatz', '');
 
   if(d.typ==='liste'){
     const w = d.werte || []; const aus = ((tpl.werteAus||{})[mid]) || [];
@@ -297,14 +298,15 @@ naAkt('mmArt', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen
   if(!w || w===def.typ) return;
   naMerkmalAendern(d.mid, 'typ', w, 'Art von „'+def.label+'": '+NA_MERKMAL_KURZ[w]); toast('Art geändert'); naZeigen(); });
 naAkt('mmSuch', async d=>{ await naMerkmalSuchAendern(d.mid); naZeigen(); });
-naAkt('mmPlatz', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;
-  const z = naMerkmalZeilen().find(x=>x.id===d.mid) || {};
-  const opt = (id, ico, name, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+((z.global||'aus')===id ? '●' : ico)+'</span><span>'+name+'<span class="sa-sub">'+sub+'</span></span></button>';
+naAkt('mmPlatz', async d=>{ const def = naMerkmalDef(d.mid); if(!def || NA_FESTER_PLATZ.indexOf(d.mid)>=0) return;
+  const g = naKat().global.find(x=>x.mid===d.mid); const jetzt = g ? (g.pflicht ? 'pflicht' : 'freiwillig') : 'aus';
+  const opt = (id, ico, name, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+(jetzt===id ? '●' : ico)+'</span><span>'+name+'<span class="sa-sub">'+sub+'</span></span></button>';
   const w = await naSheetAuf('<div class="sheet-title">Platz in der Material-Maske</div><div class="sheet-name">'+esc(def.label)+'</div>'
-    + opt('pflicht', '*', 'Pflichtangabe für alle Produkte', 'steht oben bei GTIN, Hersteller, REF — muss beantwortet werden (auch „gibt es nicht", „unbekannt", „nachtragen")')
+    + (naDarfPflicht(def) ? opt('pflicht', '*', 'Pflichtangabe für alle Produkte', 'steht oben bei GTIN, Hersteller, REF — muss beantwortet werden (auch „gibt es nicht", „unbekannt", „nachtragen")')
+      : '<div class="na-dim" style="margin-bottom:8px">Ja/Nein-Merkmale nur freiwillig: Ein leeres Häkchen hieße sonst „nicht beantwortet" statt „nein".</div>')
     + opt('freiwillig', '▤', 'Für alle Produkte, freiwillig', 'steht bei „Weitere Produktangaben"')
     + opt('aus', '▸', 'Je nach Kategorie', 'erscheint nur bei Materialien der Kategorien, denen es zugeordnet ist'));
-  if(!w || w===(z.global||'aus')) return;
+  if(!w || w===jetzt) return;
   naKatTplSpeichern(naTplGlobal(naKatTpl(), d.mid, w), 'Merkmal „'+def.label+'": '+(w==='pflicht' ? 'Pflichtangabe für alle Produkte' : (w==='freiwillig' ? 'für alle Produkte, freiwillig' : 'je nach Kategorie')));
   toast('Übernommen'); naZeigen(); });
 naAkt('mmWertNeu', async d=>{ const def = naMerkmalDef(d.mid); if(!def) return;

@@ -49,10 +49,12 @@ let NA_VZ_OFFEN = false;   /* Material: nur unvollständige zeigen */
 let NA_VZ_F = '';          /* Material: 'nachtragen' · 'sap' · 'sapdoppelt' (Pflichtangaben, SAP-Nummer) */
 /* Die Arbeitslisten zu Pflichtangaben und SAP-Nummer (je Material: passt der Filter?). */
 const NA_VZ_FILTER = {
-  nachtragen: { wort:'Pflichtangaben nachtragen', ok:(o, kat)=>naPflichtNachtragen(o, kat).length>0 },
+  nachtragen: { wort:'Pflichtangaben nachtragen', ok:(o, z)=>naPflichtNachtragen(o, z.kat).length>0 },
   sap:        { wort:'SAP-Nummer fehlt',          ok:o=>!naSapNorm(o.sap) },
-  sapdoppelt: { wort:'doppelte SAP-Nummer',       ok:(o, kat, alle)=>naSapDoppelt(alle, o.sap, o.id).length>0 },
+  sapdoppelt: { wort:'doppelte SAP-Nummer',       ok:(o, z)=>(z.sap.get(naSapNorm(o.sap))||0)>1 },
 };
+/* Was die Filter brauchen — einmal je Verzeichnis berechnet. */
+function naVzZusammenhang(kat){ return { kat, sap: naSapZaehlen(naAlle('material', true)) }; }
 function naSichtVerzeichnis(typ){
   const T = NA_TYPEN[typ];
   let filter = '';
@@ -60,8 +62,8 @@ function naSichtVerzeichnis(typ){
     const kat = naKat(); const n = naAlle('material').filter(o=>naFehlt(o, kat).length).length;
     if(!n) NA_VZ_OFFEN = false;
     const nach = naRegisterOffen().length;
-    const alle = naAlle('material', true); const aktiv = naAlle('material');
-    const zahl = {}; Object.keys(NA_VZ_FILTER).forEach(k=>{ zahl[k] = aktiv.filter(o=>NA_VZ_FILTER[k].ok(o, kat, alle)).length; });
+    const aktiv = naAlle('material'); const zz = naVzZusammenhang(kat);
+    const zahl = {}; Object.keys(NA_VZ_FILTER).forEach(k=>{ zahl[k] = aktiv.filter(o=>NA_VZ_FILTER[k].ok(o, zz)).length; });
     if(NA_VZ_F && !zahl[NA_VZ_F]) NA_VZ_F = '';
     const fchips = Object.keys(NA_VZ_FILTER).filter(k=>zahl[k]).map(k=>'<button class="na-chip'+(NA_VZ_F===k?' an':'')+'" data-na="vzFilter" data-f="'+k+'">'+esc(NA_VZ_FILTER[k].wort)+' ('+zahl[k]+')</button>').join('');
     if(n || nach || fchips) filter = '<div class="na-chips" style="margin-bottom:8px">'
@@ -79,7 +81,7 @@ function naVerzeichnisListe(typ){
   const zeigeFehlt = typ==='material' && naAdmin(); const kat = zeigeFehlt ? naKat() : null;
   let treffer = q ? alle.filter(o=>naStammSuchtext(typ,o).indexOf(q)>=0) : alle;
   if(zeigeFehlt && NA_VZ_OFFEN) treffer = treffer.filter(o=>!o.archiviert && naFehlt(o, kat).length);
-  if(zeigeFehlt && NA_VZ_F && NA_VZ_FILTER[NA_VZ_F]){ const al = naAlle('material', true); treffer = treffer.filter(o=>!o.archiviert && NA_VZ_FILTER[NA_VZ_F].ok(o, kat, al)); }
+  if(zeigeFehlt && NA_VZ_F && NA_VZ_FILTER[NA_VZ_F]){ const zz = naVzZusammenhang(kat); treffer = treffer.filter(o=>!o.archiviert && NA_VZ_FILTER[NA_VZ_F].ok(o, zz)); }
   if(!alle.length) return naLeer(T.ico, 'Noch keine '+T.mehr, naAdmin() ? 'Mit ＋ unten rechts den ersten Eintrag anlegen.' : 'Die Verwaltung legt die Einträge an.');
   if(!treffer.length) return naLeer('🔎', 'Nichts gefunden', 'Andere Schreibweise versuchen.');
   const daten = naVerwendungDaten();
@@ -118,8 +120,12 @@ function naStammAnsicht(typ, o){
   const zeile = (l, w)=>w ? '<div style="margin-top:6px"><span class="na-l" style="display:inline">'+esc(l)+':</span> '+w+'</div>' : '';
   if(typ==='material'){
     /* Pflichtangaben: Wert — oder der ehrliche Ausweg („unbekannt" …) */
-    naPflichtStand(o, naKat()).forEach(x=>{ const wert = x.id==='hersteller' ? (x.wert ? esc(naListeName('hersteller', o.hersteller)) : '') : (x.wert ? (x.art==='fest' ? '<span class="na-mono">'+esc(x.wert)+'</span>' : esc(x.wert)) : '');
-      h += zeile(x.wort, wert || (x.ausweg ? '<span class="na-dim">'+esc(naAuswegWort(x.ausweg))+'</span>' : '<span class="na-falsch">noch nicht beantwortet</span>')); });
+    const pk = naKat();
+    naPflichtStand(o, pk).forEach(x=>{ let wert = '';
+      if(x.wert && x.id==='hersteller') wert = esc(naListeName('hersteller', o.hersteller) || 'Eintrag nicht mehr in der Liste');
+      else if(x.wert && x.art==='fest') wert = '<span class="na-mono">'+esc(x.wert)+'</span>';
+      else if(x.wert){ const d = pk.merkmale.find(m=>m.id===x.id); wert = esc(x.wert+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')); }
+      h += zeile(x.wort, wert || (x.ausweg ? '<span class="na-dim">'+esc(naAuswegWort(x.ausweg))+'</span>' : '')); });
     h += zeile('Produktname des Herstellers', esc(o.handelsname||''));
     const sd = naSapDoppelt(naAlle('material', true), o.sap, o.id);
     h += zeile('SAP-Nummer', o.sap ? '<span class="na-mono">'+esc(o.sap)+'</span>'+(sd.length ? ' <span class="na-falsch">auch bei '+sd.map(m=>'<a href="#/material/'+esc(m.id)+'">'+esc(m.name)+'</a>').join(', ')+'</span>' : '') : '');
@@ -272,7 +278,7 @@ function naFehltHtml(){
 
 /* ── Die Material-Maske ── */
 const NA_STERIL_IDS = ['steril','einmalgebrauch','einmalpatient','resterilisierbar','latex'];
-const NA_NICHT_ALS_MERKMAL = NA_STERIL_IDS.concat(['stueck_packung']);   /* stehen an eigener Stelle */
+const NA_NICHT_ALS_MERKMAL = NA_FESTER_PLATZ.slice();   /* stehen an eigener Stelle (Steril · Einmal · Latex, Packung) */
 function naMaterialForm(){
   const E = NA_ENTWURF, o = E.obj; let h = '';
   if(E.variante) h += '<div class="na-warn">Variante von „'+esc(E.variante)+'": Bitte Name, GTIN und REF dieser Größe eintragen. Bilder und Verknüpfungen werden nicht übernommen.</div>';
@@ -293,7 +299,7 @@ function naMaterialForm(){
   h += '</div>';
   if(offen.length){
     /* Erst die Pflichtangaben — dann der Rest (Entscheidung 18.11.2026). */
-    h += '<div class="na-info na-offen na-sperre" id="naSperre">🔒 Weiter geht es, sobald die Pflichtangaben beantwortet sind. Noch offen: <b>'+esc(offen.map(x=>x.wort).join(' · '))+'</b>.</div>';
+    h += '<div class="na-info na-offen na-sperre" id="naSperre">'+naSperreText(offen.map(x=>x.wort))+'</div>';
     return h;
   }
   /* 3 · Weitere Produktangaben (für alle Bereiche, freiwillig) */
@@ -303,7 +309,8 @@ function naMaterialForm(){
   kat.global.filter(g=>!g.pflicht).forEach(g=>{ const d = kat.merkmale.find(x=>x.id===g.mid); if(d) h += naMerkFeld(d, false); });
   h += naFotoFeld();
   /* 4 · Im Bereich */
-  if(!o.name && o.handelsname && !E.nameAuto){ o.name = o.handelsname; E.nameAuto = true; }   /* vorbelegt — so heißt es, bis der Bereich es anders nennt */
+  const tipptProdukt = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-f')==='handelsname';
+  if(!o.name && o.handelsname && !E.nameAuto && !tipptProdukt){ o.name = o.handelsname; E.nameAuto = true; }   /* vorbelegt — so heißt es, bis der Bereich es anders nennt */
   h += '<div class="na-h">Im Bereich</div>';
   h += naF('Name im Haus', naT('name',{ ph:'so, wie man es im Saal sucht' }), '<span id="naNameVor">'+naNameVorHtml()+'</span><div id="naKatZeile">'+naKatZeileHtml()+'</div>');
   h += naLagerortFeld();
@@ -327,16 +334,14 @@ function naPflichtMerkmal(d){
 }
 /* Ändert sich, ob alle Pflichtangaben beantwortet sind, wird die Maske neu
    gezeichnet (die Sperre geht auf oder zu); sonst nur die Auswege des Felds. */
+function naSperreText(worte){ return '🔒 Weiter geht es, sobald die Pflichtangaben beantwortet sind. Noch offen: <b>'+esc(worte.join(' · '))+'</b>.'; }
 function naPflichtNachEingabe(E, feld){
   const offen = naPflichtOffen(E.obj, naKat()).length;
   if((offen>0)!==!!$('naSperre')){ naFormNeu(); return; }   /* maßgeblich ist, was gerade zu sehen ist */
   const c = $('naAw-'+feld); if(c) c.innerHTML = naPflichtAuswegeHtml(feld);
-  const sp = $('naSperre'); if(sp && offen) sp.innerHTML = '🔒 Weiter geht es, sobald die Pflichtangaben beantwortet sind. Noch offen: <b>'+esc(naPflichtOffen(E.obj, naKat()).join(' · '))+'</b>.';
+  const sp = $('naSperre'); if(sp && offen) sp.innerHTML = naSperreText(naPflichtOffen(E.obj, naKat()));
 }
-naAkt('pflichtAusweg', d=>{ const E = NA_ENTWURF; if(!E) return; const o = E.obj; o.pflicht = Object.assign({}, o.pflicht||{});
-  if(o.pflicht[d.k]===d.a) delete o.pflicht[d.k]; else o.pflicht[d.k] = d.a;
-  if(!Object.keys(o.pflicht).length) delete o.pflicht;
-  naFormNeu(); });
+naAkt('pflichtAusweg', d=>{ const E = NA_ENTWURF; if(!E) return; naAuswegUmschalten(E.obj, d.k, d.a); naFormNeu(); });
 /* SAP-Nummer: doppelt? — sofort sichtbar, beim Speichern noch einmal gefragt. */
 function naSapStand(o){
   const d = naSapDoppelt(naAlle('material', true), o.sap, o.id);
@@ -360,7 +365,7 @@ naAkt('globalDazu', async ()=>{
 });
 function naGlobalStufeFragen(d){
   return naSheetAuf('<div class="sheet-title">Für alle Produkte</div><div class="sheet-name">'+esc(d.label)+'</div>'
-    + '<button class="sheet-act" data-na="sheetWert" data-wert="pflicht"><span class="sa-ico">*</span><span>Als Pflichtangabe<span class="sa-sub">muss bei jedem Material beantwortet werden — eintragen oder „gibt es nicht", „unbekannt", „nachtragen"</span></span></button>'
+    + (!naDarfPflicht(d) ? '<div class="na-dim" style="margin-bottom:8px">Ja/Nein-Merkmale nur freiwillig: Ein leeres Häkchen hieße sonst „nicht beantwortet" statt „nein".</div>' : '<button class="sheet-act" data-na="sheetWert" data-wert="pflicht"><span class="sa-ico">*</span><span>Als Pflichtangabe<span class="sa-sub">muss bei jedem Material beantwortet werden — eintragen oder „gibt es nicht", „unbekannt", „nachtragen"</span></span></button>')
     + '<button class="sheet-act" data-na="sheetWert" data-wert="freiwillig"><span class="sa-ico">▤</span><span>Freiwillig<span class="sa-sub">steht bei „Weitere Produktangaben", darf leer bleiben</span></span></button>'
     + '<div class="na-dim">Jede Pflichtangabe kostet bei jedem Material Zeit — sparsam verwenden. Ändern: Mehr → Listen-Verzeichnis → Merkmale.</div>');
 }
@@ -463,7 +468,7 @@ function naAbKategorie(){
     h += einzel.map(d=>naMerkFeld(d, false) + (o.kategorie && k ? '<div class="na-chips na-nachfeld"><button class="na-chip" data-na="merkGilt" data-mid="'+esc(d.id)+'">für alle „'+esc(k.label)+'" übernehmen …</button></div>' : '')).join('');
   }
   /* „Die App lernt" — als Vorschlag: was bei den anderen Materialien der Kategorie meist ausgefüllt ist. */
-  if(o.kategorie && k) naMerkmalVorschlaege(kat, naAlle('material'), o.kategorie, NA_NICHT_ALS_MERKMAL).filter(v=>!einzel.some(d=>d.id===v.id)).slice(0, 3).forEach(v=>{
+  if(o.kategorie && k) naMerkmalVorschlaege(kat, naAlle('material'), o.kategorie, NA_NICHT_ALS_MERKMAL.concat(global)).filter(v=>!einzel.some(d=>d.id===v.id)).slice(0, 3).forEach(v=>{
     h += '<div class="na-info">„'+esc(v.label)+'" ist bei '+v.zahl+' von '+v.n+' Materialien dieser Kategorie ausgefüllt.<div class="na-chips" style="margin-top:6px">'
       + '<button class="na-chip" data-na="merkVorschlagNehmen" data-mid="'+esc(v.id)+'">Für alle „'+esc(k.label)+'" übernehmen</button>'
       + '<button class="na-chip" data-na="merkVorschlagStumm" data-mid="'+esc(v.id)+'">Nicht mehr vorschlagen</button></div></div>'; });
@@ -519,8 +524,7 @@ naEin('entw', (v, d)=>{
     if(roh && !/^\d{0,14}$/.test(roh)) naGtinZeit = setTimeout(()=>{
       if(NA_ENTWURF!==E || String(E.obj.gtin).trim()!==roh) return;
       const sc = naParseScan(roh);
-      if(sc.kind==='hibc'){ E.obj.gtin = ''; if(!E.obj.ref) E.obj.ref = sc.itemRef;
-        naOcrStand('HIBC-Code erkannt: REF übernommen. Dieser Code trägt keine GTIN — bitte eintragen oder „gibt es nicht" wählen.'); naFormNeu(); return; }
+      if(sc.kind==='hibc'){ E.obj.gtin = ''; naOcrStand(naHibcUebernehmen(E.obj, sc.itemRef)); naFormNeu(); return; }
       if(sc.kind!=='gs1' || !naGtinPruefziffer(sc.gtin)) return;
       E.obj.gtin = sc.gtin; if(sc.itemRef && !E.obj.ref) E.obj.ref = sc.itemRef;
       naOcrStand('Scanner-Text erkannt: GTIN'+(sc.itemRef ? ' und REF' : '')+' übernommen. Charge und Verfall werden nie gespeichert.'); naFormNeu();
@@ -902,12 +906,17 @@ async function naMaskeRegister(E){
   naKatAuto(E);
   naOcrStand(naRegisterText(r)); naFormNeu();
 }
+/* HIBC-Code: REF übernehmen, wenn das Feld leer ist — und genau das melden. */
+function naHibcUebernehmen(o, ref){
+  const neu = !o.ref; if(neu) o.ref = ref;
+  return 'HIBC-Code gelesen: '+(neu ? 'REF '+ref+' übernommen.' : (naNorm(o.ref)===naNorm(ref) ? 'REF '+ref+' stimmt.' : 'REF '+ref+' — eingetragen bleibt '+o.ref+'.'))
+    + (o.gtin ? '' : ' Dieser Code trägt keine GTIN — bitte eintragen oder „gibt es nicht" wählen.');
+}
 /* Eine gelesene GTIN in die Maske: Gibt es sie schon, führt der Weg dorthin. */
 async function naMaskeGtin(E, gtin, itemRef){
   const o = E.obj;
   /* HIBC-Code: keine GTIN, aber die REF des Herstellers */
-  if(!gtin){ if(itemRef && !o.ref) o.ref = itemRef;
-    naOcrStand(itemRef ? 'HIBC-Code gelesen: REF '+itemRef+' übernommen. Dieser Code trägt keine GTIN — bitte eintragen oder „gibt es nicht" wählen.' : 'Code ohne GTIN.'); naFormNeu(); return; }
+  if(!gtin){ naOcrStand(itemRef ? naHibcUebernehmen(o, itemRef) : 'Code ohne GTIN.'); naFormNeu(); return; }
   const d = naGtinDoppelt(gtin, o.id);
   if(d){
     const z = NA_RUECKSPRUNG;
@@ -975,6 +984,7 @@ naAkt('etikett', async ()=>{
       const b = await naBarcodeAusBild(url); if(NA_ENTWURF!==E) return;
       const d = b && b.gtin ? naGtinDoppelt(b.gtin, E.obj.id) : null;
       if(d) hinweis = ' Achtung: Die GTIN im Barcode gehört schon zu „'+d.name+'".';
+      else if(b && !b.gtin && b.hibc && b.itemRef && !E.obj.ref){ E.obj.ref = b.itemRef; teile.push('REF (HIBC-Code)'); }
       else if(b && b.gtin){
         E.obj.gtin = b.gtin; teile.push('GTIN'); if(b.itemRef && !E.obj.ref){ E.obj.ref = b.itemRef; teile.push('REF'); }
         if(naEinstellung('register', true)){
@@ -1079,7 +1089,6 @@ naAkt('verknWeg', d=>{ const E = NA_ENTWURF; if(!E) return;
 let NA_KURZ = null;
 function naKurzHtml(){
   const K = NA_KURZ, o = K.o; const her = o.hersteller ? naListeName('hersteller', o.hersteller) : '';
-  const info = [her ? 'Hersteller: '+her : '', o.handelsname ? 'Handelsname: '+o.handelsname : ''].filter(Boolean).join(' · ');
   return '<div class="na-zeile"><button class="na-knopf pri" data-na="kurzScan">▦ Barcode scannen</button></div>'
     + '<div class="na-dim" id="naKurzStand" style="margin:6px 0 10px">'+esc(K.stand || 'Der Barcode füllt Hersteller, Handelsname und REF aus dem EU-Register. Oder nur den Namen eintragen.')+'</div>'
     + (K.vorhanden ? '<div class="na-warn">Dieses Material gibt es schon: „'+esc(K.vorhanden.name)+'".<div style="margin-top:8px"><button class="na-knopf pri" data-na="kurzVorhanden">Dieses verknüpfen</button></div></div>' : '')
@@ -1097,10 +1106,9 @@ function naKurzHtml(){
 }
 function naKurzNeu(){ const c = $('naKurzInhalt'); if(c && NA_KURZ) c.innerHTML = naKurzHtml(); }
 /* Auswege auch in der Kurzerfassung — die Pflichtangaben gelten überall, wo ein Material entsteht. */
-function naKurzAuswege(id){ const K = NA_KURZ; if(!K) return ''; const x = naPflichtStand(K.o, naKat()).find(y=>y.id===id); if(!x || x.wert) return '';
-  return '<span class="na-chips" id="naKAw-'+id+'">'+NA_AUSWEGE.map(a=>'<button class="na-chip'+(x.ausweg===a.id?' an':'')+'" data-na="kurzAusweg" data-k="'+id+'" data-a="'+a.id+'">'+esc(a.wort)+'</button>').join('')+'</span>'; }
-naAkt('kurzAusweg', d=>{ const K = NA_KURZ; if(!K) return; const o = K.o; o.pflicht = Object.assign({}, o.pflicht||{});
-  if(o.pflicht[d.k]===d.a) delete o.pflicht[d.k]; else o.pflicht[d.k] = d.a; if(!Object.keys(o.pflicht).length) delete o.pflicht; naKurzNeu(); });
+function naKurzAuswege(id){ const K = NA_KURZ; if(!K) return ''; const x = naPflichtStand(K.o, naKat()).find(y=>y.id===id); if(!x) return '';
+  return '<span class="na-chips" id="naKAw-'+esc(id)+'"'+(x.wert ? ' style="display:none"' : '')+'>'+NA_AUSWEGE.map(a=>'<button class="na-chip'+(x.ausweg===a.id?' an':'')+'" data-na="kurzAusweg" data-k="'+id+'" data-a="'+a.id+'">'+esc(a.wort)+'</button>').join('')+'</span>'; }
+naAkt('kurzAusweg', d=>{ const K = NA_KURZ; if(!K) return; naAuswegUmschalten(K.o, d.k, d.a); naKurzNeu(); });
 function naKurzStand(t){ if(NA_KURZ) NA_KURZ.stand = t; const s = $('naKurzStand'); if(s) s.textContent = t; }
 function naKurzerfassung(name){
   const meins = NA_KURZ = { o: Object.assign(naStammLeer('material'), { name: String(name||'').trim() }), stand:'', vorhanden:null };
@@ -1119,8 +1127,9 @@ naAkt('kurzScan', async ()=>{
   if(!erg || NA_KURZ!==K) return;
   const d = naGtinDoppelt(erg.gtin, K.o.id);
   if(d){ K.vorhanden = d; K.stand = 'Die gescannte GTIN ist schon angelegt.'; naKurzNeu(); return; }
-  K.vorhanden = null; if(erg.gtin) K.o.gtin = erg.gtin; if(erg.itemRef && !K.o.ref) K.o.ref = erg.itemRef;
-  if(!erg.gtin){ K.stand = 'HIBC-Code gelesen: REF übernommen. Dieser Code trägt keine GTIN.'; naKurzNeu(); return; }
+  K.vorhanden = null;
+  if(!erg.gtin){ K.stand = naHibcUebernehmen(K.o, erg.itemRef); naKurzNeu(); return; }
+  K.o.gtin = erg.gtin; if(erg.itemRef && !K.o.ref) K.o.ref = erg.itemRef;
   if(!naEinstellung('register', true)){ K.stand = 'GTIN gelesen.'; naKurzNeu(); return; }
   K.stand = 'GTIN gelesen — das EU-Register wird gefragt …'; naKurzNeu();
   const r = await naRegisterFuellen(K.o, ()=>NA_KURZ===K && naGtinKey(K.o.gtin)===naGtinKey(erg.gtin));
@@ -1135,6 +1144,10 @@ naAkt('kurzOk', ()=>{
   const offen = naPflichtOffen(o, naKat());
   if(offen.length){ naKurzStand('Erst die Pflichtangaben beantworten: '+offen.join(', ')+' — eintragen oder „gibt es nicht", „unbekannt", „nachtragen".'); naKurzNeu(); return; }
   o.sap = String(o.sap||'').trim(); if(!o.sap) delete o.sap;
+  /* SAP-Nummer schon vergeben: sagen — ein zweiter Tipp legt trotzdem an (wie „Trotzdem anlegen" in der Maske). */
+  const sd = naSapDoppelt(naAlle('material', true), o.sap, o.id);
+  if(sd.length && K.sapOk!==naSapNorm(o.sap)){ K.sapOk = naSapNorm(o.sap); naKurzStand('Die SAP-Nummer '+o.sap+' steht schon bei „'+sd.map(m=>m.name).join('", „')+'". Noch einmal „Anlegen" tippen, um trotzdem anzulegen.'); return; }
+  naPflichtAufraeumen(o, naKat());
   const dg = o.gtin ? naGtinDoppelt(o.gtin, o.id) : null;
   const dn = naAlle('material', true).find(m=>naNorm(m.name)===naNorm(o.name));
   if(dg || dn){ K.vorhanden = dg || dn; K.stand = dg ? 'Diese GTIN ist schon angelegt.' : 'Ein Material mit diesem Namen gibt es schon.'; naKurzNeu(); return; }
@@ -1157,16 +1170,18 @@ async function naStammPruefen(E){
     if(o.pzn!=null){ o.pzn = String(o.pzn).replace(/^pzn[\s:\-]*/i,'').replace(/\s/g,'');
       if(o.pzn && !naPznOk(o.pzn)){ E.offen.verw = true; naFormNeu(); toast('PZN: Prüfziffer stimmt nicht. Bitte korrigieren oder leeren.', true); return false; } }
     const offen = naPflichtOffen(o, naKat());
-    if(offen.length){ toast('Erst die Pflichtangaben beantworten: '+offen.join(', ')+'.', true); return false; }
+    if(offen.length){ naFormNeu(); toast('Erst die Pflichtangaben beantworten: '+offen.join(', ')+'.', true); return false; }
     if(o.ref && o.hersteller){ const d = naAlle('material', true).find(m=>m.id!==o.id && m.hersteller===o.hersteller && naNorm(m.ref)===naNorm(o.ref));
       if(d && !(await naFrage('Gleiche REF beim gleichen Hersteller gibt es schon: „'+d.name+'". Trotzdem speichern?', { ja:'Trotzdem speichern' }))) return false; }
     o.sap = String(o.sap||'').trim();
-    const sd = naSapDoppelt(naAlle('material', true), o.sap, o.id);
-    if(sd.length && !(await naFrage('Die SAP-Nummer '+o.sap+' steht schon bei „'+sd.map(m=>m.name).join('", „')+'".', { ja:'Trotzdem anlegen', nein:'Zurück zur Maske',
+    const sapAlt = E.neu ? '' : ((naHole('material', o.id)||{}).sap || '');
+    const sd = naSapNorm(o.sap)!==naSapNorm(sapAlt) ? naSapDoppelt(naAlle('material', true), o.sap, o.id) : [];
+    if(sd.length && !(await naFrage('Die SAP-Nummer '+o.sap+' steht schon bei „'+sd.map(m=>m.name).join('", „')+'".', { ja:E.neu ? 'Trotzdem anlegen' : 'Trotzdem speichern', nein:'Zurück zur Maske',
       mehr:'Meist ist es dasselbe Produkt — dann besser das vorhandene Material verwenden. Gewollt ist es z. B., wenn Einzelstück und Karton verschiedene GTINs, aber eine SAP-Nummer haben. Beide Materialien zeigen danach „auch bei …".' }))) return false;
     /* Vor dem Speichern nachgefragt (nicht Pflicht): Produktname, Produktfoto, Hersteller */
     const fehlt = [];
-    if(!o.hersteller) fehlt.push({ f:'hersteller', wort:'Hersteller ('+naAuswegWort((o.pflicht||{}).hersteller)+')' });
+    const hAw = (o.pflicht||{}).hersteller;
+    if(!o.hersteller && hAw!=='gibtsnicht') fehlt.push({ f:'hersteller', wort:'Hersteller ('+naAuswegWort(hAw)+')' });
     if(!String(o.handelsname||'').trim()) fehlt.push({ f:'handelsname', wort:'Produktname des Herstellers' });
     if(!naFotos(o).some(x=>x.rolle!=='etikett')) fehlt.push({ f:'foto', wort:'Produktfoto' });
     if(fehlt.length && !E.erinnert){
@@ -1193,7 +1208,7 @@ async function naStammPruefen(E){
 }
 /* Zum fehlenden Feld springen (nach „Jetzt ergänzen"). */
 function naPflichtZeigen(f){
-  setTimeout(()=>{ const el = f==='foto' ? document.querySelector('#naMain [data-na="fotoAuf"]') : (f==='hersteller' ? document.querySelector('#naMain [data-f="hersteller"]') : document.querySelector('#naMain [data-f="'+f+'"]'));
+  setTimeout(()=>{ const el = document.querySelector(f==='foto' ? '#naMain [data-na="fotoAuf"]' : '#naMain [data-f="'+f+'"]');
     if(el){ try{ el.scrollIntoView({ block:'center' }); if(el.focus) el.focus({ preventScroll:true }); }catch(e){} } }, 60);
 }
 /* Prüfen, aufräumen, schreiben. Liefert true, wenn gespeichert wurde. */

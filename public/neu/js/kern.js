@@ -94,11 +94,17 @@ function naParseGS1(raw){
 const NA_HIBC_ZEICHEN='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%';
 function naHibcPruefzeichen(rumpf){ let n=0; for(const c of String(rumpf)){ const v=NA_HIBC_ZEICHEN.indexOf(c); if(v<0) return null; n+=v; } return NA_HIBC_ZEICHEN[n%43]; }
 function naParseHIBC(raw){
-  const s=String(raw==null?'':raw).trim().replace(/^\*/,'').replace(/\*$/,'');
-  if(!/^\+[A-Z][A-Z0-9]{3}[A-Z0-9]/.test(s) || s.length<8) return null;
-  const rumpf=s.slice(0,-1); if(naHibcPruefzeichen(rumpf)!==s.slice(-1)) return null;
-  const m=/^\+([A-Z][A-Z0-9]{3})([A-Z0-9]{1,18})(\d)$/.exec(rumpf.split('/')[0]);
-  return m ? { lic:m[1], ref:m[2], einheit:m[3] } : null;
+  /* Ein Leerzeichen am Ende kann das Prüfzeichen sein (Wert 38) — erst so
+     versuchen, wie es kam (ohne Zeilenende), dann ohne Leerzeichen am Ende. */
+  const roh=String(raw==null?'':raw).replace(/^\s+/,'').replace(/[\r\n\t]+$/,'');
+  for(const v of [roh, roh.replace(/\s+$/,'')]){
+    const s=v.replace(/^\*/,'').replace(/\*$/,'');
+    if(!/^\+[A-Z][A-Z0-9]{3}[A-Z0-9]/.test(s) || s.length<8) continue;
+    const rumpf=s.slice(0,-1); if(naHibcPruefzeichen(rumpf)!==s.slice(-1)) continue;
+    const m=/^\+([A-Z][A-Z0-9]{3})([A-Z0-9]{1,18})(\d)$/.exec(rumpf.split('/')[0]);
+    if(m) return { lic:m[1], ref:m[2], einheit:m[3] };
+  }
+  return null;
 }
 /* Für die Etikett-Erkennung (ocr.js ruft parseScan, wenn vorhanden). */
 function naParseScan(raw){
@@ -107,7 +113,7 @@ function naParseScan(raw){
   if(/^\d{8,14}$/.test(s)) return { kind:'gtin', gtin:naGtinKey(s), itemRef:'' };
   const g=naParseGS1(s);
   if(g.gtin) return { kind:'gs1', gtin:naGtinKey(g.gtin), itemRef:g.itemRef };
-  const h=naParseHIBC(s);
+  const h=naParseHIBC(raw);
   return h ? { kind:'hibc', gtin:'', itemRef:h.ref, lic:h.lic } : { kind:'text', text:s };
 }
 
@@ -218,7 +224,7 @@ function naMerkmalMuster(d){
   return { nur_anker:true };
 }
 function naKatalog(quelle, tpl){
-  if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[] };
+  if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[], global:[] };
   const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{}, ss=t.such||{}, wa=t.werteAus||{};
   const klassen=(quelle.klassen||[]).map(k=>{ const v=kl[k.id]; if(!v) return k; const n=Object.assign({},k);
     if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
@@ -260,8 +266,11 @@ function naKatalog(quelle, tpl){
     Object.assign(d, naMerkmalMuster(Object.assign({},v,{anker:v.anker}))); if(d.typ!=='ja_nein') d.anker=anker;
     if(Array.isArray(ss[mid]) && ss[mid].length) d.such=ss[mid].slice();
     merkmale.push(d); });
-  /* Felder für alle Produkte (Pflichtangaben): nur vorhandene, nicht archivierte Merkmale. */
-  const global=(Array.isArray(t.global)?t.global:[]).filter(g=>g && merkmale.some(d=>d.id===g.mid && !d.archiviert)).map(g=>({ mid:g.mid, pflicht:!!g.pflicht }));
+  /* Felder für alle Produkte (Pflichtangaben): nur vorhandene, nicht archivierte Merkmale,
+     keine mit festem Platz in der Maske. Ja/Nein nie als Pflicht — ein leeres Häkchen
+     hieße sonst „nicht beantwortet" statt „nein". */
+  const global=[]; (Array.isArray(t.global)?t.global:[]).forEach(g=>{ const d=g && NA_FESTER_PLATZ.indexOf(g.mid)<0 && merkmale.find(x=>x.id===g.mid && !x.archiviert);
+    if(d && !global.some(x=>x.mid===g.mid)) global.push({ mid:g.mid, pflicht:!!g.pflicht && d.typ!=='ja_nein' }); });
   return Object.assign({}, quelle, { klassen, merkmale, global });
 }
 /* Felder einer Kategorie: ★ zuerst, dann eigene, dann allgemeine. Rein. */
@@ -762,6 +771,10 @@ function naVerknUmhaengen(o, von, nach){
    öffnet sich der Rest der Maske. Die Verwaltung kann weitere Felder für alle
    Produkte anlegen, als Pflicht oder freiwillig (kat.global, aus dem Overlay).
    Die SAP-Nummer ist freiwillig und wird nach und nach ergänzt. Rein. */
+/* Merkmale mit eigenem, festem Platz in der Maske (Steril · Einmal · Latex, Packung). */
+const NA_FESTER_PLATZ=['steril','einmalgebrauch','einmalpatient','resterilisierbar','latex','stueck_packung'];
+/* Darf ein Merkmal Pflichtangabe für alle Produkte werden? */
+function naDarfPflicht(d){ return !!d && d.typ!=='ja_nein' && NA_FESTER_PLATZ.indexOf(d.id)<0; }
 const NA_PFLICHT_FEST=[ { id:'gtin', wort:'GTIN' }, { id:'hersteller', wort:'Hersteller' }, { id:'ref', wort:'REF' } ];
 const NA_AUSWEGE=[ { id:'gibtsnicht', wort:'gibt es nicht' }, { id:'unbekannt', wort:'unbekannt' }, { id:'nachtragen', wort:'nachtragen' } ];
 function naAuswegWort(id){ const a=NA_AUSWEGE.find(x=>x.id===id); return a ? a.wort : ''; }
@@ -778,6 +791,12 @@ function naPflichtStand(o, kat){
   return naPflichtFelder(kat).map(f=>{ const wert=naPflichtWert(o, f); const ausweg = wert ? '' : (NA_AUSWEGE.some(a=>a.id===aw[f.id]) ? aw[f.id] : '');
     return { id:f.id, wort:f.wort, art:f.art, wert, ausweg, beantwortet: !!(wert || ausweg) }; });
 }
+/* Ausweg setzen oder (noch einmal antippen) zurücknehmen. Verändert o. */
+function naAuswegUmschalten(o, k, a){
+  const p=Object.assign({}, o.pflicht||{}); if(p[k]===a) delete p[k]; else p[k]=a;
+  if(Object.keys(p).length) o.pflicht=p; else delete o.pflicht;
+  return o;
+}
 function naPflichtOffen(o, kat){ return naPflichtStand(o, kat).filter(x=>!x.beantwortet).map(x=>x.wort); }
 /* Was noch zu tun ist: unbeantwortet oder „nachtragen" (Arbeitsliste im Verzeichnis). */
 function naPflichtNachtragen(o, kat){ return naPflichtStand(o, kat).filter(x=>!x.beantwortet || x.ausweg==='nachtragen').map(x=>x.wort); }
@@ -792,6 +811,8 @@ function naPflichtAufraeumen(o, kat){
 /* SAP-Nummer: Leerzeichen raus; reine Ziffern ohne führende Nullen (SAP zeigt
    „000000000000123456" und „123456" für dieselbe Nummer). */
 function naSapNorm(s){ const t=String(s==null?'':s).replace(/\s+/g,'').toUpperCase(); return /^\d+$/.test(t) ? (t.replace(/^0+(?=\d)/,'')) : t; }
+/* Wie oft jede SAP-Nummer vorkommt (einmal je Verzeichnis statt je Zeile). */
+function naSapZaehlen(material){ const z=new Map(); (material||[]).forEach(m=>{ const k=m && naSapNorm(m.sap); if(k) z.set(k, (z.get(k)||0)+1); }); return z; }
 function naSapDoppelt(material, sap, eigeneId){ const k=naSapNorm(sap); if(!k) return [];
   return (material||[]).filter(m=>m && m.id!==eigeneId && m.sap && naSapNorm(m.sap)===k); }
 /* Ein Feld für alle Produkte: stufe 'pflicht' · 'freiwillig' · 'aus'. Neues Overlay. */
