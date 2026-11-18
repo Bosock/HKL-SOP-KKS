@@ -540,7 +540,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
   /* ═══════════ 11. Der Zustand überlebt einen Neustart ═══════════ */
   await A.page.evaluate(`(function(){ seiteAnlegen('aufgaben','Wochencheck'); saveSeiten(); })()`);
-  await A.page.waitForTimeout(600);
+  await A.page.evaluate('sync.leeren(5000)');   /* sofort an den Server — nicht auf die 800-ms-Entprellung raten */
   const B = await bootPage(browser, srv.base);
   const neu = await B.page.evaluate(`(function(){
     const btn=[...document.querySelectorAll('#scr-standards .seg-btn[data-seite]')];

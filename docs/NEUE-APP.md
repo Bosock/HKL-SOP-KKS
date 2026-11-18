@@ -491,15 +491,16 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1152 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1155 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 33 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 36 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
+  Pflichtangaben, SAP-Nummer, HIBC,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
   der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
 - `npm run check`: grün, und die Prüfungen gelten jetzt auch für `public/neu`.
-- `node e2e/neue-app.js` prüft 59 Punkte. Dabei ist die Anmeldung getippt, und
+- `node e2e/neue-app.js` prüft 61 Punkte. Dabei ist die Anmeldung getippt, und
   jede Aktion läuft über sichtbare Schaltflächen. Abgedeckt sind:
   - Handy und PC, zwei Geräte im Abgleich;
   - der Bestand am Anfang und am Ende Byte für Byte gleich;
@@ -509,7 +510,13 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-maske.js` prüft 105 Punkte an der Material-Maske: Scan
+- `node e2e/neue-app-pflicht.js` prüft 43 Punkte an den Pflichtangaben:
+  Sperre und drei Auswege, Wiederöffnen und -schließen, Erinnerung vor dem
+  Speichern (einmal je Maske), SAP-Nummer doppelt („Zurück zur Maske" /
+  „Trotzdem anlegen"), Arbeitslisten im Verzeichnis, alte Einträge ohne
+  Antworten, HIBC aus dem Handscanner, „＋ Feld für alle Produkte" bis in die
+  Kurzerfassung und zurück über die Seite des Merkmals, Bestand unverändert.
+- `node e2e/neue-app-maske.js` prüft 108 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,
