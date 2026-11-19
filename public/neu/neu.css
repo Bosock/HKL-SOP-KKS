@@ -146,6 +146,10 @@ button.na-vk-haupt { cursor:pointer; }
 .na-scan-fuss { display:flex; gap:8px; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); }
 .na-scan-fuss .btn { flex:1; }
 #naScanOv.ohne-kamera .na-scan-bild { visibility:hidden; }
+.na-scan-werkzeug { position:absolute; left:0; right:0; bottom:34px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap; padding:0 12px; }
+.na-scan-k { background:rgba(0,0,0,.55); color:#fff; border:1px solid rgba(255,255,255,.5); border-radius:999px; padding:8px 14px; font-size:14px; font-weight:600; }
+.na-scan-k.an { background:#ffd54a; color:#1a1a1a; border-color:#ffd54a; }
+.na-scan-info { position:absolute; left:0; right:0; bottom:8px; text-align:center; font-size:11px; color:rgba(255,255,255,.75); padding:0 12px; pointer-events:none; }
 
 .na-schutz { padding:40px 18px; text-align:center; }
 .na-schutz h2 { margin:0 0 10px; }

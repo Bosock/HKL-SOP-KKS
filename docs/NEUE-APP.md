@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 18.11.2026 · Cache-Version `v87` · Code: `public/neu/`
+**Stand:** 19.11.2026 · Cache-Version `v88` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -166,6 +166,37 @@ egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
   Ja/Nein-Merkmale gehen nur freiwillig (ein leeres Häkchen hieße sonst
   „nicht beantwortet" statt „nein"); Steril · Einmal · Latex und die
   Packungsgröße haben ihren festen Platz.
+
+**Kamera zum Barcode-Scannen** (seit 19.11.2026). Handys haben hinten oft
+mehrere Kameras. „Hintere Kamera" überließ die Wahl dem Browser — und der nahm
+manchmal eine, die aus der Nähe nicht scharf stellt (iPhone Pro: Weitwinkel
+erst ab etwa 15–20 cm, die Kamera-App wechselt selbst auf Makro, eine Webseite
+nicht; Ultraweitwinkel-, Makro- und Tiefenkameras oft mit festem Fokus).
+
+- **Wahl:** erst „hintere Kamera" öffnen (die Berührung gibt die Freigabe),
+  dann mit den Kameranamen die passende nehmen: auf dem iPhone die virtuelle
+  „Triple"- bzw. „Dual-Wide"-Kamera (wechselt die Linse selbst, auch auf
+  Makro), auf Android die Hauptkamera („camera2 0"). Frontkamera nie.
+- **Gemerkt je Gerät:** die Kamera, mit der ein Code gelesen wurde (oder die
+  von Hand gewählte). Gibt es sie nicht mehr, wird sie vergessen und neu
+  gewählt. Einstellungen → „Kamera zum Barcode-Scannen" zeigt sie und kann sie
+  vergessen.
+- **Im Scanner:** „⟳ Kamera wechseln (n/m)", „2×" (Zoom: Handy weiter weg
+  halten, über der Naheinstellgrenze), „💡 Licht" — jeweils nur, wo die Kamera
+  es kann. Autofokus „laufend", Antippen stellt einmal scharf (wo möglich).
+  Unten steht, welche Kamera mit welcher Auflösung läuft.
+- **Lesen:** zwei von drei Bildern nur der Zielrahmen in voller Auflösung,
+  das dritte das ganze Bild. Gemessen (zxing, Hochkantbild 1080×1920,
+  leichte Unschärfe und Rauschen, je 6 Versuche): bei 1,5 Pixel je Strich
+  5/6 statt 0/6, bei 1,75 Pixel 6/6 statt 2/6, und schneller (28 statt
+  40 ms je Bild).
+- **Nach 4 s ohne Treffer** ein Hinweis: weiter weg halten, „2×", „Kamera
+  wechseln".
+- **Grenzen:** Ob iOS den Zoom der virtuellen Kameras anbietet und wie es die
+  Kameras benennt, hängt von der iOS-Version ab — die Wahl richtet sich nach
+  den Namen und Fähigkeiten, die das Gerät meldet; „Kamera wechseln" bleibt
+  der Ausweg. Nicht auf echten Geräten gemessen, nur nachgebildet
+  (`e2e/neue-app-kamera.js`).
 
 **Merkmale suchen, zuordnen, vorschlagen** (seit 12.11.2026). Kein eigenes
 Menü: alles in der Maske und im Listen-Verzeichnis.
@@ -499,9 +530,9 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1156 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1158 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 37 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 39 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
   Pflichtangaben, SAP-Nummer, HIBC,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
@@ -518,6 +549,10 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
+- `node e2e/neue-app-kamera.js` prüft 22 Punkte an der Kamera zum
+  Barcode-Scannen mit nachgebildeten Kameras (Namen wie auf iPhone und
+  Android, Autofokus, Zoom, Licht): Wahl, Wechseln, Merken, Vergessen,
+  Hinweis nach 4 s, kleiner Code im Zielrahmen, Einstellungen.
 - `node e2e/neue-app-pflicht.js` prüft 50 Punkte an den Pflichtangaben:
   Sperre und drei Auswege, Wiederöffnen und -schließen, Erinnerung vor dem
   Speichern (einmal je Maske), SAP-Nummer doppelt („Zurück zur Maske" /

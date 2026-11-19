@@ -106,6 +106,50 @@ function naParseHIBC(raw){
   }
   return null;
 }
+/* ── Welche Kamera zum Barcode-Lesen? (rein, testbar) ──
+   Handys haben hinten oft mehrere Kameras. „Hintere Kamera" (facingMode)
+   überlässt die Wahl dem Browser — und der nimmt manchmal eine, die aus der
+   Nähe nicht scharf stellt:
+     · iPhone Pro: die Weitwinkel-Kamera („Back Camera") stellt erst ab etwa
+       15–20 cm scharf; die Kamera-App wechselt von selbst auf Makro, eine
+       Web-Seite nicht. Die virtuellen Kameras („Back Triple Camera", „Back
+       Dual Wide Camera") wechseln die Linse selbst (seit iOS 17) — die nehmen.
+     · Ultraweitwinkel-, Makro- und Tiefenkameras haben oft festen Fokus und
+       wenig Auflösung; Tele stellt erst weit weg scharf.
+     · Android benennt nüchtern („camera2 0, facing back"): Die Hauptkamera hat
+       fast immer die kleinste Nummer.
+   Die Namen sind je nach Sprache übersetzt — deshalb Deutsch und Englisch.
+   Liefert die hinteren (oder unbekannten) Kameras, beste zuerst: [{ id, label, rang }]. */
+function naKameraRang(label){
+  const l=String(label||'').toLowerCase();
+  if(/front|vorder|user|facetime|selfie/.test(l)) return -1000;
+  let r=0;
+  if(/back|rück|rueck|rear|hinten|environment|facing back/.test(l)) r+=100;
+  if(/triple|dreifach/.test(l)) r+=60;
+  else if(/dual[\s-]?wide|dual[\s-]?weitwinkel/.test(l)) r+=50;
+  else if(/dual/.test(l)) r+=20;
+  else if(/ultra|ultraweit|weitwinkel 0|0[,.]5/.test(l)) r-=30;
+  else if(/tele/.test(l)) r-=40;
+  if(/macro|makro/.test(l)) r-=20;
+  if(/depth|tiefe|mono|infrarot|infrared|\bir\b/.test(l)) r-=60;
+  const n=/camera2?\s*(\d+)/.exec(l); if(n) r+=Math.max(0, 30-3*(+n[1]));
+  return r;
+}
+function naKameraReihenfolge(geraete){
+  return (geraete||[]).filter(g=>g && g.id).map((g, i)=>({ id:g.id, label:g.label||'', rang:naKameraRang(g.label), i }))
+    .filter(g=>g.rang>-1000).sort((a, b)=>b.rang-a.rang || a.i-b.i).map(g=>({ id:g.id, label:g.label, rang:g.rang }));
+}
+/* Ausschnitt des Videobilds, den der Zielrahmen auf dem Bildschirm zeigt —
+   das Video füllt seine Fläche („cover"), ist also an zwei Seiten
+   abgeschnitten. rahmen = { l, o, r, u } in Anteilen der Fläche (0–1).
+   Liefert { x, y, w, h } in Pixeln des Videos, etwas größer als der Rahmen. */
+function naRahmenImVideo(vw, vh, fw, fh, rahmen, rand){
+  if(!(vw>0 && vh>0 && fw>0 && fh>0)) return { x:0, y:0, w:vw||0, h:vh||0 };
+  const s=Math.max(fw/vw, fh/vh); const ox=(vw*s-fw)/2, oy=(vh*s-fh)/2; const m=rand==null ? 0.08 : rand;
+  const x0=((rahmen.l-m)*fw+ox)/s, x1=((rahmen.r+m)*fw+ox)/s, y0=((rahmen.o-m)*fh+oy)/s, y1=((rahmen.u+m)*fh+oy)/s;
+  const x=Math.max(0, Math.floor(x0)), y=Math.max(0, Math.floor(y0));
+  return { x, y, w:Math.min(vw, Math.ceil(x1))-x, h:Math.min(vh, Math.ceil(y1))-y };
+}
 /* Für die Etikett-Erkennung (ocr.js ruft parseScan, wenn vorhanden). */
 function naParseScan(raw){
   const s=String(raw==null?'':raw).trim();
