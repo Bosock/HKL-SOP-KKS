@@ -49,6 +49,8 @@ async function json(base, p) { return (await fetch(base + p, { cache: 'no-store'
 async function warte(page, fn, arg, ms) { try { await page.waitForFunction(fn, arg, { timeout: ms || 8000 }); return true; } catch (e) { return false; } }
 const BILDER = process.env.MASKE_BILDER || '';
 async function foto(page, name) { if (BILDER) await page.screenshot({ path: path.join(BILDER, name + '.png'), fullPage: true }); }
+/* Pflichtangaben (GTIN, Hersteller, REF) mit „nachtragen" beantworten — öffnet den Rest der Maske. */
+async function pflichtNachtragen(p) { for (const k of ['gtin', 'hersteller', 'ref']) await p.click('[data-na="pflichtAusweg"][data-k="' + k + '"][data-a="nachtragen"]'); }
 const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById('naSheet'); return s.classList.contains('show') && new RegExp(r).test(s.textContent); }, re.source);
 
 (async () => {
@@ -100,7 +102,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   const stand = () => p.textContent('#naOcrStand');
 
   /* ── 1. Scannen: Der echte Leser liest den Strichcode, das Register füllt die Maske ── */
-  r.check('Maske beginnt mit „Erkennen": Barcode scannen und Etikett lesen', (await p.isVisible('[data-na="scan"]')) && (await p.isVisible('[data-na="etikett"]')) && (await p.isVisible('input[data-f="name"]')));
+  r.check('Maske beginnt mit „Erkennen" und den Pflichtangaben — Name im Haus und der Rest sind noch gesperrt', (await p.isVisible('[data-na="scan"]')) && (await p.isVisible('[data-na="etikett"]'))
+    && (await p.isVisible('.na-pflicht input[data-f="gtin"]')) && !(await p.isVisible('input[data-f="name"]')) && await p.isVisible('#naSperre'));
   await kamera(eanBits(E_HAHN));
   await p.click('[data-na="scan"]');
   r.check('Live-Bild erscheint', await warte(p, () => !!document.getElementById('naScanOv')));
@@ -113,7 +116,7 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   r.check('Hersteller: Kurzname fürs Haus, amtlicher Name und Registriernummer (' + (her || {}).name + ')', her && her.name === 'B. Braun Melsungen' && her.amtlich === 'B. Braun Melsungen AG' && her.srn === 'DE-MF-000000201');
   r.check('Quelle und Status sichtbar: „noch nicht bestätigt"', /EUDAMED[\s\S]*noch nicht bestätigt/.test(await p.textContent('.na-info.na-offen')) && !e.register.bestaetigt);
   r.check('Kategorie vorgeschlagen (aus der Einordnung A0703)', e.kategorie === 'infusion' && /Infusion/.test(await p.textContent('details[data-ab="kat"] > summary')));
-  r.check('Der Name im Haus bleibt leer — der Handelsname wird nur angeboten', e.name === '' && await p.isVisible('#naNameVor [data-na="nameNehmen"]'));
+  r.check('Pflichtangaben aus dem Register beantwortet → die Maske ist offen; Name im Haus mit dem Produktnamen vorbelegt', !(await p.isVisible('#naSperre')) && (await p.inputValue('input[data-f="name"]')) === 'Discofix® C');
   await foto(p, 'maske-1-nach-scan');
 
   /* ── 2. Name mit Vorschlägen aus dem Haus; Lagerort als Liste ── */
@@ -149,6 +152,9 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.click('[data-na="kurzOk"]');
   r.check('ohne Namen wird nichts angelegt', /Namen eintragen/.test(await p.textContent('#naKurzStand')) && await p.evaluate(() => naAlle('material').length === 0));
   await p.fill('#naKurzName', 'Verlängerung 30 cm'); await p.click('[data-na="kurzOk"]');
+  r.check('Kurzerfassung: auch hier erst die Pflichtangaben (GTIN, REF, Hersteller)', /Erst die Pflichtangaben/.test(await p.textContent('#naKurzStand')) && await p.evaluate(() => naAlle('material').length === 0));
+  for (const k of ['gtin', 'ref', 'hersteller']) await p.click('#naSheet.show [data-na="kurzAusweg"][data-k="' + k + '"][data-a="nachtragen"]');
+  await p.click('[data-na="kurzOk"]');
   r.check('Zubehör angelegt und verknüpft; Eingaben der Maske unverändert', await warte(p, () => naAlle('material').length === 1 && (NA_ENTWURF.obj.verknuepfungen || []).length === 1 && NA_ENTWURF.obj.name === '3-Wege-Hahn' && NA_ENTWURF.obj.packung === '50'));
   r.check('Zeile nennt Art und Material', /Braucht dazu[\s\S]*Verlängerung 30 cm/.test(await p.textContent('details[data-ab="verkn"]')));
 
@@ -184,6 +190,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
 
   /* ── 6. Speichern und nächstes: Lagerort bleibt, alles andere ist leer ── */
   await p.click('[data-na="entwWeiter"]');
+  r.check('vor dem Speichern gefragt: das Produktfoto fehlt noch (keine Pflicht)', (await blattOffen(p, /Vor dem Speichern[\s\S]*Produktfoto/)) && !/Produktname des Herstellers|Hersteller \(/.test(await p.textContent('#naSheet')));
+  await p.click('#naSheet.show [data-wert="speichern"]');
   r.check('gespeichert, neue leere Maske', await warte(p, () => naAlle('material').length === 3 && NA_ENTWURF && NA_ENTWURF.neu && NA_ENTWURF.obj.name === '' && location.hash === '#/material/neu'));
   const hahn = await p.evaluate(() => naAlle('material').find(m => m.name === '3-Wege-Hahn'));
   e = await entwurf();
@@ -264,7 +272,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.click('#naSheet.show [data-wert="worte"]');
   await p.fill('#naEingabeFeld', 'Discofix, Hahnbank, xy'); await p.click('#naSheet.show [data-na="eingabeOk"]');
   r.check('eigene Suchwörter gespeichert (zu kurze verworfen)', await warte(p, () => JSON.stringify(naKatTpl().klassen.infusion.worte) === '["discofix","hahnbank"]'));
-  await p.evaluate(() => naGeh('#/material/neu')); await p.fill('input[data-f="name"]', 'Discofix C neu');
+  await p.evaluate(() => naGeh('#/material/neu')); await pflichtNachtragen(p);
+  await p.fill('input[data-f="name"]', 'Discofix C neu');
   r.check('… und die Maske schlägt danach vor', await warte(p, () => NA_ENTWURF.obj.kategorie === 'infusion'));
   await p.click('[data-na="entwAbbrechen"]'); await p.click('#naSheet.show button:has-text("Verwerfen")');
   await p.evaluate(() => naGeh('#/liste/kategorien')); await p.click('.na-eintrag:has-text("Infusion / Leitung / Hahn")');
@@ -285,7 +294,7 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   r.check('danach bietet das Verzeichnis nur noch den Rest an', /Aus dem Register ergänzen \(1\)/.test(await p.textContent('#naMain')));
 
   /* ── 12d. Merkmale suchen und zuordnen — das Beispiel vom 12.11.2026: ein Kabel und seine Resterilisation ── */
-  await p.evaluate(() => naGeh('#/material/neu'));
+  await p.evaluate(() => naGeh('#/material/neu')); await pflichtNachtragen(p);
   await p.fill('input[data-f="name"]', 'Inquiry 1910-SA Verbindungskabel');
   r.check('Kategorie steht sichtbar beim Namen (Vorschlag „Kabel")', await warte(p, () => /Kategorie: Kabel/.test(document.getElementById('naKatZeile').textContent) && NA_ENTWURF.obj.kategorie === 'kabel'));
   await p.evaluate(() => { NA_ENTWURF.offen.kat = true; naFormNeu(); });
@@ -308,6 +317,8 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   const neuMid = await p.evaluate(() => (naKat().merkmale.find(d => d.label === 'Steckerfarbe') || {}).id);
   r.check('neues Merkmal angelegt und allen Kabeln zugeordnet', !!neuMid && await p.evaluate(mid => naFelder(naKat(), 'kabel').weitere.some(d => d.id === mid) && !!document.querySelector('input[data-f="merkmale.' + mid + '"]'), neuMid));
   await p.click('[data-na="entwSpeichern"]');
+  r.check('vor dem Speichern gefragt: Hersteller (nachtragen), Produktname, Produktfoto', await blattOffen(p, /Vor dem Speichern[\s\S]*Hersteller \(nachtragen\)[\s\S]*Produktname des Herstellers[\s\S]*Produktfoto/));
+  await p.click('#naSheet.show [data-wert="speichern"]');
   await warte(p, () => location.hash === '#/material');
   const kabelId = await p.evaluate(() => naAlle('material').find(m => /Inquiry/.test(m.name)).id);
   await p.evaluate(id => naGeh('#/material/' + id), kabelId);
@@ -360,7 +371,7 @@ const blattOffen = (p, re) => warte(p, r => { const s = document.getElementById(
   await p.click('#naSheet.show [data-wert="weiter"]');
   r.check('Kategorie zugeordnet: „Kabel" führt das Merkmal jetzt', await warte(p, () => naFelder(naKat(), 'kabel').weitere.some(d => d.id === 'kurve_groesse') && /Kategorien \(3\)/.test(document.getElementById('naMain').textContent)));
   /* … und in der Maske eines Kabels: neuer Name, Hinweis, Werte */
-  const probeKabel = await p.evaluate(() => naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Probe-Kabel', kategorie: 'kabel', merkmale: { kurve_groesse: 'LARGE' } })).id);
+  const probeKabel = await p.evaluate(() => naSpeichern('material', Object.assign(naStammLeer('material'), { name: 'Probe-Kabel', kategorie: 'kabel', merkmale: { kurve_groesse: 'LARGE' }, pflicht: { gtin: 'unbekannt', hersteller: 'unbekannt', ref: 'unbekannt' } })).id);
   await p.evaluate(i => naGeh('#/material/' + i), probeKabel);
   await warte(p, () => !!NA_ENTWURF && NA_ENTWURF.obj.name === 'Probe-Kabel');
   await p.evaluate(() => { NA_ENTWURF.offen.kat = true; NA_ENTWURF.offen.weit = true; naFormNeu(); });

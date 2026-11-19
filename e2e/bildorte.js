@@ -183,7 +183,7 @@ const { launchBrowser, startServer, bootPage, reporter } = require('./util');
 
   /* ═══════════ 8. Der Zustand überlebt einen Neustart ═══════════ */
   await A.page.evaluate(`(function(){ bildOrtSchalten('eintrag'); bildAllesSchalten(false); })()`);
-  await A.page.waitForTimeout(600);
+  await A.page.evaluate('sync.leeren(5000)');   /* sofort an den Server — nicht auf die 800-ms-Entprellung raten */
   const B = await bootPage(browser, srv.base);
   const neu = await B.page.evaluate(`(function(){
     return { alles:bildAllesAn(), zeile:!bildOrtNach('eintrag').aus, geaendert:bildOrteGeaendert() };

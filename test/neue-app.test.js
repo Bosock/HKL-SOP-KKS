@@ -23,6 +23,7 @@ vm.runInContext(KERN + `
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
   naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
+  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ,
   NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -380,15 +381,86 @@ test('Verknüpfungen: bereinigen, beide Richtungen lesen, Zubehör, umhängen', 
   assert.equal(K.naVerknUmhaengen(selbst, 'b', 'd'), true); assert.equal(selbst.verknuepfungen, undefined);
 });
 
-test('Vollständigkeit: fünf Kern-Angaben; ein Etikettfoto ist kein Produktbild', () => {
-  assert.deepEqual(plain(K.naFehlt({ id:'m', name:'X' }, KATNEU)), ['Hersteller','GTIN oder REF','Lagerort','Produktbild','Kategorie']);
-  const o = { id:'m', name:'X', hersteller:'h1', ref:'R1', lagerort:'l1', kategorie:'infusion', fotos:[{ k:'e', rolle:'etikett' }] };
+test('Vollständigkeit: GTIN, Hersteller, REF, Lagerort, Produktbild, Kategorie; „gibt es nicht" ist eine Antwort, „unbekannt" nicht', () => {
+  assert.deepEqual(plain(K.naFehlt({ id:'m', name:'X' }, KATNEU)), ['GTIN','Hersteller','REF','Lagerort','Produktbild','Kategorie']);
+  const o = { id:'m', name:'X', gtin:'04022495787309', hersteller:'h1', ref:'R1', lagerort:'l1', kategorie:'infusion', fotos:[{ k:'e', rolle:'etikett' }] };
   assert.deepEqual(plain(K.naFehlt(o, KATNEU)), ['Produktbild']);
   o.fotos.push({ k:'p', rolle:'produkt' });
   assert.deepEqual(plain(K.naFehlt(o, KATNEU)), []);
-  assert.equal(K.naAngaben(o, KATNEU).filter(a => a.kern).length, 5);
+  assert.equal(K.naAngaben(o, KATNEU).filter(a => a.kern).length, 6);
   assert.equal(K.naAngaben(o, KATNEU).find(a => a.id === 'verknuepft').da, false);
-  assert.deepEqual(plain(K.naFehlt({ id:'m', gtin:'04022495787309', hersteller:'h', lagerort:'l', kategorie:'k', fotos:['alt'] }, KATNEU)), []);   /* alte Bildform zählt */
+  assert.equal(K.naAngaben(o, KATNEU).find(a => a.id === 'sap').kern, false);                 /* SAP-Nummer: freiwillig */
+  assert.deepEqual(plain(K.naFehlt({ id:'m', gtin:'04022495787309', ref:'R', hersteller:'h', lagerort:'l', kategorie:'k', fotos:['alt'] }, KATNEU)), []);   /* alte Bildform zählt */
+  const ohne = { id:'m', hersteller:'h', lagerort:'l', kategorie:'k', fotos:['alt'], pflicht:{ gtin:'gibtsnicht', ref:'unbekannt' } };
+  assert.deepEqual(plain(K.naFehlt(ohne, KATNEU)), ['REF']);
+});
+
+test('Pflichtangaben: GTIN, Hersteller, REF — eintragen oder „gibt es nicht", „unbekannt", „nachtragen"', () => {
+  assert.deepEqual(plain(K.NA_AUSWEGE.map(a => a.wort)), ['gibt es nicht', 'unbekannt', 'nachtragen']);
+  const kat = K.naKatalog(KAT, {});
+  assert.deepEqual(plain(K.naPflichtOffen({ id:'m' }, kat)), ['GTIN', 'Hersteller', 'REF']);
+  const o = { id:'m', gtin:'04022495787309', pflicht:{ hersteller:'nachtragen', ref:'unbekannt', gtin:'gibtsnicht' } };
+  const st = plain(K.naPflichtStand(o, kat));
+  assert.deepEqual(st.map(x => x.id + ':' + (x.wert || x.ausweg)), ['gtin:04022495787309', 'hersteller:nachtragen', 'ref:unbekannt']);
+  assert.deepEqual(plain(K.naPflichtOffen(o, kat)), []);
+  assert.deepEqual(plain(K.naPflichtNachtragen(o, kat)), ['Hersteller']);
+  assert.deepEqual(plain(K.naPflichtStand({ pflicht:{ ref:'quatsch' } }, kat).find(x => x.id === 'ref')), { id:'ref', wort:'REF', art:'fest', wert:'', ausweg:'', beantwortet:false });
+  K.naPflichtAufraeumen(o, kat);                                            /* wo ein Wert steht, gilt kein Ausweg */
+  assert.deepEqual(plain(o.pflicht), { hersteller:'nachtragen', ref:'unbekannt' });
+  const leer = { pflicht:{ gtin:'gibtsnicht' }, gtin:'4006' }; K.naPflichtAufraeumen(leer, kat); assert.equal(leer.pflicht, undefined);
+  /* ein Feld der Verwaltung für alle Produkte — als Pflicht */
+  let tpl = K.naTplGlobal({}, 'herkunftsland', 'pflicht');
+  const kg = K.naKatalog(KAT, tpl);
+  assert.ok(kg.global.length === 1 && kg.global[0].pflicht);
+  assert.deepEqual(plain(K.naPflichtOffen({ gtin:'1', hersteller:'h', ref:'r' }, kg)).length, 1);
+  assert.deepEqual(plain(K.naPflichtOffen({ gtin:'1', hersteller:'h', ref:'r', pflicht:{ herkunftsland:'unbekannt' } }, kg)), []);
+  tpl = K.naTplGlobal(tpl, 'herkunftsland', 'freiwillig'); assert.equal(K.naKatalog(KAT, tpl).global[0].pflicht, false);
+  assert.equal(K.naTplGlobal(tpl, 'herkunftsland', 'aus').global, undefined);
+  assert.deepEqual(plain(K.naKatalog(KAT, { global:[{ mid:'gibt_es_nicht', pflicht:true }] }).global), []);   /* unbekannte Felder fallen weg */
+});
+
+test('SAP-Nummer: führende Nullen und Leerzeichen zählen nicht; doppelte werden gefunden', () => {
+  assert.equal(K.naSapNorm(' 000000000000123456 '), '123456'); assert.equal(K.naSapNorm('12 34'), '1234'); assert.equal(K.naSapNorm('ab-12'), 'AB-12'); assert.equal(K.naSapNorm(''), '');
+  const m = [{ id:'a', sap:'123456' }, { id:'b', sap:'000123456' }, { id:'c', sap:'999' }, { id:'d' }];
+  assert.deepEqual(plain(K.naSapDoppelt(m, '0123456', 'a').map(x => x.id)), ['b']);
+  assert.deepEqual(plain(K.naSapDoppelt(m, '', 'x')), []);
+});
+
+test('HIBC-Code: REF aus dem Code, Prüfzeichen geprüft; GS1 gewinnt', () => {
+  const mit = r => r + K.naHibcPruefzeichen(r);
+  const code = mit('+A123BJC5D6E71');
+  assert.deepEqual(plain(K.naParseHIBC(code)), { lic:'A123', ref:'BJC5D6E7', einheit:'1' });
+  assert.deepEqual(plain(K.naParseScan(code)), { kind:'hibc', gtin:'', itemRef:'BJC5D6E7', lic:'A123' });
+  assert.equal(K.naParseHIBC(code.slice(0, -1) + (code.slice(-1) === 'A' ? 'B' : 'A')), null);           /* falsches Prüfzeichen */
+  const verkettet = mit('+H629REF4401/$$3271231LOT77');                                                 /* mit Verfall und Charge */
+  assert.deepEqual(plain(K.naParseHIBC(verkettet)), { lic:'H629', ref:'REF440', einheit:'1' });
+  assert.equal(K.naParseHIBC('*' + code + '*').ref, 'BJC5D6E7');                                         /* Start-/Stoppzeichen eines Code-39-Lesers */
+  assert.equal(K.naParseHIBC(mit('+$$3271231LOT77')), null);                                              /* nur Sekundärdaten */
+  assert.equal(K.naParseScan('(01)04022495787309(240)REF-77').kind, 'gs1');
+});
+
+test('Durchsicht 18.11.: Leerzeichen als HIBC-Prüfzeichen, Katalog ohne Quelle, Ja/Nein und feste Felder nie Pflicht', () => {
+  /* Ein gültiger HIBC, dessen Prüfzeichen ein Leerzeichen ist (Wert 38) */
+  const ZZ = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'; let rumpf = '';
+  for (const a of ZZ) for (const c of ZZ) { const r = '+A123' + a + c + '1'; if (!rumpf && K.naHibcPruefzeichen(r) === ' ') rumpf = r; }
+  assert.ok(rumpf, 'Probe gefunden');
+  assert.equal(K.naParseHIBC(rumpf + ' ').ref, rumpf.slice(5, -1));
+  assert.equal(K.naParseHIBC(rumpf + ' \r\n').ref, rumpf.slice(5, -1));                           /* Zeilenende des Handscanners */
+  assert.equal(K.naParseScan(rumpf + ' ').kind, 'hibc');
+  /* Ohne Katalog (offline) hat der Katalog trotzdem „global" — die Maske stürzt nicht */
+  assert.deepEqual(plain(K.naKatalog(null, {}).global), []);
+  /* Ja/Nein und Felder mit festem Platz: nie Pflicht bzw. nie global */
+  const kat = K.naKatalog(KAT, { global:[{ mid:'dehp', pflicht:true }, { mid:'steril', pflicht:true }, { mid:'herkunftsland', pflicht:true }, { mid:'herkunftsland', pflicht:false }] });
+  const dehp = kat.merkmale.find(d => d.id === 'dehp');
+  if (dehp) { assert.equal(dehp.typ, 'ja_nein'); assert.deepEqual(plain(kat.global.find(g => g.mid === 'dehp')), { mid:'dehp', pflicht:false }); assert.equal(K.naDarfPflicht(dehp), false); }
+  assert.equal(kat.global.some(g => g.mid === 'steril'), false);
+  assert.deepEqual(plain(kat.global.filter(g => g.mid === 'herkunftsland')), [{ mid:'herkunftsland', pflicht:true }]);   /* doppelt → einmal */
+  assert.ok(K.NA_FESTER_PLATZ.indexOf('stueck_packung') >= 0);
+  /* Ausweg umschalten; SAP zählen */
+  const o = {}; K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.deepEqual(plain(o.pflicht), { ref:'unbekannt' });
+  K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.equal('pflicht' in o, false);
+  const z = K.naSapZaehlen([{ sap:'000123' }, { sap:'123' }, { sap:'9' }, {}]);
+  assert.equal(z.get('123'), 2); assert.equal(z.get('9'), 1); assert.equal(z.size, 2);
 });
 
 test('Variante: Familie bleibt, Nummern/Bilder/Verknüpfungen nicht; Lagerorte sind eine Liste', () => {
@@ -398,6 +470,8 @@ test('Variante: Familie bleibt, Nummern/Bilder/Verknüpfungen nicht; Lagerorte s
   assert.notEqual(v.id, 'm1'); assert.equal(v.varianteVon, 'm1');
   assert.deepEqual([v.name, v.kategorie, v.hersteller, v.lagerort, v.bereich, v.merkmale.french, v.preis.betrag], ['Schleuse 6F','schleuse','h1','l1','b1','6','10']);
   assert.deepEqual([v.gtin, v.ref, v.fotos.length], ['', '', 0]);
+  const mitSap = K.naVariante(Object.assign({}, o, { sap:'123', pflicht:{ gtin:'gibtsnicht', ref:'nachtragen', hersteller:'unbekannt' } }));
+  assert.equal(mitSap.sap, undefined); assert.deepEqual(plain(mitSap.pflicht), { hersteller:'unbekannt' });   /* Nummern je Größe eigen */
   ['pzn','hauptbild','register','verknuepfungen','angelegt','geaendert','archiviert'].forEach(f => assert.equal(f in v, false, f));
   assert.equal(o.gtin, '04022495787309');                     /* das Original bleibt */
   assert.ok(K.NA_LISTEN.some(l => l.key === 'lagerorte'));

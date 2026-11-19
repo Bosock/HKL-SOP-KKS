@@ -84,13 +84,37 @@ function naParseGS1(raw){
   }
   return { gtin: out['01']||'', itemRef: out['240']||'' };
 }
+/* HIBC (Health Industry Bar Code): Viele Medizinprodukte tragen statt GS1
+   diesen Code. Er enthält keine GTIN, aber die Bestellnummer des Herstellers
+   (PCN = REF). Aufbau der Primärdaten: „+" · Hersteller-Kennung LIC (4 Zeichen,
+   erstes ein Buchstabe) · PCN (1–18 Zeichen) · Mengeneinheit (1 Ziffer) ·
+   Prüfzeichen (Modulo 43 über alle Zeichen davor). Bei verketteten Daten
+   („…/$$…") stehen die Primärdaten vor dem ersten „/" und das Prüfzeichen ganz
+   am Ende. Charge und Verfall (Sekundärdaten) werden nicht behalten (A2). */
+const NA_HIBC_ZEICHEN='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%';
+function naHibcPruefzeichen(rumpf){ let n=0; for(const c of String(rumpf)){ const v=NA_HIBC_ZEICHEN.indexOf(c); if(v<0) return null; n+=v; } return NA_HIBC_ZEICHEN[n%43]; }
+function naParseHIBC(raw){
+  /* Ein Leerzeichen am Ende kann das Prüfzeichen sein (Wert 38) — erst so
+     versuchen, wie es kam (ohne Zeilenende), dann ohne Leerzeichen am Ende. */
+  const roh=String(raw==null?'':raw).replace(/^\s+/,'').replace(/[\r\n\t]+$/,'');
+  for(const v of [roh, roh.replace(/\s+$/,'')]){
+    const s=v.replace(/^\*/,'').replace(/\*$/,'');
+    if(!/^\+[A-Z][A-Z0-9]{3}[A-Z0-9]/.test(s) || s.length<8) continue;
+    const rumpf=s.slice(0,-1); if(naHibcPruefzeichen(rumpf)!==s.slice(-1)) continue;
+    const m=/^\+([A-Z][A-Z0-9]{3})([A-Z0-9]{1,18})(\d)$/.exec(rumpf.split('/')[0]);
+    if(m) return { lic:m[1], ref:m[2], einheit:m[3] };
+  }
+  return null;
+}
 /* Für die Etikett-Erkennung (ocr.js ruft parseScan, wenn vorhanden). */
 function naParseScan(raw){
   const s=String(raw==null?'':raw).trim();
   if(/^https?:\/\//i.test(s)) return { kind:'url', url:s };
   if(/^\d{8,14}$/.test(s)) return { kind:'gtin', gtin:naGtinKey(s), itemRef:'' };
   const g=naParseGS1(s);
-  return g.gtin ? { kind:'gs1', gtin:naGtinKey(g.gtin), itemRef:g.itemRef } : { kind:'text', text:s };
+  if(g.gtin) return { kind:'gs1', gtin:naGtinKey(g.gtin), itemRef:g.itemRef };
+  const h=naParseHIBC(raw);
+  return h ? { kind:'hibc', gtin:'', itemRef:h.ref, lic:h.lic } : { kind:'text', text:s };
 }
 
 /* ── Mengen und Kosten ──
@@ -200,7 +224,7 @@ function naMerkmalMuster(d){
   return { nur_anker:true };
 }
 function naKatalog(quelle, tpl){
-  if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[] };
+  if(!quelle || !Array.isArray(quelle.merkmale)) return { klassen:[], merkmale:[], einheiten:{}, ref_grammatik:[], global:[] };
   const t=tpl||{}; const kl=t.klassen||{}, mm=t.merkmale||{}, ww=t.werte||{}, ss=t.such||{}, wa=t.werteAus||{};
   const klassen=(quelle.klassen||[]).map(k=>{ const v=kl[k.id]; if(!v) return k; const n=Object.assign({},k);
     if(v.label) n.label=v.label; if(Array.isArray(v.diff)) n.leit=v.diff.slice(); if(v.archiviert) n.archiviert=true;
@@ -242,7 +266,12 @@ function naKatalog(quelle, tpl){
     Object.assign(d, naMerkmalMuster(Object.assign({},v,{anker:v.anker}))); if(d.typ!=='ja_nein') d.anker=anker;
     if(Array.isArray(ss[mid]) && ss[mid].length) d.such=ss[mid].slice();
     merkmale.push(d); });
-  return Object.assign({}, quelle, { klassen, merkmale });
+  /* Felder für alle Produkte (Pflichtangaben): nur vorhandene, nicht archivierte Merkmale,
+     keine mit festem Platz in der Maske. Ja/Nein nie als Pflicht — ein leeres Häkchen
+     hieße sonst „nicht beantwortet" statt „nein". */
+  const global=[]; (Array.isArray(t.global)?t.global:[]).forEach(g=>{ const d=g && NA_FESTER_PLATZ.indexOf(g.mid)<0 && merkmale.find(x=>x.id===g.mid && !x.archiviert);
+    if(d && !global.some(x=>x.mid===g.mid)) global.push({ mid:g.mid, pflicht:!!g.pflicht && d.typ!=='ja_nein' }); });
+  return Object.assign({}, quelle, { klassen, merkmale, global });
 }
 /* Felder einer Kategorie: ★ zuerst, dann eigene, dann allgemeine. Rein. */
 function naFelder(kat, klasseId){
@@ -361,7 +390,8 @@ function naMerkmalListe(kat, quelle, tpl, material){
       .sort((a,b)=>a.label.localeCompare(b.label,'de',{ sensitivity:'base' }));
     const ge=dq ? naMerkmalGeaendert(tpl, d.id) : [];
     if(dq && (dq.klassen||[]).slice().sort().join('|')!==ks.slice().sort().join('|')) ge.push('Kategorien');
-    return { id:d.id, label:d.label, typ:d.typ, einheit:(d.typ!=='ja_nein' && d.einheit) || '', eigen:!dq, archiviert:!!d.archiviert,
+    const gl=((kat&&kat.global)||[]).find(g=>g.mid===d.id);
+    return { id:d.id, label:d.label, typ:d.typ, einheit:(d.typ!=='ja_nein' && d.einheit) || '', eigen:!dq, archiviert:!!d.archiviert, global: gl ? (gl.pflicht ? 'pflicht' : 'freiwillig') : '',
       allgemein:ks.indexOf('allgemein')>=0, kategorien:kats, zahl:nu.zahl[d.id]||0, geaendert:ge,
       such:naMerkmalSuchtext(d)+' '+naNorm(kats.map(k=>k.label).join(' ')) };
   }).sort((a,b)=>a.label.localeCompare(b.label,'de',{ sensitivity:'base' }));
@@ -734,6 +764,66 @@ function naVerknUmhaengen(o, von, nach){
   return true;
 }
 
+/* ── Pflichtangaben zum Produkt (Entscheidung 18.11.2026) ──
+   GTIN, Hersteller und REF gelten für alle Bereiche und müssen BEANTWORTET
+   werden: ein Wert — oder ehrlich „gibt es nicht", „unbekannt", „nachtragen"
+   (Grundsatz ①: lieber eine ehrliche Lücke als ein erfundener Wert). Erst dann
+   öffnet sich der Rest der Maske. Die Verwaltung kann weitere Felder für alle
+   Produkte anlegen, als Pflicht oder freiwillig (kat.global, aus dem Overlay).
+   Die SAP-Nummer ist freiwillig und wird nach und nach ergänzt. Rein. */
+/* Merkmale mit eigenem, festem Platz in der Maske (Steril · Einmal · Latex, Packung). */
+const NA_FESTER_PLATZ=['steril','einmalgebrauch','einmalpatient','resterilisierbar','latex','stueck_packung'];
+/* Darf ein Merkmal Pflichtangabe für alle Produkte werden? */
+function naDarfPflicht(d){ return !!d && d.typ!=='ja_nein' && NA_FESTER_PLATZ.indexOf(d.id)<0; }
+const NA_PFLICHT_FEST=[ { id:'gtin', wort:'GTIN' }, { id:'hersteller', wort:'Hersteller' }, { id:'ref', wort:'REF' } ];
+const NA_AUSWEGE=[ { id:'gibtsnicht', wort:'gibt es nicht' }, { id:'unbekannt', wort:'unbekannt' }, { id:'nachtragen', wort:'nachtragen' } ];
+function naAuswegWort(id){ const a=NA_AUSWEGE.find(x=>x.id===id); return a ? a.wort : ''; }
+/* Die Pflichtfelder: fest + die der Verwaltung, die als Pflicht markiert sind. */
+function naPflichtFelder(kat){
+  const out=NA_PFLICHT_FEST.map(f=>Object.assign({ art:'fest' }, f));
+  ((kat&&kat.global)||[]).filter(g=>g.pflicht).forEach(g=>{ const d=((kat&&kat.merkmale)||[]).find(x=>x.id===g.mid); if(d) out.push({ id:d.id, wort:d.label, art:'merkmal', def:d }); });
+  return out;
+}
+function naPflichtWert(o, f){ const v = f.art==='merkmal' ? ((o&&o.merkmale)||{})[f.id] : (o||{})[f.id]; return (v==null || v===false) ? '' : String(v).trim(); }
+/* Stand je Pflichtfeld: { id, wort, wert, ausweg, beantwortet } */
+function naPflichtStand(o, kat){
+  const aw=(o&&o.pflicht)||{};
+  return naPflichtFelder(kat).map(f=>{ const wert=naPflichtWert(o, f); const ausweg = wert ? '' : (NA_AUSWEGE.some(a=>a.id===aw[f.id]) ? aw[f.id] : '');
+    return { id:f.id, wort:f.wort, art:f.art, wert, ausweg, beantwortet: !!(wert || ausweg) }; });
+}
+/* Ausweg setzen oder (noch einmal antippen) zurücknehmen. Verändert o. */
+function naAuswegUmschalten(o, k, a){
+  const p=Object.assign({}, o.pflicht||{}); if(p[k]===a) delete p[k]; else p[k]=a;
+  if(Object.keys(p).length) o.pflicht=p; else delete o.pflicht;
+  return o;
+}
+function naPflichtOffen(o, kat){ return naPflichtStand(o, kat).filter(x=>!x.beantwortet).map(x=>x.wort); }
+/* Was noch zu tun ist: unbeantwortet oder „nachtragen" (Arbeitsliste im Verzeichnis). */
+function naPflichtNachtragen(o, kat){ return naPflichtStand(o, kat).filter(x=>!x.beantwortet || x.ausweg==='nachtragen').map(x=>x.wort); }
+/* Auswege aufräumen: Wo ein Wert steht, gilt kein Ausweg mehr. Verändert o. */
+function naPflichtAufraeumen(o, kat){
+  if(!o || !o.pflicht) return o;
+  naPflichtStand(o, kat).forEach(x=>{ if(x.wert) delete o.pflicht[x.id]; });
+  Object.keys(o.pflicht).forEach(k=>{ if(!NA_AUSWEGE.some(a=>a.id===o.pflicht[k])) delete o.pflicht[k]; });
+  if(!Object.keys(o.pflicht).length) delete o.pflicht;
+  return o;
+}
+/* SAP-Nummer: Leerzeichen raus; reine Ziffern ohne führende Nullen (SAP zeigt
+   „000000000000123456" und „123456" für dieselbe Nummer). */
+function naSapNorm(s){ const t=String(s==null?'':s).replace(/\s+/g,'').toUpperCase(); return /^\d+$/.test(t) ? (t.replace(/^0+(?=\d)/,'')) : t; }
+/* Wie oft jede SAP-Nummer vorkommt (einmal je Verzeichnis statt je Zeile). */
+function naSapZaehlen(material){ const z=new Map(); (material||[]).forEach(m=>{ const k=m && naSapNorm(m.sap); if(k) z.set(k, (z.get(k)||0)+1); }); return z; }
+function naSapDoppelt(material, sap, eigeneId){ const k=naSapNorm(sap); if(!k) return [];
+  return (material||[]).filter(m=>m && m.id!==eigeneId && m.sap && naSapNorm(m.sap)===k); }
+/* Ein Feld für alle Produkte: stufe 'pflicht' · 'freiwillig' · 'aus'. Neues Overlay. */
+function naTplGlobal(tpl, mid, stufe){
+  const t=JSON.parse(JSON.stringify(tpl||{})); const l=(t.global||[]).filter(g=>g && g.mid!==mid);
+  const alt=(tpl && tpl.global||[]).findIndex(g=>g && g.mid===mid);
+  if(stufe==='pflicht' || stufe==='freiwillig'){ const e={ mid, pflicht:stufe==='pflicht' }; if(alt>=0) l.splice(Math.min(alt, l.length), 0, e); else l.push(e); }
+  if(l.length) t.global=l; else delete t.global;
+  return t;
+}
+
 /* ── Was einem Material noch fehlt ──
    KERN-Angaben machen ein Material „vollständig" (Filter im Verzeichnis).
    Der Rest ist Kür und wird in der Maske nur gezählt. Rein. */
@@ -742,14 +832,17 @@ function naAngaben(o, kat){
   const f=o.kategorie ? naFelder(kat, o.kategorie) : { diff:[] };
   const voll=v=>!(v==null||v===''||(Array.isArray(v)&&!v.length));
   return [
-    { id:'hersteller', wort:'Hersteller',      kern:true,  da:voll(o.hersteller) },
-    { id:'nummer',     wort:'GTIN oder REF',   kern:true,  da:voll(o.gtin)||voll(o.ref) },
+    /* Pflichtangaben: „gibt es nicht" ist eine vollständige Antwort; „unbekannt" und „nachtragen" nicht. */
+    { id:'gtin',       wort:'GTIN',            kern:true,  da:voll(o.gtin)||((o.pflicht||{}).gtin==='gibtsnicht') },
+    { id:'hersteller', wort:'Hersteller',      kern:true,  da:voll(o.hersteller)||((o.pflicht||{}).hersteller==='gibtsnicht') },
+    { id:'ref',        wort:'REF',             kern:true,  da:voll(o.ref)||((o.pflicht||{}).ref==='gibtsnicht') },
     { id:'lagerort',   wort:'Lagerort',        kern:true,  da:voll(o.lagerort) },
     { id:'bild',       wort:'Produktbild',     kern:true,  da:naFotos(o).some(x=>x.rolle!=='etikett') },
     { id:'kategorie',  wort:'Kategorie',       kern:true,  da:voll(o.kategorie) },
     { id:'merkmale',   wort:'★-Merkmale',      kern:false, da:f.diff.length>0 && f.diff.every(d=>voll(m[d.id])) },
     { id:'steril',     wort:'Steril-Angabe',   kern:false, da:voll(m.steril) },
-    { id:'handelsname',wort:'Handelsname',     kern:false, da:voll(o.handelsname) },
+    { id:'handelsname',wort:'Produktname des Herstellers', kern:false, da:voll(o.handelsname) },
+    { id:'sap',        wort:'SAP-Nummer',      kern:false, da:voll(o.sap) },
     { id:'verwendung', wort:'Verwendung',      kern:false, da:voll(o.verwendung) },
     { id:'suchwoerter',wort:'Suchwörter',      kern:false, da:voll(o.suchwoerter) },
     { id:'packung',    wort:'Packungsgröße',   kern:false, da:voll(o.packung) },
@@ -762,7 +855,9 @@ function naFehlt(o, kat){ return naAngaben(o, kat).filter(a=>a.kern && !a.da).ma
    teilt — nicht das, was nur dieses eine Stück kennzeichnet. Rein. */
 function naVariante(o){
   const k=JSON.parse(JSON.stringify(o||{}));
-  k.id=naId('m'); ['gtin','ref','pzn','fotos','hauptbild','register','verknuepfungen','angelegt','angelegtAuf','geaendert','archiviert'].forEach(f=>{ delete k[f]; });
+  k.id=naId('m'); ['gtin','ref','sap','pzn','fotos','hauptbild','register','verknuepfungen','angelegt','angelegtAuf','geaendert','archiviert'].forEach(f=>{ delete k[f]; });
   k.gtin=''; k.ref=''; k.fotos=[]; k.varianteVon=o.id;
+  /* Nummern sind je Größe eigen — ihre Auswege auch. Der Hersteller bleibt. */
+  if(k.pflicht){ delete k.pflicht.gtin; delete k.pflicht.ref; if(!Object.keys(k.pflicht).length) delete k.pflicht; }
   return k;
 }

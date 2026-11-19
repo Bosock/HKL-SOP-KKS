@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 18.11.2026 · Cache-Version `v86` · Code: `public/neu/`
+**Stand:** 18.11.2026 · Cache-Version `v87` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -83,12 +83,16 @@ in der Hand hat — **eine** Maske, keine neuen Menüs:
    Merkmale, wenn kein Barcode da ist. Der Text eines Handscanners im
    GTIN-Feld wird ebenfalls ausgewertet. Charge und Verfall werden nie
    gespeichert (A2).
-2. **Das Wichtigste** steht offen da: Name im Haus (mit Vorschlägen aus den
-   Bezeichnungen des Bestands und Hinweis auf vorhandene Einträge),
-   Handelsname, Hersteller, REF, GTIN (Prüfziffer sofort, jede GTIN nur
-   einmal), **Lagerort** (eine Liste statt Freitext, an Ort und Stelle
-   erweiterbar), Bilder.
-3. **Mehr Angaben** — aufklappbar, alles freiwillig:
+2. **Pflichtangaben zum Produkt** (seit 18.11.2026, siehe unten): GTIN
+   (Prüfziffer sofort, jede GTIN nur einmal), Hersteller, REF. Erst wenn sie
+   beantwortet sind, öffnet sich der Rest der Maske.
+3. **Weitere Produktangaben** — für alle Bereiche, freiwillig: Produktname des
+   Herstellers, **SAP-Nummer**, freiwillige Felder des Hauses, Bilder.
+4. **Im Bereich:** Name im Haus (vorbelegt mit dem Produktnamen des
+   Herstellers, mit Vorschlägen aus den Bezeichnungen des Bestands und Hinweis
+   auf vorhandene Einträge) und **Lagerort** (eine Liste statt Freitext, an
+   Ort und Stelle erweiterbar).
+5. **Mehr Angaben** — aufklappbar, alles freiwillig:
    - *Kategorie und Merkmale.* Die Kategorie ist ein **Vorschlag** (aus der
      Einordnung im Register oder aus einem Wort im Namen), kein Tor mehr. Acht
      Kategorien für Verbrauchsmaterial kamen dazu
@@ -104,17 +108,64 @@ in der Hand hat — **eine** Maske, keine neuen Menüs:
      Verzeichnis findet über alle drei.
    - *Verknüpfungen* (siehe unten).
    - *Bereich · Notiz.*
-4. Über den Knöpfen steht, **was zum „vollständig" noch fehlt** (Hersteller,
-   GTIN oder REF, Lagerort, Produktbild, Kategorie). Speichern geht immer; das
-   Verzeichnis hat den Filter **„unvollständig"** und nennt je Zeile, was fehlt.
-5. **Speichern und nächstes Material** für die Erfassung am Schrank: Lagerort
+6. Über den Knöpfen steht, **was zum „vollständig" noch fehlt** (GTIN,
+   Hersteller, REF, Lagerort, Produktbild, Kategorie; „gibt es nicht" zählt
+   als vollständig, „unbekannt" und „nachtragen" nicht). Speichern geht,
+   sobald die Pflichtangaben beantwortet sind; das Verzeichnis hat den Filter
+   **„unvollständig"** und nennt je Zeile, was fehlt.
+7. **Speichern und nächstes Material** für die Erfassung am Schrank: Lagerort
    und Bereich bleiben stehen, alles andere ist leer. **Als Variante kopieren**
    legt eine weitere Größe an (Familie bleibt; GTIN, REF, Bilder und
    Verknüpfungen nicht).
-6. **Schutz:** Wer eine Maske mit ungespeicherten Eingaben verlässt (Reiter,
+8. **Schutz:** Wer eine Maske mit ungespeicherten Eingaben verlässt (Reiter,
    „Zurück" des Geräts, Abbrechen), wird gefragt.
-7. Danach wie bisher: „Verwendet in", Dublette zusammenführen, archivieren,
+9. Danach wie bisher: „Verwendet in", Dublette zusammenführen, archivieren,
    Papierkorb.
+
+**Pflichtangaben zum Produkt** (seit 18.11.2026). Was jedes Material hat,
+egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
+
+- **GTIN, Hersteller, REF** sind Pflicht. Jede Angabe wird **eingetragen** oder
+  ehrlich beantwortet: **„gibt es nicht"**, **„unbekannt"** oder
+  **„nachtragen"**. Mit einem Wert verschwinden die drei Auswege; ein Wert
+  schlägt immer den Ausweg (er wird beim Speichern entfernt). Nichts wird
+  erfunden (Grundsatz ①).
+- **Sperre:** Solange eine Pflichtangabe offen ist, zeigt die Maske nur
+  „Erkennen" und die Pflichtangaben, darunter „🔒 Noch offen: …". Kein Name,
+  kein Speichern. Ein Scan mit Treffer im Register beantwortet alle drei auf
+  einmal. Zusammenführen, Archivieren und Papierkorb bleiben erreichbar.
+- **Gilt überall, wo ein Material entsteht:** auch in der Kurzerfassung (das
+  Blatt, mit dem man aus „Verknüpfungen" heraus ein zweites Material anlegt,
+  ohne die Maske zu verlassen) und für alte Einträge — wer ein Material ohne
+  Antworten öffnet, beantwortet sie einmal.
+- **HIBC-Codes** (Barcodes mit „+" am Anfang, ohne GTIN; Code 128, Code 39
+  oder DataMatrix): Kamera, Foto und Handscanner lesen daraus die REF — nur in
+  ein leeres REF-Feld; die GTIN bleibt offen. Der Live-Scan sucht nach einem
+  HIBC noch gut eine Sekunde weiter: Trägt das Etikett auch eine GTIN, gewinnt
+  sie.
+- **Vor dem Speichern** fragt die Maske **einmal** nach, wenn Hersteller (nur
+  mit Ausweg beantwortet), Produktname des Herstellers oder ein Produktfoto
+  fehlen: „Jetzt ergänzen" springt zum Feld, „Trotzdem speichern" speichert.
+  Das ist keine Pflicht.
+- **SAP-Nummer:** freiwillig, nach und nach. Steht dieselbe Nummer schon bei
+  einem anderen Material (führende Nullen und Leerzeichen zählen nicht), zeigt
+  das Feld es sofort mit Verweis. Beim Speichern kommt die Frage „Trotzdem
+  anlegen" / „Zurück zur Maske" — gewollt ist es z. B. bei Einzelstück und
+  Karton mit verschiedenen GTINs. Gefragt wird nur, wenn die Nummer neu ist
+  oder sich geändert hat. In der Kurzerfassung: Hinweis, ein zweiter Tipp auf
+  „Anlegen" legt trotzdem an.
+- **Arbeitslisten im Verzeichnis:** „Pflichtangaben nachtragen" (offen oder
+  „nachtragen"), „SAP-Nummer fehlt", „doppelte SAP-Nummer" — jeweils mit
+  Anzahl, nur sichtbar, wenn es etwas zu tun gibt.
+- **Erweiterbar (A7):** „＋ Feld für alle Produkte" (Verwaltung) macht ein
+  vorhandenes oder neues Merkmal zur **Pflichtangabe** (oben, mit Auswegen,
+  auch in der Kurzerfassung) oder zum **freiwilligen** Feld (bei „Weitere
+  Produktangaben"). Zurück geht es auf der Seite des Merkmals: „Platz in der
+  Material-Maske" → Pflicht / freiwillig / je nach Kategorie. Jede weitere
+  Pflichtangabe kostet bei jedem Material Zeit — sparsam verwenden.
+  Ja/Nein-Merkmale gehen nur freiwillig (ein leeres Häkchen hieße sonst
+  „nicht beantwortet" statt „nein"); Steril · Einmal · Latex und die
+  Packungsgröße haben ihren festen Platz.
 
 **Merkmale suchen, zuordnen, vorschlagen** (seit 12.11.2026). Kein eigenes
 Menü: alles in der Maske und im Listen-Verzeichnis.
@@ -412,12 +463,12 @@ eigener Schlüssel; der Server ersetzt beim Speichern nur gesendete Schlüssel.
 
 | Schlüssel | Inhalt |
 |---|---|
-| `na_m_<id>` | Material: name, handelsname, kategorie, gtin, ref, pzn, hersteller (Kennung), merkmale{}, lagerort (Kennung der Liste `lagerorte`), bereich, packung, verwendung, suchwoerter, verknuepfungen[{art, ziel, sorte, grund}], register{quelle, abgerufen, bestaetigt, hersteller, srn, bezeichnung, einordnung, basisUdi, gtin}, varianteVon, fotos[{k, v, rolle, titel, orig, origV}], hauptbild, preis{betrag, bezugsmenge}, notiz, archiviert |
+| `na_m_<id>` | Material: name, handelsname, kategorie, gtin, ref, sap, pflicht{gtin\|hersteller\|ref\|<Merkmal>: 'gibtsnicht'\|'unbekannt'\|'nachtragen'} (nur, wo kein Wert steht), pzn, hersteller (Kennung), merkmale{}, lagerort (Kennung der Liste `lagerorte`), bereich, packung, verwendung, suchwoerter, verknuepfungen[{art, ziel, sorte, grund}], register{quelle, abgerufen, bestaetigt, hersteller, srn, bezeichnung, einordnung, basisUdi, gtin}, varianteVon, fotos[{k, v, rolle, titel, orig, origV}], hauptbild, preis{betrag, bezugsmenge}, notiz, archiviert |
 | `na_g_<id>` | Gerätetyp: name, kategorie, hersteller, modell, lagerort, bereich, fotos[], hinweis |
 | `na_d_<id>` | Medikament: name, wirkstoff, konzentration, darreichung, lagerort, bereich, preis, hinweis |
 | `na_s_<id>` | Standard: titel, gruppe, kennzeichen[], rubriken[{id, name, abschnitte[{id, name, positionen[{id, art, ref{typ,id} \| text, menge, zusatz, bereich, ansage, herkunft{q:'bestand', std, titel, z, t}}]}]}] |
 | `na_b_<id>` | Baustein: name, positionen[] |
-| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register, aufbau} |
+| `na_l_<liste>` | Liste: eintraege[{id, name, angelegt, wo, archiviert, …}]; bei `hersteller` zusätzlich amtlich, srn; bei `kategorien`: tpl {klassen{dazu, aus, diff, stumm, wie, worte}, merkmale, werte, werteAus, such, global[{mid, pflicht}]} als Overlay auf `data/merkmale.json`; `na_l_einstellungen`: werte{register, aufbau} |
 | `na_ml_<id>` | Meldung: ref, was, notiz, stufe, schritte[] |
 | `na_pk_<id>` | Papierkorb: typ, daten, geloescht, von |
 | `na_vl_<JJJJ-MM>_<gerät>` | Verlauf (je Monat und Gerät, höchstens 500 Einträge) |
@@ -448,15 +499,16 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1152 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1156 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 33 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 37 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
+  Pflichtangaben, SAP-Nummer, HIBC,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
   der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
 - `npm run check`: grün, und die Prüfungen gelten jetzt auch für `public/neu`.
-- `node e2e/neue-app.js` prüft 59 Punkte. Dabei ist die Anmeldung getippt, und
+- `node e2e/neue-app.js` prüft 61 Punkte. Dabei ist die Anmeldung getippt, und
   jede Aktion läuft über sichtbare Schaltflächen. Abgedeckt sind:
   - Handy und PC, zwei Geräte im Abgleich;
   - der Bestand am Anfang und am Ende Byte für Byte gleich;
@@ -466,7 +518,15 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
-- `node e2e/neue-app-maske.js` prüft 105 Punkte an der Material-Maske: Scan
+- `node e2e/neue-app-pflicht.js` prüft 50 Punkte an den Pflichtangaben:
+  Sperre und drei Auswege, Wiederöffnen und -schließen, Erinnerung vor dem
+  Speichern (einmal je Maske), SAP-Nummer doppelt („Zurück zur Maske" /
+  „Trotzdem anlegen"), Arbeitslisten im Verzeichnis, alte Einträge ohne
+  Antworten, HIBC aus dem Handscanner, „＋ Feld für alle Produkte" bis in die
+  Kurzerfassung und zurück über die Seite des Merkmals, Ja/Nein und feste
+  Felder nie Pflicht, Maske ohne Merkmal-Katalog (offline), Bestand
+  unverändert.
+- `node e2e/neue-app-maske.js` prüft 108 Punkte an der Material-Maske: Scan
   mit dem echten Barcode-Leser (die „Kamera" ist eine Zeichenfläche mit einem
   EAN-13), Register-Attrappe, Hersteller mit Registriernummer, neue Felder,
   Kurzerfassung, Verknüpfungen, Schutz beim Verlassen, Speichern-und-nächstes,
@@ -487,10 +547,10 @@ das.
 
 | Nr | Aufgabe | Bestand (Analyse) | Ziel | Neue App |
 |---|---|---|---|---|
-| 1 | Neues Material mit GTIN/REF/Hersteller erfassen und in Standard setzen | ≈ 12, 2 Masken, 4 Bildschirme | 6 | **5**, eine Maske (vor dem Umbau 7) |
+| 1 | Neues Material mit GTIN/REF/Hersteller erfassen und in Standard setzen | ≈ 12, 2 Masken, 4 Bildschirme | 6 | **6**, eine Maske (vor dem Umbau 7; seit 18.11. einer mehr: die Erinnerung vor dem Speichern) |
 | 2 | Vorhandenes Material in Standard setzen | 3 | 3 | **4** |
-| 3 | Material überall umbenennen | Reichweiten-Regel über alle Zeilen | 1 Feld | **4** (inkl. Wirkungsvorschau) |
-| 4 | Foto zu einem Material | 4 + Frage nach dem Bildort | 3 | **5**, ein Bildort (ein Tipp davon bestätigt Zuschnitt/Drehung) |
+| 3 | Material überall umbenennen | Reichweiten-Regel über alle Zeilen | 1 Feld | **5** (inkl. Wirkungsvorschau und Erinnerung) |
+| 4 | Foto zu einem Material | 4 + Frage nach dem Bildort | 3 | **6**, ein Bildort (ein Tipp bestätigt Zuschnitt/Drehung, einer die Erinnerung) |
 | 5 | Menge nur an einer Stelle | 3–4 + Prüfblatt | 2 | **2** |
 | 6 | Dublette auflösen | 5 verschiedene Orte | 1 Ort | **5**, an einem Ort |
 | 7 | Neuen Auswahlwert an Ort und Stelle (Lagerort) | nur in der Verwaltung oder gar nicht | 1 | **4** (2 davon Weg zum Feld) |
@@ -498,9 +558,11 @@ das.
 | 9 | Neuen Standard aus bestehendem | 4 | 4 | **4** |
 | 10 | Neues Gerät | nur, wenn es schon in einem Standard steht | eine Maske | **3** |
 
-**Einordnung:** Aufgabe 1 liegt seit dem Umbau der Maske unter dem Ziel (die
-Kategorie muss nicht mehr gewählt werden). Die Aufgaben 2 und 4 liegen einen
-Tipp über dem Ziel.
+**Einordnung:** Aufgabe 1 liegt auf dem Ziel (die Kategorie muss nicht mehr
+gewählt werden). Seit den Pflichtangaben (18.11.2026) kostet das Speichern
+eines Materials ohne Produktname oder Produktfoto einen Tipp mehr: die
+Erinnerung „Vor dem Speichern" (einmal je Maske, gewollt). Aufgabe 2 liegt
+einen Tipp über dem Ziel, Aufgabe 4 drei (einer davon ist die Erinnerung).
 
 - Die Ursachen sind die Bestätigung der Mehrfachauswahl („Übernehmen") und das
   ausdrückliche Speichern.
@@ -522,7 +584,10 @@ Antworten von EUDAMED (aufgezeichnet am 10.11.2026):
 | zweites Material | | **5 Tipps, 3 Zeichen** |
 | Kern-Angaben vollständig | nein | ja, beide |
 
-Gezählt ist mit Kamera (ein Tipp für den Scan). Zeiten sind Maschinenzeiten,
+Gezählt ist mit Kamera (ein Tipp für den Scan), vor den Pflichtangaben vom
+18.11.2026 und seitdem nicht neu gemessen: Mit Registertreffer sind GTIN,
+Hersteller und REF sofort beantwortet; ohne Produktfoto kommt beim Speichern
+die Erinnerung (ein Tipp) dazu. Zeiten sind Maschinenzeiten,
 keine Bedienzeiten eines Menschen. Am 10.11.2026 abends antwortete EUDAMED
 über eine Minute lang nicht: Der erste Scan wartete dann 7,8 s und meldete
 „nicht erreichbar", der zweite 0,5 s (Pause für das ausgefallene Register);

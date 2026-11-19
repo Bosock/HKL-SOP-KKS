@@ -205,3 +205,9 @@ body.na-geteilt #naQuelle { display:flex; flex-direction:column; position:fixed;
 /* Im geteilten Bildschirm immer sichtbar — so findet man die Ablage, bevor man zieht. */
 body.na-geteilt .na-drop-ende, body.na-zieht .na-drop-ende { display:block; }
 body.na-zieht .na-drop-ende { border-color:var(--accent); color:var(--text); }
+
+/* ── Pflichtangaben zum Produkt (stamm.js) ── */
+.na-karte.na-pflicht { border-color:rgba(90,160,255,.45); }
+.na-auswege { margin-top:6px; }
+.na-auswege .na-chip.an, #naKurzInhalt .na-chip.an { background:var(--surface-3); border-color:var(--accent); color:var(--accent); }
+.na-sperre { font-size:14px; }
