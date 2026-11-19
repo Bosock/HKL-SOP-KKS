@@ -23,7 +23,7 @@ vm.runInContext(KERN + `
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
   naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
-  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ,
+  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ, naKameraRang, naKameraReihenfolge, naRahmenImVideo,
   NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -461,6 +461,33 @@ test('Durchsicht 18.11.: Leerzeichen als HIBC-Prüfzeichen, Katalog ohne Quelle,
   K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.equal('pflicht' in o, false);
   const z = K.naSapZaehlen([{ sap:'000123' }, { sap:'123' }, { sap:'9' }, {}]);
   assert.equal(z.get('123'), 2); assert.equal(z.get('9'), 1); assert.equal(z.size, 2);
+});
+
+test('Kamera zum Barcode-Lesen: virtuelle iPhone-Kamera, Android-Hauptkamera; nie die Frontkamera', () => {
+  const ids = l => plain(K.naKameraReihenfolge(l)).map(k => k.id);
+  /* iPhone (englisch und deutsch benannt) */
+  assert.deepEqual(ids([{ id:'f', label:'Front Camera' }, { id:'w', label:'Back Camera' }, { id:'u', label:'Back Ultra Wide Camera' }, { id:'t', label:'Back Telephoto Camera' },
+    { id:'d', label:'Back Dual Camera' }, { id:'dw', label:'Back Dual Wide Camera' }, { id:'tr', label:'Back Triple Camera' }]), ['tr', 'dw', 'd', 'w', 'u', 't']);
+  assert.deepEqual(ids([{ id:'v', label:'Frontkamera' }, { id:'r', label:'Rückkamera' }, { id:'ru', label:'Rückseitige Ultraweitwinkelkamera' }, { id:'rd', label:'Rückseitige Dual-Weitwinkel-Kamera' }]), ['rd', 'r', 'ru']);
+  /* Android: die Hauptkamera hat die kleinste Nummer; Tiefen- und Makrokamera hinten */
+  assert.deepEqual(ids([{ id:'1', label:'camera2 1, facing front' }, { id:'2', label:'camera2 2, facing back' }, { id:'0', label:'camera2 0, facing back' },
+    { id:'3', label:'camera2 3, facing back (depth)' }]), ['0', '2', '3']);
+  assert.ok(K.naKameraRang('Back Macro Camera') < K.naKameraRang('Back Camera'));
+  /* ohne Namen (vor der Freigabe): Reihenfolge bleibt, nichts fällt weg */
+  assert.deepEqual(ids([{ id:'a', label:'' }, { id:'b', label:'' }]), ['a', 'b']);
+  assert.deepEqual(ids([{ id:'', label:'Back Camera' }]), []);
+});
+
+test('Zielrahmen im Videobild: Video füllt die Fläche („cover"), Rahmen in Pixeln des Videos', () => {
+  const R = { l:0.08, r:0.92, o:0.26, u:0.74 };
+  /* Hochkant-Video in Hochkant-Fläche (Handy): ganze Breite, mittlerer Streifen */
+  const a = plain(K.naRahmenImVideo(1080, 1920, 390, 640, R));
+  assert.equal(a.x, 0); assert.equal(a.w, 1080); assert.ok(a.y > 300 && a.y < 500 && a.h > 1000 && a.h < 1250, JSON.stringify(a));
+  /* Quer-Video in Hochkant-Fläche: links und rechts abgeschnitten → Rahmen nur in der Mitte */
+  const b = plain(K.naRahmenImVideo(1920, 1080, 390, 640, R));
+  assert.ok(b.x > 500 && b.x + b.w < 1420 && b.y >= 0 && b.h <= 1080, JSON.stringify(b));
+  /* ohne Maße: das ganze Bild */
+  assert.deepEqual(plain(K.naRahmenImVideo(1920, 1080, 0, 0, R)), { x:0, y:0, w:1920, h:1080 });
 });
 
 test('Variante: Familie bleibt, Nummern/Bilder/Verknüpfungen nicht; Lagerorte sind eine Liste', () => {

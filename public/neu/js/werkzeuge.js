@@ -495,6 +495,11 @@ function naSichtEinstellungen(){
   if(a && naEinstellung('register', true) && !NA_REGSTAND.laedt && Date.now()-(NA_REGSTAND.geholt||0) > 30000) naRegisterStandHolen(false);
   let h = '<div class="na-karte"><h3>Ansicht</h3><button class="na-knopf" data-na="thema">◐ Hell / Dunkel</button></div>';
   h += '<div class="na-karte"><h3>Dieses Gerät</h3>'+naF('Name des Geräts (für Verlauf und Papierkorb)', '<input type="text" value="'+esc(naGeraet().name)+'" placeholder="z. B. Saal 2 Tablet" data-na-wechsel="geraetName">', 'Kein Personenname nötig — es geht um das Gerät.')+'</div>';
+  { const k = naKameraGemerkt();   /* Barcode-Kamera dieses Geräts (barcode.js) */
+    h += '<div class="na-karte"><h3>Kamera zum Barcode-Scannen</h3><div class="na-dim">'
+      + (k ? 'Gemerkt: <b>'+esc(k.label || 'eine bestimmte Kamera')+'</b>'+(k.t ? ' (seit '+esc(naDatum(k.t))+')' : '')+'. Mit ihr wurde zuletzt ein Code gelesen oder sie wurde gewählt.' : 'Noch keine gemerkt — beim Scannen wird die passende hintere Kamera gewählt.')
+      + ' Im Scanner wechselt „⟳ Kamera wechseln" zwischen den hinteren Kameras.</div>'
+      + (k ? '<div style="margin-top:8px"><button class="na-knopf" data-na="kameraVergessen">Vergessen — beim nächsten Scan neu wählen</button></div>' : '') + '</div>'; }
   if(a) h += '<div class="na-karte"><h3>Passwort der Verwaltung (neue App)</h3>'
     + naF('Neues Passwort', '<input type="password" id="naPw1" autocomplete="new-password">') + naF('Noch einmal', '<input type="password" id="naPw2" autocomplete="new-password">')
     + '<button class="na-knopf" data-na="pwSetzen">Passwort ändern</button><div class="na-dim" style="margin-top:6px">Gilt auf allen Geräten. Komfort, keine Sicherheit (Grundsatz A9).</div></div>';
@@ -558,6 +563,7 @@ naAkt('registerPruefen', ()=>{ if(naAdmin()) naRegisterStandHolen(true); });
 naEin('aufbauAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('aufbau', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Aufbau aus dem Bestand '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Aufbau aus dem Bestand eingeschaltet' : 'Aufbau aus dem Bestand ausgeschaltet'); });
 naEin('registerAn', v=>{ if(!naAdmin()) return; naEinstellungSetzen('register', !!v); naVerlauf({ typ:'liste', id:'einstellungen', titel:'Einstellungen', was:'Register-Abfrage '+(v?'eingeschaltet':'ausgeschaltet') }); toast(v ? 'Register-Abfrage eingeschaltet' : 'Register-Abfrage ausgeschaltet'); });
 naAkt('thema', ()=>{ const n = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', n); store.set('hkl_theme', n); });
+naAkt('kameraVergessen', ()=>{ naKameraMerken(null); toast('Kamera vergessen'); naZeigen(); });
 naEin('geraetName', v=>{ const g = naGeraet(); g.name = String(v||'').trim().slice(0,40); store.set('nalokal_geraet', JSON.stringify(g)); toast('Gerätename gespeichert'); });
 naAkt('pwSetzen', ()=>{ const a = $('naPw1').value, b = $('naPw2').value;
   if(a.length<4){ toast('Mindestens 4 Zeichen.', true); return; } if(a!==b){ toast('Die beiden Eingaben stimmen nicht überein.', true); return; }
