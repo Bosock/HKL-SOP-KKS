@@ -106,6 +106,71 @@ function naParseHIBC(raw){
   }
   return null;
 }
+/* ── Maßangaben umrechnen (rein, testbar) ──
+   Eingetragen wird nur in der Einheit des Merkmals; angezeigt werden
+   zusätzlich die anderen gebräuchlichen Einheiten. Gespeichert wird nichts
+   doppelt — die Umrechnung entsteht beim Anzeigen.
+   Art des Maßes (je Merkmal, vom Haus änderbar):
+     · 'durchmesser' — Draht, Katheter, Schleuse, Nadel: mm ↔ Zoll ↔ French.
+       1 F = 1/3 mm Durchmesser, 1″ = 25,4 mm. Gauge (G) ist nicht linear:
+       Nenn-AUSSENdurchmesser nach Tabelle (ISO 9626) — über den Innen-Ø
+       sagt Gauge nichts (er hängt von der Wandstärke ab).
+     · 'laenge'      — Millimeter zusätzlich in Zentimeter.
+     · 'keine'       — nicht umrechnen: Ballon-, Stent-, Implantatgröße gibt
+       man nur in mm an; Druck, Volumen, Winkel ohnehin nicht.
+   Genauigkeit wie im Fach üblich: mm auf zwei Stellen, Zoll auf drei
+   (0,035″), French auf eine (2,7 F). Ganzzahlig gerundet wird nicht: Bei
+   Innenmaßen führte Aufrunden in die falsche Richtung (1,4 mm Innen-Ø =
+   4,2 F — aufgerundet „5 F", dabei passt ein 5-F-Katheter nicht durch). */
+const NA_MASS_ARTEN={ durchmesser:'Durchmesser (Draht, Katheter, Schleuse, Nadel): mm · Zoll · French', laenge:'Länge: mm auch in cm', keine:'nicht umrechnen' };
+const NA_GAUGE_MM={ 10:3.404, 11:3.048, 12:2.769, 13:2.413, 14:2.108, 15:1.829, 16:1.651, 17:1.473, 18:1.270, 19:1.067, 20:0.908, 21:0.819, 22:0.718, 23:0.641, 24:0.565, 25:0.514, 26:0.464, 27:0.413, 28:0.362, 29:0.337, 30:0.311 };
+/* Mitgelieferte Merkmale, eindeutig zugeordnet (bei mm reicht die Einheit allein nicht). */
+const NA_MASS_VORGABE={
+  durchmesser:['ad_fr','schleuse_fr','min_guiding_fr','empf_schleuse_fr','schaft_fr','id_mm','od_mm','spitzen_durchmesser_mm','min_guiding_id_mm','id_in','draht_in','draht_empf_in','draht_max_in','nadel_g'],
+  laenge:['spitze_mm','ballon_laenge_mm','stent_laenge_mm','nadel_laenge_mm','nutzlaenge_cm','arbeitslaenge_cm','schleuse_laenge_cm','draht_laenge_cm','beschichtung_laenge_cm','roentgen_laenge_cm','schlauch_laenge_cm','sonde_laenge_cm','kabel_laenge_cm'],
+  keine:['ballon_mm','stent_mm','dilatationsgrenze_mm','implantat_mm','kurvenradius_mm'] };
+function naEinheitNorm(e){ const x=String(e==null?'':e).trim().toLowerCase().replace(/\.$/,'');
+  if(x==='mm') return 'mm'; if(x==='cm') return 'cm'; if(/^(in|inch|zoll|″|"|“|”|'')$/.test(x)) return 'in';
+  if(/^(f|fr|french|ch|charr|charrière)$/.test(x)) return 'F'; if(/^(g|ga|gauge)$/.test(x)) return 'G'; return ''; }
+/* Art des Maßes ohne Einstellung des Hauses: Vorgabe-Liste, sonst aus Einheit und Name. */
+function naMassArtVorgabe(d){
+  if(!d || d.typ!=='mass') return 'keine';
+  for(const a of ['durchmesser','laenge','keine']) if(NA_MASS_VORGABE[a].indexOf(d.id)>=0) return a;
+  const e=naEinheitNorm(d.einheit), l=String(d.label||'').toLowerCase();
+  if(e==='F' || e==='in' || e==='G') return 'durchmesser';
+  if(e==='cm') return 'laenge';
+  if(e==='mm'){
+    if(/länge|laenge|length/.test(l)) return 'laenge';
+    if(/innen|außen|aussen|lumen|draht|schaft|profil|schleuse|katheter|nadel|kanüle|kanuele|\bid\b|\bod\b|\bad\b/.test(l)) return 'durchmesser';
+  }
+  return 'keine';
+}
+function naMassArt(d){ if(!d || d.typ!=='mass') return 'keine'; return NA_MASS_ARTEN[d.mass] ? d.mass : naMassArtVorgabe(d); }
+/* Zahlen aus einer Eingabe: „0,035" · „.038" · „0.035″" · „6 F" · „5–7" (Bereich). */
+function naMassZahlen(v){
+  const t=String(v==null?'':v).trim(); if(!t) return null;
+  const m=t.match(/\d*[.,]?\d+/g); if(!m) return null;
+  const z=m.slice(0,2).map(x=>parseFloat(x.replace(',','.'))).filter(x=>isFinite(x));
+  if(!z.length) return null;
+  const bereich=z.length===2 && /\d\s*(?:–|-|bis|\/)\s*[.,]?\d/.test(t);
+  const e=/[\d\s](mm|cm|″|"|“|”|''|inch|zoll|in|fr|f|ch|gauge|g)\s*$/i.exec(t);   /* Einheit hinter der Zahl, wenn eine dasteht */
+  return { zahlen: bereich ? z : [z[0]], einheit: e ? naEinheitNorm(e[1]) : '' };
+}
+function naZahlDe(x, stellen, fest){ if(!isFinite(x)) return ''; const r=x.toFixed(stellen); return (fest ? r : String(parseFloat(r))).replace('.', ','); }
+function naInMm(z, e){ if(e==='mm') return z; if(e==='cm') return z*10; if(e==='in') return z*25.4; if(e==='F') return z/3;
+  if(e==='G') return (Math.round(z)===z && NA_GAUGE_MM[z]) ? NA_GAUGE_MM[z] : null; return null; }
+const NA_MASS_ZIEL={ mm:[x=>naZahlDe(x, 2), ' mm'], in:[x=>naZahlDe(x/25.4, 3, true), '″'], F:[x=>naZahlDe(x*3, 1), ' F'], cm:[x=>naZahlDe(x/10, 1), ' cm'] };
+/* Die Umrechnung als Text („0,89 mm · 2,7 F") — leer, wenn es nichts umzurechnen gibt. */
+function naMassUmrechnung(d, wert){
+  const art=naMassArt(d); if(art==='keine') return '';
+  const p=naMassZahlen(wert); if(!p) return '';
+  const von=p.einheit || naEinheitNorm(d.einheit); if(!von) return '';
+  const mm=p.zahlen.map(z=>naInMm(z, von)); if(mm.some(x=>x==null || !(x>0))) return '';
+  const fmt=ziel=>mm.map(NA_MASS_ZIEL[ziel][0]).join('–')+NA_MASS_ZIEL[ziel][1];
+  if(art==='laenge') return von==='mm' ? fmt('cm') : '';
+  return ['mm','in','F'].filter(z=>z!==von).map(fmt).join(' · ')+(von==='G' ? ' (Außen-Ø)' : '');
+}
+
 /* ── Welche Kamera zum Barcode-Lesen? (rein, testbar) ──
    Handys haben hinten oft mehrere Kameras. „Hintere Kamera" (facingMode)
    überlässt die Wahl dem Browser — und der nimmt manchmal eine, die aus der
@@ -290,7 +355,7 @@ function naKatalog(quelle, tpl){
     return Object.keys(s); };
   const merkmale=quelle.merkmale.map(d=>{ const ks=inKlasse(d.id,d.klassen); const extra=ww[d.id]||[]; const su=Array.isArray(ss[d.id])?ss[d.id]:[];
     const aus=Array.isArray(wa[d.id])?wa[d.id]:[]; const v=mm[d.id]||null;
-    const abw=!!(v && ((v.label && v.label!==d.label) || typeof v.hinweis==='string' || v.archiviert));
+    const abw=!!(v && ((v.label && v.label!==d.label) || typeof v.hinweis==='string' || v.archiviert || v.mass));
     if(ks.join('|')===(d.klassen||[]).join('|') && !extra.length && !su.length && !aus.length && !abw) return d;
     const n=Object.assign({},d,{ klassen:ks });
     if(extra.length || aus.length) n.werte=(d.werte||[]).filter(x=>aus.indexOf(x)<0).concat(extra.filter(x=>(d.werte||[]).indexOf(x)<0));
@@ -300,13 +365,13 @@ function naKatalog(quelle, tpl){
        archiviert. Art und Einheit bleiben — die Etikett-Erkennung rechnet damit. */
     if(abw){ if(v.label && v.label!==d.label){ n.label=v.label; n.vorgabeLabel=d.label; }
       if(typeof v.hinweis==='string'){ if(v.hinweis) n.hinweis=v.hinweis; else delete n.hinweis; }
-      if(v.archiviert) n.archiviert=true; }
+      if(v.archiviert) n.archiviert=true; if(v.mass) n.mass=v.mass; }
     return n; });
   Object.keys(mm).forEach(mid=>{ const v=mm[mid]; if(!v||!v.label||merkmale.some(d=>d.id===mid)) return;
     const anker=(Array.isArray(v.anker)&&v.anker.length?v.anker:[v.label]).map(a=>String(a).toLowerCase()).filter(Boolean);
     const d={ id:mid, label:v.label, kurz:v.label, typ:v.typ||'text', einheit:v.einheit||null, rang:35, eigen:true, klassen:inKlasse(mid,[]), anker };
     const w=[]; (Array.isArray(v.werte)?v.werte:[]).concat(ww[mid]||[]).forEach(x=>{ if(w.indexOf(x)<0) w.push(x); }); if(w.length) d.werte=w;
-    if(v.hinweis) d.hinweis=v.hinweis; if(v.archiviert) d.archiviert=true; if(v.angelegt) d.angelegt=v.angelegt;
+    if(v.hinweis) d.hinweis=v.hinweis; if(v.archiviert) d.archiviert=true; if(v.angelegt) d.angelegt=v.angelegt; if(v.mass) d.mass=v.mass;
     Object.assign(d, naMerkmalMuster(Object.assign({},v,{anker:v.anker}))); if(d.typ!=='ja_nein') d.anker=anker;
     if(Array.isArray(ss[mid]) && ss[mid].length) d.such=ss[mid].slice();
     merkmale.push(d); });
@@ -419,7 +484,7 @@ function naMerkmalNutzungAlle(material){
 /* Was hat das Haus an einem Merkmal selbst festgelegt? → ['Name','Hinweis','Werte','Suchwörter'] */
 function naMerkmalGeaendert(tpl, mid){
   const t=tpl||{}; const v=(t.merkmale||{})[mid]||{}; const l=[];
-  if(v.label) l.push('Name'); if(typeof v.hinweis==='string') l.push('Hinweis');
+  if(v.label) l.push('Name'); if(typeof v.hinweis==='string') l.push('Hinweis'); if(v.mass) l.push('Umrechnung');
   if(((t.werte||{})[mid]||[]).length || ((t.werteAus||{})[mid]||[]).length) l.push('Werte');
   if(((t.such||{})[mid]||[]).length) l.push('Suchwörter');
   return l;
@@ -451,6 +516,7 @@ function naTplMerkmalSetzen(tpl, quelle, mid, feld, wert){
     if(feld==='label'){ if(text && text!==dq.label) v.label=text; else delete v.label; }
     else if(feld==='hinweis'){ if(text!==(dq.hinweis||'')) v.hinweis=text; else delete v.hinweis; }
     else if(feld==='archiviert'){ if(wert) v.archiviert=true; else delete v.archiviert; }
+    else if(feld==='mass'){ if(NA_MASS_ARTEN[wert] && wert!==naMassArtVorgabe(dq)) v.mass=wert; else delete v.mass; }
     if(Object.keys(v).length) t.merkmale[mid]=v; else delete t.merkmale[mid];
     return t;
   }
@@ -459,6 +525,8 @@ function naTplMerkmalSetzen(tpl, quelle, mid, feld, wert){
   else if(feld==='hinweis' || feld==='einheit'){ if(text) v[feld]=text; else delete v[feld]; }
   else if(feld==='typ'){ if(NA_MERKMAL_ARTEN[wert]){ v.typ=wert; if(wert==='ja_nein'||wert==='text'||wert==='liste') delete v.einheit; } }
   else if(feld==='archiviert'){ if(wert) v.archiviert=true; else delete v.archiviert; }
+  else if(feld==='mass'){ const ohne = Object.assign({ id:mid }, v); delete ohne.mass;
+    if(NA_MASS_ARTEN[wert] && wert!==naMassArtVorgabe(ohne)) v.mass=wert; else delete v.mass; }
   t.merkmale[mid]=v; return t;
 }
 /* Vorgabe zurückholen: alles, was das Haus an einem Merkmal selbst festgelegt

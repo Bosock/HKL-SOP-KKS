@@ -23,7 +23,7 @@ vm.runInContext(KERN + `
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
   naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
-  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ, naKameraRang, naKameraReihenfolge, naRahmenImVideo,
+  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ, naKameraRang, naKameraReihenfolge, naRahmenImVideo, naMassUmrechnung, naMassArt, naMassArtVorgabe, naMassZahlen, naTplMerkmalSetzen, NA_GAUGE_MM,
   NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -461,6 +461,44 @@ test('Durchsicht 18.11.: Leerzeichen als HIBC-Prüfzeichen, Katalog ohne Quelle,
   K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.equal('pflicht' in o, false);
   const z = K.naSapZaehlen([{ sap:'000123' }, { sap:'123' }, { sap:'9' }, {}]);
   assert.equal(z.get('123'), 2); assert.equal(z.get('9'), 1); assert.equal(z.size, 2);
+});
+
+test('Maße umrechnen: Durchmesser mm · Zoll · French, Gauge als Außen-Ø, Länge mm → cm', () => {
+  const def = id => KAT.merkmale.find(d => d.id === id);
+  const u = (id, v) => K.naMassUmrechnung(def(id), v);
+  /* Durchmesser — die üblichen Größen */
+  assert.equal(u('draht_in', '0,035'), '0,89 mm · 2,7 F');
+  assert.equal(u('draht_max_in', '.038'), '0,97 mm · 2,9 F');
+  assert.equal(u('draht_in', '0,014'), '0,36 mm · 1,1 F');
+  assert.equal(u('schleuse_fr', '9'), '3 mm · 0,118″');
+  assert.equal(u('ad_fr', '6'), '2 mm · 0,079″');
+  assert.equal(u('id_mm', '1,4'), '0,055″ · 4,2 F');                 /* Innen-Ø: nicht aufgerundet (5 F passte nicht) */
+  assert.equal(u('nadel_g', '18'), '1,27 mm · 0,050″ · 3,8 F (Außen-Ø)');
+  assert.equal(u('nadel_g', '17,5'), '');                             /* Gauge gibt es nur ganzzahlig */
+  assert.equal(u('ad_fr', '5–6'), '1,67–2 mm · 0,066–0,079″');        /* Bereich */
+  assert.equal(u('draht_in', '0,89 mm'), '0,035″ · 2,7 F');           /* Einheit im Wert gewinnt */
+  /* Länge: nur mm → cm */
+  assert.equal(u('nadel_laenge_mm', '980'), '98 cm');
+  assert.equal(u('spitze_mm', '8'), '0,8 cm');
+  assert.equal(u('nutzlaenge_cm', '110'), '');
+  /* nicht umrechnen: Ballon-, Stent-, Implantatgröße; andere Einheiten */
+  ['ballon_mm', 'stent_mm', 'implantat_mm', 'np_atm', 'volumen_ml'].forEach(id => assert.equal(u(id, '3'), '', id));
+  assert.equal(u('draht_in', ''), ''); assert.equal(u('draht_in', 'unbekannt'), '');
+  /* Gauge-Tabelle: Nenn-Außendurchmesser nach ISO 9626 */
+  assert.equal(K.NA_GAUGE_MM[21], 0.819); assert.equal(K.NA_GAUGE_MM[18], 1.27);
+  /* eigene Merkmale: aus Einheit und Name */
+  const eigen = (label, einheit) => K.naMassArtVorgabe({ id:'x', typ:'mass', label, einheit });
+  assert.equal(eigen('Dilatator-Innendurchmesser', 'mm'), 'durchmesser');
+  assert.equal(eigen('Katheterlänge', 'mm'), 'laenge');
+  assert.equal(eigen('Elektrodenabstand', 'mm'), 'keine');
+  assert.equal(eigen('Profil', 'F'), 'durchmesser');
+  /* das Haus legt fest — und holt die Vorgabe zurück */
+  let tpl = K.naTplMerkmalSetzen({}, KAT, 'kurvenradius_mm', 'mass', 'laenge');
+  assert.equal(tpl.merkmale.kurvenradius_mm.mass, 'laenge');
+  assert.equal(K.naMassArt(K.naKatalog(KAT, tpl).merkmale.find(d => d.id === 'kurvenradius_mm')), 'laenge');
+  assert.equal(K.naMassUmrechnung(K.naKatalog(KAT, tpl).merkmale.find(d => d.id === 'kurvenradius_mm'), '50'), '5 cm');
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'kurvenradius_mm', 'mass', 'keine');
+  assert.equal(tpl.merkmale && tpl.merkmale.kurvenradius_mm, undefined);   /* gleich der Vorgabe → keine Abweichung */
 });
 
 test('Kamera zum Barcode-Lesen: virtuelle iPhone-Kamera, Android-Hauptkamera; nie die Frontkamera', () => {

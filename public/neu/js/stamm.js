@@ -41,7 +41,11 @@ function naStammSub(typ, o){
   const ort = naLagerortName(o); if(ort) t.push('📍 '+ort);
   return t.filter(Boolean).join(' · ');
 }
-function naStammSuchtext(typ, o){ return naNorm([o.name, o.handelsname, naStammSub(typ,o), o.gtin, o.ref, o.sap, o.pzn, o.suchwoerter, o.verwendung, o.notiz, o.hinweis].concat(Object.keys(o.merkmale||{}).map(k=>o.merkmale[k])).join(' ')); }
+function naStammSuchtext(typ, o){
+  /* Maße auch umgerechnet: Wer „0,89 mm" oder „2,7 F" sucht, findet den 0,035″-Draht. */
+  const mk = o.merkmale||{}; const defs = Object.keys(mk).length ? naKat().merkmale : [];
+  const umr = Object.keys(mk).map(k=>{ const d = defs.find(x=>x.id===k); return d && d.typ==='mass' ? naMassUmrechnung(d, mk[k]) : ''; });
+  return naNorm([o.name, o.handelsname, naStammSub(typ,o), o.gtin, o.ref, o.sap, o.pzn, o.suchwoerter, o.verwendung, o.notiz, o.hinweis].concat(Object.keys(mk).map(k=>mk[k]), umr).join(' ')); }
 
 /* ── Verzeichnis ── */
 let NA_VZ_Q = { material:'', geraet:'', medikament:'' };
@@ -124,7 +128,7 @@ function naStammAnsicht(typ, o){
     naPflichtStand(o, pk).forEach(x=>{ let wert = '';
       if(x.wert && x.id==='hersteller') wert = esc(naListeName('hersteller', o.hersteller) || 'Eintrag nicht mehr in der Liste');
       else if(x.wert && x.art==='fest') wert = '<span class="na-mono">'+esc(x.wert)+'</span>';
-      else if(x.wert){ const d = pk.merkmale.find(m=>m.id===x.id); wert = esc(x.wert+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')); }
+      else if(x.wert){ const d = pk.merkmale.find(m=>m.id===x.id); wert = esc(x.wert+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')) + naUmrDahinter(d, x.wert); }
       h += zeile(x.wort, wert || (x.ausweg ? '<span class="na-dim">'+esc(naAuswegWort(x.ausweg))+'</span>' : '')); });
     h += zeile('Produktname des Herstellers', esc(o.handelsname||''));
     const sd = naSapDoppelt(naAlle('material', true), o.sap, o.id);
@@ -134,7 +138,7 @@ function naStammAnsicht(typ, o){
     const kat = naKat(); const defs = kat.merkmale || [];
     const pfl = naPflichtFelder(kat).map(f=>f.id);
     Object.keys(o.merkmale||{}).forEach(mid=>{ if(pfl.indexOf(mid)>=0) return; const d = defs.find(x=>x.id===mid); const v = o.merkmale[mid]; if(v==null || v==='') return;
-      h += zeile(d ? d.label : mid, esc(String(v===true?'ja':v)+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : ''))); });
+      h += zeile(d ? d.label : mid, esc(String(v===true?'ja':v)+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')) + naUmrDahinter(d, v)); });
   }
   if(o.bereich) h += zeile('Bereich', esc(naListeName('bereiche', o.bereich)));
   if(o.hinweis || o.notiz) h += '<div class="na-info">'+esc(o.hinweis || o.notiz)+'</div>';
@@ -425,8 +429,13 @@ function naMerkFeld(d, stern){
   const lab = (stern ? '★ ' : '')+d.label+(d.einheit && d.typ!=='ja_nein' && String(d.label).indexOf('('+d.einheit+')')<0 ? ' ('+d.einheit+')' : '');
   if(d.typ==='ja_nein') return '<div class="na-feld"><label><input type="checkbox" data-na-wechsel="entwHaken" data-f="merkmale.'+esc(d.id)+'"'+(v===true||v==='ja'?' checked':'')+'> '+esc(lab)+'</label>'+(d.hinweis ? '<div class="na-hilfe">'+esc(d.hinweis)+'</div>' : '')+'</div>';
   if(d.typ==='liste') return naF(lab, '<button class="na-wahl" data-na="merkWahl" data-mid="'+esc(d.id)+'">'+(v ? esc(v) : '<span class="na-leer">wählen …</span>')+'</button>', d.hinweis ? esc(d.hinweis) : '');
-  return naF(lab, naT('merkmale.'+d.id, { extra: (d.typ==='mass'||d.typ==='zahl') ? ' inputmode="decimal"' : '' }), d.hinweis ? esc(d.hinweis) : '');
+  /* Maße: eingetragen in der Einheit des Merkmals, darunter die Umrechnung (Durchmesser: mm · Zoll · French; Länge in mm: auch cm) */
+  const umr = d.typ==='mass' && naMassArt(d)!=='keine' ? '<div class="na-umr" id="naUmr-'+esc(d.id)+'">'+naUmrHtml(d, v)+'</div>' : '';
+  return naF(lab, naT('merkmale.'+d.id, { extra: (d.typ==='mass'||d.typ==='zahl') ? ' inputmode="decimal"' : '' }), (d.hinweis ? esc(d.hinweis) : '') + umr);
 }
+function naUmrHtml(d, v){ const t = naMassUmrechnung(d, v); return t ? '= '+esc(t) : ''; }
+/* In Ansichten: die Umrechnung hinter dem Wert („0,035 in = 0,89 mm · 2,7 F"). */
+function naUmrDahinter(d, v){ const t = d && d.typ==='mass' ? naMassUmrechnung(d, v) : ''; return t ? ' <span class="na-dim">= '+esc(t)+'</span>' : ''; }
 function naKatVorschlagFuer(o){ return naKategorieVorschlag(naKat(), { name:o.name, handelsname:o.handelsname, bezeichnung:o.register && o.register.bezeichnung, einordnung:o.register && o.register.einordnung }); }
 /* Kategorie als Vorschlag: bei einem NEUEN Material wird sie gesetzt, solange
    niemand selbst gewählt hat — und folgt dem Namen. Liefert true, wenn sie
@@ -536,7 +545,8 @@ naEin('entw', (v, d)=>{
   }
   if(d.f.indexOf('merkmale.')===0){ const f = naFelder(naKat(), E.obj.kategorie); const mid = d.f.slice(9);
     if(f.diff.concat(f.weitere).some(x=>x.id===mid)) E.katAuto = null;   /* wer Felder der Kategorie füllt, hat sie angenommen */
-    const n = $('naNameVor'); if(n) n.innerHTML = naNameVorHtml(); }
+    const n = $('naNameVor'); if(n) n.innerHTML = naNameVorHtml();
+    const u = $('naUmr-'+mid); if(u){ const def = naKat().merkmale.find(x=>x.id===mid); if(def) u.innerHTML = naUmrHtml(def, v); } }
   if(d.f.indexOf('preis.')===0 || d.f==='packung'){ const s = $('naStueckpreis'); if(s) s.textContent = naEuro(naStueckpreis(E.obj.preis)); const c = $('naPackChip'); if(c) c.innerHTML = naPackChipHtml(); }
   if(d.f==='pzn'){ const s = $('naPznStand'); if(s) s.innerHTML = naPznStand(v); }
   if(d.f==='sap'){ const s = $('naSapStand'); if(s) s.innerHTML = naSapStand(E.obj); }
