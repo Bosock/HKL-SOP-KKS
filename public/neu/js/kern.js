@@ -84,6 +84,17 @@ function naParseGS1(raw){
   }
   return { gtin: out['01']||'', itemRef: out['240']||'' };
 }
+/* Charge (10) und Seriennummer (21) aus einem GS1-Code — NUR um sie beim
+   Etikett-Lesen als REF auszuschließen. Wird nie gespeichert (Grundsatz A2). */
+function naGs1Ausschluss(raw){
+  const s=String(raw==null?'':raw).replace(/^\]d2|^\]C1|^\]Q3/,'').replace(/\((\d{2,4})\)/g,'\u001d$1');
+  const out=[]; const m=s.split('\u001d');
+  m.forEach(teil=>{ let t=teil;
+    /* feste Längen davor überspringen (01 GTIN, 17 Verfall, 11 Herstelldatum) */
+    for(let i=0;i<4;i++){ const f=/^(01\d{14}|17\d{6}|11\d{6}|13\d{6}|15\d{6})/.exec(t); if(!f) break; t=t.slice(f[0].length); }
+    const v=/^(10|21)(.+)$/.exec(t); if(v) out.push(v[2]); });
+  return out.filter(x=>x && x.length>=4);
+}
 /* HIBC (Health Industry Bar Code): Viele Medizinprodukte tragen statt GS1
    diesen Code. Er enthält keine GTIN, aber die Bestellnummer des Herstellers
    (PCN = REF). Aufbau der Primärdaten: „+" · Hersteller-Kennung LIC (4 Zeichen,
@@ -566,14 +577,22 @@ function naTplWert(tpl, quelle, mid, aktion, wert, neu){
 }
 
 /* Hersteller aus dem GTIN-Präfix (eindeutige Nachbarn, ≥ 7 Stellen). Rein. */
-function naHerstellerAusGtin(material, gtin){
+function naHerstellerAusGtin(material, gtin, liste){
   const kern=s=>{ s=String(s||'').replace(/\D/g,''); return s.length===14?s.slice(1):(s.length===13?s:''); };
   const k=kern(naGtinKey(gtin)); if(!k) return null;
   let best=0, namen={};
   (material||[]).forEach(r=>{ if(!r||!r.hersteller||!r.gtin) return; const k2=kern(r.gtin); if(!k2||k2===k) return;
     let n=0; while(n<k.length&&k[n]===k2[n]) n++; if(n<7) return;
     if(n>best){ best=n; namen={}; } if(n===best) namen[r.hersteller]=1; });
-  const l=Object.keys(namen); return (best>=7&&l.length===1)?{ hersteller:l[0], stellen:best }:null;
+  let l=Object.keys(namen);
+  /* Derselbe Hersteller zweimal in der Liste („B|BRAUN" und „B. Braun Melsungen")? Dann ist es trotzdem eindeutig —
+     genommen wird der Eintrag mit Registriernummer, sonst der mit dem längsten Namen. */
+  if(l.length>1 && Array.isArray(liste) && typeof NA_HERSTELLER_BEKANNT!=='undefined'){
+    const e=l.map(id=>liste.find(x=>x && x.id===id)).filter(Boolean);
+    const b=e.length===l.length && NA_HERSTELLER_BEKANNT.find(([kurz, amtlich, re])=>e.every(x=>re.test(x.name) || re.test(x.amtlich||'')));
+    if(b){ e.sort((x,y)=>(y.srn?1:0)-(x.srn?1:0) || String(y.amtlich||y.name).length-String(x.amtlich||x.name).length); l=[e[0].id]; }
+  }
+  return (best>=7&&l.length===1)?{ hersteller:l[0], stellen:best }:null;
 }
 /* Namensvorschlag: Kategorie + ★-Merkmale. Rein. */
 function naNameVorschlag(kategorieLabel, diffDefs, werte){
@@ -785,6 +804,248 @@ function naHerstellerImText(text, eintraege){
     if(!kand[n] || kand[n]<zahl) kand[n]=zahl; });
   const l=Object.keys(kand).sort((a,b)=>kand[b]-kand[a] || a.length-b.length);
   return l.length ? { name:l[0], quelle:'text' } : null;
+}
+
+/* ── Etikett: REF und Hersteller aus den Lesungen der Texterkennung (rein) ──
+   Gemessen an 25 echten Fotos aus dem Neuaufbau (19.11.2026): Die Engine
+   liest die REF meist richtig — verloren ging sie bei der Auswahl.
+     · Das REF-Kästchen kommt in vielen Formen an: „REF]", „[REF|", „\REF|",
+       „Red" — oder gar nicht (dann steht die Nummer allein in der Zeile).
+     · Falsche Treffer kamen aus fremdem Text („IER" aus chinesischem
+       Kleingedruckten, „104" aus einer zerfallenen Zeile).
+   Deshalb: jede Nummer ist ein Kandidat mit Punkten und Gründen — Kästchen
+   davor, Form (Ziffern und Buchstaben), wie oft und wie sicher gelesen.
+   Ausgeschlossen: was hinter LOT/SN/GTIN/PZN steht, Daten, Maße, die
+   Ziffern der GS1-Klartextzeile, CE-Nummern. Steht „(240)" im Klartext
+   unter einem Barcode, ist das die REF — exakt. */
+function naRefMarker(t){
+  const u=String(t==null?'':t).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(/^(REF|RFF|REE|R3F|REFNO|REFNR|CATALOG|CATALOGNO|CATNO|ARTNR|ARTIKELNR|BESTELLNR|ORDERNO|ITEMNO|PRODUCTCODE)$/.test(u)) return 'ref';
+  if(u==='RED' || u==='RE') return 'schwach';
+  if(/^(LOT|L0T|LOTNO|SN|SERIAL|GTIN|EAN|UDI|PZN|PIN|P2N|UPC|NDC)$/.test(u)) return 'weg';   /* PIN, P2N: so wird „PZN" gelesen */
+  return '';
+}
+const NA_REF_SPLIT=/[\s|[\]\\{}<>“”"'`´:;,]+/;
+function naRefForm(t){
+  const s=String(t||'');
+  const alnum=s.replace(/[^A-Za-z0-9]/g,'');
+  if(alnum.length<4 || alnum.length>20) return null;
+  if(!/\d/.test(alnum)) return null;
+  if((s.match(/[.\-/]/g)||[]).length>3) return null;
+  if(/^\d{4}[-./]\d{2}([-./]\d{2})?$/.test(s) || /^\d{2}[-./]\d{2}[-./]\d{2,4}$/.test(s)) return null;    /* Datum */
+  if(/^\d{13,14}$/.test(alnum)) return null;                                                       /* GTIN */
+  if(/(mm|cm|ml|kg|psi|atm|bar|fr)$/i.test(s) || /°/.test(s) || /^\d+[.,]\d+$/.test(s) && !/\./.test(s)) return null;   /* Maß */
+  if(/^(www|http)/i.test(s) || /@/.test(s)) return null;
+  const klein=(alnum.match(/[a-z]/g)||[]).length;
+  if(klein>2) return null;                                                                          /* ein Wort */
+  return { alnum, klein, mix:/[A-Za-z]/.test(alnum) && /\d/.test(alnum) };
+}
+/* GS1-Klartext unter einem Barcode: „(01) 0 4547327 13301 2", „(240)194042". */
+function naGs1Klartext(text){
+  const out={ gtin:'', ref:'' };
+  const t=String(text||'');
+  const r=/\(\s*240\s*\)\s*([A-Za-z0-9][A-Za-z0-9\-./]{2,29})/.exec(t); if(r) out.ref=r[1].replace(/\(\d+\).*$/,'');
+  const g=/\(\s*01\s*\)\s*((?:\d\s?){14})/.exec(t); if(g){ const d=g[1].replace(/\s/g,''); if(naGtinPruefziffer(d)) out.gtin=d; }
+  return out;
+}
+/* Kandidaten für die REF: [{ tok, punkte, gruende[] }], beste zuerst.
+   lesungen: [{ quelle, text, confidence, words:[{ text, conf, bbox }] }] (ocr.js ocrLeseFoto). */
+function naRefKandidaten(lesungen){
+  const topf={};
+  const dazu=(tok, p, grund)=>{ const k=tok.toUpperCase(); const e=topf[k]||(topf[k]={ tok, punkte:0, gruende:{}, quellen:{}, n:0, marker:0, conf:0 });
+    if(grund) e.gruende[grund]=Math.max(e.gruende[grund]||0, p); return e; };
+  (lesungen||[]).forEach(l=>{
+    const woerter=(l.words||[]).map(w=>({ t:String(w.text||'').toUpperCase(), c:w.conf||0 }));
+    const zeilen=String(l.text||'').split('\n');
+    let markerZeilen=0;   /* „Catalog No." am Zeilenende: die Nummer folgt in einer der nächsten Zeilen */
+    zeilen.forEach(zeile=>{
+      const gs=naGs1Klartext(zeile); if(gs.ref){ const e=dazu(gs.ref.toUpperCase(), 0, ''); e.gs1=true; e.quellen[l.quelle]=1; e.n++; }
+      const ohneGs1=zeile.replace(/\(\s*\d{2,4}\s*\)\s*[0-9A-Za-z\s]+/g,' ');
+      const tok=ohneGs1.split(NA_REF_SPLIT).map(x=>x.replace(/^[^A-Za-z0-9]+/,'').replace(/[^A-Za-z0-9]+$/,'')).filter(Boolean);
+      let marker=markerZeilen>0 ? 'ref' : ''; let weg=false, gueltige=0, vergeben=false;
+      for(let i=0;i<tok.length;i++){
+        const t=tok[i]; const m=naRefMarker(t);
+        if(m==='ref' || m==='schwach'){ marker=m; weg=false;
+          /* Nach dem Kästchen zerfallene Nummer zusammenziehen: „194 042" (zwei Zifferngruppen),
+             „MOO4E P T4500T HK20" (Bruchstücke aus Großbuchstaben und Ziffern). */
+          const g=[]; for(let j=i+1;j<tok.length && /^\d{2,4}$/.test(tok[j]) && g.length<2;j++) g.push(tok[j]);
+          if(g.length===2 && g.join('').length>=5){ tok.splice(i+1, 2, g.join('')); }
+          else { const b=[]; let len=0; for(let j=i+1;j<tok.length && /^[A-Z0-9]{1,8}$/.test(tok[j]) && len+tok[j].length<=20;j++){ b.push(tok[j]); len+=tok[j].length; }
+            /* zwei Bruchstücke nur, wenn beide Ziffern tragen („407207 INH" bleibt getrennt) */
+            if((b.length>=3 || (b.length===2 && b.every(x=>/\d/.test(x)))) && /\d/.test(b.join('')) && /[A-Z]/.test(b.join('')) && len>=8) tok.splice(i+1, b.length, b.join('')); }
+          continue; }
+        if(m==='weg'){ weg=true; marker=''; continue; }
+        if(/^ce$/i.test(t) && /^\d{4}$/.test(tok[i+1]||'')){ i++; continue; }   /* CE-Kennnummer der Benannten Stelle */
+        const f=naRefForm(t);
+        if(!f){ if(/[A-Za-z]{3,}/.test(t)){ marker=marker==='ref' && i<2 ? marker : ''; } continue; }
+        gueltige++;
+        if(weg){ weg=false; continue; }                                  /* der Wert hinter LOT/GTIN/PZN … */
+        const e=dazu(t, 0, ''); e.quellen[l.quelle]=1; e.n++;
+        if(marker){ e.marker=Math.max(e.marker, marker==='ref' ? 45 : 20); marker=''; vergeben=true; }
+        if(gueltige===1 && tok.length<=3) e.allein=true;
+        const w=woerter.find(x=>x.t.indexOf(t.toUpperCase())>=0); if(w) e.conf=Math.max(e.conf, w.c);
+        if(l.quelle==='ref') e.streifen=true;
+        e.form=f;
+      }
+      if(vergeben) markerZeilen=0; else if(markerZeilen>0) markerZeilen--;
+      if(/(catalog\s*no\.?|cat\.?\s*no\.?|art\.?-?\s*nr\.?|bestell-?\s*nr\.?)\s*$/i.test(zeile.trim())) markerZeilen=3;
+    });
+  });
+  /* Varianten derselben Nummer zusammenführen — die Engine verwechselt O und 0
+     und lässt am Rand ein Zeichen fallen („§728810F-06" → „728810F-06").
+     Gezählt wird für die Variante, die am häufigsten gelesen wurde; eine
+     Schreibweise mit 0 statt O neben Ziffern gewinnt nur, wenn sie wirklich so
+     gelesen wurde (nichts wird erfunden). */
+  const skelett=t=>t.toUpperCase().replace(/O(?=[O0-9])|(?<=[0-9])O/g, '0');
+  const keys=Object.keys(topf);
+  keys.forEach(a=>{ const A=topf[a]; if(!A || A.weg) return;
+    keys.forEach(b=>{ if(a===b) return; const B=topf[b]; if(!B || B.weg) return;
+      const gleich=skelett(a)===skelett(b);
+      const rand=a.length>b.length && a.length-b.length<=2 && a.endsWith(b) && b.length>=6;
+      if(!gleich && !rand) return;
+      /* B geht in A auf: bei Gleichheit gewinnt die Schreibweise mit 0 neben Ziffern, sonst die längere */
+      if(gleich && !(a.split('0').length > b.split('0').length)) return;
+      A.n+=B.n; A.marker=Math.max(A.marker, B.marker); A.conf=Math.max(A.conf, B.conf); Object.assign(A.quellen, B.quellen);
+      A.allein=A.allein||B.allein; A.streifen=A.streifen||B.streifen; A.gs1=A.gs1||B.gs1; B.weg=true; }); });
+  /* Gleich lang, ein Zeichen anders („104042" hinter REF, „194042" viermal gelesen):
+     Das Kästchen sagt, WO die REF steht — die häufigere Lesung, WIE sie heißt. */
+  keys.forEach(a=>{ const A=topf[a]; if(!A || A.weg || !A.marker) return;
+    keys.forEach(b=>{ const B=topf[b]; if(a===b || !B || B.weg || b.length!==a.length || B.n<=A.n) return;
+      let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) d++;
+      if(d===1){ B.marker=Math.max(B.marker, A.marker); A.marker=0; } }); });
+  return Object.keys(topf).filter(k=>!topf[k].weg).map(k=>{ const e=topf[k]; const f=e.form || naRefForm(e.tok) || { mix:false, klein:0, alnum:e.tok };
+    const g={};
+    if(e.gs1){ g['GS1-Klartext (240)']=80; }
+    if(e.marker) g['steht hinter dem REF-Kästchen']=e.marker;
+    if(f.mix && f.alnum.length>=5) g['Ziffern und Buchstaben']=12; else if(/^\d+$/.test(f.alnum) && f.alnum.length>=6) g['lange Nummer']=6; else if(/^\d{4,5}$/.test(f.alnum)) g['kurze Zahl']=-10;
+    if(f.klein) g['Kleinbuchstaben']=-20*f.klein;
+    const nq=Object.keys(e.quellen).length; if(nq>1) g['in '+nq+' Lesungen gleich']=Math.min(24, 8*(nq-1));
+    if(e.n>nq) g['mehrfach auf dem Etikett']=Math.min(12, 4*(e.n-nq));
+    if(e.conf>=85) g['sicher gelesen']=12; else if(e.conf>=70) g['gut gelesen']=6; else if(e.conf && e.conf<40) g['unsicher gelesen']=-10;
+    if(e.allein) g['allein in der Zeile']=10;
+    if(e.streifen) g['im REF-Streifen gelesen']=10;
+    const punkte=10+Object.keys(g).reduce((s,x)=>s+g[x], 0);
+    return { tok:e.tok, punkte, gruende:Object.keys(g).filter(x=>g[x]>0), marker:!!e.marker, gs1:!!e.gs1 };
+  }).sort((a,b)=>b.punkte-a.punkte || b.tok.length-a.tok.length);
+}
+/* Entscheidung: eintragen nur, wenn die Belege reichen — sonst vorschlagen
+   (Grundsatz ①: leer schlägt falsch). */
+const NA_REF_SICHER=60;
+function naRefEntscheid(kand){
+  const k=(kand||[]).filter(x=>x.punkte>=25);
+  const b=k[0]; if(!b) return { ref:'', sicher:false, vorschlaege:[] };
+  const zweiter=k[1];
+  const abstand=!zweiter || b.punkte-zweiter.punkte>=12 || b.gs1;
+  const sicher=b.gs1 || (b.punkte>=NA_REF_SICHER && (b.marker || b.gruende.length>=3) && abstand);
+  return { ref: sicher ? b.tok : '', sicher, gruende:b.gruende, vorschlaege: (sicher ? k.slice(1) : k).slice(0,3).map(x=>x.tok) };
+}
+
+/* Bekannte Hersteller (Katheterlabor, Station) — damit der Name auch dann
+   erkannt wird, wenn er noch nicht in der Liste des Hauses steht. Je Eintrag
+   der übliche Kurzname, der amtliche Name und ein Muster, das die typischen
+   Lesefehler am Logo verträgt (B|BRAUN → „BIBRAUN", „B/IBRAUN", „5IBRAUN"). */
+const NA_HERSTELLER_BEKANNT=[
+  ['B. Braun', 'B. Braun Melsungen AG', /\b[b5][\s.|/il1]{0,3}braun\b|\bbraun\s+melsungen\b|\bbraun\s+medical\b|\bb\.\s*brau\w*\s+\w*sungen\b/i],
+  ['Boston Scientific', 'Boston Scientific Corporation', /\bboston\s*scienti/i],
+  ['Abbott', 'Abbott Medical', /\babbott\b/i],
+  ['Medtronic', 'Medtronic Inc.', /\bmedtronic\b/i],
+  ['Terumo', 'Terumo Corporation', /\bterumo\b/i],
+  ['Cordis', 'Cordis US Corp.', /\bcordis\b/i],
+  ['Asahi Intecc', 'Asahi Intecc Co., Ltd.', /\basahi\s*-?\s*inte[cg]{2}\b/i],
+  ['Vygon', 'Vygon SAS', /\bvy[gc]on\b/i],
+  ['Teleflex', 'Teleflex Inc.', /\bteleflex\b/i],
+  ['Merit Medical', 'Merit Medical Systems, Inc.', /\bmerit\s+medical\b/i],
+  ['BD', 'Becton, Dickinson and Company', /\bbecton[\s,]+dickinson\b/i],
+  ['Biotronik', 'Biotronik SE & Co. KG', /\bbiotronik\b/i],
+  ['Philips', 'Philips Medical Systems', /\bphilips\b/i],
+  ['Edwards Lifesciences', 'Edwards Lifesciences LLC', /\bedwards\s+lifesciences\b/i],
+  ['Cook Medical', 'Cook Medical LLC', /\bcook\s+(medical|incorporated|ireland)\b/i],
+  ['Abiomed', 'Abiomed Inc.', /\babiomed\b/i],
+  ['Biosense Webster', 'Biosense Webster Inc.', /\bbiosense\s*webster\b/i],
+  ['Angiokard', 'Angiokard Medizintechnik GmbH', /\bangiokard\b/i],
+  ['Lohmann & Rauscher', 'Lohmann & Rauscher GmbH & Co. KG', /\blohmann\s*(&|und|and)\s*rauscher\b/i],
+  ['Fresenius Kabi', 'Fresenius Kabi AG', /\bfresenius\b/i],
+  ['Smiths Medical', 'Smiths Medical', /\bsmiths\s+medical\b/i],
+  ['Baxter', 'Baxter International Inc.', /\bbaxter\b/i],
+  ['Biosensors', 'Biosensors International', /\bbiosensors\b/i],
+  ['MicroPort', 'MicroPort Scientific', /\bmicroport\b/i],
+  ['Meril', 'Meril Life Sciences', /\bmeril\b/i],
+  ['Optimed', 'Optimed Medizinische Instrumente GmbH', /\boptimed\b/i],
+  ['Pajunk', 'Pajunk GmbH', /\bpajunk\b/i],
+  ['Galt Medical', 'Galt Medical Corp.', /\bgalt\s+medical\b/i],
+  ['Oscor', 'Oscor Inc.', /\boscor\b/i],
+  ['ACIST', 'ACIST Medical Systems', /\bacist\b/i],
+  ['Shockwave Medical', 'Shockwave Medical Inc.', /\bshockwave\b/i],
+  ['Penumbra', 'Penumbra Inc.', /\bpenumbra\b/i],
+  ['Stryker', 'Stryker Corporation', /\bstryker\b/i],
+  ['Bard', 'C. R. Bard Inc.', /\b(c\.?\s?r\.?\s)?bard\b(?!\w)/i],
+  ['St. Jude Medical', 'St. Jude Medical', /\bst\.?\s*jude\b/i],
+  ['Osypka', 'Osypka AG', /\bosypka\b/i],
+  ['Covidien', 'Covidien', /\bcovidien\b/i],
+  ['Nipro', 'Nipro Corporation', /\bnipro\b/i],
+  ['Argon Medical', 'Argon Medical Devices', /\bargon\s+medical\b/i],
+  ['Bayer', 'Bayer AG', /\bbayer\b/i],
+  ['Guerbet', 'Guerbet', /\bguerbet\b/i],
+  ['Bracco', 'Bracco Imaging', /\bbracco\b/i],
+  ['Hartmann', 'Paul Hartmann AG', /\bpaul\s+hartmann\b|\bhartmann\b/i],
+  ['Mölnlycke', 'Mölnlycke Health Care', /\bm[öo]lnlycke\b/i],
+  ['Siemens Healthineers', 'Siemens Healthineers AG', /\bsiemens\b/i],
+  ['GE HealthCare', 'GE HealthCare', /\bge\s+health\s*care\b/i],
+];
+/* Zeilen, in denen ein FREMDER Name stehen darf (Fertigung, Vertrieb, Montage, Bevollmächtigte). */
+const NA_HERST_FREMD=/(manufactur\w*\s*s[il]te|herstellungsort|fertigungsort|fabricado|distribu|vertrieb|importad|importer|assembled|steriliz|sterilis|authori[sz]ed\s+rep|bevollm|reg\.?\s*san)/i;
+/* Hersteller aus den Lesungen: Liste des Hauses UND bekannte Hersteller; ein
+   Name in großer Schrift (Logo) und mehrfach gelesen gewinnt.
+   Liefert { id?, name, amtlich?, quelle:'liste'|'bekannt'|'text', punkte } oder null. */
+function naHerstellerAusLesungen(lesungen, eintraege){
+  const haus=(eintraege||[]).filter(e=>e && !e.archiviert);
+  const punkte={};   /* Schlüssel: kanonischer Name */
+  const notiz=(name, p, info)=>{ const e=punkte[name]||(punkte[name]=Object.assign({ name, punkte:0 }, info||{})); e.punkte+=p; return e; };
+  (lesungen||[]).forEach(l=>{
+    const woerter=(l.words||[]).filter(w=>w && w.bbox);
+    const hoehen=woerter.map(w=>w.bbox.y1-w.bbox.y0).filter(h=>h>0).sort((a,b)=>a-b);
+    const median=hoehen.length ? hoehen[Math.floor(hoehen.length/2)] : 0;
+    const gross=wort=>{ const w=woerter.find(x=>String(x.text||'').toUpperCase().indexOf(wort.toUpperCase())>=0); return w && median ? (w.bbox.y1-w.bbox.y0)/median : 1; };
+    String(l.text||'').split('\n').forEach(z=>{
+      if(NA_HERST_FREMD.test(z)) return;
+      NA_HERSTELLER_BEKANNT.forEach(([kurz, amtlich, re])=>{ const m=re.exec(z); if(!m) return;
+        const g=gross(String(m[0]).split(/\s+/).sort((a,b)=>b.length-a.length)[0]);
+        notiz(kurz, 1 + (g>=1.6 ? 2 : 0), { amtlich, quelle:'bekannt' }); });
+    });
+  });
+  /* Die Liste des Hauses (auch Namen, die nicht bekannt sind) — bestehende Suche, ohne Fremdzeilen */
+  const text=(lesungen||[]).map(l=>String(l.text||'').split('\n').filter(z=>!NA_HERST_FREMD.test(z)).join('\n')).join('\n');
+  const h=naHerstellerImText(text, haus);
+  if(h && h.id){ const e=haus.find(x=>x.id===h.id);
+    const kurzBekannt=NA_HERSTELLER_BEKANNT.find(([k, a, re])=>re.test(e.name) || re.test(e.amtlich||''));
+    if(kurzBekannt && punkte[kurzBekannt[0]]) punkte[kurzBekannt[0]].id=h.id;
+    else notiz(e.name, 2, { quelle:'liste', id:h.id }); }
+  const best=Object.keys(punkte).map(k=>punkte[k]).sort((a,b)=>b.punkte-a.punkte)[0];
+  if(!best){ return h && h.name ? { name:h.name, quelle:h.quelle||'text', punkte:1 } : null; }
+  /* Bekannter Hersteller → passenden Eintrag der Liste suchen (Schreibweise egal: „B|BRAUN" = B. Braun) */
+  if(!best.id){ const b=NA_HERSTELLER_BEKANNT.find(x=>x[0]===best.name);
+    const treffer=b ? haus.filter(e=>b[2].test(e.name) || b[2].test(e.amtlich||'') || naNorm(e.name)===naNorm(b[0])) : [];
+    /* mehrere Einträge für denselben Hersteller: der mit Registriernummer, sonst der mit dem längsten Namen */
+    treffer.sort((x,y)=>(y.srn?1:0)-(x.srn?1:0) || String(y.amtlich||y.name).length-String(x.amtlich||x.name).length);
+    if(treffer[0]) best.id=treffer[0].id; }
+  return best;
+}
+/* Alles zusammen: { ref, sicher, vorschlaege, gruende, kandidaten, gtin, hersteller }. */
+function naEtikettAuswerten(lesungen, opt){
+  opt=opt||{};
+  /* Was sicher NICHT die REF ist (LOT/Seriennummer aus dem Barcode desselben Fotos) */
+  const weg=(opt.ausschliessen||[]).map(x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'')).filter(x=>x.length>=4);
+  const kand=naRefKandidaten(lesungen).filter(k=>{ const t=k.tok.toUpperCase().replace(/[^A-Z0-9]/g,''); return !weg.some(w=>w===t || (t.length>=6 && (w.indexOf(t)>=0 || t.indexOf(w)>=0))); });
+  const ent=naRefEntscheid(kand);
+  const gs=naGs1Klartext((lesungen||[]).map(l=>l.text||'').join('\n'));
+  return Object.assign({}, ent, { kandidaten:kand.slice(0,6), gtin:gs.gtin, hersteller:naHerstellerAusLesungen(lesungen, opt.hersteller||[]) });
+}
+/* Liegt das Etikett richtig herum? Gemessen an den echten Fotos: aufrecht
+   gelesene Etiketten haben ≥ 7 sicher gelesene Wörter (≥ 3 Buchstaben,
+   Sicherheit ≥ 70), quer liegende und reine Produktfotos 0–1. */
+function naLesungWoerter(lesungen){
+  return (lesungen||[]).filter(l=>l.quelle==='voll' || l.quelle==='fein')
+    .reduce((s,l)=>s+(l.words||[]).filter(w=>(w.conf||0)>=70 && /[A-Za-z]{3,}/.test(w.text||'')).length, 0);
 }
 
 /* ── PZN (Pharmazentralnummer): 7- oder 8-stellig, Prüfziffer Modulo 11 ── */

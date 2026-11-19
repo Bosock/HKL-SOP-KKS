@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 19.11.2026 · Cache-Version `v89` · Code: `public/neu/`
+**Stand:** 19.11.2026 · Cache-Version `v90` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -561,11 +561,12 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1159 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1161 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 40 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 42 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
-  Pflichtangaben, SAP-Nummer, HIBC, Maß-Umrechnung, Kamerawahl,
+  Pflichtangaben, SAP-Nummer, HIBC, Maß-Umrechnung, Kamerawahl, Etikett-Auswertung
+  mit Lesungen echter Fotos,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
   der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
@@ -662,7 +663,52 @@ keine Bedienzeiten eines Menschen. Am 10.11.2026 abends antwortete EUDAMED
 „nicht erreichbar", der zweite 0,5 s (Pause für das ausgefallene Register);
 die GTIN war in beiden Fällen übernommen, die Maske blieb bedienbar.
 
-**Etikett lesen an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
+**Etikett lesen an 25 echten Fotos aus dem Neuaufbau (19.11.2026).** Die
+Texterkennung selbst (`ocr.js`, Tesseract auf dem Gerät) teilt sich die neue
+App mit dem Bestand und ist unverändert. Neu ist der Ablauf darum herum
+(`stamm.js` naEtikettLesen, `kern.js` naEtikettAuswerten):
+
+1. **Barcode im Foto zuerst:** GTIN, REF (GS1 240 / HIBC) — und die
+   Charge/Seriennummer, die damit sicher **nicht** die REF ist (nur zum
+   Ausschließen, nie gespeichert, A2).
+2. **Quer liegendes Etikett:** Liest die Engine kaum ein Wort sicher (< 5),
+   wird das Foto um 90° und 270° gedreht und nachgelesen.
+3. **REF mit Gründen:** Jede Nummer ist ein Kandidat — Kästchen davor (auch
+   „REF]", „\REF|", „Red", „Catalog No." bis drei Zeilen davor), Form
+   (Ziffern und Buchstaben), in mehreren Lesungen gleich, sicher gelesen.
+   Ausgeschlossen: Werte hinter LOT/SN/GTIN/PZN (auch „PIN"), Daten, Maße,
+   GS1-Klartext, CE-Nummern, Wörter. Varianten werden zusammengeführt (O/0,
+   ein fehlendes Randzeichen, zerfallene Nummer hinter dem Kästchen). „(240)"
+   im Klartext ist die REF. Eingetragen wird nur bei reichen Belegen, sonst
+   als Vorschlag zum Antippen.
+4. **Hersteller:** Liste des Hauses und ~45 bekannte Hersteller mit den
+   Lesefehlern ihrer Logos (B|BRAUN → „BIBRAUN", „5IBRAUN"); große Schrift
+   und Wiederholung gewinnen; Zeilen zu Fertigung, Montage/Sterilisation,
+   Vertrieb, Bevollmächtigten zählen nicht. Ein bekannter Hersteller, der
+   noch nicht in der Liste steht, wird angelegt. Findet sich nichts, verrät
+   die GS1-Firmennummer der GTIN den Hersteller (andere Materialien desselben
+   Herstellers; doppelte Listeneinträge wie „B|BRAUN" / „B. Braun Melsungen"
+   gelten als einer).
+
+Wahrheit von Hand geprüft (`e2e/daten/etiketten-wahrheit.json`); gemessen mit
+`node e2e/messen-etiketten.js` (ohne Register — das kommt im Betrieb mit der
+GTIN dazu):
+
+| 25 Fotos, 15 davon mit REF | bisher | neu |
+|---|---|---|
+| REF richtig eingetragen | 7 / 15 | **13 / 15** |
+| REF als erster Vorschlag | 3 | 1 |
+| REF **falsch** eingetragen | 2 | **0** |
+| falsche REF auf Produktfotos (ohne Etikett) | 0–1 | **0** |
+| Hersteller richtig | 10 / 15 | **12 / 15** |
+
+Zeit je Foto am Rechner im Mittel 4 s (Handy langsamer). **Grenzen:** Ein
+kleines, quer und in Grün gedrucktes Etikett (Vygon) liest die Engine auch
+gedreht nicht — dort helfen Barcode und Register. Ein Logo in Umrissschrift
+(Angiokard) wird nicht gelesen. Bei der Perfusorspritze steht die REF nur als
+erster Vorschlag da (ohne lesbares Kästchen reichen die Belege nicht).
+
+**Frühere Messung an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
 REF und Hersteller aus EUDAMED, bei zwei Produkten ohne Registereintrag vom
 Etikett abgelesen.
 

@@ -1,0 +1,155 @@
+{
+ "_hinweis": "Wahrheit je Foto für e2e/messen-etiketten.js — festgelegt am 19.11.2026 durch Ansehen der Fotos aus dem Neuaufbau (Material-Kennung_Bildnummer.jpg). ref: zulässige Lesungen; leer = auf dem Foto steht keine REF (Produktfoto), jede eingetragene REF ist dann falsch. optional: Hersteller nur auf dem Produkt, nicht verlangt.",
+ "fotos": {
+  "mmw9bz5do3pi07_0.jpg": {
+   "ref": [
+    "219.14"
+   ],
+   "hersteller": "Vygon",
+   "art": "Etikett quer"
+  },
+  "mmw9c4h3cnprns_0.jpg": {
+   "ref": [
+    "16494C"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmw9c4h3cnprns_1.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbvmbr8stc26_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbvmbr8stc26_1.jpg": {
+   "ref": [
+    "8728810F-06",
+    "8728810F"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbvq2u5qophy_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbvq2u5qophy_1.jpg": {
+   "ref": [
+    "8255253"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbvx4blowg31_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbvx4blowg31_1.jpg": {
+   "ref": [
+    "4606027V"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbw8huql5kwm_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbw8huql5kwm_1.jpg": {
+   "ref": [
+    "4617022V"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbwc79svlkwi_0.jpg": {
+   "ref": [
+    "4606108N"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbwc79svlkwi_1.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbwh9xr8tujp_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbwh9xr8tujp_1.jpg": {
+   "ref": [
+    "4606205V"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbwjrbzzy3j9_0.jpg": {
+   "ref": [],
+   "hersteller": "B. Braun",
+   "optional": true,
+   "art": "Produkt"
+  },
+  "mmwbwjrbzzy3j9_1.jpg": {
+   "ref": [
+    "4617207V"
+   ],
+   "hersteller": "B. Braun"
+  },
+  "mmwbwnhm68ibkx_0.jpg": {
+   "ref": [
+    "AHW14R104S"
+   ],
+   "hersteller": "Asahi Intecc"
+  },
+  "mmwbwnhm68ibkx_1.jpg": {
+   "ref": [
+    "AHW14R104S"
+   ],
+   "hersteller": "Asahi Intecc"
+  },
+  "mmwd7hydvzwfhd_0.jpg": {
+   "ref": [
+    "M004EPT4500THK20"
+   ],
+   "hersteller": "Boston Scientific"
+  },
+  "mmwnb81638vwi9_0.jpg": {
+   "ref": [
+    "407207"
+   ],
+   "hersteller": "Abbott"
+  },
+  "mmwnbosm4cyh4m_0.jpg": {
+   "ref": [
+    "194042"
+   ],
+   "hersteller": "Angiokard"
+  },
+  "mmwncbxni2op4n_0.jpg": {
+   "ref": [],
+   "hersteller": "",
+   "art": "Produkt"
+  },
+  "mmwnd19ww39rnt_0.jpg": {
+   "ref": [],
+   "hersteller": "",
+   "art": "Produkt"
+  },
+  "mmwnd19ww39rnt_1.jpg": {
+   "ref": [
+    "504-609X"
+   ],
+   "hersteller": "Cordis"
+  }
+ }
+}
