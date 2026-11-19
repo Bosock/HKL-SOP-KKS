@@ -41,7 +41,11 @@ function naStammSub(typ, o){
   const ort = naLagerortName(o); if(ort) t.push('📍 '+ort);
   return t.filter(Boolean).join(' · ');
 }
-function naStammSuchtext(typ, o){ return naNorm([o.name, o.handelsname, naStammSub(typ,o), o.gtin, o.ref, o.sap, o.pzn, o.suchwoerter, o.verwendung, o.notiz, o.hinweis].concat(Object.keys(o.merkmale||{}).map(k=>o.merkmale[k])).join(' ')); }
+function naStammSuchtext(typ, o){
+  /* Maße auch umgerechnet: Wer „0,89 mm" oder „2,7 F" sucht, findet den 0,035″-Draht. */
+  const mk = o.merkmale||{}; const defs = Object.keys(mk).length ? naKat().merkmale : [];
+  const umr = Object.keys(mk).map(k=>{ const d = defs.find(x=>x.id===k); return d && d.typ==='mass' ? naMassUmrechnung(d, mk[k]) : ''; });
+  return naNorm([o.name, o.handelsname, naStammSub(typ,o), o.gtin, o.ref, o.sap, o.pzn, o.suchwoerter, o.verwendung, o.notiz, o.hinweis].concat(Object.keys(mk).map(k=>mk[k]), umr).join(' ')); }
 
 /* ── Verzeichnis ── */
 let NA_VZ_Q = { material:'', geraet:'', medikament:'' };
@@ -124,7 +128,7 @@ function naStammAnsicht(typ, o){
     naPflichtStand(o, pk).forEach(x=>{ let wert = '';
       if(x.wert && x.id==='hersteller') wert = esc(naListeName('hersteller', o.hersteller) || 'Eintrag nicht mehr in der Liste');
       else if(x.wert && x.art==='fest') wert = '<span class="na-mono">'+esc(x.wert)+'</span>';
-      else if(x.wert){ const d = pk.merkmale.find(m=>m.id===x.id); wert = esc(x.wert+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')); }
+      else if(x.wert){ const d = pk.merkmale.find(m=>m.id===x.id); wert = esc(x.wert+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')) + naUmrDahinter(d, x.wert); }
       h += zeile(x.wort, wert || (x.ausweg ? '<span class="na-dim">'+esc(naAuswegWort(x.ausweg))+'</span>' : '')); });
     h += zeile('Produktname des Herstellers', esc(o.handelsname||''));
     const sd = naSapDoppelt(naAlle('material', true), o.sap, o.id);
@@ -134,7 +138,7 @@ function naStammAnsicht(typ, o){
     const kat = naKat(); const defs = kat.merkmale || [];
     const pfl = naPflichtFelder(kat).map(f=>f.id);
     Object.keys(o.merkmale||{}).forEach(mid=>{ if(pfl.indexOf(mid)>=0) return; const d = defs.find(x=>x.id===mid); const v = o.merkmale[mid]; if(v==null || v==='') return;
-      h += zeile(d ? d.label : mid, esc(String(v===true?'ja':v)+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : ''))); });
+      h += zeile(d ? d.label : mid, esc(String(v===true?'ja':v)+(d && d.einheit && d.typ!=='ja_nein' ? ' '+d.einheit : '')) + naUmrDahinter(d, v)); });
   }
   if(o.bereich) h += zeile('Bereich', esc(naListeName('bereiche', o.bereich)));
   if(o.hinweis || o.notiz) h += '<div class="na-info">'+esc(o.hinweis || o.notiz)+'</div>';
@@ -405,7 +409,7 @@ function naNameVorHtml(){
 /* Hersteller-Vorschlag aus dem GTIN-Präfix — erscheint, sobald die GTIN stimmt. */
 function naHerstVorHtml(o){
   if(o.hersteller || !o.gtin || !naGtinPruefziffer(o.gtin)) return '';
-  const vor = naHerstellerAusGtin(naAlle('material',true).filter(m=>m.id!==o.id), o.gtin);
+  const vor = naHerstellerAusGtin(naAlle('material',true).filter(m=>m.id!==o.id), o.gtin, naListe('hersteller', true));
   return vor ? '<button class="na-chip" data-na="herstellerNehmen" data-id="'+esc(vor.hersteller)+'">Vorschlag aus der GTIN: '+esc(naListeName('hersteller',vor.hersteller))+' übernehmen</button>' : '';
 }
 function naGtinDoppelt(g, eigeneId){ const k = naGtinKey(g); return k ? (naAlle('material', true).find(m=>m.id!==eigeneId && m.gtin && naGtinKey(m.gtin)===k) || null) : null; }
@@ -425,8 +429,13 @@ function naMerkFeld(d, stern){
   const lab = (stern ? '★ ' : '')+d.label+(d.einheit && d.typ!=='ja_nein' && String(d.label).indexOf('('+d.einheit+')')<0 ? ' ('+d.einheit+')' : '');
   if(d.typ==='ja_nein') return '<div class="na-feld"><label><input type="checkbox" data-na-wechsel="entwHaken" data-f="merkmale.'+esc(d.id)+'"'+(v===true||v==='ja'?' checked':'')+'> '+esc(lab)+'</label>'+(d.hinweis ? '<div class="na-hilfe">'+esc(d.hinweis)+'</div>' : '')+'</div>';
   if(d.typ==='liste') return naF(lab, '<button class="na-wahl" data-na="merkWahl" data-mid="'+esc(d.id)+'">'+(v ? esc(v) : '<span class="na-leer">wählen …</span>')+'</button>', d.hinweis ? esc(d.hinweis) : '');
-  return naF(lab, naT('merkmale.'+d.id, { extra: (d.typ==='mass'||d.typ==='zahl') ? ' inputmode="decimal"' : '' }), d.hinweis ? esc(d.hinweis) : '');
+  /* Maße: eingetragen in der Einheit des Merkmals, darunter die Umrechnung (Durchmesser: mm · Zoll · French; Länge in mm: auch cm) */
+  const umr = d.typ==='mass' && naMassArt(d)!=='keine' ? '<div class="na-umr" id="naUmr-'+esc(d.id)+'">'+naUmrHtml(d, v)+'</div>' : '';
+  return naF(lab, naT('merkmale.'+d.id, { extra: (d.typ==='mass'||d.typ==='zahl') ? ' inputmode="decimal"' : '' }), (d.hinweis ? esc(d.hinweis) : '') + umr);
 }
+function naUmrHtml(d, v){ const t = naMassUmrechnung(d, v); return t ? '= '+esc(t) : ''; }
+/* In Ansichten: die Umrechnung hinter dem Wert („0,035 in = 0,89 mm · 2,7 F"). */
+function naUmrDahinter(d, v){ const t = d && d.typ==='mass' ? naMassUmrechnung(d, v) : ''; return t ? ' <span class="na-dim">= '+esc(t)+'</span>' : ''; }
 function naKatVorschlagFuer(o){ return naKategorieVorschlag(naKat(), { name:o.name, handelsname:o.handelsname, bezeichnung:o.register && o.register.bezeichnung, einordnung:o.register && o.register.einordnung }); }
 /* Kategorie als Vorschlag: bei einem NEUEN Material wird sie gesetzt, solange
    niemand selbst gewählt hat — und folgt dem Namen. Liefert true, wenn sie
@@ -536,7 +545,8 @@ naEin('entw', (v, d)=>{
   }
   if(d.f.indexOf('merkmale.')===0){ const f = naFelder(naKat(), E.obj.kategorie); const mid = d.f.slice(9);
     if(f.diff.concat(f.weitere).some(x=>x.id===mid)) E.katAuto = null;   /* wer Felder der Kategorie füllt, hat sie angenommen */
-    const n = $('naNameVor'); if(n) n.innerHTML = naNameVorHtml(); }
+    const n = $('naNameVor'); if(n) n.innerHTML = naNameVorHtml();
+    const u = $('naUmr-'+mid); if(u){ const def = naKat().merkmale.find(x=>x.id===mid); if(def) u.innerHTML = naUmrHtml(def, v); } }
   if(d.f.indexOf('preis.')===0 || d.f==='packung'){ const s = $('naStueckpreis'); if(s) s.textContent = naEuro(naStueckpreis(E.obj.preis)); const c = $('naPackChip'); if(c) c.innerHTML = naPackChipHtml(); }
   if(d.f==='pzn'){ const s = $('naPznStand'); if(s) s.innerHTML = naPznStand(v); }
   if(d.f==='sap'){ const s = $('naSapStand'); if(s) s.innerHTML = naSapStand(E.obj); }
@@ -940,31 +950,67 @@ naAkt('registerHolen', async ()=>{ const E = NA_ENTWURF; if(E && E.typ==='materi
 naAkt('registerHersteller', ()=>{ const E = NA_ENTWURF; if(!E || !E.obj.register || !E.obj.register.hersteller) return;
   const id = naHerstellerAusRegister({ name:E.obj.register.hersteller, srn:E.obj.register.srn }); if(id){ E.obj.hersteller = id; naFormNeu(); } });
 
-/* ── Etikett lesen (ocr.js + merkmale.js aus der alten App, unverändert) ──
-   Erst der Barcode im Foto (sicher), dann die Texterkennung (für REF und
-   Merkmale, wenn kein Barcode da ist oder das Register nichts weiß). */
-function naEtikettUebernehmen(E, erg){
-  const o = E.obj; const neu = [];
-  const gtin = erg.gtin || '';
-  if(gtin && !o.gtin && naGtinPruefziffer(gtin) && !naGtinDoppelt(gtin, o.id)){ o.gtin = gtin; neu.push('GTIN'); }
-  const f = erg.fields || {};
-  if(f.ref && !o.ref){ o.ref = f.ref; neu.push('REF'); }
-  E.ocr = Object.assign(E.ocr||{}, { refVorschlaege: (!o.ref && erg.refInfo && erg.refInfo.vorschlaege) ? erg.refInfo.vorschlaege.slice(0,4) : [] });
-  if(!o.hersteller){
-    /* Erst die Herstellerliste des Hauses im ganzen Text suchen (Fertigungsort,
-       Vertrieb und Bevollmächtigte zählen nicht) — kern.js naHerstellerImText. */
-    const h = naHerstellerImText(erg.text || '', naListe('hersteller', true));
-    if(h && h.id){ o.hersteller = h.id; neu.push('Hersteller'); }
-    else if(h && h.name) E.ocr.herstellerNeu = h.name;
-    else if(f.hersteller){
-      const tr = naAehnliche(f.hersteller, naListe('hersteller'));
-      const g = tr.find(t=>t.grad==='gleich') || tr[0];
-      if(g){ o.hersteller = g.item.id; neu.push('Hersteller'); }
-      else E.ocr.herstellerNeu = f.hersteller;
+/* ── Etikett lesen ──
+   Die Texterkennung selbst (ocr.js, Tesseract auf dem Gerät) teilt sich die
+   neue App mit dem Bestand — sie bleibt unverändert. Neu ist alles darum herum
+   (gemessen an 25 echten Fotos, docs/NEUE-APP.md):
+     1. Barcode im Foto: GTIN, REF (GS1 240 / HIBC) — und die LOT-Nummer, die
+        damit sicher NICHT die REF ist.
+     2. Texterkennung; schwach gelesen → das Foto gedreht (90°, 270°) noch
+        einmal lesen (quer fotografierte Etiketten).
+     3. Auswertung der neuen App (kern.js naEtikettAuswerten): REF mit Gründen,
+        Hersteller aus der Liste des Hauses oder den bekannten Herstellern.
+   Liefert { barcode, foto, erg, a, grad } — verändert nichts. */
+const NA_ETIKETT_DREHEN = 5;   /* weniger sicher gelesene Wörter (naLesungWoerter) → gedreht nachlesen */
+async function naEtikettLesen(url, sag){
+  sag = sag || (()=>{});
+  let barcode = null; try{ sag('Barcode …'); barcode = await naBarcodeAusBild(url); }catch(e){ barcode = null; }
+  const ausschliessen = barcode && barcode.roh ? naGs1Ausschluss(barcode.roh) : [];   /* Charge/Seriennummer: nur zum Ausschließen, nie gespeichert */
+  const liste = naListe('hersteller', true);
+  const lesen = async (u, vor)=>{ const foto = await ocrLeseFotoEinzeln(u, t=>sag(vor+t));
+    return { foto, a: naEtikettAuswerten(foto.lesungen||[], { hersteller:liste, ausschliessen }) }; };
+  let best = await lesen(url, 'Text: '); best.grad = 0;
+  const w0 = naLesungWoerter(best.foto.lesungen);
+  if(!best.a.sicher && w0 < NA_ETIKETT_DREHEN){
+    for(const grad of [90, 270]){
+      const u2 = await naBildDrehen(url, grad); if(!u2) continue;
+      const r = await lesen(u2, 'gedreht '+grad+'°: '); r.grad = grad;
+      /* gedreht gilt nur, wenn es wirklich besser lesbar ist */
+      if(r.a.sicher || naLesungWoerter(r.foto.lesungen) >= Math.max(NA_ETIKETT_DREHEN, 2*naLesungWoerter(best.foto.lesungen)+3)) best = r;
+      if(best.a.sicher) break;
     }
   }
+  return { barcode, foto:best.foto, erg:ocrZusammenfuehren([best.foto]), a:best.a, grad:best.grad };
+}
+/* Ein Foto um 90/180/270° drehen (data-URL → data-URL). */
+function naBildDrehen(url, grad){
+  return new Promise(res=>{ const im = new Image();
+    im.onload = ()=>{ const q = grad===90 || grad===270; const c = document.createElement('canvas');
+      c.width = q ? im.height : im.width; c.height = q ? im.width : im.height; const x = c.getContext('2d');
+      x.translate(c.width/2, c.height/2); x.rotate(grad*Math.PI/180); x.drawImage(im, -im.width/2, -im.height/2);
+      try{ res(c.toDataURL('image/jpeg', 0.92)); }catch(e){ res(null); } };
+    im.onerror = ()=>res(null); im.src = url; });
+}
+/* Ergebnis in den Entwurf — nur in leere Felder. L = naEtikettLesen(…). Liefert die übernommenen Felder. */
+function naEtikettUebernehmen(E, L){
+  const o = E.obj; const neu = []; const erg = (L && L.erg) || {}; const a = (L && L.a) || {};
+  const gtin = erg.gtin || a.gtin || '';
+  if(gtin && !o.gtin && naGtinPruefziffer(gtin) && !naGtinDoppelt(gtin, o.id)){ o.gtin = gtin; neu.push('GTIN'); }
+  /* REF: nur eintragen, wenn die Belege reichen — sonst zum Antippen anbieten */
+  if(!o.ref && a.sicher && a.ref){ o.ref = a.ref; neu.push('REF'); }
+  E.ocr = Object.assign(E.ocr||{}, { refVorschlaege: (!o.ref && a.vorschlaege) ? a.vorschlaege.slice(0,4) : [] });
+  if(!o.hersteller){
+    const h = a.hersteller;
+    if(h && h.id){ o.hersteller = h.id; neu.push('Hersteller'); }
+    /* Bekannter Hersteller, noch nicht in der Liste: mit üblichem und amtlichem Namen anlegen */
+    else if(h && h.quelle==='bekannt'){ const id = naListeNeu('hersteller', h.name, 'Etikett', h.amtlich ? { amtlich:h.amtlich } : {}); if(id){ o.hersteller = id; neu.push('Hersteller (neu in der Liste)'); } }
+    else if(h && h.name) E.ocr.herstellerNeu = h.name;
+  }
+  /* Nichts auf dem Etikett gefunden: Andere Materialien mit derselben GS1-Firmennummer verraten den Hersteller */
+  if(!o.hersteller && o.gtin){ const v = naHerstellerAusGtin(naAlle('material', true).filter(m=>m.id!==o.id), o.gtin, naListe('hersteller', true));
+    if(v){ o.hersteller = v.hersteller; neu.push('Hersteller (aus der GTIN)'); } }
   if(erg.text && typeof merkSammeln==='function'){
-    const m = merkSammeln(erg.text, o.ref || f.ref || '', naKat(), o.kategorie);
+    const m = merkSammeln(erg.text, o.ref || a.ref || '', naKat(), o.kategorie);
     o.merkmale = o.merkmale || {};
     const archiv = {}; naKat().merkmale.forEach(d=>{ if(d.archiviert) archiv[d.id] = 1; });   /* archiviert = wird auch nicht mehr vom Etikett gefüllt */
     (m.merkmale||[]).filter(x=>!archiv[x.id]).forEach(x=>{
@@ -979,30 +1025,24 @@ naAkt('etikett', async ()=>{
   const url = await naDateiAlsDataUrl(f);
   naOcrStand('Etikett wird gelesen … (das dauert einige Sekunden)');
   const teile = []; let hinweis = '';
-  if(!E.obj.gtin){
-    try{
-      const b = await naBarcodeAusBild(url); if(NA_ENTWURF!==E) return;
-      const d = b && b.gtin ? naGtinDoppelt(b.gtin, E.obj.id) : null;
-      if(d) hinweis = ' Achtung: Die GTIN im Barcode gehört schon zu „'+d.name+'".';
-      else if(b && !b.gtin && b.hibc && b.itemRef && !E.obj.ref){ E.obj.ref = b.itemRef; teile.push('REF (HIBC-Code)'); }
-      else if(b && b.gtin){
-        E.obj.gtin = b.gtin; teile.push('GTIN'); if(b.itemRef && !E.obj.ref){ E.obj.ref = b.itemRef; teile.push('REF'); }
-        if(naEinstellung('register', true)){
-          naOcrStand('Barcode gelesen — das EU-Register wird gefragt …');
-          const r = await naRegisterFuellen(E.obj, ()=>NA_ENTWURF===E); if(!r) return;
-          r.neu.forEach(x=>teile.push(x));
-          if(r.status==='treffer') hinweis += ' Quelle: '+naRegisterQuelle(r.treffer.quelle)+'.';
-        }
-      }
-    }catch(e){ /* ohne Barcode weiter mit der Texterkennung */ }
+  let L = null;
+  try{ L = await naEtikettLesen(url, t=>{ if(NA_ENTWURF===E) naOcrStand('Etikett wird gelesen … '+t); }); }
+  catch(e){ hinweis += ' Texterkennung fehlgeschlagen: '+e.message; }
+  if(NA_ENTWURF!==E) return;
+  if(L){
+    const b = L.barcode;
+    /* Barcode zuerst: Er trägt GTIN und manchmal die REF exakt */
+    if(b && b.gtin && !E.obj.gtin){ const d = naGtinDoppelt(b.gtin, E.obj.id);
+      if(d) hinweis += ' Achtung: Die GTIN im Barcode gehört schon zu „'+d.name+'".'; else { E.obj.gtin = b.gtin; teile.push('GTIN'); } }
+    if(b && b.itemRef && !E.obj.ref){ E.obj.ref = b.itemRef; teile.push(b.hibc ? 'REF (HIBC-Code)' : 'REF (Barcode)'); }
+    if(teile.indexOf('GTIN')>=0 && naEinstellung('register', true)){
+      naOcrStand('Barcode gelesen — das EU-Register wird gefragt …');
+      const r = await naRegisterFuellen(E.obj, ()=>NA_ENTWURF===E); if(NA_ENTWURF!==E) return;
+      if(r){ r.neu.forEach(x=>teile.push(x)); if(r.status==='treffer') hinweis += ' Quelle: '+naRegisterQuelle(r.treffer.quelle)+'.'; }
+    }
+    naEtikettUebernehmen(E, L).forEach(x=>{ if(teile.indexOf(x)<0) teile.push(x); });
+    if(L.grad) hinweis += ' Das Etikett lag quer im Bild — gedreht gelesen.';
   }
-  try{
-    naOcrStand('Etikett wird gelesen … Text');
-    const foto = await ocrLeseFotoEinzeln(url, t=>naOcrStand('Etikett wird gelesen … '+t));
-    const erg = ocrZusammenfuehren([foto]);
-    if(NA_ENTWURF!==E) return;
-    naEtikettUebernehmen(E, erg).forEach(x=>{ if(teile.indexOf(x)<0) teile.push(x); });
-  }catch(e){ hinweis += ' Texterkennung fehlgeschlagen: '+e.message; }
   if(NA_ENTWURF!==E) return;
   /* Das Etikettfoto bleibt als Bild erhalten — mit der Rolle „Etikett", damit
      es nicht von allein zum Anzeigebild wird. */

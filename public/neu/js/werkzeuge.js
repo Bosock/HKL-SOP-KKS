@@ -224,6 +224,8 @@ function naSichtMerkmal(mid){
   h += feld('Name', esc(d.label), 'mmName', d.vorgabeLabel ? 'Vorgabe: '+esc(d.vorgabeLabel) : '');
   h += feld('Art', esc(NA_MERKMAL_ARTEN[d.typ]||d.typ||'Text'), eigen ? 'mmArt' : '', eigen ? '' : fest);
   if(d.typ==='mass' || d.typ==='zahl') h += feld('Einheit', d.einheit ? esc(d.einheit) : leer('keine'), eigen ? 'mmEinheit' : '', eigen ? 'steht hinter dem Namen des Felds und hinter dem Wert' : fest);
+  if(d.typ==='mass'){ const art = naMassArt(d); const bsp = { durchmesser:'z. B. 0,035″ = 0,89 mm · 2,7 F', laenge:'z. B. 980 mm = 98 cm', keine:'' }[art];
+    h += feld('Umrechnung', esc(NA_MASS_ARTEN[art]), 'mmMass', (bsp ? esc(bsp)+' · ' : '')+(art!==naMassArtVorgabe(d) ? 'vom Haus festgelegt' : 'Vorgabe')+' · eingetragen wird nur in '+esc(d.einheit||'der Einheit des Merkmals')); }
   h += feld('Hinweis unter dem Feld', d.hinweis ? esc(d.hinweis) : leer('keiner'), 'mmHinweis', '');
   h += feld('Suchwörter', (d.such||[]).length ? esc(d.such.join(', ')) : leer('keine'), 'mmSuch', 'andere Wörter, unter denen man das Merkmal findet');
   const festerPlatz = NA_FESTER_PLATZ.indexOf(d.id)>=0;
@@ -298,6 +300,17 @@ naAkt('mmArt', async d=>{ const def = naMerkmalDef(d.mid); if(!def || !def.eigen
   if(!w || w===def.typ) return;
   naMerkmalAendern(d.mid, 'typ', w, 'Art von „'+def.label+'": '+NA_MERKMAL_KURZ[w]); toast('Art geändert'); naZeigen(); });
 naAkt('mmSuch', async d=>{ await naMerkmalSuchAendern(d.mid); naZeigen(); });
+/* Umrechnung eines Maßes: Durchmesser (mm · Zoll · French), Länge (mm auch in cm) oder keine. */
+naAkt('mmMass', async d=>{ const def = naMerkmalDef(d.mid); if(!def || def.typ!=='mass') return;
+  const jetzt = naMassArt(def), vorgabe = naMassArtVorgabe(def);
+  const opt = (id, ico, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+(jetzt===id ? '●' : ico)+'</span><span>'+esc(NA_MASS_ARTEN[id])+(id===vorgabe ? ' (Vorgabe)' : '')+'<span class="sa-sub">'+sub+'</span></span></button>';
+  const w = await naSheetAuf('<div class="sheet-title">Umrechnung</div><div class="sheet-name">'+esc(def.label)+(def.einheit ? ' ('+esc(def.einheit)+')' : '')+'</div>'
+    + opt('durchmesser', '⌀', 'für Draht-, Katheter-, Schleusen- und Nadeldurchmesser — z. B. 0,035″ = 0,89 mm · 2,7 F; Gauge als Außen-Ø')
+    + opt('laenge', '↔', 'Millimeter zusätzlich in Zentimeter — z. B. 980 mm = 98 cm')
+    + opt('keine', '–', 'z. B. Ballon-, Stent- und Implantatgröße (nur in mm üblich), Druck, Volumen')
+    + '<div class="na-dim">Eingetragen wird immer nur in der Einheit des Merkmals; die Umrechnung steht darunter und in der Ansicht.</div>');
+  if(!w || w===jetzt) return;
+  naMerkmalAendern(d.mid, 'mass', w, 'Umrechnung von „'+def.label+'": '+NA_MASS_ARTEN[w]); toast('Übernommen'); naZeigen(); });
 naAkt('mmPlatz', async d=>{ const def = naMerkmalDef(d.mid); if(!def || NA_FESTER_PLATZ.indexOf(d.mid)>=0) return;
   const g = naKat().global.find(x=>x.mid===d.mid); const jetzt = g ? (g.pflicht ? 'pflicht' : 'freiwillig') : 'aus';
   const opt = (id, ico, name, sub)=>'<button class="sheet-act" data-na="sheetWert" data-wert="'+id+'"><span class="sa-ico">'+(jetzt===id ? '●' : ico)+'</span><span>'+name+'<span class="sa-sub">'+sub+'</span></span></button>';

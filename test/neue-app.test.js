@@ -23,7 +23,8 @@ vm.runInContext(KERN + `
   naKategorieVorschlag, naHerstellerKurz, naPznOk, naRegisterAnwenden, naVerknNormal, naVerknVon, naZubehoerFehlt,
   naVerknUmhaengen, naAngaben, naFehlt, naVariante, NA_VERKN_ARTEN, NA_ERSATZ_SORTEN, NA_LISTEN, naHerstellerImText,
   naMerkmalSuchtext, naFelderMaterial, naMerkmalNutzung, naMerkmalVorschlaege, naTplZuordnen, naTplStumm, naTplKategorieWie,
-  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ, naKameraRang, naKameraReihenfolge, naRahmenImVideo,
+  NA_AUSWEGE, naPflichtFelder, naPflichtStand, naPflichtOffen, naPflichtNachtragen, naPflichtAufraeumen, naSapNorm, naSapDoppelt, naTplGlobal, naParseHIBC, naHibcPruefzeichen, naAuswegUmschalten, naSapZaehlen, naDarfPflicht, NA_FESTER_PLATZ, naKameraRang, naKameraReihenfolge, naRahmenImVideo, naMassUmrechnung, naMassArt, naMassArtVorgabe, naMassZahlen, naTplMerkmalSetzen, NA_GAUGE_MM,
+  naRefKandidaten, naRefEntscheid, naGs1Klartext, naHerstellerAusLesungen, naEtikettAuswerten, naLesungWoerter, naGs1Ausschluss,
   NA_MERKMAL_ARTEN, naMerkmalNutzungAlle, naMerkmalGeaendert, naMerkmalListe, naTplMerkmalSetzen, naTplMerkmalZurueck, naTplMerkmalLoeschen, naTplWert };`, ctx);
 const K = ctx.__K;
 const plain = v => JSON.parse(JSON.stringify(v));
@@ -461,6 +462,102 @@ test('Durchsicht 18.11.: Leerzeichen als HIBC-Prüfzeichen, Katalog ohne Quelle,
   K.naAuswegUmschalten(o, 'ref', 'unbekannt'); assert.equal('pflicht' in o, false);
   const z = K.naSapZaehlen([{ sap:'000123' }, { sap:'123' }, { sap:'9' }, {}]);
   assert.equal(z.get('123'), 2); assert.equal(z.get('9'), 1); assert.equal(z.size, 2);
+});
+
+test('Etikett: REF aus den Lesungen — Kästchen in vielen Formen, LOT/GTIN/PZN nie, O/0 und Bruchstücke', () => {
+  /* Lesungen wie an den echten Fotos vom 19.11.2026 (gekürzt) */
+  const L = (quelle, text, woerter) => ({ quelle, text, confidence: 70, words: (woerter || []).map(([t, c]) => ({ text: t, conf: c })) });
+  const ref = les => plain(K.naEtikettAuswerten(les, {}));
+  /* B. Braun: „\REF|4606027V", LOT darüber, GTIN darunter */
+  let a = ref([L('voll', 'LoTj26G06¢8\n\\REF|4606027V\nGTIN:04022495250810'), L('fein', 'LOT] 26G06CS\nREF|4606027V\nGTIN:04022495250810')]);
+  assert.equal(a.ref, '4606027V'); assert.equal(a.sicher, true);
+  /* „Red 8255253" — das Kästchen als „Red" gelesen; PZN und GTIN zählen nicht */
+  a = ref([L('voll', 'Red 8255253      fa\nPZN 06100470\nGTIN: 04022495134851'), L('fein', 'Red 8255253\nlot] 26BO4E8SM3'), L('kontrast', 'Red 8255253 Co')]);
+  assert.equal(a.ref, '8255253');
+  /* Boston Scientific: „Catalog No." — die Nummer zwei Zeilen tiefer; „MOO4E P T4500T HK20" in Bruchstücken mit O statt 0 */
+  a = ref([L('voll', 'GTIN\nCatalog No.\nLS\n08714729268406\nM004EPT4500THK20'), L('fein', '(REF) MOO4E P T4500T HK20\n(107) 38686331'), L('kontrast', 'MOO4EP T4S00THK20')]);
+  assert.equal(a.ref, 'M004EPT4500THK20');
+  /* Coro-Set: „BR REF: 104 042" einmal (falsch gelesen), „194042" viermal — die häufigere Schreibweise gewinnt */
+  a = ref([L('voll', 'CE GR Medical 194042\nBR REF: 104 042\nae 194042\nwr 194042'), L('fein', 'F 194042   JANG) ORARE')]);
+  assert.equal(a.ref, '194042');
+  /* Abbott: „REF] | 407207   INH" — kein Zusammenziehen mit einem Buchstabenrest */
+  a = ref([L('voll', '407207      [LRA'), L('fein', 'REF] | 407207     INH'), L('ref', '407207   ETT')]);
+  assert.equal(a.ref, '407207');
+  /* Fremdtext: „型号规格见 REF" → „IER" ist keine REF (keine Ziffer) */
+  a = ref([L('voll', 'Original Perfusor\n8728810F-06   fs\n26F22D8002\nPIN 14362391\nIER ©) mammm')]);
+  assert.notEqual(a.ref, 'IER'); assert.ok(a.vorschlaege.indexOf('IER') < 0);
+  /* … die LOT aus dem Barcode desselben Fotos scheidet aus — die REF wird erster Vorschlag */
+  a = plain(K.naEtikettAuswerten([L('voll', '8728810F-06   fs\n26F22D8002\nPIN 14362391'), L('fein', '§728810F-06 [i\n26F22D8002')], { ausschliessen: ['26F22D8002'] }));
+  assert.equal(a.vorschlaege[0], '8728810F-06'); assert.ok(a.vorschlaege.indexOf('26F22D8002') < 0 && a.vorschlaege.indexOf('14362391') < 0);
+  /* Produktfoto ohne Etikett: nichts eintragen */
+  a = ref([L('voll', '4 | rr, |    ig a | 4 ot\nEL\n18HWR\n1 Jf:')]);
+  assert.equal(a.ref, '');
+  /* GS1-Klartext: (240) ist die REF, (01) die GTIN */
+  assert.deepEqual(plain(K.naGs1Klartext('(240)194042(10)2630380067')), { gtin:'', ref:'194042' });
+  assert.equal(K.naGs1Klartext('(01) 0 4547327 13301 2 (17) 290430').gtin, '04547327133012');
+  a = ref([L('voll', '(240)194042(10)2630380067\nREF 999')]); assert.equal(a.ref, '194042');
+  /* LOT und Seriennummer aus dem Barcode — nur zum Ausschließen, nie gespeichert (naParseGS1 liefert sie nicht) */
+  assert.deepEqual(plain(K.naGs1Ausschluss('(01)04046964607417(17)310601(10)26F22D8002')), ['26F22D8002']);
+  assert.deepEqual(plain(K.naGs1Ausschluss('\u001d0104046964607417172810311026F22D8002\u001d21SN12345')), ['26F22D8002', 'SN12345']);
+  assert.deepEqual(plain(K.naParseGS1('(01)04046964607417(17)310601(10)26F22D8002')), { gtin:'04046964607417', itemRef:'' });
+});
+
+test('Etikett: Hersteller — bekannte Hersteller mit Logo-Lesefehlern, Liste des Hauses, Fremdzeilen zählen nicht', () => {
+  const L = (text) => ({ quelle: 'voll', text, words: [] });
+  const haus = [{ id:'h1', name:'B|BRAUN' }, { id:'h2', name:'B. Braun Melsungen', amtlich:'B. Braun Melsungen AG', srn:'DE-MF-000000201' }, { id:'h3', name:'Cordis US' }];
+  let h = plain(K.naHerstellerAusLesungen([L('5IBRAUN BIBRAUN Bion .\nRed 8255253')], haus));
+  assert.equal(h.name, 'B. Braun'); assert.equal(h.id, 'h2');                                   /* doppelt in der Liste → der mit Registriernummer */
+  h = plain(K.naHerstellerAusLesungen([L('Cordis US Corp.\n14201 North West 60th Avenue')], haus)); assert.equal(h.id, 'h3');
+  h = plain(K.naHerstellerAusLesungen([L('Boston Scientuhic\nBoston Scientific')], []));
+  assert.deepEqual([h.name, h.quelle, h.amtlich], ['Boston Scientific', 'bekannt', 'Boston Scientific Corporation']);
+  /* „Manufacturing Site", „Assembled and sterilized by", Vertrieb: nicht der Hersteller */
+  h = plain(K.naHerstellerAusLesungen([L('Manufacturing Site: ALMO-Erzeugnisse Erwin Busch GmbH\nAssembled and sterilized by Lohmann & Rauscher\nB. Braun Melsungen AG')], []));
+  assert.equal(h.name, 'B. Braun');
+  assert.equal(K.naHerstellerAusLesungen([L('Assembled and sterilized by Lohmann & Rauscher International GmbH')], []), null);
+  /* Hersteller aus der GS1-Firmennummer: derselbe Hersteller zweimal in der Liste ist trotzdem eindeutig */
+  const m = [{ id:'m1', gtin:'04022495787309', hersteller:'h1' }, { id:'m2', gtin:'04022495250810', hersteller:'h2' }];
+  assert.equal(plain(K.naHerstellerAusGtin(m, '04022495134851', haus)).hersteller, 'h2');
+  assert.equal(K.naHerstellerAusGtin(m, '04022495134851'), null);                                /* ohne Liste: zwei Namen → keine Aussage */
+  /* Lage: aufrecht viele sicher gelesene Wörter, quer kaum welche */
+  assert.equal(K.naLesungWoerter([{ quelle:'voll', words:[{ text:'Catheter', conf:91 }, { text:'Sheath', conf:88 }, { text:'xx', conf:99 }, { text:'Introducer', conf:40 }] }]), 2);
+});
+
+test('Maße umrechnen: Durchmesser mm · Zoll · French, Gauge als Außen-Ø, Länge mm → cm', () => {
+  const def = id => KAT.merkmale.find(d => d.id === id);
+  const u = (id, v) => K.naMassUmrechnung(def(id), v);
+  /* Durchmesser — die üblichen Größen */
+  assert.equal(u('draht_in', '0,035'), '0,89 mm · 2,7 F');
+  assert.equal(u('draht_max_in', '.038'), '0,97 mm · 2,9 F');
+  assert.equal(u('draht_in', '0,014'), '0,36 mm · 1,1 F');
+  assert.equal(u('schleuse_fr', '9'), '3 mm · 0,118″');
+  assert.equal(u('ad_fr', '6'), '2 mm · 0,079″');
+  assert.equal(u('id_mm', '1,4'), '0,055″ · 4,2 F');                 /* Innen-Ø: nicht aufgerundet (5 F passte nicht) */
+  assert.equal(u('nadel_g', '18'), '1,27 mm · 0,050″ · 3,8 F (Außen-Ø)');
+  assert.equal(u('nadel_g', '17,5'), '');                             /* Gauge gibt es nur ganzzahlig */
+  assert.equal(u('ad_fr', '5–6'), '1,67–2 mm · 0,066–0,079″');        /* Bereich */
+  assert.equal(u('draht_in', '0,89 mm'), '0,035″ · 2,7 F');           /* Einheit im Wert gewinnt */
+  /* Länge: nur mm → cm */
+  assert.equal(u('nadel_laenge_mm', '980'), '98 cm');
+  assert.equal(u('spitze_mm', '8'), '0,8 cm');
+  assert.equal(u('nutzlaenge_cm', '110'), '');
+  /* nicht umrechnen: Ballon-, Stent-, Implantatgröße; andere Einheiten */
+  ['ballon_mm', 'stent_mm', 'implantat_mm', 'np_atm', 'volumen_ml'].forEach(id => assert.equal(u(id, '3'), '', id));
+  assert.equal(u('draht_in', ''), ''); assert.equal(u('draht_in', 'unbekannt'), '');
+  /* Gauge-Tabelle: Nenn-Außendurchmesser nach ISO 9626 */
+  assert.equal(K.NA_GAUGE_MM[21], 0.819); assert.equal(K.NA_GAUGE_MM[18], 1.27);
+  /* eigene Merkmale: aus Einheit und Name */
+  const eigen = (label, einheit) => K.naMassArtVorgabe({ id:'x', typ:'mass', label, einheit });
+  assert.equal(eigen('Dilatator-Innendurchmesser', 'mm'), 'durchmesser');
+  assert.equal(eigen('Katheterlänge', 'mm'), 'laenge');
+  assert.equal(eigen('Elektrodenabstand', 'mm'), 'keine');
+  assert.equal(eigen('Profil', 'F'), 'durchmesser');
+  /* das Haus legt fest — und holt die Vorgabe zurück */
+  let tpl = K.naTplMerkmalSetzen({}, KAT, 'kurvenradius_mm', 'mass', 'laenge');
+  assert.equal(tpl.merkmale.kurvenradius_mm.mass, 'laenge');
+  assert.equal(K.naMassArt(K.naKatalog(KAT, tpl).merkmale.find(d => d.id === 'kurvenradius_mm')), 'laenge');
+  assert.equal(K.naMassUmrechnung(K.naKatalog(KAT, tpl).merkmale.find(d => d.id === 'kurvenradius_mm'), '50'), '5 cm');
+  tpl = K.naTplMerkmalSetzen(tpl, KAT, 'kurvenradius_mm', 'mass', 'keine');
+  assert.equal(tpl.merkmale && tpl.merkmale.kurvenradius_mm, undefined);   /* gleich der Vorgabe → keine Abweichung */
 });
 
 test('Kamera zum Barcode-Lesen: virtuelle iPhone-Kamera, Android-Hauptkamera; nie die Frontkamera', () => {

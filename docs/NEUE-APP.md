@@ -1,6 +1,6 @@
 # Die neue App im Neuaufbau
 
-**Stand:** 19.11.2026 · Cache-Version `v88` · Code: `public/neu/`
+**Stand:** 19.11.2026 · Cache-Version `v90` · Code: `public/neu/`
 
 **Kurz:** Im Raum **Neuaufbau** läuft jetzt eine **neu gebaute App** mit einer
 einfachen, durchgängigen Verwaltung. Der **Bestand** (die App im Labor) ist
@@ -166,6 +166,37 @@ egal in welchem Bereich, steht oben in der Maske und wird zuerst beantwortet:
   Ja/Nein-Merkmale gehen nur freiwillig (ein leeres Häkchen hieße sonst
   „nicht beantwortet" statt „nein"); Steril · Einmal · Latex und die
   Packungsgröße haben ihren festen Platz.
+
+**Maßangaben umgerechnet** (seit 19.11.2026). Eingetragen wird nur in der
+Einheit des Merkmals; darunter (live beim Tippen), in der Ansicht und in der
+Suche stehen die anderen Einheiten. Gespeichert wird nichts doppelt — die
+Umrechnung entsteht beim Anzeigen (`naMassUmrechnung`, kern.js).
+
+| Art des Maßes | eingetragen | angezeigt |
+|---|---|---|
+| Durchmesser (Draht, Katheter, Schleuse, Nadel) | 0,035 in | = 0,89 mm · 2,7 F |
+| | 9 F | = 3 mm · 0,118″ |
+| | Innen-Ø 1,4 mm | = 0,055″ · 4,2 F |
+| | 18 G | = 1,27 mm · 0,050″ · 3,8 F (Außen-Ø) |
+| Länge in mm | 980 mm | = 98 cm |
+| nicht umrechnen | Ballon 3,0 mm, 260 cm, 20 atm | — |
+
+- 1 F = 1/3 mm Durchmesser, 1″ = 25,4 mm. Genauigkeit wie im Fach üblich:
+  mm zwei Stellen, Zoll drei (0,035″), French eine (2,7 F). Ganzzahlig
+  gerundet wird bewusst nicht: Bei Innenmaßen führte Aufrunden in die
+  falsche Richtung (1,4 mm = 4,2 F — „5 F" passte nicht durch).
+- Gauge ist nicht linear: Nenn-**Außen**durchmesser nach Tabelle (ISO 9626,
+  10–30 G). Über den Innen-Ø sagt Gauge nichts (Wandstärke) — dafür gibt es
+  „Innendurchmesser" bzw. „Max. Drahtdurchmesser".
+- Ballon-, Stent- und Implantatgrößen gibt man nur in mm an; sie werden nicht
+  umgerechnet. cm-Längen bleiben, wie sie sind.
+- Welche Art ein Merkmal hat, steht auf seiner Seite (Listen-Verzeichnis →
+  Merkmale → „Umrechnung") und ist dort änderbar (Grundsatz A7). Mitgelieferte
+  Merkmale sind fest zugeordnet, eigene werden aus Einheit und Name erkannt
+  (F, Zoll, G → Durchmesser; cm → Länge; mm je nach Name, sonst keine).
+- Bereiche („5–6 F") und eine Einheit im Wert („0,89 mm" in einem Zoll-Feld)
+  werden berücksichtigt. „Passt durch" (Draht durch Schleuse/Kanüle) ist
+  bewusst noch nicht gebaut.
 
 **Kamera zum Barcode-Scannen** (seit 19.11.2026). Handys haben hinten oft
 mehrere Kameras. „Hintere Kamera" überließ die Wahl dem Browser — und der nahm
@@ -530,11 +561,12 @@ das.
 
 ## 5. Geprüft
 
-- `npm test`: 1158 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
+- `npm test`: 1161 Tests grün, davon 6 in `test/aufbau.test.js` (Aufbereitung des
   Bestands mit allen Arten von Labor-Änderungen, Suche, Einfügen an jedem Ziel,
-  Material nur als Hülle, ✓ „schon übernommen"), 39 in `test/neue-app.test.js` (Logik,
+  Material nur als Hülle, ✓ „schon übernommen"), 42 in `test/neue-app.test.js` (Logik,
   Bild-Regeln, Kategorie-Vorschlag, Verknüpfungen, Vollständigkeit, PZN,
-  Pflichtangaben, SAP-Nummer, HIBC,
+  Pflichtangaben, SAP-Nummer, HIBC, Maß-Umrechnung, Kamerawahl, Etikett-Auswertung
+  mit Lesungen echter Fotos,
   Umleitung nur im Neuaufbau) und 16 in `test/register.test.js`
   (Register-Abfrage gegen eine Attrappe, die auch die gemessenen Störungen
   der EU-Schnittstelle nachstellt — der Test geht nie ins Internet).
@@ -549,6 +581,9 @@ das.
   aufnehmen, drehen, zuschneiden (Maße des abgelegten Bildes), Anzeigebild
   nach Regel und nach Wahl, Original zurück, Bild an der Zeile im Standard,
   Großansicht, ältere Einträge, Etikettfoto mit Rolle „Etikett".
+- `node e2e/neue-app-masse.js` prüft 18 Punkte an der Maß-Umrechnung: live
+  beim Tippen, gespeicherter Wert unverändert, Ansicht, Suche über die
+  Umrechnung, Gauge/French/Länge/Ballon, Art auf der Merkmal-Seite ändern.
 - `node e2e/neue-app-kamera.js` prüft 22 Punkte an der Kamera zum
   Barcode-Scannen mit nachgebildeten Kameras (Namen wie auf iPhone und
   Android, Autofokus, Zoom, Licht): Wahl, Wechseln, Merken, Vergessen,
@@ -628,7 +663,52 @@ keine Bedienzeiten eines Menschen. Am 10.11.2026 abends antwortete EUDAMED
 „nicht erreichbar", der zweite 0,5 s (Pause für das ausgefallene Register);
 die GTIN war in beiden Fällen übernommen, die Maske blieb bedienbar.
 
-**Etikett lesen an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
+**Etikett lesen an 25 echten Fotos aus dem Neuaufbau (19.11.2026).** Die
+Texterkennung selbst (`ocr.js`, Tesseract auf dem Gerät) teilt sich die neue
+App mit dem Bestand und ist unverändert. Neu ist der Ablauf darum herum
+(`stamm.js` naEtikettLesen, `kern.js` naEtikettAuswerten):
+
+1. **Barcode im Foto zuerst:** GTIN, REF (GS1 240 / HIBC) — und die
+   Charge/Seriennummer, die damit sicher **nicht** die REF ist (nur zum
+   Ausschließen, nie gespeichert, A2).
+2. **Quer liegendes Etikett:** Liest die Engine kaum ein Wort sicher (< 5),
+   wird das Foto um 90° und 270° gedreht und nachgelesen.
+3. **REF mit Gründen:** Jede Nummer ist ein Kandidat — Kästchen davor (auch
+   „REF]", „\REF|", „Red", „Catalog No." bis drei Zeilen davor), Form
+   (Ziffern und Buchstaben), in mehreren Lesungen gleich, sicher gelesen.
+   Ausgeschlossen: Werte hinter LOT/SN/GTIN/PZN (auch „PIN"), Daten, Maße,
+   GS1-Klartext, CE-Nummern, Wörter. Varianten werden zusammengeführt (O/0,
+   ein fehlendes Randzeichen, zerfallene Nummer hinter dem Kästchen). „(240)"
+   im Klartext ist die REF. Eingetragen wird nur bei reichen Belegen, sonst
+   als Vorschlag zum Antippen.
+4. **Hersteller:** Liste des Hauses und ~45 bekannte Hersteller mit den
+   Lesefehlern ihrer Logos (B|BRAUN → „BIBRAUN", „5IBRAUN"); große Schrift
+   und Wiederholung gewinnen; Zeilen zu Fertigung, Montage/Sterilisation,
+   Vertrieb, Bevollmächtigten zählen nicht. Ein bekannter Hersteller, der
+   noch nicht in der Liste steht, wird angelegt. Findet sich nichts, verrät
+   die GS1-Firmennummer der GTIN den Hersteller (andere Materialien desselben
+   Herstellers; doppelte Listeneinträge wie „B|BRAUN" / „B. Braun Melsungen"
+   gelten als einer).
+
+Wahrheit von Hand geprüft (`e2e/daten/etiketten-wahrheit.json`); gemessen mit
+`node e2e/messen-etiketten.js` (ohne Register — das kommt im Betrieb mit der
+GTIN dazu):
+
+| 25 Fotos, 15 davon mit REF | bisher | neu |
+|---|---|---|
+| REF richtig eingetragen | 7 / 15 | **13 / 15** |
+| REF als erster Vorschlag | 3 | 1 |
+| REF **falsch** eingetragen | 2 | **0** |
+| falsche REF auf Produktfotos (ohne Etikett) | 0–1 | **0** |
+| Hersteller richtig | 10 / 15 | **12 / 15** |
+
+Zeit je Foto am Rechner im Mittel 4 s (Handy langsamer). **Grenzen:** Ein
+kleines, quer und in Grün gedrucktes Etikett (Vygon) liest die Engine auch
+gedreht nicht — dort helfen Barcode und Register. Ein Logo in Umrissschrift
+(Angiokard) wird nicht gelesen. Bei der Perfusorspritze steht die REF nur als
+erster Vorschlag da (ohne lesbares Kästchen reichen die Belege nicht).
+
+**Frühere Messung an zehn echten Fotos vom Server (11.11.2026).** Wahrheit:
 REF und Hersteller aus EUDAMED, bei zwei Produkten ohne Registereintrag vom
 Etikett abgelesen.
 
