@@ -12,7 +12,8 @@ im Code, nie eine Ausnahme.
 
 **Wer entscheidet.** Teil A gehört dem Haus. Nur der Auftraggeber ändert Teil A.
 Teil B ist Handwerk; Vorschläge dazu sind willkommen, brauchen aber eine
-Begründung im Dokument.
+Begründung im Dokument. Teil D (Arbeitsweise) und ⑫ (kein neues Menü je Wunsch)
+hat der Auftraggeber festgelegt.
 
 Zwei der Regeln werden inzwischen **maschinell** überwacht — `npm run check` bricht
 ab, wenn sie verletzt werden (siehe [Teil C](#teil-c--was-die-maschine-prüft)).
@@ -401,6 +402,62 @@ Dazu gehört: Ein geteilter Schlüssel wird als **JSON** gespeichert
 (`saveJSON`). Der Abgleich schickt nur, was sich als JSON lesen lässt — ein roher
 Text bliebe still auf dem einen Gerät liegen.
 
+### ⑫ Kein neues Menü je Wunsch
+
+> „Keine neuen Menüs für jede Funktion — Neues passt in die vorhandenen Orte
+> und ist vom Haus einstellbar." (Auftraggeber, November 2026)
+
+**Die Regel.** Eine neue Funktion bekommt **keinen eigenen Menüpunkt, keine
+eigene Maske und keine eigene Liste**, solange sie sich an einen vorhandenen
+Ort fügen lässt. Ein neuer Menüpunkt braucht die ausdrückliche Zustimmung des
+Auftraggebers.
+
+**Warum.** Die Verwaltungsanalyse vom 06.11.2026 fand in der alten App rund 28
+erweiterbare Listen an etwa 45 Anlegestellen, mehrere Masken für dasselbe
+Material, drei Bildorte und keinen Ort, an dem man Angelegtes wiederfindet —
+gewachsen Wunsch für Wunsch. Jeder einzelne Menüpunkt war vernünftig; zusammen
+machten sie die Verwaltung unbedienbar. Deshalb entstand die neue App.
+
+**Prüfliste für jede neue Funktion** (in dieser Reihenfolge):
+
+1. Ist es eine **Angabe an einer Sache**? → ein Feld oder **Merkmal** in der
+   vorhandenen Maske (Material, Gerät, Medikament, Standard).
+2. Ist es eine **Auswahl**? → das eine Auswahlfeld (suchen · wählen · an Ort und
+   Stelle anlegen, mit Doppelungsprüfung); die Liste steht im **Listen-Verzeichnis**.
+3. Ist es eine **Arbeitsliste** („was fehlt noch")? → ein **Filter** im
+   vorhandenen Verzeichnis, nicht eine neue Seite.
+4. Ist es eine **Einstellung**? → auf der Seite des Dings, das sie betrifft
+   (z. B. Seite des Merkmals), sonst unter Einstellungen.
+5. Ist es eine **Handlung an einer Sache**? → das eine Bearbeiten-Menü dieser
+   Sache (⑥).
+6. Passt nichts davon → Vorschlag mit Begründung an den Auftraggeber, **nicht**
+   bauen.
+
+**Beispiele, wie es gelebt wird** (neue App, November 2026): Merkmale,
+Pflichtangaben, SAP-Nummer, Maß-Umrechnung, Kamerawahl und „Aufbau aus dem
+Bestand" kamen ohne einen einzigen neuen Menüpunkt aus — Material-Maske,
+Listen-Verzeichnis, Seite des Merkmals, Einstellungen.
+
+**Verstoß erkennt man an.** Einem neuen Eintrag unter „Mehr", einer neuen
+Karte in der Verwaltung, einer zweiten Maske für eine Sache, die schon eine hat,
+oder einer Liste, die nicht im Listen-Verzeichnis steht.
+
+### ⑬ Fachbegriffe der neuen App
+
+Damit Gespräch, Bedienung und Code dieselbe Sprache sprechen:
+
+- **Kategorie** — die Art eines Materials (Schleuse, Führungsdraht …); sie
+  bestimmt, welche Merkmale erscheinen. Nicht „Klasse", nicht „Typ".
+- **Merkmal** — eine Angabe an einem Material (French, Länge, steril …). Nicht
+  „Eigenschaft", nicht „Attribut".
+- **Pflichtangabe** — muss bei jedem Material **beantwortet** werden: mit einem
+  Wert oder ehrlich mit „gibt es nicht", „unbekannt" oder „nachtragen". Nie
+  erzwungen raten (①).
+- **Unbestätigt / bestätigt** — was aus einem Register oder vom Etikett kommt,
+  ist unbestätigt, bis ein Mensch speichert (A5, ③).
+- **Bestand / Neuaufbau** — die App im Labor / der zweite Raum, in dem Neues
+  entsteht (⑩).
+
 ---
 
 ## Teil C — Was die Maschine prüft
@@ -436,6 +493,36 @@ Bezeichnung):
 ```js
 /* fachwort:ok — Begründung in einem Satz */
 ```
+
+---
+
+## Teil D — Wie gearbeitet wird (Entwickler und KI)
+
+Diese Regeln galten bisher nur im Gespräch. Sie gelten für jeden, der an der App
+arbeitet — Mensch oder KI-Assistent.
+
+1. **Am Live-Bestand wird nichts geändert.** Was im Labor läuft (`public/js`,
+   `public/index.html`, seine Daten), bleibt funktional unverändert. Neues
+   entsteht im Neuaufbau (`public/neu/`, ⑩). Geteilter Code (z. B. `ocr.js`)
+   wird nicht angefasst; Verbesserungen kommen als eigene Schicht in den
+   Neuaufbau.
+2. **Der Live-Schalter gehört dem Auftraggeber.** Niemand sonst — und nie eine
+   KI — schaltet um. Der Live-Server (sops.kardio.wiki) wird von außen nur
+   **gelesen** (GET); geschrieben wird dort nie.
+3. **Erst Konzept, dann Freigabe, dann bauen.** Bei neuen Funktionen und
+   größeren Umbauten: verstehen → Konzept mit Optionen und Empfehlung →
+   ausdrückliche Freigabe des Auftraggebers → bauen. Fehler in gerade freigegebener
+   Arbeit werden ohne neue Freigabe behoben; Funde in älteren Teilen werden
+   berichtet, nicht still repariert.
+4. **Pull Requests nur als Entwurf; zusammenführen tut der Auftraggeber.**
+5. **Messen statt behaupten.** Eine Verbesserung gilt erst, wenn sie gemessen ist
+   (vorher/nachher, an echten Daten wo möglich), und das Ergebnis steht in der
+   Doku — auch, was nicht geklappt hat (⑨).
+6. **Vor jedem Push grün:** `npm run check`, `npm test` und die betroffenen
+   Suiten unter `e2e/`; Cache-Version in `public/sw.js` erhöhen, wenn sich
+   ausgelieferte Dateien ändern; `docs/NEUE-APP.md` nachziehen.
+7. **Keine Patientendaten, keine Charge, kein Verfall** — auch nicht in Tests,
+   Messständen oder Fotos im Repository (A1, A2).
 
 ---
 
